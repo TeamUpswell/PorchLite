@@ -1,0 +1,20 @@
+.calendarWrapper {
+  height: 700px;
+  position: relative;
+  z-index: 10;
+}
+
+.calendarContainer {
+  height: 100%;
+}
+
+.todayCell {
+  background-color: rgba(219, 234, 254, 1); /* bg-blue-50 */
+}
+
+.eventStyle {
+  background-color: rgba(59, 130, 246, 1); /* bg-blue-500 */
+  color: white;
+  border: none;
+  border-radius: 0.125rem;
+}

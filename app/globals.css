@@ -1,0 +1,80 @@
+/* app/globals.css - Simplified version */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Basic styles */
+body {
+  @apply bg-gray-100 text-gray-900;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  @apply font-bold;
+}
+
+a {
+  @apply text-blue-600 hover:text-blue-800;
+}
+
+input,
+textarea {
+  @apply border border-gray-300 rounded-md p-2;
+}
+
+.card {
+  @apply bg-white shadow-md rounded-lg p-4;
+}
+
+/* Fix light text in form elements */
+select, input, textarea {
+  @apply text-gray-900;
+}
+
+select option {
+  @apply text-gray-900 bg-white;
+}
+
+/* Dark mode - simplified */
+.dark body {
+  @apply bg-gray-900 text-gray-100;
+}
+
+.dark .card {
+  @apply bg-gray-800 text-gray-100;
+}
+
+.dark input,
+.dark textarea {
+  @apply bg-white text-gray-900 border-gray-300;
+}
+
+.dark a {
+  @apply text-blue-400 hover:text-blue-300;
+}
+
+/* Dark mode adjustments */
+.dark select, .dark input, .dark textarea {
+  @apply text-gray-100 bg-gray-800;
+}
+
+.dark select option {
+  @apply text-gray-100 bg-gray-800;
+}
+
+/* Navigation specific */
+.dark nav,
+.dark .sidebar,
+.dark .header {
+  @apply text-gray-100;
+}
+
+.dark nav button,
+.dark .sidebar button,
+.dark .header button {
+  @apply text-gray-100 hover:text-white;
+}

@@ -1,0 +1,2804 @@
+[
+  {
+    "table_name": "checklist_items",
+    "column_name": "id",
+    "data_type": "uuid",
+    "is_nullable": "NO",
+    "column_default": "uuid_generate_v4()"
+  },
+  {
+    "table_name": "checklist_items",
+    "column_name": "checklist_id",
+    "data_type": "uuid",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "checklist_items",
+    "column_name": "description",
+    "data_type": "text",
+    "is_nullable": "NO",
+    "column_default": null
+  },
+  {
+    "table_name": "checklist_items",
+    "column_name": "item_order",
+    "data_type": "integer",
+    "is_nullable": "NO",
+    "column_default": null
+  },
+  {
+    "table_name": "checklist_items",
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone",
+    "is_nullable": "YES",
+    "column_default": "now()"
+  },
+  {
+    "table_name": "checklist_items",
+    "column_name": "updated_at",
+    "data_type": "timestamp with time zone",
+    "is_nullable": "YES",
+    "column_default": "now()"
+  },
+  {
+    "table_name": "checklists",
+    "column_name": "id",
+    "data_type": "uuid",
+    "is_nullable": "NO",
+    "column_default": "uuid_generate_v4()"
+  },
+  {
+    "table_name": "checklists",
+    "column_name": "name",
+    "data_type": "text",
+    "is_nullable": "NO",
+    "column_default": null
+  },
+  {
+    "table_name": "checklists",
+    "column_name": "description",
+    "data_type": "text",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "checklists",
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone",
+    "is_nullable": "YES",
+    "column_default": "now()"
+  },
+  {
+    "table_name": "checklists",
+    "column_name": "updated_at",
+    "data_type": "timestamp with time zone",
+    "is_nullable": "YES",
+    "column_default": "now()"
+  },
+  {
+    "table_name": "checklists",
+    "column_name": "property_id",
+    "data_type": "uuid",
+    "is_nullable": "NO",
+    "column_default": null
+  },
+  {
+    "table_name": "cleaning_checklist_items",
+    "column_name": "id",
+    "data_type": "uuid",
+    "is_nullable": "NO",
+    "column_default": null
+  },
+  {
+    "table_name": "cleaning_checklist_items",
+    "column_name": "checklist_id",
+    "data_type": "uuid",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "cleaning_checklist_items",
+    "column_name": "title",
+    "data_type": "text",
+    "is_nullable": "NO",
+    "column_default": null
+  },
+  {
+    "table_name": "cleaning_checklist_items",
+    "column_name": "description",
+    "data_type": "text",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "cleaning_checklist_items",
+    "column_name": "order_index",
+    "data_type": "integer",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "cleaning_checklist_items",
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone",
+    "is_nullable": "YES",
+    "column_default": "now()"
+  },
+  {
+    "table_name": "cleaning_checklists",
+    "column_name": "id",
+    "data_type": "uuid",
+    "is_nullable": "NO",
+    "column_default": null
+  },
+  {
+    "table_name": "cleaning_checklists",
+    "column_name": "name",
+    "data_type": "text",
+    "is_nullable": "NO",
+    "column_default": null
+  },
+  {
+    "table_name": "cleaning_checklists",
+    "column_name": "description",
+    "data_type": "text",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "cleaning_checklists",
+    "column_name": "created_by",
+    "data_type": "uuid",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "cleaning_checklists",
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone",
+    "is_nullable": "YES",
+    "column_default": "now()"
+  },
+  {
+    "table_name": "cleaning_checklists",
+    "column_name": "property_id",
+    "data_type": "uuid",
+    "is_nullable": "NO",
+    "column_default": null
+  },
+  {
+    "table_name": "cleaning_issues",
+    "column_name": "id",
+    "data_type": "uuid",
+    "is_nullable": "NO",
+    "column_default": "uuid_generate_v4()"
+  },
+  {
+    "table_name": "cleaning_issues",
+    "column_name": "property_id",
+    "data_type": "uuid",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "cleaning_issues",
+    "column_name": "description",
+    "data_type": "text",
+    "is_nullable": "NO",
+    "column_default": null
+  },
+  {
+    "table_name": "cleaning_issues",
+    "column_name": "severity",
+    "data_type": "character varying",
+    "is_nullable": "NO",
+    "column_default": null
+  },
+  {
+    "table_name": "cleaning_issues",
+    "column_name": "location",
+    "data_type": "character varying",
+    "is_nullable": "NO",
+    "column_default": null
+  },
+  {
+    "table_name": "cleaning_issues",
+    "column_name": "photo_urls",
+    "data_type": "ARRAY",
+    "is_nullable": "YES",
+    "column_default": "'{}'::text[]"
+  },
+  {
+    "table_name": "cleaning_issues",
+    "column_name": "reported_by",
+    "data_type": "uuid",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "cleaning_issues",
+    "column_name": "reported_at",
+    "data_type": "timestamp with time zone",
+    "is_nullable": "YES",
+    "column_default": "now()"
+  },
+  {
+    "table_name": "cleaning_issues",
+    "column_name": "is_resolved",
+    "data_type": "boolean",
+    "is_nullable": "YES",
+    "column_default": "false"
+  },
+  {
+    "table_name": "cleaning_issues",
+    "column_name": "resolved_by",
+    "data_type": "uuid",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "cleaning_issues",
+    "column_name": "resolved_at",
+    "data_type": "timestamp with time zone",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "cleaning_issues",
+    "column_name": "notes",
+    "data_type": "text",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "cleaning_room_types",
+    "column_name": "id",
+    "data_type": "uuid",
+    "is_nullable": "NO",
+    "column_default": "uuid_generate_v4()"
+  },
+  {
+    "table_name": "cleaning_room_types",
+    "column_name": "property_id",
+    "data_type": "uuid",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "cleaning_room_types",
+    "column_name": "name",
+    "data_type": "character varying",
+    "is_nullable": "NO",
+    "column_default": null
+  },
+  {
+    "table_name": "cleaning_room_types",
+    "column_name": "slug",
+    "data_type": "character varying",
+    "is_nullable": "NO",
+    "column_default": null
+  },
+  {
+    "table_name": "cleaning_room_types",
+    "column_name": "icon",
+    "data_type": "character varying",
+    "is_nullable": "YES",
+    "column_default": "'Home'::character varying"
+  },
+  {
+    "table_name": "cleaning_room_types",
+    "column_name": "created_by",
+    "data_type": "uuid",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "cleaning_room_types",
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone",
+    "is_nullable": "YES",
+    "column_default": "now()"
+  },
+  {
+    "table_name": "cleaning_room_types",
+    "column_name": "updated_at",
+    "data_type": "timestamp with time zone",
+    "is_nullable": "YES",
+    "column_default": "now()"
+  },
+  {
+    "table_name": "cleaning_tasks",
+    "column_name": "id",
+    "data_type": "uuid",
+    "is_nullable": "NO",
+    "column_default": "uuid_generate_v4()"
+  },
+  {
+    "table_name": "cleaning_tasks",
+    "column_name": "property_id",
+    "data_type": "uuid",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "cleaning_tasks",
+    "column_name": "room",
+    "data_type": "character varying",
+    "is_nullable": "NO",
+    "column_default": null
+  },
+  {
+    "table_name": "cleaning_tasks",
+    "column_name": "task",
+    "data_type": "character varying",
+    "is_nullable": "NO",
+    "column_default": null
+  },
+  {
+    "table_name": "cleaning_tasks",
+    "column_name": "is_completed",
+    "data_type": "boolean",
+    "is_nullable": "YES",
+    "column_default": "false"
+  },
+  {
+    "table_name": "cleaning_tasks",
+    "column_name": "completed_by",
+    "data_type": "uuid",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "cleaning_tasks",
+    "column_name": "completed_at",
+    "data_type": "timestamp with time zone",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "cleaning_tasks",
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone",
+    "is_nullable": "YES",
+    "column_default": "now()"
+  },
+  {
+    "table_name": "cleaning_tasks",
+    "column_name": "updated_at",
+    "data_type": "timestamp with time zone",
+    "is_nullable": "YES",
+    "column_default": "now()"
+  },
+  {
+    "table_name": "cleaning_tasks",
+    "column_name": "name",
+    "data_type": "character varying",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "cleaning_tasks",
+    "column_name": "photo_url",
+    "data_type": "character varying",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "cleaning_tasks",
+    "column_name": "description",
+    "data_type": "text",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "cleaning_tasks",
+    "column_name": "display_order",
+    "data_type": "integer",
+    "is_nullable": "YES",
+    "column_default": "0"
+  },
+  {
+    "table_name": "cleaning_visit_tasks",
+    "column_name": "id",
+    "data_type": "uuid",
+    "is_nullable": "NO",
+    "column_default": "uuid_generate_v4()"
+  },
+  {
+    "table_name": "cleaning_visit_tasks",
+    "column_name": "visit_id",
+    "data_type": "uuid",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "cleaning_visit_tasks",
+    "column_name": "task_id",
+    "data_type": "uuid",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "cleaning_visit_tasks",
+    "column_name": "is_completed",
+    "data_type": "boolean",
+    "is_nullable": "YES",
+    "column_default": "false"
+  },
+  {
+    "table_name": "cleaning_visit_tasks",
+    "column_name": "completed_by",
+    "data_type": "uuid",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "cleaning_visit_tasks",
+    "column_name": "completed_at",
+    "data_type": "timestamp with time zone",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "cleaning_visit_tasks",
+    "column_name": "photo_url",
+    "data_type": "character varying",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "cleaning_visit_tasks",
+    "column_name": "notes",
+    "data_type": "text",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "cleaning_visit_tasks",
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone",
+    "is_nullable": "YES",
+    "column_default": "now()"
+  },
+  {
+    "table_name": "cleaning_visits",
+    "column_name": "id",
+    "data_type": "uuid",
+    "is_nullable": "NO",
+    "column_default": "uuid_generate_v4()"
+  },
+  {
+    "table_name": "cleaning_visits",
+    "column_name": "property_id",
+    "data_type": "uuid",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "cleaning_visits",
+    "column_name": "reservation_id",
+    "data_type": "uuid",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "cleaning_visits",
+    "column_name": "visit_date",
+    "data_type": "date",
+    "is_nullable": "NO",
+    "column_default": null
+  },
+  {
+    "table_name": "cleaning_visits",
+    "column_name": "notes",
+    "data_type": "text",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "cleaning_visits",
+    "column_name": "status",
+    "data_type": "character varying",
+    "is_nullable": "YES",
+    "column_default": "'in_progress'::character varying"
+  },
+  {
+    "table_name": "cleaning_visits",
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone",
+    "is_nullable": "YES",
+    "column_default": "now()"
+  },
+  {
+    "table_name": "cleaning_visits",
+    "column_name": "updated_at",
+    "data_type": "timestamp with time zone",
+    "is_nullable": "YES",
+    "column_default": "now()"
+  },
+  {
+    "table_name": "contacts",
+    "column_name": "id",
+    "data_type": "uuid",
+    "is_nullable": "NO",
+    "column_default": "uuid_generate_v4()"
+  },
+  {
+    "table_name": "contacts",
+    "column_name": "name",
+    "data_type": "text",
+    "is_nullable": "NO",
+    "column_default": null
+  },
+  {
+    "table_name": "contacts",
+    "column_name": "role",
+    "data_type": "text",
+    "is_nullable": "NO",
+    "column_default": null
+  },
+  {
+    "table_name": "contacts",
+    "column_name": "phone",
+    "data_type": "text",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "contacts",
+    "column_name": "email",
+    "data_type": "text",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "contacts",
+    "column_name": "address",
+    "data_type": "text",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "contacts",
+    "column_name": "description",
+    "data_type": "text",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "contacts",
+    "column_name": "website",
+    "data_type": "text",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "contacts",
+    "column_name": "priority",
+    "data_type": "integer",
+    "is_nullable": "NO",
+    "column_default": "0"
+  },
+  {
+    "table_name": "contacts",
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone",
+    "is_nullable": "YES",
+    "column_default": "now()"
+  },
+  {
+    "table_name": "contacts",
+    "column_name": "updated_at",
+    "data_type": "timestamp with time zone",
+    "is_nullable": "YES",
+    "column_default": "now()"
+  },
+  {
+    "table_name": "contacts",
+    "column_name": "created_by",
+    "data_type": "uuid",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "contacts",
+    "column_name": "property_id",
+    "data_type": "uuid",
+    "is_nullable": "NO",
+    "column_default": null
+  },
+  {
+    "table_name": "inventory",
+    "column_name": "id",
+    "data_type": "uuid",
+    "is_nullable": "NO",
+    "column_default": "uuid_generate_v4()"
+  },
+  {
+    "table_name": "inventory",
+    "column_name": "name",
+    "data_type": "text",
+    "is_nullable": "NO",
+    "column_default": null
+  },
+  {
+    "table_name": "inventory",
+    "column_name": "category",
+    "data_type": "text",
+    "is_nullable": "YES",
+    "column_default": "'general'::text"
+  },
+  {
+    "table_name": "inventory",
+    "column_name": "quantity",
+    "data_type": "integer",
+    "is_nullable": "NO",
+    "column_default": "0"
+  },
+  {
+    "table_name": "inventory",
+    "column_name": "threshold",
+    "data_type": "integer",
+    "is_nullable": "NO",
+    "column_default": "1"
+  },
+  {
+    "table_name": "inventory",
+    "column_name": "last_updated_by",
+    "data_type": "uuid",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "inventory",
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone",
+    "is_nullable": "YES",
+    "column_default": "now()"
+  },
+  {
+    "table_name": "inventory",
+    "column_name": "updated_at",
+    "data_type": "timestamp with time zone",
+    "is_nullable": "YES",
+    "column_default": "now()"
+  },
+  {
+    "table_name": "inventory",
+    "column_name": "user_id",
+    "data_type": "uuid",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "inventory",
+    "column_name": "property_id",
+    "data_type": "uuid",
+    "is_nullable": "NO",
+    "column_default": null
+  },
+  {
+    "table_name": "manual_items",
+    "column_name": "id",
+    "data_type": "uuid",
+    "is_nullable": "NO",
+    "column_default": "uuid_generate_v4()"
+  },
+  {
+    "table_name": "manual_items",
+    "column_name": "section_id",
+    "data_type": "uuid",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "manual_items",
+    "column_name": "title",
+    "data_type": "text",
+    "is_nullable": "NO",
+    "column_default": null
+  },
+  {
+    "table_name": "manual_items",
+    "column_name": "content",
+    "data_type": "text",
+    "is_nullable": "NO",
+    "column_default": null
+  },
+  {
+    "table_name": "manual_items",
+    "column_name": "media_urls",
+    "data_type": "ARRAY",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "manual_items",
+    "column_name": "order_index",
+    "data_type": "integer",
+    "is_nullable": "NO",
+    "column_default": null
+  },
+  {
+    "table_name": "manual_items",
+    "column_name": "important",
+    "data_type": "boolean",
+    "is_nullable": "YES",
+    "column_default": "false"
+  },
+  {
+    "table_name": "manual_items",
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone",
+    "is_nullable": "YES",
+    "column_default": "now()"
+  },
+  {
+    "table_name": "manual_items",
+    "column_name": "updated_at",
+    "data_type": "timestamp with time zone",
+    "is_nullable": "YES",
+    "column_default": "now()"
+  },
+  {
+    "table_name": "manual_sections",
+    "column_name": "id",
+    "data_type": "uuid",
+    "is_nullable": "NO",
+    "column_default": "uuid_generate_v4()"
+  },
+  {
+    "table_name": "manual_sections",
+    "column_name": "title",
+    "data_type": "text",
+    "is_nullable": "NO",
+    "column_default": null
+  },
+  {
+    "table_name": "manual_sections",
+    "column_name": "description",
+    "data_type": "text",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "manual_sections",
+    "column_name": "icon",
+    "data_type": "text",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "manual_sections",
+    "column_name": "order_index",
+    "data_type": "integer",
+    "is_nullable": "NO",
+    "column_default": null
+  },
+  {
+    "table_name": "manual_sections",
+    "column_name": "property_id",
+    "data_type": "uuid",
+    "is_nullable": "NO",
+    "column_default": "'00000000-0000-0000-0000-000000000000'::uuid"
+  },
+  {
+    "table_name": "manual_sections",
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone",
+    "is_nullable": "YES",
+    "column_default": "now()"
+  },
+  {
+    "table_name": "manual_sections",
+    "column_name": "updated_at",
+    "data_type": "timestamp with time zone",
+    "is_nullable": "YES",
+    "column_default": "now()"
+  },
+  {
+    "table_name": "notes",
+    "column_name": "id",
+    "data_type": "uuid",
+    "is_nullable": "NO",
+    "column_default": "uuid_generate_v4()"
+  },
+  {
+    "table_name": "notes",
+    "column_name": "user_id",
+    "data_type": "uuid",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "notes",
+    "column_name": "title",
+    "data_type": "text",
+    "is_nullable": "NO",
+    "column_default": null
+  },
+  {
+    "table_name": "notes",
+    "column_name": "content",
+    "data_type": "text",
+    "is_nullable": "NO",
+    "column_default": null
+  },
+  {
+    "table_name": "notes",
+    "column_name": "category",
+    "data_type": "text",
+    "is_nullable": "YES",
+    "column_default": "'general'::text"
+  },
+  {
+    "table_name": "notes",
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone",
+    "is_nullable": "YES",
+    "column_default": "now()"
+  },
+  {
+    "table_name": "notes",
+    "column_name": "updated_at",
+    "data_type": "timestamp with time zone",
+    "is_nullable": "YES",
+    "column_default": "now()"
+  },
+  {
+    "table_name": "notes",
+    "column_name": "property_id",
+    "data_type": "uuid",
+    "is_nullable": "NO",
+    "column_default": null
+  },
+  {
+    "table_name": "profiles",
+    "column_name": "id",
+    "data_type": "uuid",
+    "is_nullable": "NO",
+    "column_default": null
+  },
+  {
+    "table_name": "profiles",
+    "column_name": "full_name",
+    "data_type": "text",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "profiles",
+    "column_name": "phone_number",
+    "data_type": "text",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "profiles",
+    "column_name": "email",
+    "data_type": "text",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "profiles",
+    "column_name": "avatar_url",
+    "data_type": "text",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "profiles",
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone",
+    "is_nullable": "YES",
+    "column_default": "now()"
+  },
+  {
+    "table_name": "profiles",
+    "column_name": "updated_at",
+    "data_type": "timestamp with time zone",
+    "is_nullable": "YES",
+    "column_default": "now()"
+  },
+  {
+    "table_name": "profiles",
+    "column_name": "address",
+    "data_type": "text",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "profiles",
+    "column_name": "show_in_contacts",
+    "data_type": "boolean",
+    "is_nullable": "YES",
+    "column_default": "false"
+  },
+  {
+    "table_name": "profiles",
+    "column_name": "role",
+    "data_type": "text",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "properties",
+    "column_name": "id",
+    "data_type": "uuid",
+    "is_nullable": "NO",
+    "column_default": "gen_random_uuid()"
+  },
+  {
+    "table_name": "properties",
+    "column_name": "name",
+    "data_type": "text",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "properties",
+    "column_name": "address",
+    "data_type": "text",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "properties",
+    "column_name": "description",
+    "data_type": "text",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "properties",
+    "column_name": "created_by",
+    "data_type": "uuid",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "properties",
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone",
+    "is_nullable": "NO",
+    "column_default": "now()"
+  },
+  {
+    "table_name": "properties",
+    "column_name": "updated_at",
+    "data_type": "timestamp with time zone",
+    "is_nullable": "NO",
+    "column_default": "now()"
+  },
+  {
+    "table_name": "properties",
+    "column_name": "main_photo_url",
+    "data_type": "text",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "properties",
+    "column_name": "is_active",
+    "data_type": "boolean",
+    "is_nullable": "YES",
+    "column_default": "true"
+  },
+  {
+    "table_name": "properties",
+    "column_name": "property_type",
+    "data_type": "text",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "properties",
+    "column_name": "bedrooms",
+    "data_type": "integer",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "properties",
+    "column_name": "bathrooms",
+    "data_type": "numeric",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "properties",
+    "column_name": "max_occupancy",
+    "data_type": "integer",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "properties",
+    "column_name": "city",
+    "data_type": "text",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "properties",
+    "column_name": "state",
+    "data_type": "text",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "properties",
+    "column_name": "zip",
+    "data_type": "text",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "properties",
+    "column_name": "country",
+    "data_type": "text",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "properties",
+    "column_name": "latitude",
+    "data_type": "numeric",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "properties",
+    "column_name": "longitude",
+    "data_type": "numeric",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "properties",
+    "column_name": "neighborhood_description",
+    "data_type": "text",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "properties",
+    "column_name": "wifi_name",
+    "data_type": "text",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "properties",
+    "column_name": "wifi_password",
+    "data_type": "text",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "properties",
+    "column_name": "check_in_instructions",
+    "data_type": "text",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "properties",
+    "column_name": "check_out_instructions",
+    "data_type": "text",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "properties",
+    "column_name": "house_rules",
+    "data_type": "text",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "properties",
+    "column_name": "security_info",
+    "data_type": "text",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "properties",
+    "column_name": "parking_info",
+    "data_type": "text",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "properties",
+    "column_name": "amenities",
+    "data_type": "ARRAY",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "properties",
+    "column_name": "tenant_id",
+    "data_type": "uuid",
+    "is_nullable": "NO",
+    "column_default": null
+  },
+  {
+    "table_name": "recommendation_categories",
+    "column_name": "id",
+    "data_type": "uuid",
+    "is_nullable": "NO",
+    "column_default": "uuid_generate_v4()"
+  },
+  {
+    "table_name": "recommendation_categories",
+    "column_name": "name",
+    "data_type": "text",
+    "is_nullable": "NO",
+    "column_default": null
+  },
+  {
+    "table_name": "recommendation_categories",
+    "column_name": "created_by",
+    "data_type": "uuid",
+    "is_nullable": "NO",
+    "column_default": null
+  },
+  {
+    "table_name": "recommendation_categories",
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone",
+    "is_nullable": "YES",
+    "column_default": "now()"
+  },
+  {
+    "table_name": "recommendation_categories",
+    "column_name": "updated_at",
+    "data_type": "timestamp with time zone",
+    "is_nullable": "YES",
+    "column_default": "now()"
+  },
+  {
+    "table_name": "recommendation_categories",
+    "column_name": "is_active",
+    "data_type": "boolean",
+    "is_nullable": "YES",
+    "column_default": "true"
+  },
+  {
+    "table_name": "recommendation_notes",
+    "column_name": "id",
+    "data_type": "uuid",
+    "is_nullable": "NO",
+    "column_default": "uuid_generate_v4()"
+  },
+  {
+    "table_name": "recommendation_notes",
+    "column_name": "recommendation_id",
+    "data_type": "uuid",
+    "is_nullable": "NO",
+    "column_default": null
+  },
+  {
+    "table_name": "recommendation_notes",
+    "column_name": "user_id",
+    "data_type": "uuid",
+    "is_nullable": "NO",
+    "column_default": null
+  },
+  {
+    "table_name": "recommendation_notes",
+    "column_name": "content",
+    "data_type": "text",
+    "is_nullable": "NO",
+    "column_default": null
+  },
+  {
+    "table_name": "recommendation_notes",
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone",
+    "is_nullable": "YES",
+    "column_default": "now()"
+  },
+  {
+    "table_name": "recommendation_notes",
+    "column_name": "updated_at",
+    "data_type": "timestamp with time zone",
+    "is_nullable": "YES",
+    "column_default": "now()"
+  },
+  {
+    "table_name": "recommendations",
+    "column_name": "id",
+    "data_type": "uuid",
+    "is_nullable": "NO",
+    "column_default": "uuid_generate_v4()"
+  },
+  {
+    "table_name": "recommendations",
+    "column_name": "name",
+    "data_type": "text",
+    "is_nullable": "NO",
+    "column_default": null
+  },
+  {
+    "table_name": "recommendations",
+    "column_name": "category",
+    "data_type": "text",
+    "is_nullable": "NO",
+    "column_default": null
+  },
+  {
+    "table_name": "recommendations",
+    "column_name": "address",
+    "data_type": "text",
+    "is_nullable": "NO",
+    "column_default": null
+  },
+  {
+    "table_name": "recommendations",
+    "column_name": "coordinates",
+    "data_type": "jsonb",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "recommendations",
+    "column_name": "description",
+    "data_type": "text",
+    "is_nullable": "NO",
+    "column_default": null
+  },
+  {
+    "table_name": "recommendations",
+    "column_name": "rating",
+    "data_type": "numeric",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "recommendations",
+    "column_name": "website",
+    "data_type": "text",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "recommendations",
+    "column_name": "phone_number",
+    "data_type": "text",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "recommendations",
+    "column_name": "images",
+    "data_type": "ARRAY",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "recommendations",
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone",
+    "is_nullable": "YES",
+    "column_default": "now()"
+  },
+  {
+    "table_name": "recommendations",
+    "column_name": "updated_at",
+    "data_type": "timestamp with time zone",
+    "is_nullable": "YES",
+    "column_default": "now()"
+  },
+  {
+    "table_name": "recommendations",
+    "column_name": "is_recommended",
+    "data_type": "boolean",
+    "is_nullable": "YES",
+    "column_default": "true"
+  },
+  {
+    "table_name": "recommendations",
+    "column_name": "place_id",
+    "data_type": "text",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "recommendations",
+    "column_name": "property_id",
+    "data_type": "uuid",
+    "is_nullable": "NO",
+    "column_default": null
+  },
+  {
+    "table_name": "reservations",
+    "column_name": "id",
+    "data_type": "uuid",
+    "is_nullable": "NO",
+    "column_default": "uuid_generate_v4()"
+  },
+  {
+    "table_name": "reservations",
+    "column_name": "user_id",
+    "data_type": "uuid",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "reservations",
+    "column_name": "start_date",
+    "data_type": "timestamp with time zone",
+    "is_nullable": "NO",
+    "column_default": null
+  },
+  {
+    "table_name": "reservations",
+    "column_name": "end_date",
+    "data_type": "timestamp with time zone",
+    "is_nullable": "NO",
+    "column_default": null
+  },
+  {
+    "table_name": "reservations",
+    "column_name": "title",
+    "data_type": "text",
+    "is_nullable": "NO",
+    "column_default": null
+  },
+  {
+    "table_name": "reservations",
+    "column_name": "description",
+    "data_type": "text",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "reservations",
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone",
+    "is_nullable": "YES",
+    "column_default": "now()"
+  },
+  {
+    "table_name": "reservations",
+    "column_name": "updated_at",
+    "data_type": "timestamp with time zone",
+    "is_nullable": "YES",
+    "column_default": "now()"
+  },
+  {
+    "table_name": "reservations",
+    "column_name": "guests",
+    "data_type": "integer",
+    "is_nullable": "YES",
+    "column_default": "1"
+  },
+  {
+    "table_name": "reservations",
+    "column_name": "status",
+    "data_type": "text",
+    "is_nullable": "YES",
+    "column_default": "'pending approval'::text"
+  },
+  {
+    "table_name": "reservations",
+    "column_name": "tenant_id",
+    "data_type": "uuid",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "role_permissions",
+    "column_name": "id",
+    "data_type": "integer",
+    "is_nullable": "NO",
+    "column_default": "nextval('role_permissions_id_seq'::regclass)"
+  },
+  {
+    "table_name": "role_permissions",
+    "column_name": "role",
+    "data_type": "text",
+    "is_nullable": "NO",
+    "column_default": null
+  },
+  {
+    "table_name": "role_permissions",
+    "column_name": "feature",
+    "data_type": "text",
+    "is_nullable": "NO",
+    "column_default": null
+  },
+  {
+    "table_name": "role_permissions",
+    "column_name": "allowed",
+    "data_type": "boolean",
+    "is_nullable": "NO",
+    "column_default": "false"
+  },
+  {
+    "table_name": "role_permissions",
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone",
+    "is_nullable": "YES",
+    "column_default": "now()"
+  },
+  {
+    "table_name": "tasks",
+    "column_name": "id",
+    "data_type": "uuid",
+    "is_nullable": "NO",
+    "column_default": "uuid_generate_v4()"
+  },
+  {
+    "table_name": "tasks",
+    "column_name": "title",
+    "data_type": "text",
+    "is_nullable": "NO",
+    "column_default": null
+  },
+  {
+    "table_name": "tasks",
+    "column_name": "description",
+    "data_type": "text",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "tasks",
+    "column_name": "status",
+    "data_type": "text",
+    "is_nullable": "NO",
+    "column_default": "'pending'::text"
+  },
+  {
+    "table_name": "tasks",
+    "column_name": "priority",
+    "data_type": "text",
+    "is_nullable": "NO",
+    "column_default": "'medium'::text"
+  },
+  {
+    "table_name": "tasks",
+    "column_name": "user_id",
+    "data_type": "uuid",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "tasks",
+    "column_name": "created_by",
+    "data_type": "uuid",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "tasks",
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone",
+    "is_nullable": "YES",
+    "column_default": "now()"
+  },
+  {
+    "table_name": "tasks",
+    "column_name": "updated_at",
+    "data_type": "timestamp with time zone",
+    "is_nullable": "YES",
+    "column_default": "now()"
+  },
+  {
+    "table_name": "tasks",
+    "column_name": "due_date",
+    "data_type": "timestamp with time zone",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "tasks",
+    "column_name": "property_id",
+    "data_type": "uuid",
+    "is_nullable": "NO",
+    "column_default": null
+  },
+  {
+    "table_name": "tenant_subscriptions",
+    "column_name": "id",
+    "data_type": "uuid",
+    "is_nullable": "NO",
+    "column_default": "gen_random_uuid()"
+  },
+  {
+    "table_name": "tenant_subscriptions",
+    "column_name": "tenant_id",
+    "data_type": "uuid",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "tenant_subscriptions",
+    "column_name": "plan",
+    "data_type": "character varying",
+    "is_nullable": "NO",
+    "column_default": null
+  },
+  {
+    "table_name": "tenant_subscriptions",
+    "column_name": "status",
+    "data_type": "character varying",
+    "is_nullable": "YES",
+    "column_default": "'active'::character varying"
+  },
+  {
+    "table_name": "tenant_subscriptions",
+    "column_name": "stripe_customer_id",
+    "data_type": "character varying",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "tenant_subscriptions",
+    "column_name": "stripe_subscription_id",
+    "data_type": "character varying",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "tenant_subscriptions",
+    "column_name": "current_period_start",
+    "data_type": "timestamp with time zone",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "tenant_subscriptions",
+    "column_name": "current_period_end",
+    "data_type": "timestamp with time zone",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "tenant_subscriptions",
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone",
+    "is_nullable": "YES",
+    "column_default": "now()"
+  },
+  {
+    "table_name": "tenant_subscriptions",
+    "column_name": "updated_at",
+    "data_type": "timestamp with time zone",
+    "is_nullable": "YES",
+    "column_default": "now()"
+  },
+  {
+    "table_name": "tenant_users",
+    "column_name": "id",
+    "data_type": "uuid",
+    "is_nullable": "NO",
+    "column_default": "uuid_generate_v4()"
+  },
+  {
+    "table_name": "tenant_users",
+    "column_name": "tenant_id",
+    "data_type": "uuid",
+    "is_nullable": "NO",
+    "column_default": null
+  },
+  {
+    "table_name": "tenant_users",
+    "column_name": "user_id",
+    "data_type": "uuid",
+    "is_nullable": "NO",
+    "column_default": null
+  },
+  {
+    "table_name": "tenant_users",
+    "column_name": "role",
+    "data_type": "text",
+    "is_nullable": "NO",
+    "column_default": "'member'::text"
+  },
+  {
+    "table_name": "tenant_users",
+    "column_name": "invited_by",
+    "data_type": "uuid",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "tenant_users",
+    "column_name": "invited_at",
+    "data_type": "timestamp with time zone",
+    "is_nullable": "YES",
+    "column_default": "now()"
+  },
+  {
+    "table_name": "tenant_users",
+    "column_name": "joined_at",
+    "data_type": "timestamp with time zone",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "tenant_users",
+    "column_name": "status",
+    "data_type": "text",
+    "is_nullable": "YES",
+    "column_default": "'pending'::text"
+  },
+  {
+    "table_name": "tenant_users",
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone",
+    "is_nullable": "YES",
+    "column_default": "now()"
+  },
+  {
+    "table_name": "tenant_users",
+    "column_name": "updated_at",
+    "data_type": "timestamp with time zone",
+    "is_nullable": "YES",
+    "column_default": "now()"
+  },
+  {
+    "table_name": "tenants",
+    "column_name": "id",
+    "data_type": "uuid",
+    "is_nullable": "NO",
+    "column_default": "uuid_generate_v4()"
+  },
+  {
+    "table_name": "tenants",
+    "column_name": "name",
+    "data_type": "text",
+    "is_nullable": "NO",
+    "column_default": null
+  },
+  {
+    "table_name": "tenants",
+    "column_name": "slug",
+    "data_type": "text",
+    "is_nullable": "NO",
+    "column_default": null
+  },
+  {
+    "table_name": "tenants",
+    "column_name": "domain",
+    "data_type": "text",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "tenants",
+    "column_name": "plan",
+    "data_type": "text",
+    "is_nullable": "NO",
+    "column_default": "'starter'::text"
+  },
+  {
+    "table_name": "tenants",
+    "column_name": "status",
+    "data_type": "text",
+    "is_nullable": "NO",
+    "column_default": "'active'::text"
+  },
+  {
+    "table_name": "tenants",
+    "column_name": "stripe_customer_id",
+    "data_type": "text",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "tenants",
+    "column_name": "stripe_subscription_id",
+    "data_type": "text",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "tenants",
+    "column_name": "owner_user_id",
+    "data_type": "uuid",
+    "is_nullable": "NO",
+    "column_default": null
+  },
+  {
+    "table_name": "tenants",
+    "column_name": "settings",
+    "data_type": "jsonb",
+    "is_nullable": "YES",
+    "column_default": "'{}'::jsonb"
+  },
+  {
+    "table_name": "tenants",
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone",
+    "is_nullable": "YES",
+    "column_default": "now()"
+  },
+  {
+    "table_name": "tenants",
+    "column_name": "updated_at",
+    "data_type": "timestamp with time zone",
+    "is_nullable": "YES",
+    "column_default": "now()"
+  },
+  {
+    "table_name": "trigger_errors",
+    "column_name": "id",
+    "data_type": "integer",
+    "is_nullable": "NO",
+    "column_default": "nextval('trigger_errors_id_seq'::regclass)"
+  },
+  {
+    "table_name": "trigger_errors",
+    "column_name": "created_at",
+    "data_type": "timestamp without time zone",
+    "is_nullable": "YES",
+    "column_default": "now()"
+  },
+  {
+    "table_name": "trigger_errors",
+    "column_name": "trigger_name",
+    "data_type": "text",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "trigger_errors",
+    "column_name": "user_id",
+    "data_type": "uuid",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "trigger_errors",
+    "column_name": "error_message",
+    "data_type": "text",
+    "is_nullable": "YES",
+    "column_default": null
+  },
+  {
+    "table_name": "user_roles",
+    "column_name": "user_id",
+    "data_type": "uuid",
+    "is_nullable": "NO",
+    "column_default": null
+  },
+  {
+    "table_name": "user_roles",
+    "column_name": "role",
+    "data_type": "text",
+    "is_nullable": "NO",
+    "column_default": "'friend'::text"
+  },
+  {
+    "table_name": "user_roles",
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone",
+    "is_nullable": "YES",
+    "column_default": "now()"
+  },
+  {
+    "table_name": "user_roles",
+    "column_name": "updated_at",
+    "data_type": "timestamp with time zone",
+    "is_nullable": "YES",
+    "column_default": "now()"
+  },
+  {
+    "table_name": "user_roles",
+    "column_name": "assigned_at",
+    "data_type": "timestamp with time zone",
+    "is_nullable": "YES",
+    "column_default": "now()"
+  }
+][
+  {
+    "table_name": "checklist_items",
+    "column_name": "checklist_id",
+    "foreign_table_name": "checklists",
+    "foreign_column_name": "id",
+    "constraint_name": "checklist_items_checklist_id_fkey"
+  },
+  {
+    "table_name": "checklists",
+    "column_name": "property_id",
+    "foreign_table_name": "properties",
+    "foreign_column_name": "id",
+    "constraint_name": "checklists_property_id_fkey"
+  },
+  {
+    "table_name": "cleaning_checklist_items",
+    "column_name": "checklist_id",
+    "foreign_table_name": "cleaning_checklists",
+    "foreign_column_name": "id",
+    "constraint_name": "cleaning_checklist_items_checklist_id_fkey"
+  },
+  {
+    "table_name": "cleaning_checklists",
+    "column_name": "property_id",
+    "foreign_table_name": "properties",
+    "foreign_column_name": "id",
+    "constraint_name": "cleaning_checklists_property_id_fkey"
+  },
+  {
+    "table_name": "cleaning_issues",
+    "column_name": "property_id",
+    "foreign_table_name": "properties",
+    "foreign_column_name": "id",
+    "constraint_name": "cleaning_issues_property_id_fkey"
+  },
+  {
+    "table_name": "cleaning_room_types",
+    "column_name": "property_id",
+    "foreign_table_name": "properties",
+    "foreign_column_name": "id",
+    "constraint_name": "cleaning_room_types_property_id_fkey"
+  },
+  {
+    "table_name": "cleaning_tasks",
+    "column_name": "property_id",
+    "foreign_table_name": "properties",
+    "foreign_column_name": "id",
+    "constraint_name": "cleaning_tasks_property_id_fkey"
+  },
+  {
+    "table_name": "cleaning_visit_tasks",
+    "column_name": "task_id",
+    "foreign_table_name": "cleaning_tasks",
+    "foreign_column_name": "id",
+    "constraint_name": "cleaning_visit_tasks_task_id_fkey"
+  },
+  {
+    "table_name": "cleaning_visit_tasks",
+    "column_name": "visit_id",
+    "foreign_table_name": "cleaning_visits",
+    "foreign_column_name": "id",
+    "constraint_name": "cleaning_visit_tasks_visit_id_fkey"
+  },
+  {
+    "table_name": "cleaning_visits",
+    "column_name": "property_id",
+    "foreign_table_name": "properties",
+    "foreign_column_name": "id",
+    "constraint_name": "cleaning_visits_property_id_fkey"
+  },
+  {
+    "table_name": "cleaning_visits",
+    "column_name": "reservation_id",
+    "foreign_table_name": "reservations",
+    "foreign_column_name": "id",
+    "constraint_name": "cleaning_visits_reservation_id_fkey"
+  },
+  {
+    "table_name": "contacts",
+    "column_name": "property_id",
+    "foreign_table_name": "properties",
+    "foreign_column_name": "id",
+    "constraint_name": "contacts_property_id_fkey"
+  },
+  {
+    "table_name": "inventory",
+    "column_name": "property_id",
+    "foreign_table_name": "properties",
+    "foreign_column_name": "id",
+    "constraint_name": "inventory_property_id_fkey"
+  },
+  {
+    "table_name": "manual_items",
+    "column_name": "section_id",
+    "foreign_table_name": "manual_sections",
+    "foreign_column_name": "id",
+    "constraint_name": "manual_items_section_id_fkey"
+  },
+  {
+    "table_name": "manual_sections",
+    "column_name": "property_id",
+    "foreign_table_name": "properties",
+    "foreign_column_name": "id",
+    "constraint_name": "manual_sections_property_id_fkey"
+  },
+  {
+    "table_name": "notes",
+    "column_name": "property_id",
+    "foreign_table_name": "properties",
+    "foreign_column_name": "id",
+    "constraint_name": "notes_property_id_fkey"
+  },
+  {
+    "table_name": "properties",
+    "column_name": "tenant_id",
+    "foreign_table_name": "tenants",
+    "foreign_column_name": "id",
+    "constraint_name": "properties_tenant_id_fkey"
+  },
+  {
+    "table_name": "recommendation_notes",
+    "column_name": "recommendation_id",
+    "foreign_table_name": "recommendations",
+    "foreign_column_name": "id",
+    "constraint_name": "recommendation_notes_recommendation_id_fkey"
+  },
+  {
+    "table_name": "recommendations",
+    "column_name": "property_id",
+    "foreign_table_name": "properties",
+    "foreign_column_name": "id",
+    "constraint_name": "recommendations_property_id_fkey"
+  },
+  {
+    "table_name": "reservations",
+    "column_name": "tenant_id",
+    "foreign_table_name": "tenants",
+    "foreign_column_name": "id",
+    "constraint_name": "reservations_tenant_id_fkey"
+  },
+  {
+    "table_name": "tasks",
+    "column_name": "property_id",
+    "foreign_table_name": "properties",
+    "foreign_column_name": "id",
+    "constraint_name": "tasks_property_id_fkey"
+  },
+  {
+    "table_name": "tenant_subscriptions",
+    "column_name": "tenant_id",
+    "foreign_table_name": "tenants",
+    "foreign_column_name": "id",
+    "constraint_name": "tenant_subscriptions_tenant_id_fkey"
+  },
+  {
+    "table_name": "tenant_users",
+    "column_name": "tenant_id",
+    "foreign_table_name": "tenants",
+    "foreign_column_name": "id",
+    "constraint_name": "tenant_users_tenant_id_fkey"
+  }
+][
+  {
+    "schemaname": "public",
+    "tablename": "checklist_items",
+    "policyname": "checklist_items_property_isolation",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "ALL",
+    "qual": "(checklist_id IN ( SELECT c.id\n   FROM checklists c\n  WHERE (c.property_id IN ( SELECT get_user_properties() AS get_user_properties))))",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "checklists",
+    "policyname": "checklists_property_isolation",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "ALL",
+    "qual": "(property_id IN ( SELECT get_user_properties() AS get_user_properties))",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "cleaning_checklist_items",
+    "policyname": "cleaning_checklist_items_property_isolation",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "ALL",
+    "qual": "(checklist_id IN ( SELECT cc.id\n   FROM cleaning_checklists cc\n  WHERE (cc.property_id IN ( SELECT get_user_properties() AS get_user_properties))))",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "cleaning_checklists",
+    "policyname": "cleaning_checklists_property_isolation",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "ALL",
+    "qual": "(property_id IN ( SELECT get_user_properties() AS get_user_properties))",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "cleaning_room_types",
+    "policyname": "cleaning_room_types_property_isolation",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "ALL",
+    "qual": "(property_id IN ( SELECT get_user_properties() AS get_user_properties))",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "cleaning_tasks",
+    "policyname": "cleaning_tasks_property_isolation",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "ALL",
+    "qual": "(property_id IN ( SELECT get_user_properties() AS get_user_properties))",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "cleaning_visit_tasks",
+    "policyname": "cleaning_visit_tasks_property_isolation",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "ALL",
+    "qual": "(visit_id IN ( SELECT cv.id\n   FROM cleaning_visits cv\n  WHERE (cv.property_id IN ( SELECT get_user_properties() AS get_user_properties))))",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "cleaning_visits",
+    "policyname": "cleaning_visits_property_isolation",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "ALL",
+    "qual": "(property_id IN ( SELECT get_user_properties() AS get_user_properties))",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "contacts",
+    "policyname": "contacts_property_isolation",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "ALL",
+    "qual": "(property_id IN ( SELECT get_user_properties() AS get_user_properties))",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "inventory",
+    "policyname": "inventory_property_isolation",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "ALL",
+    "qual": "(property_id IN ( SELECT get_user_properties() AS get_user_properties))",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "manual_items",
+    "policyname": "manual_items_property_isolation",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "ALL",
+    "qual": "(section_id IN ( SELECT ms.id\n   FROM manual_sections ms\n  WHERE (ms.property_id IN ( SELECT get_user_properties() AS get_user_properties))))",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "manual_sections",
+    "policyname": "manual_sections_property_isolation",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "ALL",
+    "qual": "(property_id IN ( SELECT get_user_properties() AS get_user_properties))",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "notes",
+    "policyname": "notes_property_isolation",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "ALL",
+    "qual": "(property_id IN ( SELECT get_user_properties() AS get_user_properties))",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "profiles",
+    "policyname": "Users can insert their own profile",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "INSERT",
+    "qual": null,
+    "with_check": "(auth.uid() = id)"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "profiles",
+    "policyname": "Users can update their own profile",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "UPDATE",
+    "qual": "(auth.uid() = id)",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "profiles",
+    "policyname": "Users can view their own profile",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "SELECT",
+    "qual": "(auth.uid() = id)",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "profiles",
+    "policyname": "profiles_tenant_isolation",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "ALL",
+    "qual": "((id = auth.uid()) OR (id IN ( SELECT DISTINCT tu1.user_id\n   FROM (tenant_users tu1\n     JOIN tenant_users tu2 ON ((tu1.tenant_id = tu2.tenant_id)))\n  WHERE ((tu2.user_id = auth.uid()) AND (tu2.status = 'active'::text)))))",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "properties",
+    "policyname": "properties_user_access",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "ALL",
+    "qual": "(tenant_id IN ( SELECT tu.tenant_id\n   FROM tenant_users tu\n  WHERE ((tu.user_id = auth.uid()) AND (tu.status = 'active'::text))))",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "recommendation_categories",
+    "policyname": "recommendation_categories_access",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "ALL",
+    "qual": "true",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "recommendation_notes",
+    "policyname": "Allow authenticated users to add notes",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "INSERT",
+    "qual": null,
+    "with_check": "(auth.uid() = user_id)"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "recommendation_notes",
+    "policyname": "Allow users to delete their own notes",
+    "permissive": "PERMISSIVE",
+    "roles": "{authenticated}",
+    "cmd": "DELETE",
+    "qual": "(auth.uid() = user_id)",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "recommendation_notes",
+    "policyname": "recommendation_notes_property_isolation",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "ALL",
+    "qual": "(recommendation_id IN ( SELECT r.id\n   FROM recommendations r\n  WHERE (r.property_id IN ( SELECT get_user_properties() AS get_user_properties))))",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "recommendations",
+    "policyname": "recommendations_property_isolation",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "ALL",
+    "qual": "(property_id IN ( SELECT get_user_properties() AS get_user_properties))",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "reservations",
+    "policyname": "reservations_tenant_isolation",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "ALL",
+    "qual": "(tenant_id IN ( SELECT tu.tenant_id\n   FROM tenant_users tu\n  WHERE ((tu.user_id = auth.uid()) AND (tu.status = 'active'::text))))",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "tasks",
+    "policyname": "tasks_property_isolation",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "ALL",
+    "qual": "(property_id IN ( SELECT get_user_properties() AS get_user_properties))",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "tenant_subscriptions",
+    "policyname": "Tenant members can view subscription",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "SELECT",
+    "qual": "(tenant_id IN ( SELECT tenant_users.tenant_id\n   FROM tenant_users\n  WHERE (tenant_users.user_id = auth.uid())))",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "tenant_users",
+    "policyname": "tenant_users_own_access",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "ALL",
+    "qual": "(user_id = auth.uid())",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "tenant_users",
+    "policyname": "tenant_users_simple_access",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "ALL",
+    "qual": "(user_id = auth.uid())",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "tenants",
+    "policyname": "tenants_user_access",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "ALL",
+    "qual": "(id IN ( SELECT tu.tenant_id\n   FROM tenant_users tu\n  WHERE ((tu.user_id = auth.uid()) AND (tu.status = 'active'::text))))",
+    "with_check": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "user_roles",
+    "policyname": "user_roles_blocked",
+    "permissive": "PERMISSIVE",
+    "roles": "{public}",
+    "cmd": "ALL",
+    "qual": "false",
+    "with_check": null
+  }
+][
+  {
+    "table_name": "checklist_items",
+    "index_name": "checklist_items_pkey",
+    "is_unique": true,
+    "is_primary": true,
+    "columns": "id"
+  },
+  {
+    "table_name": "checklists",
+    "index_name": "checklists_pkey",
+    "is_unique": true,
+    "is_primary": true,
+    "columns": "id"
+  },
+  {
+    "table_name": "cleaning_checklist_items",
+    "index_name": "cleaning_checklist_items_pkey",
+    "is_unique": true,
+    "is_primary": true,
+    "columns": "id"
+  },
+  {
+    "table_name": "cleaning_checklists",
+    "index_name": "cleaning_checklists_pkey",
+    "is_unique": true,
+    "is_primary": true,
+    "columns": "id"
+  },
+  {
+    "table_name": "cleaning_issues",
+    "index_name": "cleaning_issues_pkey",
+    "is_unique": true,
+    "is_primary": true,
+    "columns": "id"
+  },
+  {
+    "table_name": "cleaning_room_types",
+    "index_name": "cleaning_room_types_pkey",
+    "is_unique": true,
+    "is_primary": true,
+    "columns": "id"
+  },
+  {
+    "table_name": "cleaning_tasks",
+    "index_name": "cleaning_tasks_pkey",
+    "is_unique": true,
+    "is_primary": true,
+    "columns": "id"
+  },
+  {
+    "table_name": "cleaning_visit_tasks",
+    "index_name": "cleaning_visit_tasks_pkey",
+    "is_unique": true,
+    "is_primary": true,
+    "columns": "id"
+  },
+  {
+    "table_name": "cleaning_visits",
+    "index_name": "cleaning_visits_pkey",
+    "is_unique": true,
+    "is_primary": true,
+    "columns": "id"
+  },
+  {
+    "table_name": "contacts",
+    "index_name": "contacts_pkey",
+    "is_unique": true,
+    "is_primary": true,
+    "columns": "id"
+  },
+  {
+    "table_name": "contacts",
+    "index_name": "idx_contacts_name",
+    "is_unique": false,
+    "is_primary": false,
+    "columns": "name"
+  },
+  {
+    "table_name": "contacts",
+    "index_name": "idx_contacts_priority",
+    "is_unique": false,
+    "is_primary": false,
+    "columns": "priority"
+  },
+  {
+    "table_name": "contacts",
+    "index_name": "idx_contacts_role",
+    "is_unique": false,
+    "is_primary": false,
+    "columns": "role"
+  },
+  {
+    "table_name": "inventory",
+    "index_name": "inventory_pkey",
+    "is_unique": true,
+    "is_primary": true,
+    "columns": "id"
+  },
+  {
+    "table_name": "manual_items",
+    "index_name": "manual_items_pkey",
+    "is_unique": true,
+    "is_primary": true,
+    "columns": "id"
+  },
+  {
+    "table_name": "manual_sections",
+    "index_name": "manual_sections_pkey",
+    "is_unique": true,
+    "is_primary": true,
+    "columns": "id"
+  },
+  {
+    "table_name": "notes",
+    "index_name": "notes_pkey",
+    "is_unique": true,
+    "is_primary": true,
+    "columns": "id"
+  },
+  {
+    "table_name": "profiles",
+    "index_name": "idx_profiles_phone_number",
+    "is_unique": false,
+    "is_primary": false,
+    "columns": "phone_number"
+  },
+  {
+    "table_name": "profiles",
+    "index_name": "profiles_pkey",
+    "is_unique": true,
+    "is_primary": true,
+    "columns": "id"
+  },
+  {
+    "table_name": "properties",
+    "index_name": "idx_properties_merged_city",
+    "is_unique": false,
+    "is_primary": false,
+    "columns": "city"
+  },
+  {
+    "table_name": "properties",
+    "index_name": "idx_properties_merged_created_by",
+    "is_unique": false,
+    "is_primary": false,
+    "columns": "created_by"
+  },
+  {
+    "table_name": "properties",
+    "index_name": "idx_properties_merged_name",
+    "is_unique": false,
+    "is_primary": false,
+    "columns": "name"
+  },
+  {
+    "table_name": "properties",
+    "index_name": "idx_properties_merged_property_type",
+    "is_unique": false,
+    "is_primary": false,
+    "columns": "property_type"
+  },
+  {
+    "table_name": "properties",
+    "index_name": "properties_merged_pkey",
+    "is_unique": true,
+    "is_primary": true,
+    "columns": "id"
+  },
+  {
+    "table_name": "recommendation_categories",
+    "index_name": "recommendation_categories_pkey",
+    "is_unique": true,
+    "is_primary": true,
+    "columns": "id"
+  },
+  {
+    "table_name": "recommendation_notes",
+    "index_name": "idx_recommendation_notes_recommendation_id",
+    "is_unique": false,
+    "is_primary": false,
+    "columns": "recommendation_id"
+  },
+  {
+    "table_name": "recommendation_notes",
+    "index_name": "recommendation_notes_pkey",
+    "is_unique": true,
+    "is_primary": true,
+    "columns": "id"
+  },
+  {
+    "table_name": "recommendations",
+    "index_name": "recommendations_pkey",
+    "is_unique": true,
+    "is_primary": true,
+    "columns": "id"
+  },
+  {
+    "table_name": "reservations",
+    "index_name": "reservations_pkey",
+    "is_unique": true,
+    "is_primary": true,
+    "columns": "id"
+  },
+  {
+    "table_name": "role_permissions",
+    "index_name": "role_permissions_pkey",
+    "is_unique": true,
+    "is_primary": true,
+    "columns": "id"
+  },
+  {
+    "table_name": "role_permissions",
+    "index_name": "role_permissions_role_feature_key",
+    "is_unique": true,
+    "is_primary": false,
+    "columns": "role, feature"
+  },
+  {
+    "table_name": "tasks",
+    "index_name": "idx_tasks_assigned_to",
+    "is_unique": false,
+    "is_primary": false,
+    "columns": "user_id"
+  },
+  {
+    "table_name": "tasks",
+    "index_name": "tasks_pkey",
+    "is_unique": true,
+    "is_primary": true,
+    "columns": "id"
+  },
+  {
+    "table_name": "tenant_subscriptions",
+    "index_name": "tenant_subscriptions_pkey",
+    "is_unique": true,
+    "is_primary": true,
+    "columns": "id"
+  },
+  {
+    "table_name": "tenant_users",
+    "index_name": "idx_tenant_users_role",
+    "is_unique": false,
+    "is_primary": false,
+    "columns": "tenant_id, role"
+  },
+  {
+    "table_name": "tenant_users",
+    "index_name": "idx_tenant_users_tenant",
+    "is_unique": false,
+    "is_primary": false,
+    "columns": "tenant_id"
+  },
+  {
+    "table_name": "tenant_users",
+    "index_name": "idx_tenant_users_user",
+    "is_unique": false,
+    "is_primary": false,
+    "columns": "user_id"
+  },
+  {
+    "table_name": "tenant_users",
+    "index_name": "tenant_users_pkey",
+    "is_unique": true,
+    "is_primary": true,
+    "columns": "id"
+  },
+  {
+    "table_name": "tenant_users",
+    "index_name": "tenant_users_tenant_id_user_id_key",
+    "is_unique": true,
+    "is_primary": false,
+    "columns": "tenant_id, user_id"
+  },
+  {
+    "table_name": "tenants",
+    "index_name": "idx_tenants_owner",
+    "is_unique": false,
+    "is_primary": false,
+    "columns": "owner_user_id"
+  },
+  {
+    "table_name": "tenants",
+    "index_name": "idx_tenants_slug",
+    "is_unique": false,
+    "is_primary": false,
+    "columns": "slug"
+  },
+  {
+    "table_name": "tenants",
+    "index_name": "tenants_pkey",
+    "is_unique": true,
+    "is_primary": true,
+    "columns": "id"
+  },
+  {
+    "table_name": "tenants",
+    "index_name": "tenants_slug_key",
+    "is_unique": true,
+    "is_primary": false,
+    "columns": "slug"
+  },
+  {
+    "table_name": "trigger_errors",
+    "index_name": "trigger_errors_pkey",
+    "is_unique": true,
+    "is_primary": true,
+    "columns": "id"
+  },
+  {
+    "table_name": "user_roles",
+    "index_name": "user_roles_pkey",
+    "is_unique": true,
+    "is_primary": true,
+    "columns": "user_id"
+  },
+  {
+    "table_name": "user_roles",
+    "index_name": "user_roles_user_id_idx",
+    "is_unique": false,
+    "is_primary": false,
+    "columns": "user_id"
+  }
+][
+  {
+    "schemaname": "public",
+    "tablename": "checklist_items",
+    "inserts": 0,
+    "updates": 0,
+    "deletes": 0,
+    "live_rows": 0
+  },
+  {
+    "schemaname": "public",
+    "tablename": "checklists",
+    "inserts": 0,
+    "updates": 0,
+    "deletes": 0,
+    "live_rows": 0
+  },
+  {
+    "schemaname": "public",
+    "tablename": "cleaning_checklist_items",
+    "inserts": 0,
+    "updates": 0,
+    "deletes": 0,
+    "live_rows": 0
+  },
+  {
+    "schemaname": "public",
+    "tablename": "cleaning_checklists",
+    "inserts": 0,
+    "updates": 0,
+    "deletes": 0,
+    "live_rows": 0
+  },
+  {
+    "schemaname": "public",
+    "tablename": "cleaning_issues",
+    "inserts": 0,
+    "updates": 0,
+    "deletes": 0,
+    "live_rows": 0
+  },
+  {
+    "schemaname": "public",
+    "tablename": "cleaning_room_types",
+    "inserts": 0,
+    "updates": 0,
+    "deletes": 0,
+    "live_rows": 0
+  },
+  {
+    "schemaname": "public",
+    "tablename": "cleaning_tasks",
+    "inserts": 1,
+    "updates": 0,
+    "deletes": 0,
+    "live_rows": 1
+  },
+  {
+    "schemaname": "public",
+    "tablename": "cleaning_visit_tasks",
+    "inserts": 0,
+    "updates": 0,
+    "deletes": 0,
+    "live_rows": 0
+  },
+  {
+    "schemaname": "public",
+    "tablename": "cleaning_visits",
+    "inserts": 0,
+    "updates": 0,
+    "deletes": 0,
+    "live_rows": 0
+  },
+  {
+    "schemaname": "public",
+    "tablename": "contacts",
+    "inserts": 4,
+    "updates": 0,
+    "deletes": 4,
+    "live_rows": 0
+  },
+  {
+    "schemaname": "public",
+    "tablename": "inventory",
+    "inserts": 0,
+    "updates": 0,
+    "deletes": 0,
+    "live_rows": 0
+  },
+  {
+    "schemaname": "public",
+    "tablename": "manual_items",
+    "inserts": 0,
+    "updates": 0,
+    "deletes": 0,
+    "live_rows": 0
+  },
+  {
+    "schemaname": "public",
+    "tablename": "manual_sections",
+    "inserts": 20,
+    "updates": 10,
+    "deletes": 10,
+    "live_rows": 10
+  },
+  {
+    "schemaname": "public",
+    "tablename": "notes",
+    "inserts": 0,
+    "updates": 0,
+    "deletes": 0,
+    "live_rows": 0
+  },
+  {
+    "schemaname": "public",
+    "tablename": "profiles",
+    "inserts": 41,
+    "updates": 23,
+    "deletes": 17,
+    "live_rows": 3
+  },
+  {
+    "schemaname": "public",
+    "tablename": "properties",
+    "inserts": 4,
+    "updates": 2,
+    "deletes": 0,
+    "live_rows": 4
+  },
+  {
+    "schemaname": "public",
+    "tablename": "recommendation_categories",
+    "inserts": 0,
+    "updates": 0,
+    "deletes": 0,
+    "live_rows": 0
+  },
+  {
+    "schemaname": "public",
+    "tablename": "recommendation_notes",
+    "inserts": 1,
+    "updates": 0,
+    "deletes": 1,
+    "live_rows": 0
+  },
+  {
+    "schemaname": "public",
+    "tablename": "recommendations",
+    "inserts": 7,
+    "updates": 2,
+    "deletes": 6,
+    "live_rows": 1
+  },
+  {
+    "schemaname": "public",
+    "tablename": "reservations",
+    "inserts": 4,
+    "updates": 4,
+    "deletes": 2,
+    "live_rows": 2
+  },
+  {
+    "schemaname": "public",
+    "tablename": "role_permissions",
+    "inserts": 40,
+    "updates": 0,
+    "deletes": 0,
+    "live_rows": 40
+  },
+  {
+    "schemaname": "public",
+    "tablename": "tasks",
+    "inserts": 1,
+    "updates": 2,
+    "deletes": 0,
+    "live_rows": 1
+  },
+  {
+    "schemaname": "public",
+    "tablename": "tenant_subscriptions",
+    "inserts": 0,
+    "updates": 0,
+    "deletes": 0,
+    "live_rows": 0
+  },
+  {
+    "schemaname": "public",
+    "tablename": "tenant_users",
+    "inserts": 6,
+    "updates": 0,
+    "deletes": 0,
+    "live_rows": 4
+  },
+  {
+    "schemaname": "public",
+    "tablename": "tenants",
+    "inserts": 3,
+    "updates": 0,
+    "deletes": 0,
+    "live_rows": 3
+  },
+  {
+    "schemaname": "public",
+    "tablename": "trigger_errors",
+    "inserts": 2,
+    "updates": 0,
+    "deletes": 0,
+    "live_rows": 2
+  },
+  {
+    "schemaname": "public",
+    "tablename": "user_roles",
+    "inserts": 25,
+    "updates": 22,
+    "deletes": 22,
+    "live_rows": 3
+  }
+]
