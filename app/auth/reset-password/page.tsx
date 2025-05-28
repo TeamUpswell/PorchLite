@@ -40,12 +40,15 @@ export default function ResetPasswordPage() {
             <div className="mx-auto h-12 w-12 rounded-full bg-green-100 flex items-center justify-center mb-4">
               <Mail className="h-6 w-6 text-green-600" />
             </div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">Check your email</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">
+              Check your email
+            </h2>
             <p className="text-gray-600 mb-6">
               We've sent a password reset link to <strong>{email}</strong>
             </p>
             <p className="text-sm text-gray-500 mb-6">
-              Click the link in the email to reset your password. The link will expire in 24 hours.
+              Click the link in the email to reset your password. The link will
+              expire in 24 hours.
             </p>
             <div className="space-y-3">
               <button
@@ -78,15 +81,21 @@ export default function ResetPasswordPage() {
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Sign In
           </Link>
-          <h2 className="text-2xl font-bold text-gray-900">Reset your password</h2>
+          <h2 className="text-2xl font-bold text-gray-900">
+            Reset your password
+          </h2>
           <p className="text-gray-600 mt-2">
-            Enter your email address and we'll send you a link to reset your password.
+            Enter your email address and we'll send you a link to reset your
+            password.
           </p>
         </div>
 
         <form onSubmit={handleResetPassword} className="space-y-4">
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+            <label
+              htmlFor="email"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
               Email address
             </label>
             <input
@@ -116,7 +125,10 @@ export default function ResetPasswordPage() {
         <div className="mt-6 text-center">
           <p className="text-sm text-gray-600">
             Remember your password?{" "}
-            <Link href="/auth/signin" className="text-blue-600 hover:text-blue-500">
+            <Link
+              href="/auth/signin"
+              className="text-blue-600 hover:text-blue-500"
+            >
               Sign in
             </Link>
           </p>

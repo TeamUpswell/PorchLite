@@ -295,7 +295,7 @@ export default function ManageItemsModal({
                         {newCategory.name && (
                           <div>
                             <label className="block text-sm text-gray-600 mb-2">
-                              Suggested for "{newCategory.name}":
+                              Suggested for &quot;{newCategory.name}&quot;:
                             </label>
                             <div className="flex flex-wrap gap-2">
                               {getSmartEmojiSuggestions(newCategory.name).map(
