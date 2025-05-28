@@ -12,22 +12,26 @@ import StandardCard from "@/components/ui/StandardCard";
 import { useAuth } from "@/components/AuthProvider";
 import { supabase } from "@/lib/supabase";
 
-export default function NewItemPage() {
+export default function EditItemPage() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const params = useParams();
   const sectionId = params.id as string;
+  const itemId = params.itemId as string;
 
   useEffect(() => {
     setLoading(false);
   }, []);
 
   return (
-    <StandardPageLayout title="Add New Item">
+    <StandardPageLayout title="Edit Item">
       <StandardCard>
         <div className="p-6">
-          <h1>Add New Item to Section {sectionId}</h1>
-          <Link href={`/manual/sections/${sectionId}`}>Back to Section</Link>
+          <h1>Edit Item {itemId}</h1>
+          <p>Section: {sectionId}</p>
+          <Link href={`/manual/sections/${sectionId}/items/${itemId}`}>
+            Back to Item
+          </Link>
         </div>
       </StandardCard>
     </StandardPageLayout>
