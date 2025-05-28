@@ -58,6 +58,10 @@ export default function NewSectionPage() {
           </button>
         </form>
       </StandardCard>
+      <div className="p-6">
+        <h1>Create New Section</h1>
+        <Link href="/manual">Back to Manual</Link>
+      </div>
     </StandardPageLayout>
   );
 }
