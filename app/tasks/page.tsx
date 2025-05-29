@@ -521,8 +521,8 @@ export default function TasksPage() {
       </div>
 
       {/* Task cards */}
-      {tasks.length === 0 ? (
-        // Empty state when no tasks exist
+      {tasks.length === 0 && !["all", "open"].includes(filter) ? (
+        // Show empty state only for specific filters that might have no results
         <StandardCard>
           <div className="text-center py-12">
             <CheckSquareIcon className="h-16 w-16 text-gray-300 mx-auto mb-4" />
@@ -530,25 +530,37 @@ export default function TasksPage() {
               No Tasks Found
             </h3>
             <p className="text-gray-500 mb-6">
-              {filter === "open"
-                ? "No open tasks found. Get started by creating your first task!"
-                : filter === "all"
-                ? "Get started by creating your first task"
-                : filter === "completed"
+              {filter === "completed"
                 ? "No completed tasks found"
+                : filter === "pending"
+                ? "No pending tasks found"
+                : filter === "in-progress"
+                ? "No tasks in progress"
+                : filter === "mine"
+                ? "No tasks assigned to you"
+                : filter === "created-by-me"
+                ? "You haven't created any tasks yet"
                 : `No tasks match the "${filter}" filter`}
             </p>
-            <button
-              onClick={() => setIsCreateModalOpen(true)}
-              className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-            >
-              <PlusIcon className="h-5 w-5 mr-2" />
-              Create Your First Task
-            </button>
+            <div className="flex gap-3 justify-center">
+              <button
+                onClick={() => setFilter("all")}
+                className="inline-flex items-center px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+              >
+                View All Tasks
+              </button>
+              <button
+                onClick={() => setIsCreateModalOpen(true)}
+                className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                <PlusIcon className="h-5 w-5 mr-2" />
+                Create Task
+              </button>
+            </div>
           </div>
         </StandardCard>
       ) : (
-        // Task grid with placeholder cards
+        // Always show the grid with placeholder cards for "all" and "open" views
         <div className="grid gap-6 sm:grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
           {/* Existing tasks */}
           {tasks.map((task) => (
