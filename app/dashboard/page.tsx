@@ -5,7 +5,7 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/components/AuthProvider";
 import { useProperty } from "@/lib/hooks/useProperty";
-import StandardPageLayout from "@/components/StandardPageLayout";
+import StandardPageLayout from "@/components/layout/StandardPageLayout";
 import "@/styles/dashboard.css";
 import {
   Calendar,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { useProperty } from "@/lib/hooks/useProperty";
 import { supabase } from "@/lib/supabase";
@@ -17,16 +17,16 @@ import {
   CheckCircleIcon,
   PlayCircleIcon,
   XIcon,
-  CheckSquareIcon, // For header icon
+  CheckSquareIcon,
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 
-// Updated Task type to match your database
+// Updated Task type to match your database - fixed status type
 type Task = {
   id: string;
   title: string;
   description: string;
-  status: "pending" | "in-progress" | "completed";
+  status: "pending" | "in_progress" | "completed"; // Fixed: use in_progress instead of in-progress
   priority: "low" | "medium" | "high";
   category?: string;
   assigned_to: string | null;
@@ -39,7 +39,7 @@ type Task = {
   completed_at?: string | null;
   property_id: string;
   tenant_id?: string;
-  user_id?: string; // Legacy field, keeping for compatibility
+  user_id?: string;
 };
 
 type UserProfile = {
@@ -66,166 +66,162 @@ export default function TasksPage() {
     assigned_to: "",
   });
 
-  // Check user's role and permissions
-  useEffect(() => {
-    async function checkUserRole() {
-      if (!user || !currentProperty) return;
+  // Memoize property and user IDs to prevent unnecessary re-renders
+  const propertyId = useMemo(() => currentProperty?.id, [currentProperty?.id]);
+  const userId = useMemo(() => user?.id, [user?.id]);
+  const tenantId = useMemo(() => currentProperty?.tenant_id, [currentProperty?.tenant_id]);
 
-      try {
-        const { data, error } = await supabase
-          .from("tenant_users")
-          .select("role, status")
-          .eq("tenant_id", currentProperty.tenant_id)
-          .eq("user_id", user.id)
-          .eq("status", "active")
-          .single();
-
-        if (!error && data) {
-          setUserRole(data.role);
-        }
-      } catch (error) {
-        console.error("Error checking user role:", error);
-      }
-    }
-
-    checkUserRole();
-  }, [user, currentProperty]);
-
-  // Load users for assignment
-  const loadUsers = useCallback(async () => {
-    if (!currentProperty) return;
-
-    console.log("🔧 Loading users for tenant:", currentProperty.tenant_id);
+  // Check user's role and permissions - memoized
+  const checkUserRole = useCallback(async () => {
+    if (!userId || !tenantId) return;
 
     try {
-      // Get tenant users with auth.users data
       const { data, error } = await supabase
         .from("tenant_users")
+        .select("role, status")
+        .eq("tenant_id", tenantId)
+        .eq("user_id", userId)
+        .eq("status", "active")
+        .single();
+
+      if (!error && data) {
+        setUserRole(data.role);
+      }
+    } catch (error) {
+      console.error("Error checking user role:", error);
+    }
+  }, [userId, tenantId]);
+
+  // Load users with proper error handling - memoized
+  const loadUsers = useCallback(async () => {
+    if (!tenantId) return;
+
+    try {
+      const { data: tenantUsers, error: tenantError } = await supabase
+        .from("tenant_users")
         .select("user_id, role")
-        .eq("tenant_id", currentProperty.tenant_id)
+        .eq("tenant_id", tenantId)
         .eq("status", "active");
 
-      console.log("🔧 Tenant users result:", { data, error });
-
-      if (error) {
-        console.error("❌ Error loading tenant users:", error);
+      if (tenantError) {
+        console.error("❌ Error loading tenant users:", tenantError);
         return;
       }
 
-      if (data && data.length > 0) {
-        // Get user details from auth.users for each user_id
-        const userIds = data.map(item => item.user_id);
+      if (tenantUsers && tenantUsers.length > 0) {
+        const userIds = tenantUsers.map(tu => tu.user_id);
         
-        const { data: authUsers, error: authError } = await supabase
-          .from("auth.users")
-          .select("id, email, raw_user_meta_data")
+        const { data: profiles, error: profilesError } = await supabase
+          .from("profiles")
+          .select("id, full_name, email")
           .in("id", userIds);
 
-        console.log("🔧 Auth users result:", { authUsers, authError });
+        if (profilesError) {
+          console.error("❌ Error loading profiles:", profilesError);
+          const fallbackUsers = tenantUsers.map((tu) => ({
+            id: tu.user_id,
+            name: tu.user_id === userId ? "You" : "Team Member",
+            role: tu.role,
+          }));
+          setUsers(fallbackUsers);
+          return;
+        }
 
-        if (authUsers) {
-          const userProfiles = data.map((item) => {
-            const authUser = authUsers.find(u => u.id === item.user_id);
-            return {
-              id: item.user_id,
-              name: authUser?.raw_user_meta_data?.full_name || authUser?.email || "Unknown User",
-              role: item.role,
-            };
-          });
-          console.log("🔧 Processed user profiles:", userProfiles);
-          setUsers(userProfiles);
+        const userProfiles = tenantUsers.map((tenantUser) => {
+          const profile = profiles?.find(p => p.id === tenantUser.user_id);
+          return {
+            id: tenantUser.user_id,
+            name: profile?.full_name || profile?.email || "Unknown User",
+            role: tenantUser.role,
+          };
+        });
+
+        setUsers(userProfiles);
+      } else {
+        if (user) {
+          setUsers([{
+            id: user.id,
+            name: user.email || "Current User",
+            role: "user"
+          }]);
         }
       }
     } catch (error) {
       console.error("❌ Error loading users:", error);
+      if (user) {
+        setUsers([{
+          id: user.id,
+          name: user.email || "Current User",
+          role: "user"
+        }]);
+      }
     }
-  }, [currentProperty]);
+  }, [tenantId, userId, user]);
 
-  // Simplified loadTasks function (no user joins for now)
+  // Enhanced loadTasks with better user name resolution - memoized
   const loadTasks = useCallback(async () => {
-    if (!user || !currentProperty) {
-      console.log("🔧 Cannot load tasks - missing user or property");
-      return;
-    }
+    if (!userId || !propertyId) return;
 
-    console.log("🔧 Loading tasks for property:", currentProperty.id);
     setLoading(true);
     
     try {
-      // Simplified query without user joins
       let query = supabase
         .from("tasks")
-        .select(`
-          id,
-          title,
-          description,
-          status,
-          priority,
-          category,
-          assigned_to,
-          created_by,
-          created_at,
-          updated_at,
-          due_date,
-          completed_at,
-          property_id,
-          tenant_id,
-          user_id
-        `)
-        .eq("property_id", currentProperty.id);
+        .select("*")
+        .eq("property_id", propertyId);
 
-      // Apply filters
+      // Apply filters - use correct status values
       if (filter === "pending") {
         query = query.eq("status", "pending");
       } else if (filter === "in-progress") {
-        query = query.eq("status", "in-progress");
+        query = query.eq("status", "in_progress"); // Fixed: underscore
       } else if (filter === "completed") {
         query = query.eq("status", "completed");
       } else if (filter === "mine") {
-        query = query.eq("assigned_to", user.id);
+        query = query.eq("assigned_to", userId);
       } else if (filter === "created-by-me") {
-        query = query.eq("created_by", user.id);
+        query = query.eq("created_by", userId);
       }
 
-      const { data, error } = await query
-        .order("created_at", { ascending: false });
+      const { data, error } = await query.order("created_at", { ascending: false });
 
-      console.log("🔧 Tasks query result:", { data, error, count: data?.length });
-
-      if (error) {
-        console.error("❌ Tasks query error:", error);
-        throw error;
-      }
+      if (error) throw error;
 
       if (data) {
-        // Get user details for assigned_to and created_by
-        const userIds = [...new Set([
+        const allUserIds = Array.from(new Set([
           ...data.map(task => task.assigned_to).filter(Boolean),
           ...data.map(task => task.created_by).filter(Boolean)
-        ])];
+        ]));
 
-        let userMap = {};
-        if (userIds.length > 0) {
-          const { data: authUsers } = await supabase
-            .from("auth.users")
-            .select("id, email, raw_user_meta_data")
-            .in("id", userIds);
+        let userNames: Record<string, string> = {};
+        
+        if (allUserIds.length > 0) {
+          try {
+            const { data: profiles } = await supabase
+              .from("profiles")
+              .select("id, full_name, email")
+              .in("id", allUserIds);
 
-          if (authUsers) {
-            userMap = authUsers.reduce((acc, user) => {
-              acc[user.id] = user.raw_user_meta_data?.full_name || user.email || "Unknown User";
-              return acc;
-            }, {});
+            if (profiles) {
+              profiles.forEach(profile => {
+                userNames[profile.id] = profile.full_name || profile.email || "Unknown User";
+              });
+            }
+          } catch (profileError) {
+            console.warn("Could not load user profiles:", profileError);
           }
         }
 
         const tasksWithNames = data.map((task) => ({
           ...task,
-          assigned_user_name: task.assigned_to ? userMap[task.assigned_to] : null,
-          created_by_name: task.created_by ? userMap[task.created_by] : "Unknown",
+          assigned_user_name: task.assigned_to 
+            ? (userNames[task.assigned_to] || (task.assigned_to === userId ? "You" : "Team Member"))
+            : null,
+          created_by_name: task.created_by === userId 
+            ? "You" 
+            : (userNames[task.created_by] || "Team Member"),
         }));
 
-        console.log("🔧 Processed tasks:", tasksWithNames);
         setTasks(tasksWithNames);
       }
     } catch (err) {
@@ -234,69 +230,27 @@ export default function TasksPage() {
     } finally {
       setLoading(false);
     }
-  }, [user, currentProperty, filter]);
+  }, [userId, propertyId, filter]);
 
+  // Load data with proper dependency control - only run when necessary
   useEffect(() => {
-    loadTasks();
-    loadUsers();
-  }, [loadTasks, loadUsers]);
-
-  // Create a new task
-  const handleCreateTask = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (!currentProperty || !user) return;
-
-    try {
-      const taskData = {
-        title: newTask.title,
-        description: newTask.description,
-        priority: newTask.priority,
-        category: newTask.category,
-        due_date: newTask.due_date || null,
-        assigned_to: newTask.assigned_to || null,
-        status: newTask.assigned_to ? "in-progress" : "pending",
-        created_by: user.id,
-        property_id: currentProperty.id,
-        tenant_id: currentProperty.tenant_id,
-        updated_at: new Date().toISOString(),
-      };
-
-      const { data, error } = await supabase
-        .from("tasks")
-        .insert(taskData)
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      await loadTasks(); // Reload to get user names
-      setIsCreateModalOpen(false);
-      setNewTask({
-        title: "",
-        description: "",
-        priority: "medium",
-        category: "maintenance",
-        due_date: "",
-        assigned_to: "",
-      });
-
-      toast.success("Task created successfully!");
-    } catch (err) {
-      console.error("Error creating task:", err);
-      toast.error("Failed to create task");
+    if (propertyId && userId) {
+      loadTasks();
+      loadUsers();
+      checkUserRole();
     }
-  };
+  }, [propertyId, userId, filter]); // Only depend on stable IDs
 
-  // Claim a task
+  // Claim task with proper status value
   const claimTask = async (taskId: string) => {
-    if (!user?.id) return;
+    if (!userId) return;
 
     try {
       const { error } = await supabase
         .from("tasks")
         .update({
-          assigned_to: user.id,
-          status: "in-progress",
+          assigned_to: userId,
+          status: "in_progress", // Fixed: underscore
           updated_at: new Date().toISOString(),
         })
         .eq("id", taskId);
@@ -311,7 +265,7 @@ export default function TasksPage() {
     }
   };
 
-  // Complete a task
+  // Complete task
   const completeTask = async (taskId: string) => {
     try {
       const { error } = await supabase
@@ -333,12 +287,58 @@ export default function TasksPage() {
     }
   };
 
-  // Get status icon
+  // Create task with proper status handling
+  const handleCreateTask = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!currentProperty || !user) return;
+
+    try {
+      const taskData = {
+        title: newTask.title,
+        description: newTask.description,
+        priority: newTask.priority,
+        category: newTask.category,
+        due_date: newTask.due_date || null,
+        assigned_to: newTask.assigned_to || null,
+        status: newTask.assigned_to ? "in_progress" : "pending", // Fixed: underscore
+        created_by: user.id,
+        property_id: currentProperty.id,
+        tenant_id: currentProperty.tenant_id,
+        updated_at: new Date().toISOString(),
+      };
+
+      const { data, error } = await supabase
+        .from("tasks")
+        .insert(taskData)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      await loadTasks();
+      setIsCreateModalOpen(false);
+      setNewTask({
+        title: "",
+        description: "",
+        priority: "medium",
+        category: "maintenance",
+        due_date: "",
+        assigned_to: "",
+      });
+
+      toast.success("Task created successfully!");
+    } catch (err) {
+      console.error("Error creating task:", err);
+      toast.error("Failed to create task");
+    }
+  };
+
+  // Get status icon with proper status handling
   const getStatusIcon = (status: string) => {
     switch (status) {
       case "pending":
         return <ClockIcon className="h-4 w-4" />;
-      case "in-progress":
+      case "in_progress": // Fixed: underscore
         return <PlayCircleIcon className="h-4 w-4" />;
       case "completed":
         return <CheckCircleIcon className="h-4 w-4" />;
@@ -360,6 +360,14 @@ export default function TasksPage() {
         return "bg-gray-100 text-gray-800 border-gray-200";
     }
   };
+
+  // Memoize task counts for stats
+  const taskStats = useMemo(() => ({
+    pending: tasks.filter((t) => t.status === "pending").length,
+    inProgress: tasks.filter((t) => t.status === "in_progress").length,
+    completed: tasks.filter((t) => t.status === "completed").length,
+    myTasks: tasks.filter((t) => t.assigned_to === userId && t.status !== "completed").length,
+  }), [tasks, userId]);
 
   // Loading state
   if (loading) {
@@ -410,84 +418,27 @@ export default function TasksPage() {
         </button>
       }
     >
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <StandardCard>
-          <div className="flex items-center">
-            <ClockIcon className="h-8 w-8 text-orange-500" />
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-500">Pending</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {tasks.filter((t) => t.status === "pending").length}
-              </p>
-            </div>
-          </div>
-        </StandardCard>
-
-        <StandardCard>
-          <div className="flex items-center">
-            <PlayCircleIcon className="h-8 w-8 text-blue-500" />
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-500">In Progress</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {tasks.filter((t) => t.status === "in-progress").length}
-              </p>
-            </div>
-          </div>
-        </StandardCard>
-
-        <StandardCard>
-          <div className="flex items-center">
-            <CheckCircleIcon className="h-8 w-8 text-green-500" />
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-500">Completed</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {tasks.filter((t) => t.status === "completed").length}
-              </p>
-            </div>
-          </div>
-        </StandardCard>
-
-        <StandardCard>
-          <div className="flex items-center">
-            <UserIcon className="h-8 w-8 text-purple-500" />
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-500">My Tasks</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {tasks.filter((t) => t.assigned_to === user?.id && t.status !== "completed").length}
-              </p>
-            </div>
-          </div>
-        </StandardCard>
-      </div>
-
-      {/* Filters */}
+      {/* Filter dropdown */}
       <div className="mb-6">
-        <div className="flex flex-wrap gap-2">
-          {[
-            { value: "all", label: "All Tasks" },
-            { value: "pending", label: "Pending" },
-            { value: "in-progress", label: "In Progress" },
-            { value: "completed", label: "Completed" },
-            { value: "mine", label: "My Tasks" },
-            { value: "created-by-me", label: "Created by Me" },
-          ].map((filterOption) => (
-            <button
-              key={filterOption.value}
-              onClick={() => setFilter(filterOption.value)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                filter === filterOption.value
-                  ? "bg-blue-100 text-blue-700 border border-blue-200"
-                  : "bg-white text-gray-700 border border-gray-200 hover:bg-gray-50"
-              }`}
-            >
-              {filterOption.label}
-            </button>
-          ))}
-        </div>
+        <label htmlFor="task-filter" className="block text-sm font-medium text-gray-700 mb-2">
+          Filter Tasks
+        </label>
+        <select
+          id="task-filter"
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+          className="w-full sm:w-auto border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+        >
+          <option value="all">All Tasks</option>
+          <option value="pending">Pending</option>
+          <option value="in-progress">In Progress</option>
+          <option value="completed">Completed</option>
+          <option value="mine">My Tasks</option>
+          <option value="created-by-me">Created by Me</option>
+        </select>
       </div>
 
-      {/* Task List */}
+      {/* Task cards */}
       {tasks.length === 0 ? (
         <StandardCard>
           <div className="text-center py-12">
@@ -508,91 +459,94 @@ export default function TasksPage() {
           </div>
         </StandardCard>
       ) : (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-3">
           {tasks.map((task) => (
             <StandardCard key={task.id}>
-              <div className="p-2">
-                {/* Header */}
-                <div className="flex justify-between items-start mb-4">
-                  <h3 className="font-semibold text-lg text-gray-900 pr-2">
+              <div className="p-3 sm:p-4">
+                <div className="flex justify-between items-start mb-3">
+                  <h3 className="font-semibold text-base sm:text-lg text-gray-900 pr-2 leading-tight">
                     {task.title}
                   </h3>
-                  <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getPriorityColor(task.priority)}`}>
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium border flex-shrink-0 ${getPriorityColor(task.priority)}`}>
                     {task.priority}
                   </span>
                 </div>
 
-                {/* Description */}
-                <p className="text-gray-600 text-sm mb-4 line-clamp-3">
+                <p className="text-gray-600 text-sm mb-3 line-clamp-3">
                   {task.description}
                 </p>
 
-                {/* Metadata */}
                 <div className="space-y-2 mb-4">
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-gray-500">Status:</span>
                     <div className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-medium ${
                       task.status === "pending"
                         ? "bg-orange-100 text-orange-800"
-                        : task.status === "in-progress"
+                        : task.status === "in_progress"
                         ? "bg-blue-100 text-blue-800"
                         : "bg-green-100 text-green-800"
                     }`}>
                       {getStatusIcon(task.status)}
-                      {task.status.replace("-", " ")}
+                      <span className="hidden sm:inline">
+                        {task.status === "in_progress" ? "in progress" : task.status}
+                      </span>
                     </div>
                   </div>
 
-                  {task.category && (
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-gray-500">Category:</span>
-                      <span className="text-gray-700 capitalize">{task.category}</span>
-                    </div>
-                  )}
-
                   {task.assigned_user_name && (
                     <div className="flex items-center justify-between text-sm">
-                      <span className="text-gray-500">Assigned to:</span>
-                      <span className="text-gray-700">{task.assigned_user_name}</span>
+                      <span className="text-gray-500">Assigned:</span>
+                      <span className="text-gray-700 text-right truncate max-w-32">
+                        {task.assigned_user_name}
+                      </span>
                     </div>
                   )}
 
                   {task.due_date && (
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-gray-500">Due:</span>
-                      <span className="text-gray-700">
+                      <span className="text-gray-700 text-right">
                         {new Date(task.due_date).toLocaleDateString()}
+                      </span>
+                    </div>
+                  )}
+
+                  {task.category && (
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-500">Category:</span>
+                      <span className="text-gray-700 text-right capitalize">
+                        {task.category}
                       </span>
                     </div>
                   )}
                 </div>
 
-                {/* Actions */}
                 <div className="flex gap-2">
                   {task.status === "pending" && (
                     <button
                       onClick={() => claimTask(task.id)}
                       className="flex-1 bg-blue-50 hover:bg-blue-100 text-blue-700 px-3 py-2 rounded-lg text-sm font-medium transition-colors"
                     >
-                      Claim Task
+                      Claim
                     </button>
                   )}
 
-                  {task.status !== "completed" && task.assigned_to === user?.id && (
+                  {task.status !== "completed" && task.assigned_to === userId && (
                     <button
                       onClick={() => completeTask(task.id)}
                       className="flex-1 bg-green-50 hover:bg-green-100 text-green-700 px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-1"
                     >
                       <CheckIcon className="h-4 w-4" />
-                      Complete
+                      <span className="hidden sm:inline">Complete</span>
                     </button>
                   )}
                 </div>
 
-                {/* Footer */}
-                <div className="border-t border-gray-100 mt-4 pt-3">
+                <div className="border-t border-gray-100 mt-3 pt-3">
                   <div className="flex justify-between items-center text-xs text-gray-500">
-                    <span>Created by {task.created_by_name || 'Unknown'}</span>
+                    <span className="truncate max-w-24">
+                      {task.created_by_name || 'Unknown'}
+                    </span>
                     <span>{new Date(task.created_at).toLocaleDateString()}</span>
                   </div>
                 </div>
@@ -601,6 +555,52 @@ export default function TasksPage() {
           ))}
         </div>
       )}
+
+      {/* Stats at bottom - using memoized values */}
+      <div className="mt-8 pt-6 border-t border-gray-200">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Task Summary</h3>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <StandardCard>
+            <div className="flex items-center p-3">
+              <ClockIcon className="h-6 w-6 sm:h-8 sm:w-8 text-orange-500 flex-shrink-0" />
+              <div className="ml-3">
+                <p className="text-xs sm:text-sm font-medium text-gray-500">Pending</p>
+                <p className="text-lg sm:text-2xl font-bold text-gray-900">{taskStats.pending}</p>
+              </div>
+            </div>
+          </StandardCard>
+
+          <StandardCard>
+            <div className="flex items-center p-3">
+              <PlayCircleIcon className="h-6 w-6 sm:h-8 sm:w-8 text-blue-500 flex-shrink-0" />
+              <div className="ml-3">
+                <p className="text-xs sm:text-sm font-medium text-gray-500">In Progress</p>
+                <p className="text-lg sm:text-2xl font-bold text-gray-900">{taskStats.inProgress}</p>
+              </div>
+            </div>
+          </StandardCard>
+
+          <StandardCard>
+            <div className="flex items-center p-3">
+              <CheckCircleIcon className="h-6 w-6 sm:h-8 sm:w-8 text-green-500 flex-shrink-0" />
+              <div className="ml-3">
+                <p className="text-xs sm:text-sm font-medium text-gray-500">Completed</p>
+                <p className="text-lg sm:text-2xl font-bold text-gray-900">{taskStats.completed}</p>
+              </div>
+            </div>
+          </StandardCard>
+
+          <StandardCard>
+            <div className="flex items-center p-3">
+              <UserIcon className="h-6 w-6 sm:h-8 sm:w-8 text-purple-500 flex-shrink-0" />
+              <div className="ml-3">
+                <p className="text-xs sm:text-sm font-medium text-gray-500">My Tasks</p>
+                <p className="text-lg sm:text-2xl font-bold text-gray-900">{taskStats.myTasks}</p>
+              </div>
+            </div>
+          </StandardCard>
+        </div>
+      </div>
 
       {/* Create Task Modal */}
       {isCreateModalOpen && (
