@@ -1,4 +1,4 @@
-/* app/globals.css - Simplified version */
+/* app/globals.css - Fixed input styling */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -14,67 +14,136 @@ h3,
 h4,
 h5,
 h6 {
-  @apply font-bold;
+  @apply font-bold text-gray-900;
 }
 
 a {
   @apply text-blue-600 hover:text-blue-800;
 }
 
+/* Standard light input fields with dark text */
 input,
-textarea {
-  @apply border border-gray-300 rounded-md p-2;
-}
-
-.card {
-  @apply bg-white shadow-md rounded-lg p-4;
-}
-
-/* Fix light text in form elements */
-select, input, textarea {
-  @apply text-gray-900;
+textarea,
+select {
+  @apply bg-white text-gray-900 border border-gray-300 rounded-md p-2;
+  @apply focus:ring-2 focus:ring-blue-500 focus:border-blue-500;
+  @apply placeholder:text-gray-500;
 }
 
 select option {
   @apply text-gray-900 bg-white;
 }
 
-/* Dark mode - simplified */
-.dark body {
+.card {
+  @apply bg-white shadow-md rounded-lg p-4;
+}
+
+/* Modal and light background text - always dark */
+.modal,
+.modal h1,
+.modal h2,
+.modal h3,
+.modal h4,
+.modal h5,
+.modal h6,
+.bg-white,
+.bg-white h1,
+.bg-white h2,
+.bg-white h3,
+.bg-white h4,
+.bg-white h5,
+.bg-white h6 {
+  @apply text-gray-900;
+}
+
+/* Main content areas - always dark text */
+main,
+main h1,
+main h2,
+main h3,
+main h4,
+main h5,
+main h6,
+.content,
+.content h1,
+.content h2,
+.content h3,
+.content h4,
+.content h5,
+.content h6 {
+  @apply text-gray-900;
+}
+
+/* Dark mode - only for navigation and dark backgrounds */
+.dark nav,
+.dark .sidebar,
+.dark .sidebar * {
   @apply bg-gray-900 text-gray-100;
 }
 
-.dark .card {
-  @apply bg-gray-800 text-gray-100;
-}
-
-.dark input,
-.dark textarea {
-  @apply bg-white text-gray-900 border-gray-300;
-}
-
-.dark a {
-  @apply text-blue-400 hover:text-blue-300;
-}
-
-/* Dark mode adjustments */
-.dark select, .dark input, .dark textarea {
-  @apply text-gray-100 bg-gray-800;
-}
-
-.dark select option {
-  @apply text-gray-100 bg-gray-800;
-}
-
-/* Navigation specific */
-.dark nav,
-.dark .sidebar,
-.dark .header {
-  @apply text-gray-100;
+.dark nav a,
+.dark .sidebar a {
+  @apply text-gray-100 hover:text-white;
 }
 
 .dark nav button,
-.dark .sidebar button,
-.dark .header button {
+.dark .sidebar button {
   @apply text-gray-100 hover:text-white;
+}
+
+/* Keep inputs light even in dark mode for better readability */
+.dark input,
+.dark textarea,
+.dark select {
+  @apply bg-white text-gray-900 border-gray-300;
+  @apply focus:ring-2 focus:ring-blue-500 focus:border-blue-500;
+  @apply placeholder:text-gray-500;
+}
+
+.dark select option {
+  @apply text-gray-900 bg-white;
+}
+
+/* Input focus states for better accessibility */
+input:focus,
+textarea:focus,
+select:focus {
+  @apply outline-none ring-2 ring-blue-500 border-blue-500;
+}
+
+/* Disabled input styling */
+input:disabled,
+textarea:disabled,
+select:disabled {
+  @apply bg-gray-100 text-gray-500 cursor-not-allowed;
+}
+
+.dark input:disabled,
+.dark textarea:disabled,
+.dark select:disabled {
+  @apply bg-gray-200 text-gray-500;
+}
+
+/* Force dark text on light backgrounds regardless of theme */
+.force-dark-text,
+.force-dark-text * {
+  @apply text-gray-900 !important;
+}
+
+/* Specific modal styling */
+[role="dialog"],
+.modal-content,
+.modal-header,
+.modal-body {
+  @apply text-gray-900;
+}
+
+/* Task cards and content areas */
+.task-card,
+.task-card h3,
+.task-card p,
+.content-card,
+.content-card h3,
+.content-card p {
+  @apply text-gray-900;
 }

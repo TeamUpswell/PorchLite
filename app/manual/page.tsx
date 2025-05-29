@@ -121,19 +121,21 @@ export default function ManualPage() {
     );
   }
 
+  const createButton = (
+    <Link 
+      href="/manual/sections/new"
+      className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+    >
+      <Plus className="h-4 w-4 mr-2" />
+      Add Section
+    </Link>
+  );
+
   return (
     <StandardPageLayout
       title={`${currentProperty.name} - Manual`}
       headerIcon={<BookOpen className="h-6 w-6 text-blue-600" />}
-      action={
-        <Link 
-          href="/manual/sections/new"
-          className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Add Section
-        </Link>
-      }
+      action={createButton}
     >
       {error && (
         <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">

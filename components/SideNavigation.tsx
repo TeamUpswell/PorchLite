@@ -24,6 +24,7 @@ import {
   X,
   Activity,
   AlertTriangle,
+  CheckSquare as CheckSquareIcon, // Add this import for Tasks icon
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import Image from "next/image";
@@ -68,6 +69,7 @@ const navigationStructure: NavigationSection[] = [
       { name: "Dashboard", href: "/", icon: HomeIcon },
       { name: "Calendar", href: "/calendar", icon: CalendarIcon },
       { name: "House Manual", href: "/manual", icon: BookOpenIcon },
+      { name: "Tasks", href: "/tasks", icon: CheckSquareIcon }, // Add Tasks here
       { name: "Nearby Places", href: "/recommendations", icon: StarIcon },
       { name: "Inventory", href: "/inventory", icon: PackageIcon },
       { name: "Contacts", href: "/contacts", icon: PhoneIcon },

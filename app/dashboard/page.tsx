@@ -5,7 +5,7 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/components/AuthProvider";
 import { useProperty } from "@/lib/hooks/useProperty";
-import AuthenticatedLayout from "@/components/AuthenticatedLayout";
+import StandardPageLayout from "@/components/StandardPageLayout";
 import "@/styles/dashboard.css";
 import {
   Calendar,
@@ -20,7 +20,7 @@ import {
   Wind,
   Eye,
   Clock,
-  Home,
+  Home as HomeIcon,
   Wifi,
   Zap,
   Droplets,
@@ -437,10 +437,13 @@ export default function Dashboard() {
 
   if (!currentProperty) {
     return (
-      <AuthenticatedLayout>
+      <StandardPageLayout
+        title="Dashboard"
+        headerIcon={<HomeIcon className="h-6 w-6 text-blue-600" />}
+      >
         <div className="container mx-auto p-8 text-center">
           <div className="max-w-md mx-auto">
-            <Home className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+            <HomeIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
             <h2 className="text-2xl font-bold text-gray-900 mb-2">
               No Property Selected
             </h2>
@@ -456,12 +459,15 @@ export default function Dashboard() {
             </Link>
           </div>
         </div>
-      </AuthenticatedLayout>
+      </StandardPageLayout>
     );
   }
 
   return (
-    <AuthenticatedLayout>
+    <StandardPageLayout
+      title="Dashboard"
+      headerIcon={<HomeIcon className="h-6 w-6 text-blue-600" />}
+    >
       <div className="container mx-auto p-4 sm:p-6 lg:p-8">
         {/* Property Hero Header with Weather Overlay */}
         <DashboardHeader>
@@ -1048,6 +1054,6 @@ export default function Dashboard() {
           </div>
         )}
       </div>
-    </AuthenticatedLayout>
+    </StandardPageLayout>
   );
 }

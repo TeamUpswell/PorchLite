@@ -2,45 +2,177 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/components/AuthProvider";
+import { useProperty } from "@/lib/hooks/useProperty";
 import { supabase } from "@/lib/supabase";
-import AuthenticatedLayout from "@/components/AuthenticatedLayout";
-import { PlusIcon, FilterIcon, CheckIcon } from "lucide-react";
+import StandardPageLayout from "@/components/layout/StandardPageLayout";
+import StandardCard from "@/components/ui/StandardCard";
+import {
+  PlusIcon,
+  FilterIcon,
+  CheckIcon,
+  ClockIcon,
+  UserIcon,
+  CalendarIcon,
+  AlertTriangleIcon,
+  CheckCircleIcon,
+  PlayCircleIcon,
+  XIcon,
+  CheckSquareIcon, // For header icon
+} from "lucide-react";
+import { toast } from "react-hot-toast";
 
-// Task type definition
+// Updated Task type to match your database
 type Task = {
   id: string;
   title: string;
   description: string;
   status: "pending" | "in-progress" | "completed";
   priority: "low" | "medium" | "high";
-  category: string;
+  category?: string;
   assigned_to: string | null;
+  assigned_user_name?: string;
   created_by: string;
+  created_by_name?: string;
   created_at: string;
+  updated_at: string;
   due_date: string | null;
+  completed_at?: string | null;
+  property_id: string;
+  tenant_id?: string;
+  user_id?: string; // Legacy field, keeping for compatibility
+};
+
+type UserProfile = {
+  id: string;
+  name: string;
+  role: string;
 };
 
 export default function TasksPage() {
   const { user } = useAuth();
+  const { currentProperty } = useProperty();
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState("all"); // 'all', 'pending', 'in-progress', 'completed', 'mine'
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const [filter, setFilter] = useState("all");
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [newTask, setNewTask] = useState({
     title: "",
     description: "",
-    priority: "medium",
+    priority: "medium" as "low" | "medium" | "high",
     category: "maintenance",
     due_date: "",
+    assigned_to: "",
   });
 
-  // Load tasks based on filter
-  const loadTasks = useCallback(async () => {
-    if (!user) return;
+  // Check user's role and permissions
+  useEffect(() => {
+    async function checkUserRole() {
+      if (!user || !currentProperty) return;
 
-    setLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from("tenant_users")
+          .select("role, status")
+          .eq("tenant_id", currentProperty.tenant_id)
+          .eq("user_id", user.id)
+          .eq("status", "active")
+          .single();
+
+        if (!error && data) {
+          setUserRole(data.role);
+        }
+      } catch (error) {
+        console.error("Error checking user role:", error);
+      }
+    }
+
+    checkUserRole();
+  }, [user, currentProperty]);
+
+  // Load users for assignment
+  const loadUsers = useCallback(async () => {
+    if (!currentProperty) return;
+
+    console.log("🔧 Loading users for tenant:", currentProperty.tenant_id);
+
     try {
-      let query = supabase.from("tasks").select("*");
+      // Get tenant users with auth.users data
+      const { data, error } = await supabase
+        .from("tenant_users")
+        .select("user_id, role")
+        .eq("tenant_id", currentProperty.tenant_id)
+        .eq("status", "active");
+
+      console.log("🔧 Tenant users result:", { data, error });
+
+      if (error) {
+        console.error("❌ Error loading tenant users:", error);
+        return;
+      }
+
+      if (data && data.length > 0) {
+        // Get user details from auth.users for each user_id
+        const userIds = data.map(item => item.user_id);
+        
+        const { data: authUsers, error: authError } = await supabase
+          .from("auth.users")
+          .select("id, email, raw_user_meta_data")
+          .in("id", userIds);
+
+        console.log("🔧 Auth users result:", { authUsers, authError });
+
+        if (authUsers) {
+          const userProfiles = data.map((item) => {
+            const authUser = authUsers.find(u => u.id === item.user_id);
+            return {
+              id: item.user_id,
+              name: authUser?.raw_user_meta_data?.full_name || authUser?.email || "Unknown User",
+              role: item.role,
+            };
+          });
+          console.log("🔧 Processed user profiles:", userProfiles);
+          setUsers(userProfiles);
+        }
+      }
+    } catch (error) {
+      console.error("❌ Error loading users:", error);
+    }
+  }, [currentProperty]);
+
+  // Simplified loadTasks function (no user joins for now)
+  const loadTasks = useCallback(async () => {
+    if (!user || !currentProperty) {
+      console.log("🔧 Cannot load tasks - missing user or property");
+      return;
+    }
+
+    console.log("🔧 Loading tasks for property:", currentProperty.id);
+    setLoading(true);
+    
+    try {
+      // Simplified query without user joins
+      let query = supabase
+        .from("tasks")
+        .select(`
+          id,
+          title,
+          description,
+          status,
+          priority,
+          category,
+          assigned_to,
+          created_by,
+          created_at,
+          updated_at,
+          due_date,
+          completed_at,
+          property_id,
+          tenant_id,
+          user_id
+        `)
+        .eq("property_id", currentProperty.id);
 
       // Apply filters
       if (filter === "pending") {
@@ -51,54 +183,93 @@ export default function TasksPage() {
         query = query.eq("status", "completed");
       } else if (filter === "mine") {
         query = query.eq("assigned_to", user.id);
+      } else if (filter === "created-by-me") {
+        query = query.eq("created_by", user.id);
       }
 
-      // Only show completed tasks to owners/managers
-      if (!user.isAdmin && !user.isManager && filter !== "completed") {
-        query = query.neq("status", "completed");
-      }
-
-      // Sort by priority and creation date
       const { data, error } = await query
-        .order("priority", { ascending: false })
         .order("created_at", { ascending: false });
 
-      if (data) setTasks(data);
-      if (error) console.error("Error loading tasks:", error);
+      console.log("🔧 Tasks query result:", { data, error, count: data?.length });
+
+      if (error) {
+        console.error("❌ Tasks query error:", error);
+        throw error;
+      }
+
+      if (data) {
+        // Get user details for assigned_to and created_by
+        const userIds = [...new Set([
+          ...data.map(task => task.assigned_to).filter(Boolean),
+          ...data.map(task => task.created_by).filter(Boolean)
+        ])];
+
+        let userMap = {};
+        if (userIds.length > 0) {
+          const { data: authUsers } = await supabase
+            .from("auth.users")
+            .select("id, email, raw_user_meta_data")
+            .in("id", userIds);
+
+          if (authUsers) {
+            userMap = authUsers.reduce((acc, user) => {
+              acc[user.id] = user.raw_user_meta_data?.full_name || user.email || "Unknown User";
+              return acc;
+            }, {});
+          }
+        }
+
+        const tasksWithNames = data.map((task) => ({
+          ...task,
+          assigned_user_name: task.assigned_to ? userMap[task.assigned_to] : null,
+          created_by_name: task.created_by ? userMap[task.created_by] : "Unknown",
+        }));
+
+        console.log("🔧 Processed tasks:", tasksWithNames);
+        setTasks(tasksWithNames);
+      }
     } catch (err) {
-      console.error("Failed to load tasks:", err);
+      console.error("❌ Failed to load tasks:", err);
+      toast.error("Failed to load tasks");
     } finally {
       setLoading(false);
     }
-  }, [user, filter, supabase, setTasks, setLoading]);
+  }, [user, currentProperty, filter]);
 
-  // Initial load and reload when filter changes
   useEffect(() => {
     loadTasks();
-  }, [loadTasks]);
+    loadUsers();
+  }, [loadTasks, loadUsers]);
 
   // Create a new task
   const handleCreateTask = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (!currentProperty || !user) return;
 
     try {
+      const taskData = {
+        title: newTask.title,
+        description: newTask.description,
+        priority: newTask.priority,
+        category: newTask.category,
+        due_date: newTask.due_date || null,
+        assigned_to: newTask.assigned_to || null,
+        status: newTask.assigned_to ? "in-progress" : "pending",
+        created_by: user.id,
+        property_id: currentProperty.id,
+        tenant_id: currentProperty.tenant_id,
+        updated_at: new Date().toISOString(),
+      };
+
       const { data, error } = await supabase
         .from("tasks")
-        .insert({
-          title: newTask.title,
-          description: newTask.description,
-          priority: newTask.priority,
-          category: newTask.category,
-          due_date: newTask.due_date || null,
-          status: "pending",
-          created_by: user?.id || "",
-          assigned_to: null,
-        })
-        .select();
+        .insert(taskData)
+        .select()
+        .single();
 
       if (error) throw error;
 
-      setTasks([data[0], ...tasks]);
+      await loadTasks(); // Reload to get user names
       setIsCreateModalOpen(false);
       setNewTask({
         title: "",
@@ -106,41 +277,37 @@ export default function TasksPage() {
         priority: "medium",
         category: "maintenance",
         due_date: "",
+        assigned_to: "",
       });
+
+      toast.success("Task created successfully!");
     } catch (err) {
       console.error("Error creating task:", err);
-      alert("Failed to create task");
+      toast.error("Failed to create task");
     }
   };
 
   // Claim a task
   const claimTask = async (taskId: string) => {
-    if (!user?.id) return; // Early return if no user ID
+    if (!user?.id) return;
 
     try {
       const { error } = await supabase
         .from("tasks")
-        .update({ assigned_to: user.id, status: "in-progress" })
+        .update({
+          assigned_to: user.id,
+          status: "in-progress",
+          updated_at: new Date().toISOString(),
+        })
         .eq("id", taskId);
 
       if (error) throw error;
 
-      // Fix typing issue with the map function
-      setTasks(
-        tasks.map((task) => {
-          if (task.id === taskId) {
-            return {
-              ...task,
-              assigned_to: user.id,
-              status: "in-progress" as const,
-            };
-          }
-          return task;
-        })
-      );
+      await loadTasks();
+      toast.success("Task claimed successfully!");
     } catch (err) {
       console.error("Error claiming task:", err);
-      alert("Failed to claim task");
+      toast.error("Failed to claim task");
     }
   };
 
@@ -149,225 +316,348 @@ export default function TasksPage() {
     try {
       const { error } = await supabase
         .from("tasks")
-        .update({ status: "completed" })
+        .update({
+          status: "completed",
+          completed_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
         .eq("id", taskId);
 
       if (error) throw error;
 
-      // Fix typing here too
-      setTasks(
-        tasks.map((task) => {
-          if (task.id === taskId) {
-            return {
-              ...task,
-              status: "completed" as const,
-            };
-          }
-          return task;
-        })
-      );
+      await loadTasks();
+      toast.success("Task completed! Great job! 🎉");
     } catch (err) {
       console.error("Error completing task:", err);
-      alert("Failed to complete task");
+      toast.error("Failed to complete task");
     }
   };
 
+  // Get status icon
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case "pending":
+        return <ClockIcon className="h-4 w-4" />;
+      case "in-progress":
+        return <PlayCircleIcon className="h-4 w-4" />;
+      case "completed":
+        return <CheckCircleIcon className="h-4 w-4" />;
+      default:
+        return <ClockIcon className="h-4 w-4" />;
+    }
+  };
+
+  // Get priority color
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case "high":
+        return "bg-red-100 text-red-800 border-red-200";
+      case "medium":
+        return "bg-yellow-100 text-yellow-800 border-yellow-200";
+      case "low":
+        return "bg-green-100 text-green-800 border-green-200";
+      default:
+        return "bg-gray-100 text-gray-800 border-gray-200";
+    }
+  };
+
+  // Loading state
+  if (loading) {
+    return (
+      <StandardPageLayout 
+        title="Task Management"
+        headerIcon={<CheckSquareIcon className="h-6 w-6 text-blue-600" />}
+      >
+        <StandardCard>
+          <div className="flex items-center justify-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <span className="ml-2">Loading tasks...</span>
+          </div>
+        </StandardCard>
+      </StandardPageLayout>
+    );
+  }
+
+  // No property selected
+  if (!currentProperty) {
+    return (
+      <StandardPageLayout 
+        title="Task Management"
+        headerIcon={<CheckSquareIcon className="h-6 w-6 text-blue-600" />}
+      >
+        <StandardCard>
+          <div className="text-center py-8">
+            <CheckSquareIcon className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No Property Selected</h3>
+            <p className="text-gray-500">Please select a property to view its tasks.</p>
+          </div>
+        </StandardCard>
+      </StandardPageLayout>
+    );
+  }
+
   return (
-    <AuthenticatedLayout>
-      <div className="container mx-auto">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold">Task Management</h1>
-
-          <div className="flex items-center space-x-4">
-            <div className="relative">
-              <select
-                className="appearance-none bg-white border border-gray-300 rounded-md py-2 pl-3 pr-10 text-sm"
-                value={filter}
-                onChange={(e) => setFilter(e.target.value)}
-                aria-label="Filter tasks"
-                id="task-filter"
-              >
-                <option value="all">All Tasks</option>
-                <option value="pending">Pending</option>
-                <option value="in-progress">In Progress</option>
-                <option value="mine">Assigned to Me</option>
-                {(user?.isAdmin || user?.isManager) && (
-                  <option value="completed">Completed</option>
-                )}
-              </select>
-              <label htmlFor="task-filter" className="sr-only">
-                Filter tasks
-              </label>
-              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
-                <FilterIcon className="h-4 w-4" />
-              </div>
+    <StandardPageLayout
+      title={`${currentProperty.name} - Tasks`}
+      headerIcon={<CheckSquareIcon className="h-6 w-6 text-blue-600" />}
+      action={
+        <button
+          onClick={() => setIsCreateModalOpen(true)}
+          className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+        >
+          <PlusIcon className="h-4 w-4 mr-2" />
+          Create Task
+        </button>
+      }
+    >
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <StandardCard>
+          <div className="flex items-center">
+            <ClockIcon className="h-8 w-8 text-orange-500" />
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-500">Pending</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {tasks.filter((t) => t.status === "pending").length}
+              </p>
             </div>
+          </div>
+        </StandardCard>
 
+        <StandardCard>
+          <div className="flex items-center">
+            <PlayCircleIcon className="h-8 w-8 text-blue-500" />
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-500">In Progress</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {tasks.filter((t) => t.status === "in-progress").length}
+              </p>
+            </div>
+          </div>
+        </StandardCard>
+
+        <StandardCard>
+          <div className="flex items-center">
+            <CheckCircleIcon className="h-8 w-8 text-green-500" />
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-500">Completed</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {tasks.filter((t) => t.status === "completed").length}
+              </p>
+            </div>
+          </div>
+        </StandardCard>
+
+        <StandardCard>
+          <div className="flex items-center">
+            <UserIcon className="h-8 w-8 text-purple-500" />
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-500">My Tasks</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {tasks.filter((t) => t.assigned_to === user?.id && t.status !== "completed").length}
+              </p>
+            </div>
+          </div>
+        </StandardCard>
+      </div>
+
+      {/* Filters */}
+      <div className="mb-6">
+        <div className="flex flex-wrap gap-2">
+          {[
+            { value: "all", label: "All Tasks" },
+            { value: "pending", label: "Pending" },
+            { value: "in-progress", label: "In Progress" },
+            { value: "completed", label: "Completed" },
+            { value: "mine", label: "My Tasks" },
+            { value: "created-by-me", label: "Created by Me" },
+          ].map((filterOption) => (
             <button
-              onClick={() => setIsCreateModalOpen(true)}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md flex items-center"
+              key={filterOption.value}
+              onClick={() => setFilter(filterOption.value)}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                filter === filterOption.value
+                  ? "bg-blue-100 text-blue-700 border border-blue-200"
+                  : "bg-white text-gray-700 border border-gray-200 hover:bg-gray-50"
+              }`}
             >
-              <PlusIcon className="h-4 w-4 mr-2" />
-              Create Task
+              {filterOption.label}
             </button>
-          </div>
+          ))}
         </div>
+      </div>
 
-        {loading ? (
-          <div className="text-center py-10">
-            <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-blue-500 mx-auto"></div>
-            <p className="mt-2 text-gray-600">Loading tasks...</p>
-          </div>
-        ) : tasks.length === 0 ? (
-          <div className="bg-white rounded-lg shadow p-10 text-center">
-            <p className="text-gray-500 mb-4">No tasks found</p>
+      {/* Task List */}
+      {tasks.length === 0 ? (
+        <StandardCard>
+          <div className="text-center py-12">
+            <CheckSquareIcon className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+            <h3 className="text-xl font-medium text-gray-900 mb-2">No Tasks Found</h3>
+            <p className="text-gray-500 mb-6">
+              {filter === "all" 
+                ? "Get started by creating your first task"
+                : `No tasks match the "${filter}" filter`}
+            </p>
             <button
               onClick={() => setIsCreateModalOpen(true)}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md inline-flex items-center"
+              className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
             >
-              <PlusIcon className="h-4 w-4 mr-2" />
+              <PlusIcon className="h-5 w-5 mr-2" />
               Create Your First Task
             </button>
           </div>
-        ) : (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {tasks.map((task) => (
-              <div
-                key={task.id}
-                className="border rounded-lg p-4 bg-white shadow"
-              >
-                <div className="flex justify-between items-start">
-                  <h3 className="font-semibold text-lg">{task.title}</h3>
-                  <span
-                    className={`px-2 py-1 rounded text-xs ${
-                      task.priority === "high"
-                        ? "bg-red-100 text-red-800"
-                        : task.priority === "medium"
-                        ? "bg-yellow-100 text-yellow-800"
-                        : "bg-green-100 text-green-800"
-                    }`}
-                  >
+        </StandardCard>
+      ) : (
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {tasks.map((task) => (
+            <StandardCard key={task.id}>
+              <div className="p-2">
+                {/* Header */}
+                <div className="flex justify-between items-start mb-4">
+                  <h3 className="font-semibold text-lg text-gray-900 pr-2">
+                    {task.title}
+                  </h3>
+                  <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getPriorityColor(task.priority)}`}>
                     {task.priority}
                   </span>
                 </div>
 
-                <p className="text-sm text-gray-600 mt-2 mb-4 line-clamp-3">
+                {/* Description */}
+                <p className="text-gray-600 text-sm mb-4 line-clamp-3">
                   {task.description}
                 </p>
 
-                <div className="mt-4 flex justify-between items-center">
-                  <span
-                    className={`px-2 py-1 rounded text-xs ${
+                {/* Metadata */}
+                <div className="space-y-2 mb-4">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-500">Status:</span>
+                    <div className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-medium ${
                       task.status === "pending"
-                        ? "bg-gray-100 text-gray-800"
+                        ? "bg-orange-100 text-orange-800"
                         : task.status === "in-progress"
                         ? "bg-blue-100 text-blue-800"
                         : "bg-green-100 text-green-800"
-                    }`}
-                  >
-                    {task.status}
-                  </span>
-
-                  <div className="flex space-x-2">
-                    {task.status === "pending" && (
-                      <button
-                        onClick={() => claimTask(task.id)}
-                        className="text-xs bg-blue-50 hover:bg-blue-100 text-blue-700 px-2 py-1 rounded"
-                      >
-                        Claim
-                      </button>
-                    )}
-
-                    {task.status !== "completed" &&
-                      task.assigned_to === user?.id && (
-                        <button
-                          onClick={() => completeTask(task.id)}
-                          className="text-xs bg-green-50 hover:bg-green-100 text-green-700 px-2 py-1 rounded flex items-center"
-                        >
-                          <CheckIcon className="h-3 w-3 mr-1" />
-                          Complete
-                        </button>
-                      )}
+                    }`}>
+                      {getStatusIcon(task.status)}
+                      {task.status.replace("-", " ")}
+                    </div>
                   </div>
+
+                  {task.category && (
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-500">Category:</span>
+                      <span className="text-gray-700 capitalize">{task.category}</span>
+                    </div>
+                  )}
+
+                  {task.assigned_user_name && (
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-500">Assigned to:</span>
+                      <span className="text-gray-700">{task.assigned_user_name}</span>
+                    </div>
+                  )}
+
+                  {task.due_date && (
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-500">Due:</span>
+                      <span className="text-gray-700">
+                        {new Date(task.due_date).toLocaleDateString()}
+                      </span>
+                    </div>
+                  )}
                 </div>
 
-                {task.due_date && (
-                  <div className="mt-3 text-xs text-gray-500">
-                    Due: {new Date(task.due_date).toLocaleDateString()}
+                {/* Actions */}
+                <div className="flex gap-2">
+                  {task.status === "pending" && (
+                    <button
+                      onClick={() => claimTask(task.id)}
+                      className="flex-1 bg-blue-50 hover:bg-blue-100 text-blue-700 px-3 py-2 rounded-lg text-sm font-medium transition-colors"
+                    >
+                      Claim Task
+                    </button>
+                  )}
+
+                  {task.status !== "completed" && task.assigned_to === user?.id && (
+                    <button
+                      onClick={() => completeTask(task.id)}
+                      className="flex-1 bg-green-50 hover:bg-green-100 text-green-700 px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-1"
+                    >
+                      <CheckIcon className="h-4 w-4" />
+                      Complete
+                    </button>
+                  )}
+                </div>
+
+                {/* Footer */}
+                <div className="border-t border-gray-100 mt-4 pt-3">
+                  <div className="flex justify-between items-center text-xs text-gray-500">
+                    <span>Created by {task.created_by_name || 'Unknown'}</span>
+                    <span>{new Date(task.created_at).toLocaleDateString()}</span>
                   </div>
-                )}
+                </div>
               </div>
-            ))}
-          </div>
-        )}
-      </div>
+            </StandardCard>
+          ))}
+        </div>
+      )}
 
       {/* Create Task Modal */}
       {isCreateModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg shadow-lg w-full max-w-md">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="p-6">
-              <h3 className="text-lg font-semibold mb-4">Create New Task</h3>
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xl font-bold text-gray-900">Create New Task</h3>
+                <button
+                  onClick={() => setIsCreateModalOpen(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <XIcon className="h-6 w-6" />
+                </button>
+              </div>
 
-              <form onSubmit={handleCreateTask}>
-                <div className="mb-4">
-                  <label
-                    htmlFor="task-title"
-                    className="block text-sm font-medium text-gray-700 mb-1"
-                  >
-                    Title
+              <form onSubmit={handleCreateTask} className="space-y-6">
+                <div>
+                  <label htmlFor="task-title" className="block text-sm font-medium text-gray-700 mb-2">
+                    Task Title
                   </label>
                   <input
                     id="task-title"
                     type="text"
-                    className="w-full border border-gray-300 rounded-md px-3 py-2"
+                    className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     value={newTask.title}
-                    onChange={(e) =>
-                      setNewTask({ ...newTask, title: e.target.value })
-                    }
+                    onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
+                    placeholder="What needs to be done?"
                     required
                   />
                 </div>
 
-                <div className="mb-4">
-                  <label
-                    htmlFor="task-description"
-                    className="block text-sm font-medium text-gray-700 mb-1"
-                  >
+                <div>
+                  <label htmlFor="task-description" className="block text-sm font-medium text-gray-700 mb-2">
                     Description
                   </label>
                   <textarea
                     id="task-description"
-                    className="w-full border border-gray-300 rounded-md px-3 py-2"
+                    className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     rows={4}
                     value={newTask.description}
-                    onChange={(e) =>
-                      setNewTask({ ...newTask, description: e.target.value })
-                    }
+                    onChange={(e) => setNewTask({ ...newTask, description: e.target.value })}
+                    placeholder="Provide details about the task..."
                     required
-                    aria-label="Task description"
-                  ></textarea>
+                  />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4 mb-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
-                    <label
-                      htmlFor="task-priority"
-                      className="block text-sm font-medium text-gray-700 mb-1"
-                    >
+                    <label htmlFor="task-priority" className="block text-sm font-medium text-gray-700 mb-2">
                       Priority
                     </label>
                     <select
                       id="task-priority"
-                      className="w-full border border-gray-300 rounded-md px-3 py-2"
+                      className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       value={newTask.priority}
-                      onChange={(e) =>
-                        setNewTask({
-                          ...newTask,
-                          priority: e.target.value as "low" | "medium" | "high",
-                        })
-                      }
-                      aria-label="Task priority"
+                      onChange={(e) => setNewTask({ ...newTask, priority: e.target.value as "low" | "medium" | "high" })}
                     >
                       <option value="low">Low</option>
                       <option value="medium">Medium</option>
@@ -376,59 +666,69 @@ export default function TasksPage() {
                   </div>
 
                   <div>
-                    <label
-                      htmlFor="task-category"
-                      className="block text-sm font-medium text-gray-700 mb-1"
-                    >
+                    <label htmlFor="task-category" className="block text-sm font-medium text-gray-700 mb-2">
                       Category
                     </label>
                     <select
                       id="task-category"
-                      className="w-full border border-gray-300 rounded-md px-3 py-2"
+                      className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       value={newTask.category}
-                      onChange={(e) =>
-                        setNewTask({ ...newTask, category: e.target.value })
-                      }
-                      aria-label="Task category"
+                      onChange={(e) => setNewTask({ ...newTask, category: e.target.value })}
                     >
                       <option value="maintenance">Maintenance</option>
                       <option value="cleaning">Cleaning</option>
                       <option value="supplies">Supplies</option>
+                      <option value="repairs">Repairs</option>
+                      <option value="inspection">Inspection</option>
                       <option value="other">Other</option>
                     </select>
                   </div>
+
+                  <div>
+                    <label htmlFor="task-due-date" className="block text-sm font-medium text-gray-700 mb-2">
+                      Due Date (Optional)
+                    </label>
+                    <input
+                      id="task-due-date"
+                      type="date"
+                      className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      value={newTask.due_date}
+                      onChange={(e) => setNewTask({ ...newTask, due_date: e.target.value })}
+                      min={new Date().toISOString().split("T")[0]}
+                    />
+                  </div>
                 </div>
 
-                <div className="mb-6">
-                  <label
-                    htmlFor="task-due-date"
-                    className="block text-sm font-medium text-gray-700 mb-1"
-                  >
-                    Due Date (Optional)
+                <div>
+                  <label htmlFor="task-assigned-to" className="block text-sm font-medium text-gray-700 mb-2">
+                    Assign to (Optional)
                   </label>
-                  <input
-                    id="task-due-date"
-                    type="date"
-                    className="w-full border border-gray-300 rounded-md px-3 py-2"
-                    value={newTask.due_date}
-                    onChange={(e) =>
-                      setNewTask({ ...newTask, due_date: e.target.value })
-                    }
-                    aria-label="Task due date"
-                  />
+                  <select
+                    id="task-assigned-to"
+                    className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    value={newTask.assigned_to}
+                    onChange={(e) => setNewTask({ ...newTask, assigned_to: e.target.value })}
+                  >
+                    <option value="">Unassigned (anyone can claim)</option>
+                    {users.map((user) => (
+                      <option key={user.id} value={user.id}>
+                        {user.name} ({user.role})
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
-                <div className="flex justify-end space-x-3">
+                <div className="flex justify-end gap-3 pt-4 border-t">
                   <button
                     type="button"
-                    className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+                    className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium transition-colors"
                     onClick={() => setIsCreateModalOpen(false)}
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors"
                   >
                     Create Task
                   </button>
@@ -438,6 +738,6 @@ export default function TasksPage() {
           </div>
         </div>
       )}
-    </AuthenticatedLayout>
+    </StandardPageLayout>
   );
 }
