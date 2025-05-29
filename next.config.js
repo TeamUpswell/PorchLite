@@ -1,7 +1,19 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
-    domains: ["localhost", "your-supabase-project.supabase.co"],
+    domains: [
+      "localhost", 
+      "your-supabase-project.supabase.co",
+      // Add your Supabase storage domain
+      "yoursupabseproject.supabase.co"
+    ],
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: '*.supabase.co',
+        pathname: '/storage/v1/object/public/**',
+      },
+    ],
   },
   eslint: {
     // Ignore ESLint errors during build

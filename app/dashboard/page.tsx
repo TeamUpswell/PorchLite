@@ -36,6 +36,7 @@ import { toast } from "react-hot-toast";
 import ResponsiveImage from "@/components/ResponsiveImage";
 import { convertToWebP, supportsWebP } from "@/lib/imageUtils";
 import PropertyDebug from "@/components/PropertyDebug";
+import DashboardHeader from "@/components/dashboard/DashboardHeader";
 
 // Define interfaces for our new dashboard data
 interface Issue {
@@ -456,172 +457,29 @@ export default function Dashboard() {
     <AuthenticatedLayout>
       <div className="container mx-auto p-4 sm:p-6 lg:p-8">
         {/* Property Hero Header with Weather Overlay */}
-        <div className="relative rounded-xl overflow-hidden h-64 mb-8 group">
-          {currentProperty?.main_photo_url ? (
-            <div className="relative w-full h-full">
-              <ResponsiveImage
-                src={currentProperty.main_photo_url}
-                alt={currentProperty.name || "Property"}
-                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                priority={true}
-              />
-            </div>
-          ) : (
-            <div className="w-full h-full bg-gradient-to-r from-blue-500 to-indigo-600 flex items-center justify-center">
-              <p className="text-white text-lg">Add a property image</p>
-            </div>
-          )}
-
-          {/* Weather Widget Overlay - Lower Right Corner */}
-          {weather && (
-            <div className="absolute bottom-4 right-4 z-10">
-              <div className="bg-white/95 backdrop-blur-sm rounded-xl p-4 shadow-lg border border-white/30 min-w-80">
-                <div className="flex items-center justify-between">
-                  {/* Current Weather */}
-                  <div className="flex items-center space-x-3">
-                    <div className="w-12 h-12 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center">
-                      {weather.current.icon ? (
-                        <img
-                          src={`https://openweathermap.org/img/wn/${weather.current.icon}.png`}
-                          alt={weather.current.condition}
-                          className="w-8 h-8"
-                        />
-                      ) : (
-                        <Cloud className="h-6 w-6 text-white" />
-                      )}
-                    </div>
-                    <div>
-                      <div className="text-2xl font-bold text-gray-900">
-                        {weather.current.temp}°F
-                      </div>
-                      <p
-                        className="text-sm capitalize font-black"
-                        style={{ color: "#000000" }}
-                      >
-                        {weather.current.condition}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Mini Forecast */}
-                  <div className="flex items-center space-x-2">
-                    {weather.forecast.slice(0, 3).map((day, index) => {
-                      const date = new Date(day.date);
-                      const dayName = date
-                        .toLocaleDateString("en-US", { weekday: "short" })
-                        .slice(0, 2);
-
-                      return (
-                        <div key={index} className="text-center">
-                          <div className="text-xs text-gray-900 font-bold">
-                            {dayName}
-                          </div>
-                          <div className="w-6 h-6 mx-auto my-1">
-                            {day.icon ? (
-                              <img
-                                src={`https://openweathermap.org/img/wn/${day.icon}.png`}
-                                alt={day.condition}
-                                className="w-6 h-6"
-                              />
-                            ) : (
-                              <Cloud className="h-4 w-4 text-gray-800" />
-                            )}
-                          </div>
-                          <div className="text-xs text-gray-900 font-bold">
-                            {day.high}°
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  {/* Weather Stats */}
-                  <div className="text-right space-y-1">
-                    <div className="flex items-center text-xs text-gray-900">
-                      <Droplets className="h-3 w-3 mr-1 text-blue-600" />
-                      <span className="font-bold">
-                        {weather.current.humidity}%
-                      </span>
-                    </div>
-                    <div className="flex items-center text-xs text-gray-900">
-                      <Wind className="h-3 w-3 mr-1 text-gray-800" />
-                      <span className="font-bold">
-                        {weather.current.wind_speed} mph
-                      </span>
-                    </div>
-                  </div>
+        <DashboardHeader>
+          {/* Weather Widget Content */}
+          <div className="text-center">
+            <h1 className="text-3xl font-bold mb-2">
+              Welcome to {currentProperty?.name || 'Your Property'}
+            </h1>
+            
+            {/* Weather Info */}
+            {weather && (
+              <div className="flex items-center justify-center space-x-4 text-lg">
+                <div className="flex items-center">
+                  <Thermometer className="h-5 w-5 mr-1" />
+                  <span>{Math.round(weather.current.temp)}°F</span>
                 </div>
+                <div className="flex items-center">
+                  <Wind className="h-5 w-5 mr-1" />
+                  <span>{Math.round(weather.current.wind_speed)} mph</span>
+                </div>
+                <div className="capitalize">{weather.current.condition}</div>
               </div>
-            </div>
-          )}
-
-          {/* Image Upload Button */}
-          <div className="absolute top-4 right-4 z-20">
-            <button
-              onClick={() => {
-                if (!isUploading) {
-                  const fileInput = document.getElementById(
-                    "property-image-upload"
-                  );
-                  if (fileInput) fileInput.click();
-                }
-              }}
-              disabled={isUploading}
-              type="button"
-              className={`${
-                isUploading ? "bg-gray-400" : "bg-blue-600 hover:bg-blue-700"
-              } p-2 rounded-full shadow-lg transition-colors`}
-            >
-              {isUploading ? (
-                <div className="h-5 w-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-              ) : (
-                <Pencil className="h-5 w-5 text-white" />
-              )}
-            </button>
-
-            <input
-              id="property-image-upload"
-              type="file"
-              className="hidden"
-              accept="image/jpeg,image/png,image/webp,image/gif"
-              onChange={handleImageUpload}
-            />
+            )}
           </div>
-
-          {/* Upload Progress */}
-          {isUploading && (
-            <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center">
-              <div className="w-64 bg-gray-200 rounded-full h-2.5 mb-4">
-                <div
-                  className="bg-blue-600 h-2.5 rounded-full transition-all duration-300"
-                  style={{ width: `${uploadProgress}%` }}
-                ></div>
-              </div>
-              <p className="text-white">Uploading... {uploadProgress}%</p>
-            </div>
-          )}
-
-          {/* Property Info Overlay - Bottom */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent flex flex-col justify-end p-6">
-            <div>
-              <h1 className="text-3xl font-bold text-white mb-1">
-                {currentProperty?.name || "My Property"}
-              </h1>
-              {currentProperty?.address && (
-                <p className="text-white/90 mb-2 flex items-center">
-                  <MapPin className="h-4 w-4 mr-1" />
-                  {currentProperty.address}
-                  {currentProperty.city && currentProperty.state && (
-                    <span>
-                      , {currentProperty.city}, {currentProperty.state}{" "}
-                      {currentProperty.zip}
-                    </span>
-                  )}
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
+        </DashboardHeader>
 
         {/* Two Column Dashboard Grid (Weather removed from here) */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
