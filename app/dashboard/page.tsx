@@ -114,13 +114,17 @@ export default function Dashboard() {
         nextMonth.setMonth(nextMonth.getMonth() + 1);
         const nextMonthStr = nextMonth.toISOString();
 
-        console.log('🔍 Fetching reservations for property:', currentProperty.id);
-        console.log('Date range:', today, 'to', nextMonthStr);
+        console.log(
+          "🔍 Fetching reservations for property:",
+          currentProperty.id
+        );
+        console.log("Date range:", today, "to", nextMonthStr);
 
         // Query with correct column names from your schema
         const { data: visits, error } = await supabase
           .from("reservations")
-          .select(`
+          .select(
+            `
             id,
             title,
             description,
@@ -137,46 +141,49 @@ export default function Dashboard() {
               phone,
               relationship
             )
-          `)
+          `
+          )
           .eq("property_id", currentProperty.id)
           .gte("start_date", today)
           .lte("start_date", nextMonthStr)
           .order("start_date", { ascending: true })
           .limit(10);
 
-        console.log('Raw reservations data:', visits);
-        console.log('Query error:', error);
+        console.log("Raw reservations data:", visits);
+        console.log("Query error:", error);
 
         if (error) {
-          console.error('Error fetching reservations:', error);
+          console.error("Error fetching reservations:", error);
           setUpcomingVisits([]);
           return;
         }
 
         // Format the data to match your interface
-        const formattedVisits = visits?.map((v) => {
-          // Get primary companion info (first companion or fallback)
-          const primaryCompanion = v.reservation_companions?.[0];
-          const totalGuests = (v.guests || 0) + (v.companion_count || 0);
-          
-          return {
-            id: v.id,
-            title: v.title || `Reservation - ${new Date(v.start_date).toLocaleDateString()}`,
-            guest_name: primaryCompanion?.name || v.title || 'Guest',
-            start_date: v.start_date,
-            end_date: v.end_date,
-            guests: totalGuests || 1,
-            status: v.status || "pending",
-            contact_email: primaryCompanion?.email || '',
-            contact_phone: primaryCompanion?.phone || '',
-            notes: v.description || '',
-            type: 'reservation'
-          };
-        }) || [];
+        const formattedVisits =
+          visits?.map((v) => {
+            // Get primary companion info (first companion or fallback)
+            const primaryCompanion = v.reservation_companions?.[0];
+            const totalGuests = (v.guests || 0) + (v.companion_count || 0);
 
-        console.log('Formatted visits:', formattedVisits);
+            return {
+              id: v.id,
+              title:
+                v.title ||
+                `Reservation - ${new Date(v.start_date).toLocaleDateString()}`,
+              guest_name: primaryCompanion?.name || v.title || "Guest",
+              start_date: v.start_date,
+              end_date: v.end_date,
+              guests: totalGuests || 1,
+              status: v.status || "pending",
+              contact_email: primaryCompanion?.email || "",
+              contact_phone: primaryCompanion?.phone || "",
+              notes: v.description || "",
+              type: "reservation",
+            };
+          }) || [];
+
+        console.log("Formatted visits:", formattedVisits);
         setUpcomingVisits(formattedVisits);
-
       } catch (error) {
         console.error("Error fetching upcoming visits:", error);
         setUpcomingVisits([]);
@@ -458,12 +465,11 @@ export default function Dashboard() {
       <div className="container mx-auto p-4 sm:p-6 lg:p-8">
         {/* Property Hero Header with Weather Overlay */}
         <DashboardHeader>
-          {/* Weather Widget Content */}
           <div className="text-center">
             <h1 className="text-3xl font-bold mb-2">
-              Welcome to {currentProperty?.name || 'Your Property'}
+              Welcome to {currentProperty?.name || "Your Property"}
             </h1>
-            
+
             {/* Weather Info */}
             {weather && (
               <div className="flex items-center justify-center space-x-4 text-lg">
@@ -532,57 +538,92 @@ export default function Dashboard() {
                   {upcomingVisits.map((visit) => {
                     const startDate = new Date(visit.start_date);
                     const endDate = new Date(visit.end_date);
-                    const isToday = startDate.toDateString() === new Date().toDateString();
-                    const isThisWeek = Math.ceil((startDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) <= 7;
-                    const daysUntil = Math.ceil((startDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+                    const isToday =
+                      startDate.toDateString() === new Date().toDateString();
+                    const isThisWeek =
+                      Math.ceil(
+                        (startDate.getTime() - new Date().getTime()) /
+                          (1000 * 60 * 60 * 24)
+                      ) <= 7;
+                    const daysUntil = Math.ceil(
+                      (startDate.getTime() - new Date().getTime()) /
+                        (1000 * 60 * 60 * 24)
+                    );
 
                     return (
                       <div
                         key={visit.id}
                         className={`p-4 border rounded-lg hover:bg-gray-50 transition-colors ${
-                          isToday ? 'border-blue-500 bg-blue-50' : 
-                          isThisWeek ? 'border-orange-200 bg-orange-25' : ''
+                          isToday
+                            ? "border-blue-500 bg-blue-50"
+                            : isThisWeek
+                            ? "border-orange-200 bg-orange-25"
+                            : ""
                         }`}
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex items-center">
-                            <div className={`w-12 h-12 rounded-full flex items-center justify-center mr-3 ${
-                              visit.status === 'confirmed' ? 'bg-green-100' :
-                              visit.status === 'pending' ? 'bg-yellow-100' :
-                              visit.status === 'requested' ? 'bg-blue-100' :
-                              'bg-gray-100'
-                            }`}>
-                              <Users className={`h-6 w-6 ${
-                                visit.status === 'confirmed' ? 'text-green-600' :
-                                visit.status === 'pending' ? 'text-yellow-600' :
-                                visit.status === 'requested' ? 'text-blue-600' :
-                                'text-gray-600'
-                              }`} />
+                            <div
+                              className={`w-12 h-12 rounded-full flex items-center justify-center mr-3 ${
+                                visit.status === "confirmed"
+                                  ? "bg-green-100"
+                                  : visit.status === "pending"
+                                  ? "bg-yellow-100"
+                                  : visit.status === "requested"
+                                  ? "bg-blue-100"
+                                  : "bg-gray-100"
+                              }`}
+                            >
+                              <Users
+                                className={`h-6 w-6 ${
+                                  visit.status === "confirmed"
+                                    ? "text-green-600"
+                                    : visit.status === "pending"
+                                    ? "text-yellow-600"
+                                    : visit.status === "requested"
+                                    ? "text-blue-600"
+                                    : "text-gray-600"
+                                }`}
+                              />
                             </div>
                             <div>
                               <h3 className="font-medium text-gray-900">
                                 {visit.title}
                               </h3>
-                              {visit.guest_name && visit.guest_name !== visit.title && (
-                                <p className="text-sm text-gray-600">{visit.guest_name}</p>
-                              )}
+                              {visit.guest_name &&
+                                visit.guest_name !== visit.title && (
+                                  <p className="text-sm text-gray-600">
+                                    {visit.guest_name}
+                                  </p>
+                                )}
                               <div className="flex items-center space-x-4 text-sm text-gray-600">
                                 <span>
-                                  {startDate.toLocaleDateString('en-US', { 
-                                    month: 'short', 
-                                    day: 'numeric',
-                                    year: startDate.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined
-                                  })} - {endDate.toLocaleDateString('en-US', { 
-                                    month: 'short', 
-                                    day: 'numeric',
-                                    year: endDate.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined
+                                  {startDate.toLocaleDateString("en-US", {
+                                    month: "short",
+                                    day: "numeric",
+                                    year:
+                                      startDate.getFullYear() !==
+                                      new Date().getFullYear()
+                                        ? "numeric"
+                                        : undefined,
+                                  })}{" "}
+                                  -{" "}
+                                  {endDate.toLocaleDateString("en-US", {
+                                    month: "short",
+                                    day: "numeric",
+                                    year:
+                                      endDate.getFullYear() !==
+                                      new Date().getFullYear()
+                                        ? "numeric"
+                                        : undefined,
                                   })}
                                 </span>
                                 <span>
-                                  {visit.guests} guest{visit.guests !== 1 ? 's' : ''}
+                                  {visit.guests} guest
+                                  {visit.guests !== 1 ? "s" : ""}
                                 </span>
                               </div>
-                              
+
                               {/* Time-based indicators */}
                               <div className="flex items-center space-x-2 mt-1">
                                 {isToday && (
@@ -590,11 +631,14 @@ export default function Dashboard() {
                                     Today
                                   </span>
                                 )}
-                                {daysUntil > 0 && daysUntil <= 7 && !isToday && (
-                                  <span className="px-2 py-1 bg-orange-100 text-orange-800 rounded text-xs font-medium">
-                                    {daysUntil} day{daysUntil !== 1 ? 's' : ''}
-                                  </span>
-                                )}
+                                {daysUntil > 0 &&
+                                  daysUntil <= 7 &&
+                                  !isToday && (
+                                    <span className="px-2 py-1 bg-orange-100 text-orange-800 rounded text-xs font-medium">
+                                      {daysUntil} day
+                                      {daysUntil !== 1 ? "s" : ""}
+                                    </span>
+                                  )}
                                 {daysUntil < 0 && (
                                   <span className="px-2 py-1 bg-green-100 text-green-800 rounded text-xs font-medium">
                                     In Progress
@@ -620,20 +664,22 @@ export default function Dashboard() {
                               )}
                             </div>
                           </div>
-                          
+
                           <div className="flex flex-col items-end space-y-2">
-                            <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                              visit.status === "confirmed"
-                                ? "bg-green-100 text-green-800"
-                                : visit.status === "pending"
-                                ? "bg-yellow-100 text-yellow-800"
-                                : visit.status === "requested"
-                                ? "bg-blue-100 text-blue-800"
-                                : "bg-gray-100 text-gray-800"
-                            }`}>
+                            <span
+                              className={`px-3 py-1 rounded-full text-xs font-medium ${
+                                visit.status === "confirmed"
+                                  ? "bg-green-100 text-green-800"
+                                  : visit.status === "pending"
+                                  ? "bg-yellow-100 text-yellow-800"
+                                  : visit.status === "requested"
+                                  ? "bg-blue-100 text-blue-800"
+                                  : "bg-gray-100 text-gray-800"
+                              }`}
+                            >
                               {visit.status}
                             </span>
-                            
+
                             {/* Quick Actions */}
                             <div className="flex space-x-1">
                               <Link
@@ -653,7 +699,7 @@ export default function Dashboard() {
                             </div>
                           </div>
                         </div>
-                        
+
                         {visit.notes && (
                           <div className="mt-3 p-2 bg-gray-50 rounded text-sm text-gray-700">
                             <strong>Notes:</strong> {visit.notes}
@@ -691,8 +737,16 @@ export default function Dashboard() {
                 <div className="mt-4 pt-4 border-t border-gray-200">
                   <div className="flex justify-between items-center text-sm text-gray-600">
                     <span>
-                      {upcomingVisits.filter(v => v.status === 'confirmed').length} confirmed, {' '}
-                      {upcomingVisits.filter(v => v.status === 'pending').length} pending
+                      {
+                        upcomingVisits.filter((v) => v.status === "confirmed")
+                          .length
+                      }{" "}
+                      confirmed,{" "}
+                      {
+                        upcomingVisits.filter((v) => v.status === "pending")
+                          .length
+                      }{" "}
+                      pending
                     </span>
                     <Link
                       href="/calendar"
@@ -906,7 +960,7 @@ export default function Dashboard() {
                     <X className="h-5 w-5" />
                   </button>
                 </div>
-                
+
                 {/* Quick reservation form */}
                 <form className="space-y-4">
                   <div>
@@ -919,7 +973,7 @@ export default function Dashboard() {
                       placeholder="Enter guest name"
                     />
                   </div>
-                  
+
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -940,7 +994,7 @@ export default function Dashboard() {
                       />
                     </div>
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Number of Guests
@@ -952,7 +1006,7 @@ export default function Dashboard() {
                       placeholder="1"
                     />
                   </div>
-                  
+
                   <div className="flex space-x-3 pt-4">
                     <button
                       type="button"
@@ -968,7 +1022,7 @@ export default function Dashboard() {
                       Add Reservation
                     </button>
                   </div>
-                  
+
                   <Link
                     href="/calendar/new"
                     className="block text-center text-sm text-blue-600 hover:text-blue-800"
@@ -983,7 +1037,7 @@ export default function Dashboard() {
         )}
 
         {/* Debug Info - Development Only */}
-        {process.env.NODE_ENV === 'development' && (
+        {process.env.NODE_ENV === "development" && (
           <div className="mb-4 p-4 bg-gray-100 rounded">
             <h3>Debug Info:</h3>
             <p>Current Property: {currentProperty?.id}</p>

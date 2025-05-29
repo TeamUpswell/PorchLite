@@ -22,6 +22,7 @@ interface PropertyContextType {
   setCurrentProperty: (property: any) => void;
   setCurrentTenant: (tenant: any) => void;
   switchProperty: (propertyId: string) => Promise<void>;
+  updateProperty: (propertyId: string, updates: any) => Promise<{ error: any }>;
 }
 
 const PropertyContext = createContext<PropertyContextType | undefined>(undefined);
@@ -150,6 +151,21 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const updateProperty = async (propertyId: string, updates: any) => {
+    // Update logic here
+    const { error } = await supabase
+      .from("properties")
+      .update(updates)
+      .eq("id", propertyId);
+    
+    if (!error) {
+      // Update local state
+      setCurrentProperty(prev => prev ? { ...prev, ...updates } : null);
+    }
+    
+    return { error };
+  };
+
   // Load tenants and properties when user changes
   useEffect(() => {
     if (user) {
@@ -187,6 +203,7 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
     setCurrentProperty,
     setCurrentTenant,
     switchProperty,
+    updateProperty,
   };
 
   return (

@@ -8,6 +8,9 @@ import { supabase } from "@/lib/supabase";
 import { useProperty } from "@/lib/hooks/useProperty";
 import { useAuth } from "@/components/AuthProvider";
 
+// Role permissions for header image management
+const ALLOWED_ROLES = ['owner', 'manager', 'admin']; // ← Added 'admin'
+
 // Default presets available to all tenants
 const DEFAULT_PRESETS = [
   {
@@ -74,14 +77,13 @@ export default function HeaderImageManager({
   const [uploadProgress, setUploadProgress] = useState(0);
   const [customImageUrl, setCustomImageUrl] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
-  const [hasEditPermission, setHasEditPermission] = useState(false);
   const [loadingRole, setLoadingRole] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const { currentProperty } = useProperty();
   const { user } = useAuth();
 
-  // Check user's role for current property using simplified approach
+  // Check user's role for current property
   useEffect(() => {
     async function checkUserRole() {
       if (!user || !currentProperty) {
@@ -90,11 +92,11 @@ export default function HeaderImageManager({
       }
 
       try {
-        // Use existing tenant_users table structure for role checking
+        // Use tenant_users table (same as DashboardHeader)
         const { data, error } = await supabase
-          .from('tenant_users')
+          .from('tenant_users')  // ← Changed from 'property_users'
           .select('role, status')
-          .eq('tenant_id', currentProperty.tenant_id)
+          .eq('tenant_id', currentProperty.tenant_id)  // ← Changed from 'property_id'
           .eq('user_id', user.id)
           .eq('status', 'active')
           .single();
@@ -102,19 +104,12 @@ export default function HeaderImageManager({
         if (error) {
           console.error('Error checking user role:', error);
           setUserRole(null);
-          setHasEditPermission(false);
         } else {
-          const role = data?.role || null;
-          setUserRole(role);
-          
-          // Check if role has edit permission (owner, manager, admin)
-          const canEdit = role && ['owner', 'manager', 'admin'].includes(role.toLowerCase());
-          setHasEditPermission(canEdit);
+          setUserRole(data?.role || null);
         }
       } catch (error) {
         console.error('Role check error:', error);
         setUserRole(null);
-        setHasEditPermission(false);
       } finally {
         setLoadingRole(false);
       }
@@ -122,6 +117,9 @@ export default function HeaderImageManager({
 
     checkUserRole();
   }, [user, currentProperty]);
+
+  // Check if user has permission to edit
+  const hasEditPermission = userRole && ALLOWED_ROLES.includes(userRole.toLowerCase());
 
   // Get tenant-specific presets
   const getAvailablePresets = () => {
@@ -198,8 +196,8 @@ export default function HeaderImageManager({
       const fileExt = file.name.split('.').pop();
       const fileName = `header-${Date.now()}.${fileExt}`;
       
-      // Multi-tenant file structure
-      const filePath = `tenants/${currentProperty.tenant_id}/properties/${currentProperty.id}/headers/${fileName}`;
+      // Multi-tenant file structure with role verification
+      const filePath = `tenants/${user.tenant_id}/properties/${currentProperty.id}/headers/${fileName}`;
 
       // Upload to Supabase Storage with tenant isolation
       const { data, error } = await supabase.storage
@@ -251,16 +249,15 @@ export default function HeaderImageManager({
         return;
       }
 
-      // Update property with tenant checks
+      // Update property with tenant check (remove user.tenant_id if it doesn't exist)
       const { error } = await supabase
         .from('properties')
         .update({ 
           header_image_url: imageUrl,
-          updated_at: new Date().toISOString(),
-          updated_by: user.id 
+          updated_at: new Date().toISOString()
         })
         .eq('id', currentProperty.id)
-        .eq('tenant_id', currentProperty.tenant_id); // Ensure tenant isolation
+        .eq('tenant_id', currentProperty.tenant_id); // ← Use currentProperty.tenant_id
 
       if (error) throw error;
 
@@ -313,7 +310,7 @@ export default function HeaderImageManager({
 
           {/* Upload Custom Image */}
           <div className="mb-6">
-            <h3 className="text-lg font-semibold mb-3">Upload Custom Image</h3>
+            <h3 className="text-lg font-semibold mb-3 text-gray-900">Upload Custom Image</h3>
             <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
               <input
                 ref={fileInputRef}
@@ -355,7 +352,7 @@ export default function HeaderImageManager({
 
           {/* Preset Images */}
           <div className="mb-6">
-            <h3 className="text-lg font-semibold mb-3">
+            <h3 className="text-lg font-semibold mb-3 text-gray-900">
               Choose from Presets 
               <span className="text-sm font-normal text-gray-500 ml-2">
                 ({availablePresets.length} available)
