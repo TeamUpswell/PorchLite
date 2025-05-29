@@ -17,7 +17,7 @@ export default function DashboardHeader({ children }: DashboardHeaderProps) {
   const [userRole, setUserRole] = useState<string | null>(null);
   const [loadingRole, setLoadingRole] = useState(true);
 
-  const { currentProperty, updateProperty } = useProperty();
+  const { currentProperty } = useProperty();
   const { user } = useAuth();
 
   const currentHeaderImage =
@@ -61,7 +61,6 @@ export default function DashboardHeader({ children }: DashboardHeaderProps) {
     }
 
     try {
-      // Direct Supabase update since updateProperty might not exist
       const { error } = await supabase
         .from("properties")
         .update({ header_image_url: newImageUrl })
@@ -81,8 +80,8 @@ export default function DashboardHeader({ children }: DashboardHeaderProps) {
     }
   };
 
-  // Check if user can edit (owner, manager, or admin)
-  const canEdit = userRole && ["owner", "manager", "admin"].includes(userRole);
+  // Check if user can edit (owner, manager, or admin) - SAME AS HeaderImageManager
+  const canEdit = userRole && ["owner", "manager", "admin"].includes(userRole.toLowerCase());
 
   return (
     <>
@@ -104,11 +103,11 @@ export default function DashboardHeader({ children }: DashboardHeaderProps) {
           {children}
         </div>
 
-        {/* Camera button - only show for users with edit permissions */}
+        {/* Camera button - ONLY show for users with edit permissions */}
         {canEdit && !loadingRole && (
           <button
             onClick={() => setShowImageManager(true)}
-            className="absolute top-4 right-4 bg-black/50 hover:bg-black/70 text-white p-2 rounded-lg transition-all duration-200 z-20"
+            className="absolute top-4 right-4 bg-black/30 hover:bg-black/70 text-white p-2 rounded-lg transition-all duration-200 opacity-70 hover:opacity-100 z-20"
             title="Change header image"
           >
             <Camera className="h-5 w-5" />
