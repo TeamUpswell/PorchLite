@@ -1,16 +1,18 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
-    domains: [
-      "localhost", 
-      "your-supabase-project.supabase.co",
-      // Add your Supabase storage domain
-      "yoursupabseproject.supabase.co"
-    ],
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: '*.supabase.co',
+        hostname: 'localhost',
+      },
+      {
+        protocol: 'https',
+        hostname: 'hkrgfqpshdoroimlulzw.supabase.co', // Your actual Supabase hostname
+      },
+      {
+        protocol: 'https',
+        hostname: '*.supabase.co', // Wildcard for any Supabase domain
         pathname: '/storage/v1/object/public/**',
       },
     ],
@@ -23,9 +25,7 @@ const nextConfig = {
     // Ignore TypeScript errors during build
     ignoreBuildErrors: true,
   },
-  // Disable the problematic output file tracing
-  output: 'standalone',
-  outputFileTracing: false,
+  
   // Optimize webpack for build
   webpack: (config, { isServer }) => {
     // Reduce complexity for the micromatch issue

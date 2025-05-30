@@ -1,7 +1,6 @@
 "use client";
 
 export const dynamic = 'force-dynamic';
-export const revalidate = 0;
 
 import { useState, useEffect } from "react";
 import { BookOpen, Plus, Edit, Trash2, Eye, AlertTriangle } from "lucide-react";
@@ -124,7 +123,7 @@ export default function ManualPage() {
   const createButton = (
     <Link 
       href="/manual/sections/new"
-      className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+      className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors"
     >
       <Plus className="h-4 w-4 mr-2" />
       Add Section
@@ -137,6 +136,20 @@ export default function ManualPage() {
       headerIcon={<BookOpen className="h-6 w-6 text-blue-600" />}
       action={createButton}
     >
+      {/* Smart floating action button - same as tasks page */}
+      <div className="fixed bottom-6 right-6 z-40">
+        <Link
+          href="/manual/sections/new"
+          className="group flex items-center justify-center bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-full shadow-lg transition-all duration-300 hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-blue-500 focus:ring-opacity-50 w-14 h-14 sm:w-auto sm:h-auto sm:px-4 sm:py-3 sm:rounded-lg sm:hover:scale-105"
+          aria-label="Add new section"
+        >
+          <Plus className="h-6 w-6 transition-transform group-hover:rotate-90 duration-200 sm:mr-0 group-hover:sm:mr-2" />
+          <span className="hidden sm:inline-block sm:w-0 sm:overflow-hidden sm:whitespace-nowrap sm:transition-all sm:duration-300 group-hover:sm:w-auto group-hover:sm:ml-2">
+            Add Section
+          </span>
+        </Link>
+      </div>
+
       {error && (
         <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
           <p className="text-red-700">Error: {error}</p>
