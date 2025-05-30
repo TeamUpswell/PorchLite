@@ -205,6 +205,28 @@ export default function SectionPage() {
           </div>
         </div>
       </StandardCard>
+
+      {/* Smart floating action button for adding new items */}
+      <div className="fixed bottom-6 right-6 z-40">
+        <Link
+          href={`/manual/sections/${sectionId}/items/new`}
+          className="group flex items-center justify-center bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-full shadow-lg transition-all duration-300 hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-blue-500 focus:ring-opacity-50
+        
+        /* Mobile: circular button */
+        w-14 h-14 sm:w-auto sm:h-auto
+        
+        /* Desktop: expandable button with text */
+        sm:px-4 sm:py-3 sm:rounded-lg sm:hover:scale-105"
+          aria-label="Add new item"
+        >
+          <Plus className="h-6 w-6 transition-transform group-hover:rotate-90 duration-200 sm:mr-0 group-hover:sm:mr-2" />
+
+          {/* Text appears on desktop hover */}
+          <span className="hidden sm:inline-block sm:w-0 sm:overflow-hidden sm:whitespace-nowrap sm:transition-all sm:duration-300 group-hover:sm:w-auto group-hover:sm:ml-2">
+            Add Item
+          </span>
+        </Link>
+      </div>
     </StandardPageLayout>
   );
 }
