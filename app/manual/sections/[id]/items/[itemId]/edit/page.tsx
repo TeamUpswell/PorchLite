@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { ArrowLeft, Edit, ExternalLink, Calendar, Image as ImageIcon, Save } from "lucide-react";
+import { ArrowLeft, Save, Upload, Camera, X, Image as ImageIcon } from "lucide-react";
 import Link from "next/link";
 import StandardPageLayout from "@/components/layout/StandardPageLayout";
 import StandardCard from "@/components/ui/StandardCard";
