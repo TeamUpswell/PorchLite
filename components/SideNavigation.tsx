@@ -252,7 +252,11 @@ export default function SideNavigation({
             isDarkMode ? "border-gray-800" : "border-gray-200"
           }`}
         >
-          <div className="flex items-center space-x-3">
+          <Link
+            href="/"
+            onClick={() => isMobile && setIsMobileMenuOpen(false)}
+            className="flex items-center space-x-3 hover:opacity-80 transition-opacity"
+          >
             <Image
               src={logo}
               alt="PropertyHub Logo"
@@ -261,22 +265,14 @@ export default function SideNavigation({
               className="w-8 h-8 rounded-lg"
             />
             <div>
-              <h1
-                className={`text-lg font-bold ${
-                  isDarkMode ? "text-white" : "text-gray-900"
-                }`}
-              >
+              <h1 className="text-lg font-bold text-white drop-shadow-lg">
                 Stia Hub
               </h1>
-              <p
-                className={`text-xs ${
-                  isDarkMode ? "text-gray-400" : "text-gray-500"
-                }`}
-              >
+              <p className="text-xs text-gray-200 drop-shadow">
                 For Shared Spaces
               </p>
             </div>
-          </div>
+          </Link>
         </div>
 
         {/* Main Navigation - Add click handler to close mobile menu */}

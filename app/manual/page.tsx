@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Plus, BookOpen, Pin, Edit, Trash2 } from "lucide-react";
+import { toast } from "react-hot-toast";
 import StandardPageLayout from "@/components/layout/StandardPageLayout";
 import StandardCard from "@/components/ui/StandardCard";
 import { useAuth } from "@/components/AuthProvider";
@@ -32,7 +33,7 @@ export default function ManualPage() {
   const loadSections = async () => {
     try {
       console.log("Loading manual sections...");
-      
+
       const { data: sectionsData, error } = await supabase
         .from("manual_sections")
         .select("*")
@@ -61,14 +62,18 @@ export default function ManualPage() {
             .eq("section_id", section.id);
 
           if (itemsError) {
-            console.error("Error loading items for section:", section.id, itemsError);
+            console.error(
+              "Error loading items for section:",
+              section.id,
+              itemsError
+            );
           }
 
           return {
             ...section,
             _count: {
-              items: itemsData?.length || 0
-            }
+              items: itemsData?.length || 0,
+            },
           };
         })
       );
@@ -83,8 +88,8 @@ export default function ManualPage() {
   };
 
   // Split sections into priority and non-priority
-  const prioritySections = sections.filter(section => section.is_priority); // ← Changed to is_priority
-  const regularSections = sections.filter(section => !section.is_priority); // ← Changed to !is_priority
+  const prioritySections = sections.filter((section) => section.is_priority); // ← Changed to is_priority
+  const regularSections = sections.filter((section) => !section.is_priority); // ← Changed to !is_priority
 
   if (loading) {
     return (
@@ -110,21 +115,22 @@ export default function ManualPage() {
       if (error) throw error;
 
       // Update local state
-      setSections(prev => 
-        prev.map(section => 
-          section.id === sectionId 
+      setSections((prev) =>
+        prev.map((section) =>
+          section.id === sectionId
             ? { ...section, is_priority: isPriority }
             : section
         )
       );
 
       // Show success message
-      const message = isPriority ? "Section added to priority!" : "Section removed from priority!";
-      // You can add toast notification here if you have it set up
-      console.log(message);
+      const message = isPriority
+        ? "Section added to priority!"
+        : "Section removed from priority!";
+      toast.success(message);
     } catch (error) {
       console.error("Error toggling pin status:", error);
-      // You can add error toast here
+      toast.error("Failed to update section");
     }
   };
 
@@ -147,14 +153,16 @@ export default function ManualPage() {
           <div>
             <div className="flex items-center mb-4">
               <Pin className="h-5 w-5 text-yellow-600 mr-2" />
-              <h2 className="text-lg font-semibold text-gray-900">Priority Sections</h2>
+              <h2 className="text-lg font-semibold text-gray-900">
+                Priority Sections
+              </h2>
             </div>
-            
+
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {prioritySections.map((section) => (
-                <PrioritySectionCard 
-                  key={section.id} 
-                  section={section} 
+                <PrioritySectionCard
+                  key={section.id}
+                  section={section}
                   onTogglePin={handleTogglePin}
                 />
               ))}
@@ -169,16 +177,16 @@ export default function ManualPage() {
               {prioritySections.length > 0 ? "All Sections" : "Manual Sections"}
             </h2>
             <span className="text-sm text-gray-500">
-              {sections.length} section{sections.length !== 1 ? 's' : ''}
+              {sections.length} section{sections.length !== 1 ? "s" : ""}
             </span>
           </div>
 
           {regularSections.length > 0 ? (
             <div className="space-y-4">
               {regularSections.map((section) => (
-                <FullWidthSectionCard 
-                  key={section.id} 
-                  section={section} 
+                <FullWidthSectionCard
+                  key={section.id}
+                  section={section}
                   onTogglePin={handleTogglePin}
                 />
               ))}
@@ -191,7 +199,8 @@ export default function ManualPage() {
                   No manual sections yet
                 </h3>
                 <p className="text-gray-600 mb-6">
-                  Create your first section to start building your property manual.
+                  Create your first section to start building your property
+                  manual.
                 </p>
                 <Link
                   href="/manual/sections/new"
@@ -210,8 +219,11 @@ export default function ManualPage() {
 }
 
 // Priority Section Card Component (Compact Cards) - WITH ICONS
-function PrioritySectionCard({ section, onTogglePin }: { 
-  section: ManualSection; 
+function PrioritySectionCard({
+  section,
+  onTogglePin,
+}: {
+  section: ManualSection;
   onTogglePin: (sectionId: string, isPriority: boolean) => void;
 }) {
   const [isToggling, setIsToggling] = useState(false);
@@ -219,7 +231,7 @@ function PrioritySectionCard({ section, onTogglePin }: {
   const handleUnpin = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     setIsToggling(true);
     await onTogglePin(section.id, false);
     setIsToggling(false);
@@ -233,7 +245,7 @@ function PrioritySectionCard({ section, onTogglePin }: {
           onClick={handleUnpin}
           disabled={isToggling}
           className={`absolute top-2 right-2 p-1.5 rounded-full bg-yellow-100 text-yellow-600 hover:bg-yellow-200 transition-colors ${
-            isToggling ? 'opacity-50' : ''
+            isToggling ? "opacity-50" : ""
           }`}
           title="Remove from priority"
         >
@@ -254,20 +266,25 @@ function PrioritySectionCard({ section, onTogglePin }: {
             {section._count?.items || 0} items
           </span>
         </div>
-        
+
         <h3 className="font-semibold text-gray-900 mb-2 line-clamp-2">
           {section.title}
         </h3>
-        
+
         {section.description && (
           <p className="text-sm text-gray-600 line-clamp-3">
             {section.description}
           </p>
         )}
-        
+
         <div className="mt-4 pt-3 border-t border-gray-100">
           <span className="text-xs text-gray-500">
-            Created {new Date(section.created_at).toLocaleDateString()}
+            Created{" "}
+            {new Date(section.created_at).toLocaleDateString("en-US", {
+              year: "numeric",
+              month: "short",
+              day: "numeric",
+            })}
           </span>
         </div>
       </div>
@@ -276,8 +293,11 @@ function PrioritySectionCard({ section, onTogglePin }: {
 }
 
 // Full Width Section Card Component - WITH PIN TOGGLE
-function FullWidthSectionCard({ section, onTogglePin }: { 
-  section: ManualSection; 
+function FullWidthSectionCard({
+  section,
+  onTogglePin,
+}: {
+  section: ManualSection;
   onTogglePin: (sectionId: string, isPriority: boolean) => void;
 }) {
   const [isToggling, setIsToggling] = useState(false);
@@ -285,7 +305,7 @@ function FullWidthSectionCard({ section, onTogglePin }: {
   const handlePinToggle = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     setIsToggling(true);
     await onTogglePin(section.id, !section.is_priority);
     setIsToggling(false);
@@ -308,7 +328,7 @@ function FullWidthSectionCard({ section, onTogglePin }: {
                 </div>
               )}
             </div>
-            
+
             <div className="flex-1 min-w-0">
               <h3 className="text-lg font-semibold text-gray-900 mb-1">
                 {section.title}
@@ -320,15 +340,21 @@ function FullWidthSectionCard({ section, onTogglePin }: {
               )}
               <div className="flex items-center space-x-4 mt-2 text-sm text-gray-500">
                 <span>
-                  {section._count?.items || 0} item{section._count?.items !== 1 ? 's' : ''}
+                  {section._count?.items || 0} item{" "}
+                  {section._count?.items !== 1 ? "s" : ""}
                 </span>
                 <span>
-                  Created {new Date(section.created_at).toLocaleDateString()}
+                  Created{" "}
+                  {new Date(section.created_at).toLocaleDateString("en-US", {
+                    year: "numeric",
+                    month: "short",
+                    day: "numeric",
+                  })}
                 </span>
               </div>
             </div>
           </div>
-          
+
           <div className="flex items-center space-x-2">
             {/* Pin Toggle Button */}
             <button
@@ -336,21 +362,28 @@ function FullWidthSectionCard({ section, onTogglePin }: {
               disabled={isToggling}
               className={`p-2 rounded-lg transition-colors ${
                 section.is_priority
-                  ? 'text-yellow-600 bg-yellow-50 hover:bg-yellow-100'
-                  : 'text-gray-400 hover:text-yellow-600 hover:bg-yellow-50'
-              } ${isToggling ? 'opacity-50' : ''}`}
-              title={section.is_priority ? 'Remove from priority' : 'Add to priority'}
+                  ? "text-yellow-600 bg-yellow-50 hover:bg-yellow-100"
+                  : "text-gray-400 hover:text-yellow-600 hover:bg-yellow-50"
+              } ${isToggling ? "opacity-50" : ""}`}
+              title={
+                section.is_priority ? "Remove from priority" : "Add to priority"
+              }
             >
               <Pin className="h-4 w-4" />
             </button>
-            
-            <Link
-              href={`/manual/sections/${section.id}/edit`}
+
+            {/* Edit Button */}
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                window.location.href = `/manual/sections/${section.id}/edit`;
+              }}
               className="p-2 text-gray-400 hover:text-blue-600 transition-colors"
-              onClick={(e) => e.stopPropagation()}
+              title="Edit section"
             >
               <Edit className="h-4 w-4" />
-            </Link>
+            </button>
           </div>
         </div>
       </StandardCard>
