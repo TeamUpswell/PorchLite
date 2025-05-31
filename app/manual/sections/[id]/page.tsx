@@ -2,12 +2,13 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { ArrowLeft, Edit, Plus } from "lucide-react";
+import { Plus, Edit, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import StandardPageLayout from "@/components/layout/StandardPageLayout";
 import StandardCard from "@/components/ui/StandardCard";
 import { useAuth } from "@/components/AuthProvider";
 import { supabase } from "@/lib/supabase";
+import { MultiActionPattern } from "@/components/ui/FloatingActionPresets";
 
 interface ManualSection {
   id: string;
@@ -128,7 +129,9 @@ export default function SectionPage() {
 
             {items.length === 0 ? (
               <div className="text-center py-8 bg-gray-50 rounded-lg">
-                <p className="text-gray-500 mb-4">No items in this section yet</p>
+                <p className="text-gray-500 mb-4">
+                  No items in this section yet
+                </p>
                 <Link
                   href={`/manual/sections/${sectionId}/items/new`}
                   className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
@@ -182,64 +185,28 @@ export default function SectionPage() {
       </StandardCard>
 
       {/* Multi-button floating action menu */}
-      <div className="fixed bottom-6 right-6 z-40 flex flex-col space-y-3">
-        {/* Primary Action: Add Item */}
-        <Link
-          href={`/manual/sections/${sectionId}/items/new`}
-          className="group flex items-center justify-center bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white shadow-lg transition-all duration-300 hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-blue-500 focus:ring-opacity-50
-          
-          /* Mobile: circular button */
-          w-14 h-14 rounded-full
-          
-          /* Desktop: expandable button with rounded corners */
-          sm:w-auto sm:h-auto sm:px-4 sm:py-3 sm:rounded-lg sm:hover:scale-105"
-          aria-label="Add item"
-        >
-          <Plus className="h-6 w-6 transition-transform group-hover:rotate-90 duration-200 sm:mr-0 group-hover:sm:mr-2" />
-
-          <span className="hidden sm:inline-block sm:w-0 sm:overflow-hidden sm:whitespace-nowrap sm:transition-all sm:duration-300 group-hover:sm:w-auto group-hover:sm:ml-2">
-            Add Item
-          </span>
-        </Link>
-
-        {/* Secondary Action: Edit Section */}
-        <Link
-          href={`/manual/sections/${sectionId}/edit`}
-          className="group flex items-center justify-center bg-orange-600 hover:bg-orange-700 active:bg-orange-800 text-white shadow-lg transition-all duration-300 hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-orange-500 focus:ring-opacity-50
-          
-          /* Mobile: circular button */
-          w-14 h-14 rounded-full
-          
-          /* Desktop: expandable button with rounded corners */
-          sm:w-auto sm:h-auto sm:px-4 sm:py-3 sm:rounded-lg sm:hover:scale-105"
-          aria-label="Edit section"
-        >
-          <Edit className="h-6 w-6 transition-transform group-hover:rotate-12 duration-200 sm:mr-0 group-hover:sm:mr-2" />
-
-          <span className="hidden sm:inline-block sm:w-0 sm:overflow-hidden sm:whitespace-nowrap sm:transition-all sm:duration-300 group-hover:sm:w-auto group-hover:sm:ml-2">
-            Edit Section
-          </span>
-        </Link>
-
-        {/* Tertiary Action: Back to Manual */}
-        <Link
-          href="/manual"
-          className="group flex items-center justify-center bg-gray-600 hover:bg-gray-700 active:bg-gray-800 text-white shadow-lg transition-all duration-300 hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-gray-500 focus:ring-opacity-50
-          
-          /* Mobile: circular button */
-          w-14 h-14 rounded-full
-          
-          /* Desktop: expandable button with rounded corners */
-          sm:w-auto sm:h-auto sm:px-4 sm:py-3 sm:rounded-lg sm:hover:scale-105"
-          aria-label="Back to manual"
-        >
-          <ArrowLeft className="h-6 w-6 transition-transform group-hover:-translate-x-1 duration-200 sm:mr-0 group-hover:sm:mr-2" />
-
-          <span className="hidden sm:inline-block sm:w-0 sm:overflow-hidden sm:whitespace-nowrap sm:transition-all sm:duration-300 group-hover:sm:w-auto group-hover:sm:ml-2">
-            Back to Manual
-          </span>
-        </Link>
-      </div>
+      <MultiActionPattern
+        actions={[
+          {
+            icon: Plus,
+            label: "Add Item",
+            href: `/manual/sections/${sectionId}/items/new`,
+            variant: "primary",
+          },
+          {
+            icon: Edit,
+            label: "Edit Section",
+            href: `/manual/sections/${sectionId}/edit`,
+            variant: "warning",
+          },
+          {
+            icon: ArrowLeft,
+            label: "Back to Manual",
+            href: "/manual",
+            variant: "gray",
+          },
+        ]}
+      />
     </StandardPageLayout>
   );
 }

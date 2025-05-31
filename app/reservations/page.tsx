@@ -6,6 +6,7 @@ import PermissionGate from "@/components/PermissionGate";
 import { useAuth } from "@/components/AuthProvider";
 import { PlusIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import { supabase } from "@/lib/supabase";
+import { CreatePattern } from "@/components/ui/FloatingActionPresets";
 
 // Define Reservation type
 interface Reservation {
@@ -240,26 +241,10 @@ export default function ReservationsPage() {
         </div>
 
         {/* NEW: Floating Action Button - Mobile/Desktop Optimized */}
-        <div className="fixed bottom-6 right-6 z-40">
-          <button
-            onClick={() => setShowReservationForm(true)}
-            className="group flex items-center justify-center bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white shadow-lg transition-all duration-300 hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-blue-500 focus:ring-opacity-50
-            
-            /* Mobile: circular button */
-            w-14 h-14 rounded-full
-            
-            /* Desktop: expandable button with rounded corners */
-            sm:w-auto sm:h-auto sm:px-4 sm:py-3 sm:rounded-lg sm:hover:scale-105"
-            aria-label="Request reservation"
-          >
-            <PlusIcon className="h-6 w-6 transition-transform group-hover:rotate-90 duration-200 sm:mr-0 group-hover:sm:mr-2" />
-
-            {/* Text appears on desktop hover only */}
-            <span className="hidden sm:inline-block sm:w-0 sm:overflow-hidden sm:whitespace-nowrap sm:transition-all sm:duration-300 group-hover:sm:w-auto group-hover:sm:ml-2">
-              Request Reservation
-            </span>
-          </button>
-        </div>
+        <CreatePattern
+          onClick={() => setShowReservationForm(true)}
+          label="Request Reservation"
+        />
 
         {/* Keep your existing modal */}
         {showReservationForm && (

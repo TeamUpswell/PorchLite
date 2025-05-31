@@ -12,6 +12,7 @@ import { v4 as uuidv4 } from "uuid";
 import { toast } from "react-hot-toast";
 import { convertToWebP, supportsWebP } from "@/lib/imageUtils";
 import Image from "next/image";
+import { EditPattern } from "@/components/ui/FloatingActionPresets";
 
 interface ManualSection {
   id: string;
@@ -217,16 +218,6 @@ export default function NewItemPage() {
         { label: section.title, href: `/manual/sections/${sectionId}` },
         { label: "Add Item" },
       ]}
-      action={
-        <button
-          onClick={handleSave}
-          disabled={saving || isUploading}
-          className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
-        >
-          <Save className="h-4 w-4 mr-2" />
-          {saving ? "Creating..." : "Create Item"}
-        </button>
-      }
     >
       <div className="mb-6">
         <Link
@@ -370,6 +361,15 @@ Each new line will be preserved when displayed."
           </div>
         </div>
       </StandardCard>
+
+      <EditPattern
+        form="new-item-form"
+        backHref={`/manual/sections/${sectionId}`}
+        saveLabel="Create Item"
+        backLabel="Back to Section"
+        saving={saving}
+        disabled={!title.trim()}
+      />
     </StandardPageLayout>
   );
 }

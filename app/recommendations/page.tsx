@@ -20,6 +20,7 @@ import { supabase } from "@/lib/supabase";
 import GooglePlacePhoto from "@/components/GooglePlacePhoto";
 import RecommendationComments from "@/components/recommendations/RecommendationComments";
 import RecommendationFilters from "@/components/recommendations/RecommendationFilters";
+import { MultiActionPattern } from "@/components/ui/FloatingActionPresets";
 
 interface Recommendation {
   id: string;
@@ -754,73 +755,28 @@ export default function RecommendationsPage() {
       </StandardCard>
 
       {/* FLOATING ACTION BUTTON - Similar to tasks */}
-      <div className="fixed bottom-6 right-6 z-40">
-        {/* Options Menu (Mobile + Desktop) */}
-        {showAddOptions && (
-          <div className="absolute bottom-16 right-0 bg-white rounded-lg shadow-xl border border-gray-200 py-2 min-w-[200px] transform transition-all duration-200 animate-in slide-in-from-bottom-2">
-            <button
-              onClick={() => {
-                setShowAddOptions(false);
-                const searchInput = document.querySelector('input[placeholder*="Search for places"]') as HTMLInputElement;
-                if (searchInput) {
-                  searchInput.focus();
-                  searchInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                }
-              }}
-              className="w-full px-4 py-3 text-left hover:bg-gray-50 flex items-center text-gray-700 transition-colors duration-150"
-            >
-              <Search className="h-4 w-4 mr-3 text-green-600" />
-              <div>
-                <div className="font-medium">Find with Google</div>
-                <div className="text-xs text-gray-500">Search Google Places</div>
-              </div>
-            </button>
-            <button
-              onClick={() => {
-                setShowAddOptions(false);
-                setShowManualModal(true);
-              }}
-              className="w-full px-4 py-3 text-left hover:bg-gray-50 flex items-center text-gray-700 transition-colors duration-150"
-            >
-              <Plus className="h-4 w-4 mr-3 text-blue-600" />
-              <div>
-                <div className="font-medium">Add Manually</div>
-                <div className="text-xs text-gray-500">Create custom recommendation</div>
-              </div>
-            </button>
-          </div>
-        )}
-
-        {/* Main FAB - Mobile/Desktop Optimized */}
-        <button
-          onClick={() => setShowAddOptions(!showAddOptions)}
-          className="group flex items-center justify-center bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white shadow-lg transition-all duration-300 hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-blue-500 focus:ring-opacity-50
-    
-    /* Mobile: circular button */
-    w-14 h-14 rounded-full
-    
-    /* Desktop: expandable button with rounded corners */
-    sm:w-auto sm:h-auto sm:px-4 sm:py-3 sm:rounded-lg sm:hover:scale-105"
-          aria-label="Add recommendation"
-        >
-          <Plus className={`h-6 w-6 transition-transform duration-200 ${
-            showAddOptions ? 'rotate-45' : 'group-hover:rotate-90'
-          } sm:mr-0 group-hover:sm:mr-2`} />
-
-          {/* Text appears on desktop hover only */}
-          <span className="hidden sm:inline-block sm:w-0 sm:overflow-hidden sm:whitespace-nowrap sm:transition-all sm:duration-300 group-hover:sm:w-auto group-hover:sm:ml-2">
-            Add Place
-          </span>
-        </button>
-      </div>
-
-      {/* Click outside to close dropdown */}
-      {showAddOptions && (
-        <div
-          className="fixed inset-0 z-30"
-          onClick={() => setShowAddOptions(false)}
-        />
-      )}
+      <MultiActionPattern
+        actions={[
+          {
+            icon: Search,
+            label: "Find with Google",
+            onClick: () => {
+              const searchInput = document.querySelector('input[placeholder*="Search for places"]') as HTMLInputElement;
+              if (searchInput) {
+                searchInput.focus();
+                searchInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              }
+            },
+            variant: "secondary"
+          },
+          {
+            icon: Plus,
+            label: "Add Manually",
+            onClick: () => setShowManualModal(true),
+            variant: "primary"
+          }
+        ]}
+      />
 
       {/* Manual Add Modal - keep existing */}
       {showManualModal && (

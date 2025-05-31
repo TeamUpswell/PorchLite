@@ -14,6 +14,7 @@ import CreateTaskPlaceholder from "@/components/tasks/CreateTaskPlaceholder";
 import DeleteTaskModal from "@/components/tasks/DeleteTaskModal";
 import { PlusIcon, CheckSquareIcon } from "lucide-react";
 import { toast } from "react-hot-toast";
+import { CreatePattern } from "@/components/ui/FloatingActionPresets";
 
 // Task type definition
 type Task = {
@@ -464,38 +465,7 @@ export default function TasksPage() {
     <StandardPageLayout
       title={`${currentProperty.name} - Tasks`}
       headerIcon={<CheckSquareIcon className="h-6 w-6 text-blue-600" />}
-      action={
-        <button
-          onClick={() => setIsCreateModalOpen(true)}
-          className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors"
-        >
-          <PlusIcon className="h-5 w-5 mr-2" />
-          Create Task
-        </button>
-      }
     >
-      {/* Smart floating action button - compact on mobile, expandable on desktop */}
-      <div className="fixed bottom-6 right-6 z-40">
-        <button
-          onClick={() => setIsCreateModalOpen(true)}
-          className="group flex items-center justify-center bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-full shadow-lg transition-all duration-300 hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-blue-500 focus:ring-opacity-50
-    
-    /* Mobile: circular button */
-    w-14 h-14 sm:w-auto sm:h-auto
-    
-    /* Desktop: expandable button with text */
-    sm:px-4 sm:py-3 sm:rounded-lg sm:hover:scale-105"
-          aria-label="Create new task"
-        >
-          <PlusIcon className="h-6 w-6 transition-transform group-hover:rotate-90 duration-200 sm:mr-0 group-hover:sm:mr-2" />
-
-          {/* Text appears on desktop hover */}
-          <span className="hidden sm:inline-block sm:w-0 sm:overflow-hidden sm:whitespace-nowrap sm:transition-all sm:duration-300 group-hover:sm:w-auto group-hover:sm:ml-2">
-            Create Task
-          </span>
-        </button>
-      </div>
-
       {/* Filter dropdown */}
       <div className="mb-6">
         <label
@@ -627,6 +597,11 @@ export default function TasksPage() {
         onConfirm={confirmDeleteTask}
         taskTitle={taskToDelete?.title || ""}
         isDeleting={isDeleting}
+      />
+
+      <CreatePattern
+        onClick={() => setIsCreateModalOpen(true)}
+        label="Create Task"
       />
     </StandardPageLayout>
   );

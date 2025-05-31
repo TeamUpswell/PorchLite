@@ -12,6 +12,7 @@ import { v4 as uuidv4 } from "uuid";
 import { toast } from "react-hot-toast";
 import { convertToWebP, supportsWebP } from "@/lib/imageUtils";
 import Image from "next/image";
+import { EditPattern } from "@/components/ui/FloatingActionPresets";
 
 interface ManualItem {
   id: string;
@@ -401,47 +402,14 @@ export default function EditItemPage() {
       </StandardCard>
 
       {/* Floating Action Buttons */}
-      <div className="fixed bottom-6 right-6 z-40 flex flex-col space-y-3">
-        {/* Save Changes */}
-        <button
-          type="submit"
-          form="edit-item-form"
-          disabled={saving}
-          className="group flex items-center justify-center bg-green-600 hover:bg-green-700 active:bg-green-800 text-white shadow-lg transition-all duration-300 hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-green-500 focus:ring-opacity-50 disabled:opacity-50 disabled:cursor-not-allowed
-          
-          /* Mobile: circular button */
-          w-14 h-14 rounded-full
-          
-          /* Desktop: expandable button with rounded corners */
-          sm:w-auto sm:h-auto sm:px-4 sm:py-3 sm:rounded-lg sm:hover:scale-105"
-          aria-label="Save changes"
-        >
-          <Save className="h-6 w-6 transition-transform group-hover:rotate-12 duration-200 sm:mr-0 group-hover:sm:mr-2" />
-
-          <span className="hidden sm:inline-block sm:w-0 sm:overflow-hidden sm:whitespace-nowrap sm:transition-all sm:duration-300 group-hover:sm:w-auto group-hover:sm:ml-2">
-            {saving ? "Saving..." : "Save Changes"}
-          </span>
-        </button>
-
-        {/* Back to Item */}
-        <Link
-          href={`/manual/sections/${sectionId}/items/${itemId}`}
-          className="group flex items-center justify-center bg-gray-600 hover:bg-gray-700 active:bg-gray-800 text-white shadow-lg transition-all duration-300 hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-gray-500 focus:ring-opacity-50
-          
-          /* Mobile: circular button */
-          w-14 h-14 rounded-full
-          
-          /* Desktop: expandable button with rounded corners */
-          sm:w-auto sm:h-auto sm:px-4 sm:py-3 sm:rounded-lg sm:hover:scale-105"
-          aria-label="Back to item"
-        >
-          <ArrowLeft className="h-6 w-6 transition-transform group-hover:-translate-x-1 duration-200 sm:mr-0 group-hover:sm:mr-2" />
-
-          <span className="hidden sm:inline-block sm:w-0 sm:overflow-hidden sm:whitespace-nowrap sm:transition-all sm:duration-300 group-hover:sm:w-auto group-hover:sm:ml-2">
-            Back to Item
-          </span>
-        </Link>
-      </div>
+      <EditPattern
+        form="edit-item-form"
+        backHref={`/manual/sections/${sectionId}/items/${itemId}`}
+        saveLabel="Save Changes"
+        backLabel="Back to Item"
+        saving={saving}
+        disabled={!title.trim()}
+      />
     </StandardPageLayout>
   );
 }

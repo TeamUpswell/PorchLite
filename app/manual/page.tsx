@@ -8,6 +8,7 @@ import StandardPageLayout from "@/components/layout/StandardPageLayout";
 import StandardCard from "@/components/ui/StandardCard";
 import { useAuth } from "@/components/AuthProvider";
 import { supabase } from "@/lib/supabase";
+import { CreatePattern } from "@/components/ui/FloatingActionPresets";
 
 interface ManualSection {
   id: string;
@@ -205,25 +206,7 @@ export default function ManualPage() {
       </div>
 
       {/* Floating Action Button - Add Section */}
-      <div className="fixed bottom-6 right-6 z-40">
-        <Link
-          href="/manual/sections/new"
-          className="group flex items-center justify-center bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white shadow-lg transition-all duration-300 hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-blue-500 focus:ring-opacity-50
-          
-          /* Mobile: circular button */
-          w-14 h-14 rounded-full
-          
-          /* Desktop: expandable button with rounded corners */
-          sm:w-auto sm:h-auto sm:px-4 sm:py-3 sm:rounded-lg sm:hover:scale-105"
-          aria-label="Add section"
-        >
-          <Plus className="h-6 w-6 transition-transform group-hover:rotate-90 duration-200 sm:mr-0 group-hover:sm:mr-2" />
-
-          <span className="hidden sm:inline-block sm:w-0 sm:overflow-hidden sm:whitespace-nowrap sm:transition-all sm:duration-300 group-hover:sm:w-auto group-hover:sm:ml-2">
-            Add Section
-          </span>
-        </Link>
-      </div>
+      <CreatePattern href="/manual/sections/new" label="Add Section" />
     </StandardPageLayout>
   );
 }

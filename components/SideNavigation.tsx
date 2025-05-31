@@ -231,8 +231,8 @@ export default function SideNavigation({
       <div
         className={`
           side-navigation
-          fixed inset-y-0 left-0 z-40 
-          ${isMobile ? "w-64" : "w-64"} 
+          fixed inset-y-0 left-0 z-50 
+          w-64
           ${isDarkMode ? "bg-gray-900" : "bg-white"}
           border-r 
           ${isDarkMode ? "border-gray-800" : "border-gray-200"}
@@ -242,37 +242,40 @@ export default function SideNavigation({
               ? "-translate-x-full"
               : "translate-x-0"
           }
-          md:translate-x-0 md:static md:inset-0
+          md:translate-x-0
           flex flex-col
         `}
       >
         {/* Header with logo */}
         <div
           className={`p-4 border-b ${
-            isDarkMode ? "border-gray-800" : "border-gray-200"
+            isDarkMode ? "border-gray-800 bg-gray-900" : "border-gray-200 bg-white"
           }`}
         >
-          <Link
-            href="/"
-            onClick={() => isMobile && setIsMobileMenuOpen(false)}
-            className="flex items-center space-x-3 hover:opacity-80 transition-opacity"
-          >
-            <Image
-              src={logo}
-              alt="PropertyHub Logo"
-              width={32}
-              height={32}
-              className="w-8 h-8 rounded-lg"
-            />
-            <div>
-              <h1 className="text-lg font-bold text-white drop-shadow-lg">
-                Stia Hub
-              </h1>
-              <p className="text-xs text-gray-200 drop-shadow">
-                For Shared Spaces
-              </p>
-            </div>
-          </Link>
+          {/* Logo content with dark theme styles */}
+          <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg p-3">
+            <Link
+              href="/"
+              onClick={() => isMobile && setIsMobileMenuOpen(false)}
+              className="flex items-center space-x-3 hover:opacity-80 transition-opacity"
+            >
+              <Image
+                src={logo}
+                alt="PropertyHub Logo"
+                width={32}
+                height={32}
+                className="w-8 h-8 rounded-lg"
+              />
+              <div>
+                <h1 className="text-lg font-bold text-white drop-shadow-lg">
+                  Stia Hub
+                </h1>
+                <p className="text-xs text-gray-200 drop-shadow">
+                  For Shared Spaces
+                </p>
+              </div>
+            </Link>
+          </div>
         </div>
 
         {/* Main Navigation - Add click handler to close mobile menu */}

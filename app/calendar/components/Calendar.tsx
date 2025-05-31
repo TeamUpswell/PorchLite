@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { Calendar as BigCalendar, dateFnsLocalizer } from "react-big-calendar";
 import { format, parse, startOfWeek, getDay } from "date-fns";
-import { PlusCircle } from "lucide-react";
 import { toast } from "react-hot-toast"; // ← Changed from react-toastify
 import { supabase } from "@/lib/supabase"; // ← Updated path to match your project structure
 
@@ -16,6 +15,7 @@ import { useReservations } from "../hooks/useReservations";
 import { useCompanions } from "../hooks/useCompanions";
 import { StatusLegend } from "./StatusLegend";
 import { ReservationModal } from "./ReservationModal";
+import { CreatePattern } from "@/components/ui/FloatingActionPresets";
 
 // Types and utils
 import { Reservation } from "../types";
@@ -233,17 +233,10 @@ export function Calendar({ onNewReservation }: CalendarProps) {
         </div>
 
         {/* Floating Action Button */}
-        <div className={styles.fabContainer}>
-          <button
-            onClick={() =>
-              handleSlotSelect({ start: new Date(), end: new Date() })
-            }
-            className={styles.fab}
-            aria-label="Add Reservation"
-          >
-            <PlusCircle size={24} />
-          </button>
-        </div>
+        <CreatePattern
+          onClick={() => handleSlotSelect({ start: new Date(), end: new Date() })}
+          label="Add Booking"
+        />
 
         {/* Reservation Modal */}
         {showReservationModal && (

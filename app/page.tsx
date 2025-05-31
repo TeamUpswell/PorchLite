@@ -6,7 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/components/AuthProvider";
 import { useRouter } from "next/navigation";
 import { useProperty } from "@/lib/hooks/useProperty";
-import StandardPageLayout from "@/components/layout/StandardPageLayout";
+import ProtectedPageWrapper from "@/components/layout/ProtectedPageWrapper";
 import "@/styles/dashboard.css";
 import {
   Calendar,
@@ -37,7 +37,6 @@ import { toast } from "react-hot-toast";
 import ResponsiveImage from "@/components/ResponsiveImage";
 import { convertToWebP, supportsWebP } from "@/lib/imageUtils";
 import PropertyDebug from "@/components/PropertyDebug";
-import DashboardHeader from "@/components/dashboard/DashboardHeader";
 
 // Define interfaces for our new dashboard data
 interface Issue {
@@ -104,6 +103,7 @@ export default function HomePage() {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [showAddReservationModal, setShowAddReservationModal] = useState(false);
+  const [showBannerModal, setShowBannerModal] = useState(false);
 
   // REMOVE THE REDIRECT - This was causing the loop!
   useEffect(() => {
@@ -437,6 +437,151 @@ export default function HomePage() {
     }
   };
 
+  // Banner image upload handler
+  const handleBannerUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !currentProperty) {
+      toast.error("Please select a property first");
+      return;
+    }
+
+    if (!file.type.match(/image\/(jpeg|jpg|png|webp|gif)/i)) {
+      toast.error("Please select a valid image file");
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image must be less than 5MB");
+      return;
+    }
+
+    setIsUploading(true);
+    setUploadProgress(0);
+
+    try {
+      let fileToUpload = file;
+      let fileExt = file.name.split(".").pop()?.toLowerCase() || "jpg";
+
+      const webpSupported = await supportsWebP();
+      if (webpSupported) {
+        const optimizedBlob = await convertToWebP(file, 1920, 0.85);
+        fileToUpload = new File([optimizedBlob], `banner.webp`, {
+          type: "image/webp",
+        });
+        fileExt = "webp";
+      }
+
+      const fileName = `banner-${uuidv4()}.${fileExt}`;
+      const filePath = `${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("properties")
+        .upload(filePath, fileToUpload, {
+          cacheControl: "31536000",
+          upsert: true,
+        });
+
+      setUploadProgress(100);
+
+      if (uploadError) throw uploadError;
+
+      const { data: publicUrlData } = supabase.storage
+        .from("properties")
+        .getPublicUrl(filePath);
+
+      // ✅ FIX: Use header_image_url instead of banner_image
+      const { error: updateError } = await supabase
+        .from("properties")
+        .update({ header_image_url: publicUrlData.publicUrl })
+        .eq("id", currentProperty.id);
+
+      if (updateError) throw updateError;
+
+      toast.success("Banner image updated successfully!");
+      window.location.reload();
+    } catch (error) {
+      console.error("Error uploading banner image:", error);
+      toast.error("Failed to upload banner image. Please try again.");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  // Handle banner removal
+  const handleBannerRemove = async () => {
+    if (!currentProperty) return;
+
+    try {
+      // ✅ FIX: Use header_image_url instead of banner_image
+      const { error } = await supabase
+        .from("properties")
+        .update({ header_image_url: null })
+        .eq("id", currentProperty.id);
+
+      if (error) throw error;
+
+      toast.success("Banner image removed successfully!");
+      window.location.reload();
+    } catch (error) {
+      console.error("Error removing banner image:", error);
+      toast.error("Failed to remove banner image. Please try again.");
+    }
+  };
+
+  // Add this state for predefined images:
+  const [predefinedImages] = useState([
+    {
+      id: "beach-house",
+      name: "Beach House",
+      url: "/images/headers/presets/beach-house.jpg",
+      thumbnail: "/images/headers/presets/thumbs/beach-house-thumb.jpg",
+      category: "Beach",
+    },
+    {
+      id: "city-apartment",
+      name: "City Apartment",
+      url: "/images/headers/presets/city-apartment.jpg",
+      thumbnail: "/images/headers/presets/thumbs/city-apartment-thumb.jpg",
+      category: "Urban",
+    },
+    {
+      id: "modern-house",
+      name: "Modern House",
+      url: "/images/headers/presets/modern-house.jpg",
+      thumbnail: "/images/headers/presets/thumbs/modern-house-thumb.jpg",
+      category: "Modern",
+    },
+    {
+      id: "cozy-cabin",
+      name: "Cozy Cabin",
+      url: "/images/headers/presets/cozy-cabin.jpg",
+      thumbnail: "/images/headers/presets/thumbs/cozy-cabin-thumb.jpg",
+      category: "Rustic",
+    },
+  ]);
+
+  // Handle predefined banner selection
+  const handlePredefinedBannerSelect = async (imageUrl: string) => {
+    if (!currentProperty) return;
+
+    try {
+      // ✅ FIX: Use header_image_url instead of banner_image
+      const { error } = await supabase
+        .from("properties")
+        .update({ header_image_url: imageUrl })
+        .eq("id", currentProperty.id);
+
+      if (error) throw error;
+
+      toast.success("Banner updated successfully!");
+      setShowBannerModal(false);
+      window.location.reload();
+    } catch (error) {
+      console.error("Error updating banner:", error);
+      toast.error("Failed to update banner");
+    }
+  }; // ✅ Make sure this closing brace exists
+
   // Loading state
   if (loading) {
     return (
@@ -454,7 +599,7 @@ export default function HomePage() {
   // No property selected
   if (!currentProperty) {
     return (
-      <StandardPageLayout>
+      <ProtectedPageWrapper>
         <div className="container mx-auto p-8 text-center">
           <div className="max-w-md mx-auto">
             <HomeIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
@@ -473,274 +618,141 @@ export default function HomePage() {
             </Link>
           </div>
         </div>
-      </StandardPageLayout>
+      </ProtectedPageWrapper>
     );
-  }
+  } // ✅ Make sure this closing brace exists
 
-  // Main dashboard - REMOVE the title prop to remove header
+  // Main dashboard
   return (
-    <StandardPageLayout>
-      {/* Your entire dashboard content here - no title prop = no header */}
-      <div className="container mx-auto p-4 sm:p-6 lg:p-8">
-        {/* Property Hero Header with Weather Overlay */}
-        <DashboardHeader>
-          <div className="text-center">
-            <h1 className="text-3xl font-bold mb-2">
-              Welcome to {currentProperty?.name || "Your Property"}
-            </h1>
+    <ProtectedPageWrapper>
+      <div className="flex-1 overflow-y-auto bg-gray-900 text-white">
+        {/* REMOVE DashboardHeader - we're replacing it with our custom hero */}
 
-            {/* Weather Info */}
-            {weather && (
-              <div className="flex items-center justify-center space-x-4 text-lg">
-                <div className="flex items-center">
-                  <Thermometer className="h-5 w-5 mr-1" />
-                  <span>{Math.round(weather.current.temp)}°F</span>
-                </div>
-                <div className="flex items-center">
-                  <Wind className="h-5 w-5 mr-1" />
-                  <span>{Math.round(weather.current.wind_speed)} mph</span>
-                </div>
-                <div className="capitalize">{weather.current.condition}</div>
+        <div className="p-6">
+          {/* Hero Section with Banner Image Background and Stats Overlay */}
+          <div className="relative bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg mb-6 text-white overflow-hidden min-h-[300px] group">
+            {/* Banner Image Background - SAME AS BEFORE */}
+            {(currentProperty?.header_image_url ||
+              currentProperty?.main_photo_url) && (
+              <div className="absolute inset-0">
+                <ResponsiveImage
+                  src={
+                    currentProperty.header_image_url ||
+                    currentProperty.main_photo_url ||
+                    ""
+                  }
+                  alt={`${currentProperty.name} banner`}
+                  fill
+                  className="object-cover transition-transform duration-300 group-hover:scale-105"
+                  priority
+                />
+                {/* Gradient overlay - heavier at bottom for text readability */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent opacity-70"></div>
               </div>
             )}
+
+            {/* Fallback gradient when no banner image - SAME AS BEFORE */}
+            {!(
+              currentProperty?.header_image_url ||
+              currentProperty?.main_photo_url
+            ) && (
+              <div className="absolute inset-0 bg-gradient-to-br from-blue-600 via-purple-600 to-indigo-700"></div>
+            )}
+
+            {/* Banner Change Button - SAME AS BEFORE */}
+            <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+              <button
+                onClick={() => setShowBannerModal(true)}
+                className="flex items-center px-3 py-2 bg-white bg-opacity-90 backdrop-blur-sm rounded-lg text-gray-900 hover:bg-opacity-100 transition-all shadow-lg text-sm font-medium"
+              >
+                <Pencil className="h-4 w-4 mr-2" />
+                Change Banner
+              </button>
+            </div>
+
+            {/* Content Overlay - SMALLER TEXT AND STATS */}
+            <div className="absolute bottom-0 left-0 right-0 p-4">
+              {/* Compact Header Section - SMALLER */}
+              <div className="text-center mb-3">
+                <h1 className="text-xl sm:text-2xl font-bold mb-2 drop-shadow-lg text-white">
+                  Welcome to {currentProperty?.name || "Your Property"}
+                </h1>
+
+                {/* Compact Weather Info - SMALLER */}
+                {weather && (
+                  <div className="flex items-center justify-center space-x-3 text-xs flex-wrap gap-1">
+                    <div className="flex items-center bg-white bg-opacity-20 backdrop-blur-sm rounded-md px-2 py-1 shadow-lg border border-white border-opacity-30">
+                      <Thermometer className="h-3 w-3 mr-1 text-white" />
+                      <span className="font-semibold text-white">
+                        {Math.round(weather.current.temp)}°F
+                      </span>
+                    </div>
+                    <div className="flex items-center bg-white bg-opacity-20 backdrop-blur-sm rounded-md px-2 py-1 shadow-lg border border-white border-opacity-30">
+                      <Wind className="h-3 w-3 mr-1 text-white" />
+                      <span className="font-semibold text-white">
+                        {Math.round(weather.current.wind_speed)} mph
+                      </span>
+                    </div>
+                    <div className="bg-white bg-opacity-20 backdrop-blur-sm rounded-md px-2 py-1 capitalize font-semibold shadow-lg border border-white border-opacity-30 text-white">
+                      {weather.current.condition}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Compact Stats - MUCH SMALLER */}
+              <div className="grid grid-cols-3 gap-2">
+                <div className="text-center bg-white bg-opacity-95 backdrop-blur-md rounded-lg p-2 shadow-xl border border-white border-opacity-50">
+                  <div className="flex items-center justify-center mb-0.5">
+                    <Calendar className="h-4 w-4 text-blue-600" />
+                  </div>
+                  <div className="text-lg font-bold text-gray-900">
+                    {upcomingVisits.length}
+                  </div>
+                  <div className="text-xs font-medium text-gray-700">
+                    Upcoming
+                  </div>
+                </div>
+
+                <div className="text-center bg-white bg-opacity-95 backdrop-blur-md rounded-lg p-2 shadow-xl border border-white border-opacity-50">
+                  <div className="flex items-center justify-center mb-0.5">
+                    <Package className="h-4 w-4 text-orange-600" />
+                  </div>
+                  <div className="text-lg font-bold text-gray-900">
+                    {inventoryAlerts.length}
+                  </div>
+                  <div className="text-xs font-medium text-gray-700">
+                    Low Stock
+                  </div>
+                </div>
+
+                <div className="text-center bg-white bg-opacity-95 backdrop-blur-md rounded-lg p-2 shadow-xl border border-white border-opacity-50">
+                  <div className="flex items-center justify-center mb-0.5">
+                    <Wrench className="h-4 w-4 text-red-600" />
+                  </div>
+                  <div className="text-lg font-bold text-gray-900">
+                    {maintenanceAlerts.length}
+                  </div>
+                  <div className="text-xs font-medium text-gray-700">
+                    Issues
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
-        </DashboardHeader>
 
-        {/* Two Column Dashboard Grid (Weather removed from here) */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Column 1 - Upcoming Visits */}
-          <div className="space-y-6">
-            {/* Enhanced Upcoming Visits Section */}
-            <section className="bg-white rounded-lg shadow p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-semibold flex items-center text-gray-900">
-                  <Calendar className="h-6 w-6 text-blue-600 mr-2" />
-                  Upcoming Reservations
-                </h2>
-                <div className="flex space-x-2">
-                  <Link
-                    href="/calendar"
-                    className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-                  >
-                    View Calendar
-                  </Link>
-                </div>
-              </div>
-
-              {/* Quick Action Buttons */}
-              <div className="grid grid-cols-3 gap-2 mb-4">
-                <button
-                  onClick={() => setShowAddReservationModal(true)}
-                  className="flex items-center justify-center p-2 bg-green-50 text-green-700 rounded-lg hover:bg-green-100 transition-colors text-sm font-medium"
-                >
-                  <Plus className="h-4 w-4 mr-1" />
-                  Add
-                </button>
-                <Link
-                  href="/calendar?filter=pending"
-                  className="flex items-center justify-center p-2 bg-yellow-50 text-yellow-700 rounded-lg hover:bg-yellow-100 transition-colors text-sm font-medium"
-                >
-                  <Clock className="h-4 w-4 mr-1" />
-                  Pending
-                </Link>
-                <Link
-                  href="/calendar"
-                  className="flex items-center justify-center p-2 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors text-sm font-medium"
-                >
-                  <Eye className="h-4 w-4 mr-1" />
-                  Manage
-                </Link>
-              </div>
-
-              {upcomingVisits.length > 0 ? (
-                <div className="space-y-3">
-                  {upcomingVisits.map((visit) => {
-                    const startDate = new Date(visit.start_date);
-                    const endDate = new Date(visit.end_date);
-                    const isToday =
-                      startDate.toDateString() === new Date().toDateString();
-                    const isThisWeek =
-                      Math.ceil(
-                        (startDate.getTime() - new Date().getTime()) /
-                          (1000 * 60 * 60 * 24)
-                      ) <= 7;
-                    const daysUntil = Math.ceil(
-                      (startDate.getTime() - new Date().getTime()) /
-                        (1000 * 60 * 60 * 24)
-                    );
-
-                    return (
-                      <div
-                        key={visit.id}
-                        className={`p-4 border rounded-lg hover:bg-gray-50 transition-colors ${
-                          isToday
-                            ? "border-blue-500 bg-blue-50"
-                            : isThisWeek
-                            ? "border-orange-200 bg-orange-25"
-                            : ""
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center">
-                            <div
-                              className={`w-12 h-12 rounded-full flex items-center justify-center mr-3 ${
-                                visit.status === "confirmed"
-                                  ? "bg-green-100"
-                                  : visit.status === "pending"
-                                  ? "bg-yellow-100"
-                                  : visit.status === "requested"
-                                  ? "bg-blue-100"
-                                  : "bg-gray-100"
-                              }`}
-                            >
-                              <Users
-                                className={`h-6 w-6 ${
-                                  visit.status === "confirmed"
-                                    ? "text-green-600"
-                                    : visit.status === "pending"
-                                    ? "text-yellow-600"
-                                    : visit.status === "requested"
-                                    ? "text-blue-600"
-                                    : "text-gray-600"
-                                }`}
-                              />
-                            </div>
-                            <div>
-                              <h3 className="font-medium text-gray-900">
-                                {visit.title}
-                              </h3>
-                              {visit.guest_name &&
-                                visit.guest_name !== visit.title && (
-                                  <p className="text-sm text-gray-600">
-                                    {visit.guest_name}
-                                  </p>
-                                )}
-                              <div className="flex items-center space-x-4 text-sm text-gray-600">
-                                <span>
-                                  {startDate.toLocaleDateString("en-US", {
-                                    month: "short",
-                                    day: "numeric",
-                                    year:
-                                      startDate.getFullYear() !==
-                                      new Date().getFullYear()
-                                        ? "numeric"
-                                        : undefined,
-                                  })}{" "}
-                                  -{" "}
-                                  {endDate.toLocaleDateString("en-US", {
-                                    month: "short",
-                                    day: "numeric",
-                                    year:
-                                      endDate.getFullYear() !==
-                                      new Date().getFullYear()
-                                        ? "numeric"
-                                        : undefined,
-                                  })}
-                                </span>
-                                <span>
-                                  {visit.guests} guest
-                                  {visit.guests !== 1 ? "s" : ""}
-                                </span>
-                              </div>
-
-                              {/* Time-based indicators */}
-                              <div className="flex items-center space-x-2 mt-1">
-                                {isToday && (
-                                  <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-medium">
-                                    Today
-                                  </span>
-                                )}
-                                {daysUntil > 0 &&
-                                  daysUntil <= 7 &&
-                                  !isToday && (
-                                    <span className="px-2 py-1 bg-orange-100 text-orange-800 rounded text-xs font-medium">
-                                      {daysUntil} day
-                                      {daysUntil !== 1 ? "s" : ""}
-                                    </span>
-                                  )}
-                                {daysUntil < 0 && (
-                                  <span className="px-2 py-1 bg-green-100 text-green-800 rounded text-xs font-medium">
-                                    In Progress
-                                  </span>
-                                )}
-                              </div>
-
-                              {/* Contact info */}
-                              {(visit.contact_email || visit.contact_phone) && (
-                                <div className="mt-1 text-xs text-gray-500">
-                                  {visit.contact_email && (
-                                    <div className="flex items-center">
-                                      <span>📧 {visit.contact_email}</span>
-                                    </div>
-                                  )}
-                                  {visit.contact_phone && (
-                                    <div className="flex items-center">
-                                      <Phone className="h-3 w-3 mr-1" />
-                                      <span>{visit.contact_phone}</span>
-                                    </div>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-
-                          <div className="flex flex-col items-end space-y-2">
-                            <span
-                              className={`px-3 py-1 rounded-full text-xs font-medium ${
-                                visit.status === "confirmed"
-                                  ? "bg-green-100 text-green-800"
-                                  : visit.status === "pending"
-                                  ? "bg-yellow-100 text-yellow-800"
-                                  : visit.status === "requested"
-                                  ? "bg-blue-100 text-blue-800"
-                                  : "bg-gray-100 text-gray-800"
-                              }`}
-                            >
-                              {visit.status}
-                            </span>
-
-                            {/* Quick Actions */}
-                            <div className="flex space-x-1">
-                              <Link
-                                href={`/calendar/${visit.id}/edit`}
-                                className="p-1 text-gray-400 hover:text-blue-600 transition-colors"
-                                title="Edit reservation"
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </Link>
-                              <Link
-                                href={`/calendar/${visit.id}`}
-                                className="p-1 text-gray-400 hover:text-green-600 transition-colors"
-                                title="View details"
-                              >
-                                <Eye className="h-4 w-4" />
-                              </Link>
-                            </div>
-                          </div>
-                        </div>
-
-                        {visit.notes && (
-                          <div className="mt-3 p-2 bg-gray-50 rounded text-sm text-gray-700">
-                            <strong>Notes:</strong> {visit.notes}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="text-center py-8 text-gray-500">
-                  <Calendar className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-                  <p className="text-gray-700 mb-3">No upcoming reservations</p>
-                  <div className="space-y-2">
-                    <Link
-                      href="/calendar/new"
-                      className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add Reservation
-                    </Link>
-                    <br />
+          {/* Dashboard Grid with dark cards */}
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+            {/* Column 1 - Upcoming Visits */}
+            <div className="space-y-6">
+              {/* Enhanced Upcoming Visits Section */}
+              <section className="bg-white rounded-lg shadow p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-semibold flex items-center text-gray-900">
+                    <Calendar className="h-6 w-6 text-blue-600 mr-2" />
+                    Upcoming Reservations
+                  </h2>
+                  <div className="flex space-x-2">
                     <Link
                       href="/calendar"
                       className="text-blue-600 hover:text-blue-800 text-sm font-medium"
@@ -749,324 +761,745 @@ export default function HomePage() {
                     </Link>
                   </div>
                 </div>
-              )}
 
-              {/* Summary Footer */}
-              {upcomingVisits.length > 0 && (
-                <div className="mt-4 pt-4 border-t border-gray-200">
-                  <div className="flex justify-between items-center text-sm text-gray-600">
-                    <span>
-                      {
-                        upcomingVisits.filter((v) => v.status === "confirmed")
-                          .length
-                      }{" "}
-                      confirmed,{" "}
-                      {
-                        upcomingVisits.filter((v) => v.status === "pending")
-                          .length
-                      }{" "}
-                      pending
-                    </span>
-                    <Link
-                      href="/calendar"
-                      className="text-blue-600 hover:text-blue-800 font-medium"
-                    >
-                      View All →
-                    </Link>
-                  </div>
+                {/* Quick Action Buttons */}
+                <div className="grid grid-cols-3 gap-2 mb-4">
+                  <button
+                    onClick={() => setShowAddReservationModal(true)}
+                    className="flex items-center justify-center p-2 bg-green-50 text-green-700 rounded-lg hover:bg-green-100 transition-colors text-sm font-medium"
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    Add
+                  </button>
+                  <Link
+                    href="/calendar?filter=pending"
+                    className="flex items-center justify-center p-2 bg-yellow-50 text-yellow-700 rounded-lg hover:bg-yellow-100 transition-colors text-sm font-medium"
+                  >
+                    <Clock className="h-4 w-4 mr-1" />
+                    Pending
+                  </Link>
+                  <Link
+                    href="/calendar"
+                    className="flex items-center justify-center p-2 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors text-sm font-medium"
+                  >
+                    <Eye className="h-4 w-4 mr-1" />
+                    Manage
+                  </Link>
                 </div>
-              )}
-            </section>
 
-            {/* Quick Actions */}
-            <section className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-xl font-semibold mb-4 text-gray-900">
-                Quick Actions
-              </h2>
-              <div className="space-y-3">
-                <Link
-                  href="/issues/new"
-                  className="flex items-center p-3 border rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  <AlertTriangle className="h-5 w-5 text-orange-500 mr-3" />
-                  <span className="font-medium text-gray-900">
-                    Report Issue
-                  </span>
-                  <ChevronRight className="h-4 w-4 ml-auto text-gray-400" />
-                </Link>
-                <Link
-                  href="/reservations/new"
-                  className="flex items-center p-3 border rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  <Calendar className="h-5 w-5 text-blue-500 mr-3" />
-                  <span className="font-medium text-gray-900">
-                    Add Reservation
-                  </span>
-                  <ChevronRight className="h-4 w-4 ml-auto text-gray-400" />
-                </Link>
-                <Link
-                  href="/inventory/add"
-                  className="flex items-center p-3 border rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  <Package className="h-5 w-5 text-green-500 mr-3" />
-                  <span className="font-medium text-gray-900">
-                    Update Inventory
-                  </span>
-                  <ChevronRight className="h-4 w-4 ml-auto text-gray-400" />
-                </Link>
-                <Link
-                  href="/maintenance/schedule"
-                  className="flex items-center p-3 border rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  <Wrench className="h-5 w-5 text-orange-500 mr-3" />
-                  <span className="font-medium text-gray-900">
-                    Schedule Maintenance
-                  </span>
-                  <ChevronRight className="h-4 w-4 ml-auto text-gray-400" />
-                </Link>
-              </div>
-            </section>
-          </div>
+                {upcomingVisits.length > 0 ? (
+                  <div className="space-y-3">
+                    {upcomingVisits.map((visit) => {
+                      const startDate = new Date(visit.start_date);
+                      const endDate = new Date(visit.end_date);
+                      const isToday =
+                        startDate.toDateString() === new Date().toDateString();
+                      const isThisWeek =
+                        Math.ceil(
+                          (startDate.getTime() - new Date().getTime()) /
+                            (1000 * 60 * 60 * 24)
+                        ) <= 7;
+                      const daysUntil = Math.ceil(
+                        (startDate.getTime() - new Date().getTime()) /
+                          (1000 * 60 * 60 * 24)
+                      );
 
-          {/* Column 2 - Inventory & Maintenance */}
-          <div className="space-y-6">
-            {/* Inventory Alerts */}
-            <section className="bg-white rounded-lg shadow p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-semibold flex items-center text-gray-900">
-                  <Package className="h-6 w-6 text-green-600 mr-2" />
-                  Inventory Status
-                </h2>
-                <Link
-                  href="/inventory"
-                  className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-                >
-                  View All
-                </Link>
-              </div>
-
-              {inventoryAlerts.length > 0 ? (
-                <div className="space-y-3">
-                  {inventoryAlerts.map((item) => (
-                    <div
-                      key={item.id}
-                      className={`p-3 rounded-lg border-l-4 ${
-                        item.status === "critical"
-                          ? "border-l-red-400 bg-red-50"
-                          : "border-l-yellow-400 bg-yellow-50"
-                      }`}
-                    >
-                      <div className="flex justify-between items-center">
-                        <div>
-                          <h4
-                            className={`font-medium ${
-                              item.status === "critical"
-                                ? "text-red-900"
-                                : "text-yellow-900"
-                            }`}
-                          >
-                            {item.name}
-                          </h4>
-                          <p
-                            className={`text-sm ${
-                              item.status === "critical"
-                                ? "text-red-800"
-                                : "text-yellow-800"
-                            }`}
-                          >
-                            {item.current_stock} / {item.min_stock} minimum
-                          </p>
-                        </div>
-                        <span
-                          className={`px-2 py-1 rounded text-xs font-medium ${
-                            item.status === "critical"
-                              ? "bg-red-100 text-red-800"
-                              : "bg-yellow-100 text-yellow-800"
+                      return (
+                        <div
+                          key={visit.id}
+                          className={`p-4 border rounded-lg hover:bg-gray-50 transition-colors ${
+                            isToday
+                              ? "border-blue-500 bg-blue-50"
+                              : isThisWeek
+                              ? "border-orange-200 bg-orange-25"
+                              : ""
                           }`}
                         >
-                          {item.status}
-                        </span>
-                      </div>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center">
+                              <div
+                                className={`w-12 h-12 rounded-full flex items-center justify-center mr-3 ${
+                                  visit.status === "confirmed"
+                                    ? "bg-green-100"
+                                    : visit.status === "pending"
+                                    ? "bg-yellow-100"
+                                    : visit.status === "requested"
+                                    ? "bg-blue-100"
+                                    : "bg-gray-100"
+                                }`}
+                              >
+                                <Users
+                                  className={`h-6 w-6 ${
+                                    visit.status === "confirmed"
+                                      ? "text-green-600"
+                                      : visit.status === "pending"
+                                      ? "text-yellow-600"
+                                      : visit.status === "requested"
+                                      ? "text-blue-600"
+                                      : "text-gray-600"
+                                  }`}
+                                />
+                              </div>
+                              <div>
+                                <h3 className="font-medium text-gray-900">
+                                  {visit.title}
+                                </h3>
+                                {visit.guest_name &&
+                                  visit.guest_name !== visit.title && (
+                                    <p className="text-sm text-gray-600">
+                                      {visit.guest_name}
+                                    </p>
+                                  )}
+                                <div className="flex items-center space-x-4 text-sm text-gray-600">
+                                  <span>
+                                    {startDate.toLocaleDateString("en-US", {
+                                      month: "short",
+                                      day: "numeric",
+                                      year:
+                                        startDate.getFullYear() !==
+                                        new Date().getFullYear()
+                                          ? "numeric"
+                                          : undefined,
+                                    })}{" "}
+                                    -{" "}
+                                    {endDate.toLocaleDateString("en-US", {
+                                      month: "short",
+                                      day: "numeric",
+                                      year:
+                                        endDate.getFullYear() !==
+                                        new Date().getFullYear()
+                                          ? "numeric"
+                                          : undefined,
+                                    })}
+                                  </span>
+                                  <span>
+                                    {visit.guests} guest
+                                    {visit.guests !== 1 ? "s" : ""}
+                                  </span>
+                                </div>
+
+                                {/* Time-based indicators */}
+                                <div className="flex items-center space-x-2 mt-1">
+                                  {isToday && (
+                                    <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-medium">
+                                      Today
+                                    </span>
+                                  )}
+                                  {daysUntil > 0 &&
+                                    daysUntil <= 7 &&
+                                    !isToday && (
+                                      <span className="px-2 py-1 bg-orange-100 text-orange-800 rounded text-xs font-medium">
+                                        {daysUntil} day
+                                        {daysUntil !== 1 ? "s" : ""}
+                                      </span>
+                                    )}
+                                  {daysUntil < 0 && (
+                                    <span className="px-2 py-1 bg-green-100 text-green-800 rounded text-xs font-medium">
+                                      In Progress
+                                    </span>
+                                  )}
+                                </div>
+
+                                {/* Contact info */}
+                                {(visit.contact_email ||
+                                  visit.contact_phone) && (
+                                  <div className="mt-1 text-xs text-gray-500">
+                                    {visit.contact_email && (
+                                      <div className="flex items-center">
+                                        <span>📧 {visit.contact_email}</span>
+                                      </div>
+                                    )}
+                                    {visit.contact_phone && (
+                                      <div className="flex items-center">
+                                        <Phone className="h-3 w-3 mr-1" />
+                                        <span>{visit.contact_phone}</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="flex flex-col items-end space-y-2">
+                              <span
+                                className={`px-3 py-1 rounded-full text-xs font-medium ${
+                                  visit.status === "confirmed"
+                                    ? "bg-green-100 text-green-800"
+                                    : visit.status === "pending"
+                                    ? "bg-yellow-100 text-yellow-800"
+                                    : visit.status === "requested"
+                                    ? "bg-blue-100 text-blue-800"
+                                    : "bg-gray-100 text-gray-800"
+                                }`}
+                              >
+                                {visit.status}
+                              </span>
+
+                              {/* Quick Actions */}
+                              <div className="flex space-x-1">
+                                <Link
+                                  href={`/calendar/${visit.id}/edit`}
+                                  className="p-1 text-gray-400 hover:text-blue-600 transition-colors"
+                                  title="Edit reservation"
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </Link>
+                                <Link
+                                  href={`/calendar/${visit.id}`}
+                                  className="p-1 text-gray-400 hover:text-green-600 transition-colors"
+                                  title="View details"
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </Link>
+                              </div>
+                            </div>
+                          </div>
+
+                          {visit.notes && (
+                            <div className="mt-3 p-2 bg-gray-50 rounded text-sm text-gray-700">
+                              <strong>Notes:</strong> {visit.notes}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    <Calendar className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                    <p className="text-gray-700 mb-3">
+                      No upcoming reservations
+                    </p>
+                    <div className="space-y-2">
+                      <Link
+                        href="/calendar/new"
+                        className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Reservation
+                      </Link>
+                      <br />
+                      <Link
+                        href="/calendar"
+                        className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                      >
+                        View Calendar
+                      </Link>
                     </div>
-                  ))}
+                  </div>
+                )}
 
+                {/* Summary Footer */}
+                {upcomingVisits.length > 0 && (
+                  <div className="mt-4 pt-4 border-t border-gray-200">
+                    <div className="flex justify-between items-center text-sm text-gray-600">
+                      <span>
+                        {
+                          upcomingVisits.filter((v) => v.status === "confirmed")
+                            .length
+                        }{" "}
+                        confirmed,{" "}
+                        {
+                          upcomingVisits.filter((v) => v.status === "pending")
+                            .length
+                        }{" "}
+                        pending
+                      </span>
+                      <Link
+                        href="/calendar"
+                        className="text-blue-600 hover:text-blue-800 font-medium"
+                      >
+                        View All →
+                      </Link>
+                    </div>
+                  </div>
+                )}
+              </section>
+
+              {/* Quick Actions */}
+              <section className="bg-white rounded-lg shadow p-6">
+                <h2 className="text-xl font-semibold mb-4 text-gray-900">
+                  Quick Actions
+                </h2>
+                <div className="space-y-3">
                   <Link
-                    href="/inventory/restock"
-                    className="block w-full text-center py-2 bg-blue-600 hover:bg-blue-700 transition-colors font-medium"
-                    style={{ color: "#ffffff" }}
+                    href="/issues/new"
+                    className="flex items-center p-3 border rounded-lg hover:bg-gray-50 transition-colors"
                   >
-                    Create Shopping List
+                    <AlertTriangle className="h-5 w-5 text-orange-500 mr-3" />
+                    <span className="font-medium text-gray-900">
+                      Report Issue
+                    </span>
+                    <ChevronRight className="h-4 w-4 ml-auto text-gray-400" />
+                  </Link>
+                  <Link
+                    href="/reservations/new"
+                    className="flex items-center p-3 border rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    <Calendar className="h-5 w-5 text-blue-500 mr-3" />
+                    <span className="font-medium text-gray-900">
+                      Add Reservation
+                    </span>
+                    <ChevronRight className="h-4 w-4 ml-auto text-gray-400" />
+                  </Link>
+                  <Link
+                    href="/inventory/add"
+                    className="flex items-center p-3 border rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    <Package className="h-5 w-5 text-green-500 mr-3" />
+                    <span className="font-medium text-gray-900">
+                      Update Inventory
+                    </span>
+                    <ChevronRight className="h-4 w-4 ml-auto text-gray-400" />
+                  </Link>
+                  <Link
+                    href="/maintenance/schedule"
+                    className="flex items-center p-3 border rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    <Wrench className="h-5 w-5 text-orange-500 mr-3" />
+                    <span className="font-medium text-gray-900">
+                      Schedule Maintenance
+                    </span>
+                    <ChevronRight className="h-4 w-4 ml-auto text-gray-400" />
                   </Link>
                 </div>
-              ) : (
-                <div className="text-center py-6 text-gray-500">
-                  <Package className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-                  <p className="text-gray-700">
-                    All essentials are well stocked!
-                  </p>
-                  <Link
-                    href="/inventory"
-                    className="text-blue-600 hover:text-blue-800 text-sm mt-2 inline-block font-medium"
-                  >
-                    Manage inventory
-                  </Link>
-                </div>
-              )}
-            </section>
+              </section>
+            </div>
 
-            {/* Maintenance Alerts */}
-            {maintenanceAlerts.length > 0 && (
+            {/* Column 2 - Inventory & Maintenance */}
+            <div className="space-y-6">
+              {/* Inventory Alerts */}
               <section className="bg-white rounded-lg shadow p-6">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-xl font-semibold flex items-center text-gray-900">
-                    <Wrench className="h-6 w-6 text-orange-600 mr-2" />
-                    Maintenance Alerts
+                    <Package className="h-6 w-6 text-green-600 mr-2" />
+                    Inventory Status
                   </h2>
                   <Link
-                    href="/maintenance"
+                    href="/inventory"
                     className="text-blue-600 hover:text-blue-800 text-sm font-medium"
                   >
                     View All
                   </Link>
                 </div>
 
-                <div className="space-y-3">
-                  {maintenanceAlerts.slice(0, 3).map((alert) => (
-                    <div
-                      key={alert.id}
-                      className="flex items-center justify-between p-3 border-l-4 border-l-orange-400 bg-orange-50"
-                    >
-                      <div>
-                        <h4 className="font-medium text-orange-900">
-                          {alert.title}
-                        </h4>
-                        <p className="text-sm text-orange-800">
-                          {alert.description}
-                        </p>
-                      </div>
-                      <span
-                        className={`px-2 py-1 rounded text-xs font-medium ${
-                          alert.severity === "critical"
-                            ? "bg-red-100 text-red-800"
-                            : alert.severity === "high"
-                            ? "bg-orange-100 text-orange-800"
-                            : "bg-yellow-100 text-yellow-800"
+                {inventoryAlerts.length > 0 ? (
+                  <div className="space-y-3">
+                    {inventoryAlerts.map((item) => (
+                      <div
+                        key={item.id}
+                        className={`p-3 rounded-lg border-l-4 ${
+                          item.status === "critical"
+                            ? "border-l-red-400 bg-red-50"
+                            : "border-l-yellow-400 bg-yellow-50"
                         }`}
                       >
-                        {alert.severity}
-                      </span>
-                    </div>
-                  ))}
-                </div>
+                        <div className="flex justify-between items-center">
+                          <div>
+                            <h4
+                              className={`font-medium ${
+                                item.status === "critical"
+                                  ? "text-red-900"
+                                  : "text-yellow-900"
+                              }`}
+                            >
+                              {item.name}
+                            </h4>
+                            <p
+                              className={`text-sm ${
+                                item.status === "critical"
+                                  ? "text-red-800"
+                                  : "text-yellow-800"
+                              }`}
+                            >
+                              {item.current_stock} / {item.min_stock} minimum
+                            </p>
+                          </div>
+                          <span
+                            className={`px-2 py-1 rounded text-xs font-medium ${
+                              item.status === "critical"
+                                ? "bg-red-100 text-red-800"
+                                : "bg-yellow-100 text-yellow-800"
+                            }`}
+                          >
+                            {item.status}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+
+                    <Link
+                      href="/inventory/restock"
+                      className="block w-full text-center py-2 bg-blue-600 hover:bg-blue-700 transition-colors font-medium"
+                      style={{ color: "#ffffff" }}
+                    >
+                      Create Shopping List
+                    </Link>
+                  </div>
+                ) : (
+                  <div className="text-center py-6 text-gray-500">
+                    <Package className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                    <p className="text-gray-700">
+                      All essentials are well stocked!
+                    </p>
+                    <Link
+                      href="/inventory"
+                      className="text-blue-600 hover:text-blue-800 text-sm mt-2 inline-block font-medium"
+                    >
+                      Manage inventory
+                    </Link>
+                  </div>
+                )}
               </section>
-            )}
-          </div>
-        </div>
 
-        {/* Quick Add Reservation Modal */}
-        {showAddReservationModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    Quick Add Reservation
-                  </h3>
-                  <button
-                    onClick={() => setShowAddReservationModal(false)}
-                    className="text-gray-400 hover:text-gray-600"
-                  >
-                    <X className="h-5 w-5" />
-                  </button>
-                </div>
-
-                {/* Quick reservation form */}
-                <form className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Guest Name
-                    </label>
-                    <input
-                      type="text"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                      placeholder="Enter guest name"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Check-in
-                      </label>
-                      <input
-                        type="date"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Check-out
-                      </label>
-                      <input
-                        type="date"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Number of Guests
-                    </label>
-                    <input
-                      type="number"
-                      min="1"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                      placeholder="1"
-                    />
-                  </div>
-
-                  <div className="flex space-x-3 pt-4">
-                    <button
-                      type="button"
-                      onClick={() => setShowAddReservationModal(false)}
-                      className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+              {/* Maintenance Alerts */}
+              {maintenanceAlerts.length > 0 && (
+                <section className="bg-white rounded-lg shadow p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    {" "}
+                    {/* ✅ ADD this opening div */}
+                    <h2 className="text-xl font-semibold flex items-center text-gray-900">
+                      <Wrench className="h-6 w-6 text-orange-600 mr-2" />
+                      Maintenance Alerts
+                    </h2>
+                    <Link
+                      href="/maintenance"
+                      className="text-blue-600 hover:text-blue-800 text-sm font-medium"
                     >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                    >
-                      Add Reservation
-                    </button>
+                      View All
+                    </Link>
+                  </div>{" "}
+                  {/* ✅ ADD this closing div */}
+                  <div className="space-y-3">
+                    {maintenanceAlerts.slice(0, 3).map((alert) => (
+                      <div
+                        key={alert.id}
+                        className="flex items-center justify-between p-3 border-l-4 border-l-orange-400 bg-orange-50"
+                      >
+                        <div>
+                          <h4 className="font-medium text-orange-900">
+                            {alert.title}
+                          </h4>
+                          <p className="text-sm text-orange-800">
+                            {alert.description}
+                          </p>
+                        </div>
+                        <span
+                          className={`px-2 py-1 rounded text-xs font-medium ${
+                            alert.severity === "critical"
+                              ? "bg-red-100 text-red-800"
+                              : alert.severity === "high"
+                              ? "bg-orange-100 text-orange-800"
+                              : "bg-yellow-100 text-yellow-800"
+                          }`}
+                        >
+                          {alert.severity}
+                        </span>
+                      </div>
+                    ))}
                   </div>
-
-                  <Link
-                    href="/calendar/new"
-                    className="block text-center text-sm text-blue-600 hover:text-blue-800"
-                    onClick={() => setShowAddReservationModal(false)}
-                  >
-                    Need more options? Use full form →
-                  </Link>
-                </form>
-              </div>
+                </section>
+              )}
             </div>
           </div>
-        )}
 
-        {/* Debug Info - Development Only */}
-        {process.env.NODE_ENV === "development" && (
-          <div className="mb-4 p-4 bg-gray-100 rounded">
-            <h3>Debug Info:</h3>
-            <p>Current Property: {currentProperty?.id}</p>
-            <p>Visits Found: {upcomingVisits.length}</p>
-            <pre className="text-xs mt-2 overflow-auto">
-              {JSON.stringify(upcomingVisits, null, 2)}
-            </pre>
-          </div>
-        )}
+          {/* Quick Add Reservation Modal */}
+          {showAddReservationModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
+                <div className="p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold text-gray-900">
+                      Quick Add Reservation
+                    </h3>
+                    <button
+                      onClick={() => setShowAddReservationModal(false)}
+                      className="text-gray-400 hover:text-gray-600"
+                    >
+                      <X className="h-5 w-5" />
+                    </button>
+                  </div>
+
+                  {/* Quick reservation form */}
+                  <form className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Guest Name
+                      </label>
+                      <input
+                        type="text"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                        placeholder="Enter guest name"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Check-in
+                        </label>
+                        <input
+                          type="date"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Check-out
+                        </label>
+                        <input
+                          type="date"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Number of Guests
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                        placeholder="1"
+                      />
+                    </div>
+
+                    <div className="flex space-x-3 pt-4">
+                      <button
+                        type="button"
+                        onClick={() => setShowAddReservationModal(false)}
+                        className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                      >
+                        Add Reservation
+                      </button>
+                    </div>
+
+                    <Link
+                      href="/calendar/new"
+                      className="block text-center text-sm text-blue-600 hover:text-blue-800"
+                      onClick={() => setShowAddReservationModal(false)}
+                    >
+                      Need more options? Use full form →
+                    </Link>
+                  </form>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Enhanced Banner Selection Modal */}
+          {showBannerModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+                <div className="p-6">
+                  <div className="flex items-center justify-between mb-6">
+                    <h3 className="text-xl font-semibold text-gray-900">
+                      Change Banner Image
+                    </h3>
+                    <button
+                      onClick={() => setShowBannerModal(false)}
+                      className="text-gray-400 hover:text-gray-600"
+                    >
+                      <X className="h-6 w-6" />
+                    </button>
+                  </div>
+
+                  {/* Upload Custom Image */}
+                  <div className="mb-8">
+                    <h4 className="font-medium text-gray-900 mb-3">
+                      Upload Custom Image
+                    </h4>
+                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleBannerUpload}
+                        className="hidden"
+                        id="banner-upload"
+                        disabled={isUploading}
+                      />
+                      <label
+                        htmlFor="banner-upload"
+                        className={`cursor-pointer ${
+                          isUploading ? "opacity-50 cursor-not-allowed" : ""
+                        }`}
+                      >
+                        <div className="space-y-2">
+                          <div className="mx-auto w-12 h-12 text-gray-400">
+                            <Plus className="w-full h-full" />
+                          </div>
+                          <div>
+                            <span className="text-lg font-medium text-gray-900">
+                              {isUploading ? "Uploading..." : "Click to upload"}
+                            </span>
+                            <p className="text-sm text-gray-500">
+                              PNG, JPG, WebP up to 5MB
+                            </p>
+                            <p className="text-xs text-gray-400 mt-1">
+                              Recommended: 1920x600px or larger for best results
+                            </p>
+                          </div>
+                        </div>
+                      </label>
+                    </div>
+
+                    {/* Upload Progress */}
+                    {isUploading && (
+                      <div className="mt-4">
+                        <div className="flex justify-between text-sm text-gray-600 mb-1">
+                          <span>Uploading...</span>
+                          <span>{uploadProgress}%</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div
+                            className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                            style={{ width: `${uploadProgress}%` }}
+                          ></div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Predefined Images Gallery */}
+                  <div className="mb-8">
+                    <h4 className="font-medium text-gray-900 mb-4">
+                      Choose from Gallery
+                    </h4>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      {predefinedImages.map((image) => (
+                        <div
+                          key={image.id}
+                          className="group relative cursor-pointer rounded-lg overflow-hidden border-2 border-transparent hover:border-blue-500 transition-all shadow-sm hover:shadow-md"
+                          onClick={() =>
+                            handlePredefinedBannerSelect(image.url)
+                          }
+                        >
+                          <div className="aspect-[16/9] relative">
+                            <ResponsiveImage
+                              src={image.thumbnail} // Use thumbnail for faster loading
+                              alt={image.name}
+                              fill
+                              className="object-cover transition-transform duration-200 group-hover:scale-105"
+                            />
+
+                            {/* Hover Overlay */}
+                            <div className="absolute inset-0 bg-black opacity-0 group-hover:opacity-30 transition-opacity"></div>
+
+                            {/* Selection Button */}
+                            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                              <div className="bg-white bg-opacity-95 backdrop-blur-sm rounded-lg px-3 py-2 shadow-lg">
+                                <span className="text-sm font-medium text-gray-900">
+                                  Select
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Category Badge */}
+                            <div className="absolute top-2 left-2">
+                              <span className="px-2 py-1 bg-black bg-opacity-70 text-white text-xs rounded-md">
+                                {image.category}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Image Name */}
+                          <div className="p-3 bg-white">
+                            <h5 className="font-medium text-gray-900 text-sm text-center">
+                              {image.name}
+                            </h5>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Current Banner Preview & Remove Option */}
+                  {(currentProperty?.header_image_url ||
+                    currentProperty?.main_photo_url) && (
+                    <div className="border-t border-gray-200 pt-6">
+                      <h4 className="font-medium text-gray-900 mb-3">
+                        Current Banner
+                      </h4>
+                      <div className="relative rounded-lg overflow-hidden border border-gray-200 max-w-md">
+                        <div className="aspect-[16/6] relative">
+                          <ResponsiveImage
+                            src={
+                              currentProperty.header_image_url ||
+                              currentProperty.main_photo_url ||
+                              ""
+                            }
+                            alt="Current banner"
+                            fill
+                            className="object-cover"
+                          />
+                        </div>
+                        <div className="absolute top-2 right-2">
+                          <button
+                            onClick={handleBannerRemove}
+                            className="bg-red-500 hover:bg-red-600 text-white rounded-full p-2 shadow-lg transition-colors"
+                            title="Remove banner"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="mt-3 flex justify-center">
+                        <button
+                          onClick={handleBannerRemove}
+                          className="px-4 py-2 text-red-600 hover:text-red-700 text-sm font-medium"
+                        >
+                          Remove Current Banner
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Actions */}
+                  <div className="mt-6 flex justify-end">
+                    <button
+                      onClick={() => setShowBannerModal(false)}
+                      className="px-4 py-2 text-gray-600 hover:text-gray-800 font-medium"
+                    >
+                      Close
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Debug Property - Development Only */}
+          {process.env.NODE_ENV === "development" && (
+            <div className="mb-4 p-4 bg-gray-800 rounded text-white">
+              <h3 className="text-white font-bold mb-2">
+                Debug Property Image Fields:
+              </h3>
+              <pre className="text-xs overflow-auto text-green-300">
+                {JSON.stringify(
+                  {
+                    id: currentProperty?.id,
+                    name: currentProperty?.name,
+                    header_image_url: currentProperty?.header_image_url, // ✅ Correct field
+                    main_photo_url: currentProperty?.main_photo_url,
+                    all_property_fields: Object.keys(currentProperty || {}),
+                  },
+                  null,
+                  2
+                )}
+              </pre>
+            </div>
+          )}
+        </div>
       </div>
-    </StandardPageLayout>
+    </ProtectedPageWrapper>
   );
 }

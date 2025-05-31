@@ -12,6 +12,7 @@ import { useAuth } from "@/components/AuthProvider";
 import { useProperty } from "@/lib/hooks/useProperty";
 import { supabase } from "@/lib/supabase";
 import { toast } from "react-hot-toast";
+import { EditPattern } from "@/components/ui/FloatingActionPresets";
 
 export default function NewSectionPage() {
   const router = useRouter();
@@ -136,50 +137,14 @@ export default function NewSectionPage() {
         </div>
       </StandardCard>
 
-      {/* NEW: Floating Action Button - Mobile/Desktop Optimized */}
-      <div className="fixed bottom-6 right-6 z-40 flex flex-col space-y-3">
-        {/* Save Button */}
-        <button
-          type="submit"
-          form="section-form" // We'll need to add this id to the form
-          disabled={saving || !formData.title.trim()}
-          className="group flex items-center justify-center bg-green-600 hover:bg-green-700 active:bg-green-800 text-white shadow-lg transition-all duration-300 hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-green-500 focus:ring-opacity-50 disabled:opacity-50 disabled:cursor-not-allowed
-          
-          /* Mobile: circular button */
-          w-14 h-14 rounded-full
-          
-          /* Desktop: expandable button with rounded corners */
-          sm:w-auto sm:h-auto sm:px-4 sm:py-3 sm:rounded-lg sm:hover:scale-105"
-          aria-label="Save section"
-        >
-          <Save className="h-6 w-6 transition-transform group-hover:rotate-12 duration-200 sm:mr-0 group-hover:sm:mr-2" />
-
-          {/* Text appears on desktop hover only */}
-          <span className="hidden sm:inline-block sm:w-0 sm:overflow-hidden sm:whitespace-nowrap sm:transition-all sm:duration-300 group-hover:sm:w-auto group-hover:sm:ml-2">
-            {saving ? "Creating..." : "Create Section"}
-          </span>
-        </button>
-
-        {/* Back Button */}
-        <Link
-          href="/manual"
-          className="group flex items-center justify-center bg-gray-600 hover:bg-gray-700 active:bg-gray-800 text-white shadow-lg transition-all duration-300 hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-gray-500 focus:ring-opacity-50
-          
-          /* Mobile: circular button */
-          w-14 h-14 rounded-full
-          
-          /* Desktop: expandable button with rounded corners */
-          sm:w-auto sm:h-auto sm:px-4 sm:py-3 sm:rounded-lg sm:hover:scale-105"
-          aria-label="Back to manual"
-        >
-          <ArrowLeft className="h-6 w-6 transition-transform group-hover:-translate-x-1 duration-200 sm:mr-0 group-hover:sm:mr-2" />
-
-          {/* Text appears on desktop hover only */}
-          <span className="hidden sm:inline-block sm:w-0 sm:overflow-hidden sm:whitespace-nowrap sm:transition-all sm:duration-300 group-hover:sm:w-auto group-hover:sm:ml-2">
-            Back to Manual
-          </span>
-        </Link>
-      </div>
+      <EditPattern
+        form="section-form"
+        backHref="/manual"
+        saveLabel="Create Section"
+        backLabel="Back to Manual"
+        saving={saving}
+        disabled={!formData.title.trim()}
+      />
     </StandardPageLayout>
   );
 }
