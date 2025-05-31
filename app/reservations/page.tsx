@@ -133,8 +133,10 @@ export default function ReservationsPage() {
       >
         <div className="py-8 px-4">
           <div className="max-w-6xl mx-auto">
+            {/* Header - Remove the old button */}
             <div className="flex justify-between items-center mb-6">
               <h1 className="text-2xl font-bold">Reservations</h1>
+              {/* Remove this old button:
               <button
                 className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg"
                 onClick={() => setShowReservationForm(true)}
@@ -142,8 +144,10 @@ export default function ReservationsPage() {
                 <PlusIcon className="h-5 w-5 mr-1" />
                 Request Reservation
               </button>
+              */}
             </div>
 
+            {/* Existing content - keep all your loading states and reservation list */}
             {loading ? (
               <div className="text-center py-8">Loading reservations...</div>
             ) : reservations.length === 0 ? (
@@ -160,6 +164,7 @@ export default function ReservationsPage() {
                     key={reservation.id}
                     className="bg-white p-4 border rounded-lg shadow-sm"
                   >
+                    {/* ... keep all your existing reservation card content */}
                     <h3 className="font-medium text-lg">{reservation.title}</h3>
                     <div className="flex flex-wrap gap-4 text-sm text-gray-600 mt-2">
                       <p>
@@ -217,7 +222,7 @@ export default function ReservationsPage() {
                         </div>
                       )}
 
-                    {/* User controls - can cancel their own reservations if pending/approved */}
+                    {/* User controls */}
                     {reservation.user_id === user?.id &&
                       ["pending", "approved"].includes(reservation.status) && (
                         <button
@@ -234,10 +239,33 @@ export default function ReservationsPage() {
           </div>
         </div>
 
-        {/* Reservation Form Modal */}
+        {/* NEW: Floating Action Button - Mobile/Desktop Optimized */}
+        <div className="fixed bottom-6 right-6 z-40">
+          <button
+            onClick={() => setShowReservationForm(true)}
+            className="group flex items-center justify-center bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white shadow-lg transition-all duration-300 hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-blue-500 focus:ring-opacity-50
+            
+            /* Mobile: circular button */
+            w-14 h-14 rounded-full
+            
+            /* Desktop: expandable button with rounded corners */
+            sm:w-auto sm:h-auto sm:px-4 sm:py-3 sm:rounded-lg sm:hover:scale-105"
+            aria-label="Request reservation"
+          >
+            <PlusIcon className="h-6 w-6 transition-transform group-hover:rotate-90 duration-200 sm:mr-0 group-hover:sm:mr-2" />
+
+            {/* Text appears on desktop hover only */}
+            <span className="hidden sm:inline-block sm:w-0 sm:overflow-hidden sm:whitespace-nowrap sm:transition-all sm:duration-300 group-hover:sm:w-auto group-hover:sm:ml-2">
+              Request Reservation
+            </span>
+          </button>
+        </div>
+
+        {/* Keep your existing modal */}
         {showReservationForm && (
           <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
             <div className="bg-white rounded-lg shadow-lg w-full max-w-md">
+              {/* ... keep all your existing modal content */}
               <div className="flex justify-between items-center p-4 border-b">
                 <h2 className="text-lg font-semibold">Request Reservation</h2>
                 <button
@@ -251,6 +279,7 @@ export default function ReservationsPage() {
               </div>
 
               <form onSubmit={handleCreateReservation} className="p-4">
+                {/* ... keep all your existing form fields */}
                 <div className="mb-4">
                   <label
                     htmlFor="title"

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { ArrowLeft, Save, Edit, Plus } from "lucide-react";
+import { ArrowLeft, Edit, Plus } from "lucide-react";
 import Link from "next/link";
 import StandardPageLayout from "@/components/layout/StandardPageLayout";
 import StandardCard from "@/components/ui/StandardCard";
@@ -111,31 +111,6 @@ export default function SectionPage() {
         { label: "Manual", href: "/manual" },
         { label: section.title },
       ]}
-      action={
-        <div className="flex items-center space-x-3">
-          <Link
-            href="/manual"
-            className="flex items-center px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Manual
-          </Link>
-          <Link
-            href={`/manual/sections/${sectionId}/edit`}
-            className="flex items-center px-3 py-2 text-blue-600 hover:text-blue-800 transition-colors"
-          >
-            <Edit className="h-4 w-4 mr-1" />
-            Edit Section
-          </Link>
-          <Link
-            href={`/manual/sections/${sectionId}/items/new`}
-            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Add Item
-          </Link>
-        </div>
-      }
     >
       <StandardCard>
         <div className="space-y-6">
@@ -206,24 +181,62 @@ export default function SectionPage() {
         </div>
       </StandardCard>
 
-      {/* Smart floating action button for adding new items */}
-      <div className="fixed bottom-6 right-6 z-40">
+      {/* Multi-button floating action menu */}
+      <div className="fixed bottom-6 right-6 z-40 flex flex-col space-y-3">
+        {/* Primary Action: Add Item */}
         <Link
           href={`/manual/sections/${sectionId}/items/new`}
-          className="group flex items-center justify-center bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-full shadow-lg transition-all duration-300 hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-blue-500 focus:ring-opacity-50
-        
-        /* Mobile: circular button */
-        w-14 h-14 sm:w-auto sm:h-auto
-        
-        /* Desktop: expandable button with text */
-        sm:px-4 sm:py-3 sm:rounded-lg sm:hover:scale-105"
-          aria-label="Add new item"
+          className="group flex items-center justify-center bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white shadow-lg transition-all duration-300 hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-blue-500 focus:ring-opacity-50
+          
+          /* Mobile: circular button */
+          w-14 h-14 rounded-full
+          
+          /* Desktop: expandable button with rounded corners */
+          sm:w-auto sm:h-auto sm:px-4 sm:py-3 sm:rounded-lg sm:hover:scale-105"
+          aria-label="Add item"
         >
           <Plus className="h-6 w-6 transition-transform group-hover:rotate-90 duration-200 sm:mr-0 group-hover:sm:mr-2" />
 
-          {/* Text appears on desktop hover */}
           <span className="hidden sm:inline-block sm:w-0 sm:overflow-hidden sm:whitespace-nowrap sm:transition-all sm:duration-300 group-hover:sm:w-auto group-hover:sm:ml-2">
             Add Item
+          </span>
+        </Link>
+
+        {/* Secondary Action: Edit Section */}
+        <Link
+          href={`/manual/sections/${sectionId}/edit`}
+          className="group flex items-center justify-center bg-orange-600 hover:bg-orange-700 active:bg-orange-800 text-white shadow-lg transition-all duration-300 hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-orange-500 focus:ring-opacity-50
+          
+          /* Mobile: circular button */
+          w-14 h-14 rounded-full
+          
+          /* Desktop: expandable button with rounded corners */
+          sm:w-auto sm:h-auto sm:px-4 sm:py-3 sm:rounded-lg sm:hover:scale-105"
+          aria-label="Edit section"
+        >
+          <Edit className="h-6 w-6 transition-transform group-hover:rotate-12 duration-200 sm:mr-0 group-hover:sm:mr-2" />
+
+          <span className="hidden sm:inline-block sm:w-0 sm:overflow-hidden sm:whitespace-nowrap sm:transition-all sm:duration-300 group-hover:sm:w-auto group-hover:sm:ml-2">
+            Edit Section
+          </span>
+        </Link>
+
+        {/* Tertiary Action: Back to Manual */}
+        <Link
+          href="/manual"
+          className="group flex items-center justify-center bg-gray-600 hover:bg-gray-700 active:bg-gray-800 text-white shadow-lg transition-all duration-300 hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-gray-500 focus:ring-opacity-50
+          
+          /* Mobile: circular button */
+          w-14 h-14 rounded-full
+          
+          /* Desktop: expandable button with rounded corners */
+          sm:w-auto sm:h-auto sm:px-4 sm:py-3 sm:rounded-lg sm:hover:scale-105"
+          aria-label="Back to manual"
+        >
+          <ArrowLeft className="h-6 w-6 transition-transform group-hover:-translate-x-1 duration-200 sm:mr-0 group-hover:sm:mr-2" />
+
+          <span className="hidden sm:inline-block sm:w-0 sm:overflow-hidden sm:whitespace-nowrap sm:transition-all sm:duration-300 group-hover:sm:w-auto group-hover:sm:ml-2">
+            Back to Manual
           </span>
         </Link>
       </div>

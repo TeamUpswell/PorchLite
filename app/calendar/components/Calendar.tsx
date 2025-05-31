@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import { Calendar as BigCalendar, dateFnsLocalizer } from "react-big-calendar";
 import { format, parse, startOfWeek, getDay } from "date-fns";
 import { PlusCircle } from "lucide-react";
+import { toast } from "react-hot-toast"; // ← Changed from react-toastify
+import { supabase } from "@/lib/supabase"; // ← Updated path to match your project structure
 
 // CSS imports
 import "react-big-calendar/lib/css/react-big-calendar.css";
@@ -42,10 +44,16 @@ export function Calendar({ onNewReservation }: CalendarProps) {
 
   // UI state
   const [showReservationModal, setShowReservationModal] = useState(false);
-  const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null);
-  const [selectedSlot, setSelectedSlot] = useState<{ start: Date; end: Date } | null>(null);
+  const [selectedReservation, setSelectedReservation] =
+    useState<Reservation | null>(null);
+  const [selectedSlot, setSelectedSlot] = useState<{
+    start: Date;
+    end: Date;
+  } | null>(null);
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [currentView, setCurrentView] = useState<"month" | "week" | "day">("month");
+  const [currentView, setCurrentView] = useState<"month" | "week" | "day">(
+    "month"
+  );
   const [isMobile, setIsMobile] = useState(false);
 
   // Effects
@@ -96,10 +104,40 @@ export function Calendar({ onNewReservation }: CalendarProps) {
     handleModalClose();
   };
 
+  const handleEventRightClick = (event: Reservation, e: React.MouseEvent) => {
+    e.preventDefault();
+
+    // Show context menu or immediately show delete confirmation
+    if (
+      window.confirm(`Delete "${event.title}"? This action cannot be undone.`)
+    ) {
+      handleDeleteReservation(event.id);
+    }
+  };
+
+  const handleDeleteReservation = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from("reservations")
+        .delete()
+        .eq("id", id);
+
+      if (error) throw error;
+
+      toast.success("Reservation deleted successfully"); // ← Updated message
+      fetchReservations(); // Refresh calendar
+    } catch (error) {
+      console.error("Error deleting reservation:", error);
+      toast.error("Failed to delete reservation");
+    }
+  };
+
   // Event styling
   const eventStyleGetter = (event: Reservation) => {
-    const backgroundColor = statusColors[event.status as keyof typeof statusColors] || statusColors.default;
-    
+    const backgroundColor =
+      statusColors[event.status as keyof typeof statusColors] ||
+      statusColors.default;
+
     return {
       style: {
         backgroundColor,
@@ -127,9 +165,6 @@ export function Calendar({ onNewReservation }: CalendarProps) {
 
   return (
     <div className="h-full">
-      {/* Remove any existing header/title from here since it's now in the page layout */}
-      
-      {/* Keep all existing calendar functionality */}
       <div className={styles.calendarContainer}>
         {/* Status Legend */}
         <StatusLegend />
@@ -137,13 +172,12 @@ export function Calendar({ onNewReservation }: CalendarProps) {
         {/* Calendar View */}
         <div className={styles.calendarView}>
           <div className={styles.calendarWrapper}>
-            {/* All existing BigCalendar code stays the same */}
             <BigCalendar
               localizer={localizer}
               events={reservations}
               startAccessor="start"
               endAccessor="end"
-              style={{ height: "calc(100vh - 200px)" }} // Reduced height to account for legend
+              style={{ height: "calc(100vh - 200px)" }}
               onSelectEvent={handleReservationSelect}
               onSelectSlot={handleSlotSelect}
               selectable
@@ -155,15 +189,40 @@ export function Calendar({ onNewReservation }: CalendarProps) {
               defaultView="month"
               toolbar={true}
               eventPropGetter={eventStyleGetter}
+              onDoubleClickEvent={handleReservationSelect}
+              components={{
+                event: ({ event }) => (
+                  <div
+                    onContextMenu={(e) => handleEventRightClick(event, e)}
+                    className="cursor-pointer"
+                    title="Right-click to delete" // ← Added helpful tooltip
+                  >
+                    {event.title}
+                  </div>
+                ),
+              }}
               formats={{
-                monthHeaderFormat: (date: Date) => 
-                  isMobile ? format(date, "MMM yyyy") : format(date, "MMMM yyyy"),
-                dayHeaderFormat: (date: Date) => 
-                  isMobile ? format(date, "EEE M/d") : format(date, "EEEE, MMMM do"),
-                dayRangeHeaderFormat: ({ start, end }: { start: Date; end: Date }) =>
-                  isMobile 
+                monthHeaderFormat: (date: Date) =>
+                  isMobile
+                    ? format(date, "MMM yyyy")
+                    : format(date, "MMMM yyyy"),
+                dayHeaderFormat: (date: Date) =>
+                  isMobile
+                    ? format(date, "EEE M/d")
+                    : format(date, "EEEE, MMMM do"),
+                dayRangeHeaderFormat: ({
+                  start,
+                  end,
+                }: {
+                  start: Date;
+                  end: Date;
+                }) =>
+                  isMobile
                     ? `${format(start, "M/d")} - ${format(end, "M/d")}`
-                    : `${format(start, "MMM d")} - ${format(end, "MMM d, yyyy")}`,
+                    : `${format(start, "MMM d")} - ${format(
+                        end,
+                        "MMM d, yyyy"
+                      )}`,
               }}
               showMultiDayTimes
               step={60}
@@ -176,7 +235,9 @@ export function Calendar({ onNewReservation }: CalendarProps) {
         {/* Floating Action Button */}
         <div className={styles.fabContainer}>
           <button
-            onClick={() => handleSlotSelect({ start: new Date(), end: new Date() })}
+            onClick={() =>
+              handleSlotSelect({ start: new Date(), end: new Date() })
+            }
             className={styles.fab}
             aria-label="Add Reservation"
           >
@@ -187,10 +248,11 @@ export function Calendar({ onNewReservation }: CalendarProps) {
         {/* Reservation Modal */}
         {showReservationModal && (
           <ReservationModal
-            selectedReservation={selectedReservation}
+            reservation={selectedReservation} // ← Changed from selectedReservation prop
             selectedSlot={selectedSlot}
             onClose={handleModalClose}
             onSaved={handleReservationSaved}
+            onDelete={handleDeleteReservation} // ← Add the delete handler
           />
         )}
       </div>

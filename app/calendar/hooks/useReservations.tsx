@@ -62,20 +62,22 @@ export const useReservations = () => {
     }
   }, [currentProperty]);
 
-  const deleteReservation = async (reservationId: string) => {
+  const deleteReservation = async (id: string) => {
     try {
       const { error } = await supabase
         .from("reservations")
         .delete()
-        .eq("id", reservationId);
+        .eq("id", id);
 
       if (error) throw error;
+
+      // Remove from local state
+      setReservations(prev => prev.filter(r => r.id !== id));
       
-      await fetchReservations();
-      return true;
+      return { success: true };
     } catch (error) {
       console.error("Error deleting reservation:", error);
-      return false;
+      return { success: false, error };
     }
   };
 

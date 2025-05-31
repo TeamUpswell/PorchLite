@@ -1,177 +1,229 @@
 // components/recommendations/RecommendationComments.tsx
 "use client";
 
-import { useState } from 'react';
-import { MessageCircle, Send, Trash2, User } from 'lucide-react';
-import { useRecommendationComments } from '@/lib/hooks/useRecommendationComments';
-import { useAuth } from '@/components/AuthProvider';
+import { useState, useEffect } from "react";
+import { MessageCircle, Send, Trash2 } from "lucide-react";
+import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/components/AuthProvider";
+import { toast } from "react-hot-toast";
+
+interface Comment {
+  id: string;
+  content: string; // ← Changed from 'comment' to 'content'
+  created_at: string;
+  user_id: string;
+  recommendation_id: string;
+  profiles?: {
+    id: string;
+    email: string;
+    full_name?: string;
+    first_name?: string;
+    last_name?: string;
+  };
+}
 
 interface RecommendationCommentsProps {
   recommendationId: string;
   recommendationName: string;
 }
 
-export default function RecommendationComments({ 
-  recommendationId, 
-  recommendationName 
+export default function RecommendationComments({
+  recommendationId,
+  recommendationName,
 }: RecommendationCommentsProps) {
   const { user } = useAuth();
-  const { comments, loading, submitting, addComment, deleteComment } = useRecommendationComments(recommendationId);
-  const [newComment, setNewComment] = useState('');
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [newComment, setNewComment] = useState("");
+  const [loading, setLoading] = useState(false);
   const [showComments, setShowComments] = useState(false);
 
-  const handleSubmitComment = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!newComment.trim()) return;
+  // Fetch comments with user data - FIXED QUERY
+  const fetchComments = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("recommendation_notes") // ← Correct table name
+        .select(`
+          *,
+          profiles!user_id(id, email, full_name, first_name, last_name)
+        `) // ← Fixed relationship syntax
+        .eq("recommendation_id", recommendationId)
+        .order("created_at", { ascending: false });
 
-    const result = await addComment(newComment);
-    
-    if (result.success) {
-      setNewComment('');
-    } else {
-      alert(`Failed to add comment: ${result.error}`);
+      if (error) throw error;
+      setComments(data || []);
+    } catch (error) {
+      console.error("Error fetching comments:", error);
     }
   };
 
-  const handleDeleteComment = async (commentId: string) => {
-    if (!confirm('Are you sure you want to delete this comment?')) return;
+  useEffect(() => {
+    if (showComments) {
+      fetchComments();
+    }
+  }, [recommendationId, showComments]);
 
-    const result = await deleteComment(commentId);
+  // Helper function to get display name
+  const getUserDisplayName = (comment: Comment): string => {
+    if (!comment.profiles) return "Unknown User";
+
+    const { profiles: userData } = comment;
     
-    if (!result.success) {
-      alert(`Failed to delete comment: ${result.error}`);
+    // Try full_name first
+    if (userData.full_name?.trim()) {
+      return userData.full_name.trim();
+    }
+    
+    // Try first_name + last_name
+    if (userData.first_name || userData.last_name) {
+      const firstName = userData.first_name?.trim() || "";
+      const lastName = userData.last_name?.trim() || "";
+      const fullName = `${firstName} ${lastName}`.trim();
+      if (fullName) return fullName;
+    }
+    
+    // Fall back to email (first part before @)
+    if (userData.email) {
+      return userData.email.split('@')[0];
+    }
+    
+    return "Unknown User";
+  };
+
+  // Add new comment
+  const addComment = async () => {
+    if (!newComment.trim() || !user) return;
+
+    try {
+      setLoading(true);
+
+      const { data, error } = await supabase
+        .from("recommendation_notes") // ← Correct table name
+        .insert([
+          {
+            recommendation_id: recommendationId,
+            user_id: user.id,
+            content: newComment.trim(), // ← Changed from 'comment' to 'content'
+          },
+        ])
+        .select(`
+          *,
+          profiles!user_id(id, email, full_name, first_name, last_name)
+        `)
+        .single();
+
+      if (error) throw error;
+
+      setComments((prev) => [data, ...prev]);
+      setNewComment("");
+      toast.success("Comment added!");
+    } catch (error) {
+      console.error("Error adding comment:", error);
+      toast.error("Failed to add comment");
+    } finally {
+      setLoading(false);
     }
   };
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
+  // Delete comment
+  const deleteComment = async (commentId: string) => {
+    if (!window.confirm("Delete this comment?")) return;
 
-    if (diffInHours < 1) {
-      const diffInMinutes = Math.floor(diffInHours * 60);
-      return `${diffInMinutes}m ago`;
-    } else if (diffInHours < 24) {
-      return `${Math.floor(diffInHours)}h ago`;
-    } else if (diffInHours < 168) { // 7 days
-      const diffInDays = Math.floor(diffInHours / 24);
-      return `${diffInDays}d ago`;
-    } else {
-      return date.toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined
-      });
+    try {
+      const { error } = await supabase
+        .from("recommendation_notes") // ← Correct table name
+        .delete()
+        .eq("id", commentId);
+
+      if (error) throw error;
+
+      setComments((prev) => prev.filter((c) => c.id !== commentId));
+      toast.success("Comment deleted");
+    } catch (error) {
+      console.error("Error deleting comment:", error);
+      toast.error("Failed to delete comment");
     }
   };
 
   return (
-    <div className="border-t border-gray-100 pt-4 mt-4">
-      {/* Comments Toggle */}
+    <div className="mt-4 border-t border-gray-100 pt-4">
       <button
         onClick={() => setShowComments(!showComments)}
         className="flex items-center text-sm text-gray-600 hover:text-gray-800 transition-colors"
       >
-        <MessageCircle className="h-4 w-4 mr-1" />
-        {comments.length > 0 ? `${comments.length} comment${comments.length !== 1 ? 's' : ''}` : 'Add comment'}
+        <MessageCircle className="h-4 w-4 mr-2" />
+        {comments.length > 0 ? `${comments.length} Comments` : "Add Comment"}
       </button>
 
-      {/* Comments Section */}
       {showComments && (
-        <div className="mt-4 space-y-4">
+        <div className="mt-3 space-y-3">
           {/* Add Comment Form */}
-          {user ? (
-            <form onSubmit={handleSubmitComment} className="space-y-3">
+          {user && (
+            <div className="flex items-start space-x-2">
               <textarea
                 value={newComment}
                 onChange={(e) => setNewComment(e.target.value)}
-                placeholder={`Share your thoughts about ${recommendationName}...`}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-sm"
-                rows={3}
-                maxLength={500}
+                placeholder={`Add a comment about ${recommendationName}...`}
+                className="flex-1 text-sm border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                rows={2}
               />
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-gray-500">
-                  {newComment.length}/500 characters
-                </span>
-                <button
-                  type="submit"
-                  disabled={!newComment.trim() || submitting}
-                  className="flex items-center px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm"
-                >
-                  {submitting ? (
-                    <>
-                      <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white mr-1"></div>
-                      Posting...
-                    </>
-                  ) : (
-                    <>
-                      <Send className="h-3 w-3 mr-1" />
-                      Post
-                    </>
-                  )}
-                </button>
-              </div>
-            </form>
-          ) : (
-            <div className="text-center py-3 text-sm text-gray-600 bg-gray-50 rounded-lg">
-              <MessageCircle className="h-5 w-5 mx-auto mb-1 text-gray-400" />
-              <p>Sign in to leave a comment</p>
+              <button
+                onClick={addComment}
+                disabled={!newComment.trim() || loading}
+                className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {loading ? (
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                ) : (
+                  <Send className="h-4 w-4" />
+                )}
+              </button>
             </div>
           )}
 
           {/* Comments List */}
-          <div className="space-y-3">
-            {loading ? (
-              <div className="flex justify-center py-4">
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-gray-400"></div>
-              </div>
-            ) : comments.length > 0 ? (
-              comments.map((comment) => (
-                <div key={comment.id} className="bg-gray-50 rounded-lg p-3">
+          {comments.length > 0 ? (
+            <div className="space-y-2 max-h-60 overflow-y-auto">
+              {comments.map((comment) => (
+                <div
+                  key={comment.id}
+                  className="bg-gray-50 rounded-lg p-3 text-sm"
+                >
                   <div className="flex items-start justify-between">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <div className="flex items-center justify-center w-6 h-6 bg-blue-100 rounded-full">
-                        <User className="h-3 w-3 text-blue-600" />
-                      </div>
-                      <div>
-                        <span className="font-medium text-gray-900 text-sm">
-                          {comment.user_name}
+                    <div className="flex-1">
+                      <div className="flex items-center space-x-2 mb-1">
+                        <span className="font-medium text-gray-900">
+                          {getUserDisplayName(comment)}
                         </span>
-                        <span className="text-xs text-gray-500 ml-2">
-                          {formatDate(comment.created_at)}
+                        <span className="text-gray-500 text-xs">
+                          {new Date(comment.created_at).toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                          })}
                         </span>
                       </div>
+                      <p className="text-gray-700">{comment.content}</p> {/* ← Changed from comment.comment to comment.content */}
                     </div>
                     
-                    {/* Delete button for comment owner */}
+                    {/* Delete button - only show for comment author */}
                     {user && comment.user_id === user.id && (
                       <button
-                        onClick={() => handleDeleteComment(comment.id)}
-                        className="text-gray-400 hover:text-red-600 transition-colors"
+                        onClick={() => deleteComment(comment.id)}
+                        className="text-gray-400 hover:text-red-600 transition-colors ml-2"
                         title="Delete comment"
                       >
                         <Trash2 className="h-3 w-3" />
                       </button>
                     )}
                   </div>
-                  
-                  <p className="text-gray-700 text-sm leading-relaxed">
-                    {comment.content}
-                  </p>
                 </div>
-              ))
-            ) : (
-              <div className="text-center py-4 text-gray-500 text-sm">
-                <MessageCircle className="h-6 w-6 mx-auto mb-2 text-gray-300" />
-                <p>No comments yet</p>
-                {user && (
-                  <p className="text-xs mt-1">Be the first to share your thoughts!</p>
-                )}
-              </div>
-            )}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-gray-500 text-sm italic">
+              No comments yet. Be the first to share your thoughts!
+            </p>
+          )}
         </div>
       )}
     </div>

@@ -1,8 +1,5 @@
 "use client";
 
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
-
 import { useState, useEffect, useRef } from "react";
 import {
   Star,
@@ -12,6 +9,7 @@ import {
   Globe,
   Navigation,
   Trash2,
+  Search,
 } from "lucide-react";
 import Link from "next/link";
 import StandardPageLayout from "@/components/layout/StandardPageLayout";
@@ -85,7 +83,7 @@ export default function RecommendationsPage() {
   >([]);
   const [loading, setLoading] = useState(true);
 
-  // Places search state
+  // Places search state - DEFAULT TO SHOWING
   const [placesSearchTerm, setPlacesSearchTerm] = useState("");
   const [autocompletePredictions, setAutocompletePredictions] = useState<
     AutocompletePrediction[]
@@ -93,7 +91,6 @@ export default function RecommendationsPage() {
   const [selectedPlace, setSelectedPlace] = useState<PlacesResult | null>(null);
   const [placesLoading, setPlacesLoading] = useState(false);
   const [showAutocomplete, setShowAutocomplete] = useState(false);
-  const [showPlacesSearch, setShowPlacesSearch] = useState(false);
 
   // Delete state only
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -103,6 +100,7 @@ export default function RecommendationsPage() {
 
   // Manual recommendation modal state
   const [showManualModal, setShowManualModal] = useState(false);
+  const [showAddOptions, setShowAddOptions] = useState(false); // ← Add this for floating menu
   const [manualForm, setManualForm] = useState({
     name: "",
     category: "restaurant",
@@ -459,136 +457,118 @@ export default function RecommendationsPage() {
         currentProperty?.name || "your property"
       }`}
       headerIcon={<Star className="h-6 w-6 text-blue-600" />}
-      headerActions={
-        <div className="flex items-center space-x-3">
-          <button
-            onClick={() => setShowPlacesSearch(!showPlacesSearch)}
-            className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-          >
-            <Navigation className="h-4 w-4 mr-2" />
-            Find Places
-          </button>
-          <button
-            onClick={() => setShowManualModal(true)}
-            className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Add Manual
-          </button>
-        </div>
-      }
     >
-      {/* Find Places */}
-      {showPlacesSearch && (
-        <StandardCard
-          title="Find Places"
-          subtitle="Discover local places and add them to your recommendations"
-          className="mb-6"
-        >
-          <div className="space-y-4">
-            <div className="relative" ref={autocompleteRef}>
+      {/* Google Places Search - ALWAYS VISIBLE BY DEFAULT */}
+      <StandardCard
+        title="Find Places"
+        subtitle="Discover local places and add them to your recommendations"
+        className="mb-6"
+      >
+        <div className="space-y-4">
+          <div className="relative" ref={autocompleteRef}>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
               <input
                 type="text"
-                placeholder="Type a place name (e.g., 'Starbucks', 'Pizza Hut')..."
+                placeholder="Search for places (e.g., 'Starbucks near me', 'Italian restaurant')..."
                 value={placesSearchTerm}
                 onChange={(e) => handleSearchInput(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-lg"
+                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-lg"
                 autoComplete="off"
               />
-
-              {showAutocomplete && autocompletePredictions.length > 0 && (
-                <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-64 overflow-y-auto">
-                  {autocompletePredictions.map((prediction) => (
-                    <button
-                      key={prediction.place_id}
-                      onClick={() => selectPrediction(prediction)}
-                      className="w-full px-4 py-3 text-left hover:bg-gray-50 border-b border-gray-100 last:border-b-0 focus:bg-gray-50 focus:outline-none"
-                    >
-                      <div className="font-medium text-gray-900">
-                        {prediction.structured_formatting.main_text}
-                      </div>
-                      <div className="text-sm text-gray-600">
-                        {prediction.structured_formatting.secondary_text}
-                      </div>
-                      <div className="text-xs text-gray-500 mt-1">
-                        {prediction.types.slice(0, 3).join(", ")}
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
             </div>
 
-            {placesLoading && (
-              <div className="flex items-center justify-center py-4">
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-                <span className="ml-2 text-gray-600">
-                  Loading place details...
-                </span>
-              </div>
-            )}
-
-            {selectedPlace && !placesLoading && (
-              <div className="border-t pt-4">
-                <h4 className="font-medium text-gray-900 mb-3">
-                  Selected Place:
-                </h4>
-                <div className="p-4 border border-gray-200 rounded-lg bg-gray-50">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <h5 className="font-medium text-gray-900 text-lg">
-                        {selectedPlace.name}
-                      </h5>
-                      <p className="text-sm text-gray-600 mb-2">
-                        {selectedPlace.formatted_address}
-                      </p>
-
-                      <div className="flex items-center space-x-4 text-sm text-gray-500 mb-2">
-                        {selectedPlace.rating && (
-                          <div className="flex items-center">
-                            <Star className="h-4 w-4 text-yellow-400 fill-current mr-1" />
-                            {selectedPlace.rating} stars
-                          </div>
-                        )}
-                        {selectedPlace.price_level && (
-                          <span>
-                            {"$".repeat(selectedPlace.price_level)} price level
-                          </span>
-                        )}
-                        {selectedPlace.opening_hours?.open_now !==
-                          undefined && (
-                          <span
-                            className={
-                              selectedPlace.opening_hours.open_now
-                                ? "text-green-600"
-                                : "text-red-600"
-                            }
-                          >
-                            {selectedPlace.opening_hours.open_now
-                              ? "Open now"
-                              : "Currently closed"}
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="text-sm text-gray-500">
-                        Categories: {selectedPlace.types.slice(0, 5).join(", ")}
-                      </div>
+            {showAutocomplete && autocompletePredictions.length > 0 && (
+              <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-64 overflow-y-auto">
+                {autocompletePredictions.map((prediction) => (
+                  <button
+                    key={prediction.place_id}
+                    onClick={() => selectPrediction(prediction)}
+                    className="w-full px-4 py-3 text-left hover:bg-gray-50 border-b border-gray-100 last:border-b-0 focus:bg-gray-50 focus:outline-none"
+                  >
+                    <div className="font-medium text-gray-900">
+                      {prediction.structured_formatting.main_text}
                     </div>
-
-                    <button
-                      onClick={() => addPlaceAsRecommendation(selectedPlace)}
-                      className="ml-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
-                    >
-                      Add as Recommendation
-                    </button>
-                  </div>
-                </div>
+                    <div className="text-sm text-gray-600">
+                      {prediction.structured_formatting.secondary_text}
+                    </div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      {prediction.types.slice(0, 3).join(", ")}
+                    </div>
+                  </button>
+                ))}
               </div>
             )}
           </div>
-        </StandardCard>
-      )}
+
+          {placesLoading && (
+            <div className="flex items-center justify-center py-4">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+              <span className="ml-2 text-gray-600">
+                Loading place details...
+              </span>
+            </div>
+          )}
+
+          {selectedPlace && !placesLoading && (
+            <div className="border-t pt-4">
+              <h4 className="font-medium text-gray-900 mb-3">
+                Selected Place:
+              </h4>
+              <div className="p-4 border border-gray-200 rounded-lg bg-gray-50">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <h5 className="font-medium text-gray-900 text-lg">
+                      {selectedPlace.name}
+                    </h5>
+                    <p className="text-sm text-gray-600 mb-2">
+                      {selectedPlace.formatted_address}
+                    </p>
+
+                    <div className="flex items-center space-x-4 text-sm text-gray-500 mb-2">
+                      {selectedPlace.rating && (
+                        <div className="flex items-center">
+                          <Star className="h-4 w-4 text-yellow-400 fill-current mr-1" />
+                          {selectedPlace.rating} stars
+                        </div>
+                      )}
+                      {selectedPlace.price_level && (
+                        <span>
+                          {"$".repeat(selectedPlace.price_level)} price level
+                        </span>
+                      )}
+                      {selectedPlace.opening_hours?.open_now !== undefined && (
+                        <span
+                          className={
+                            selectedPlace.opening_hours.open_now
+                              ? "text-green-600"
+                              : "text-red-600"
+                          }
+                        >
+                          {selectedPlace.opening_hours.open_now
+                            ? "Open now"
+                            : "Currently closed"}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="text-sm text-gray-500">
+                      Categories: {selectedPlace.types.slice(0, 5).join(", ")}
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => addPlaceAsRecommendation(selectedPlace)}
+                    className="ml-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                  >
+                    Add as Recommendation
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </StandardCard>
 
       {/* Replace the old category filter with the new filter component */}
       <RecommendationFilters
@@ -596,7 +576,7 @@ export default function RecommendationsPage() {
         setFilteredRecommendations={setFilteredRecommendations}
       />
 
-      {/* Recommendations Grid */}
+      {/* Recommendations Grid - keep existing */}
       <StandardCard
         title={`${filteredRecommendations.length} Recommendation${
           filteredRecommendations.length !== 1 ? "s" : ""
@@ -773,7 +753,76 @@ export default function RecommendationsPage() {
         )}
       </StandardCard>
 
-      {/* Manual Add Modal */}
+      {/* FLOATING ACTION BUTTON - Similar to tasks */}
+      <div className="fixed bottom-6 right-6 z-40">
+        {/* Options Menu (Mobile + Desktop) */}
+        {showAddOptions && (
+          <div className="absolute bottom-16 right-0 bg-white rounded-lg shadow-xl border border-gray-200 py-2 min-w-[200px] transform transition-all duration-200 animate-in slide-in-from-bottom-2">
+            <button
+              onClick={() => {
+                setShowAddOptions(false);
+                const searchInput = document.querySelector('input[placeholder*="Search for places"]') as HTMLInputElement;
+                if (searchInput) {
+                  searchInput.focus();
+                  searchInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+              }}
+              className="w-full px-4 py-3 text-left hover:bg-gray-50 flex items-center text-gray-700 transition-colors duration-150"
+            >
+              <Search className="h-4 w-4 mr-3 text-green-600" />
+              <div>
+                <div className="font-medium">Find with Google</div>
+                <div className="text-xs text-gray-500">Search Google Places</div>
+              </div>
+            </button>
+            <button
+              onClick={() => {
+                setShowAddOptions(false);
+                setShowManualModal(true);
+              }}
+              className="w-full px-4 py-3 text-left hover:bg-gray-50 flex items-center text-gray-700 transition-colors duration-150"
+            >
+              <Plus className="h-4 w-4 mr-3 text-blue-600" />
+              <div>
+                <div className="font-medium">Add Manually</div>
+                <div className="text-xs text-gray-500">Create custom recommendation</div>
+              </div>
+            </button>
+          </div>
+        )}
+
+        {/* Main FAB - Mobile/Desktop Optimized */}
+        <button
+          onClick={() => setShowAddOptions(!showAddOptions)}
+          className="group flex items-center justify-center bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white shadow-lg transition-all duration-300 hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-blue-500 focus:ring-opacity-50
+    
+    /* Mobile: circular button */
+    w-14 h-14 rounded-full
+    
+    /* Desktop: expandable button with rounded corners */
+    sm:w-auto sm:h-auto sm:px-4 sm:py-3 sm:rounded-lg sm:hover:scale-105"
+          aria-label="Add recommendation"
+        >
+          <Plus className={`h-6 w-6 transition-transform duration-200 ${
+            showAddOptions ? 'rotate-45' : 'group-hover:rotate-90'
+          } sm:mr-0 group-hover:sm:mr-2`} />
+
+          {/* Text appears on desktop hover only */}
+          <span className="hidden sm:inline-block sm:w-0 sm:overflow-hidden sm:whitespace-nowrap sm:transition-all sm:duration-300 group-hover:sm:w-auto group-hover:sm:ml-2">
+            Add Place
+          </span>
+        </button>
+      </div>
+
+      {/* Click outside to close dropdown */}
+      {showAddOptions && (
+        <div
+          className="fixed inset-0 z-30"
+          onClick={() => setShowAddOptions(false)}
+        />
+      )}
+
+      {/* Manual Add Modal - keep existing */}
       {showManualModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
@@ -954,7 +1003,7 @@ export default function RecommendationsPage() {
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
+      {/* Delete Confirmation Modal - keep existing */}
       {showDeleteModal && recommendationToDelete && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">

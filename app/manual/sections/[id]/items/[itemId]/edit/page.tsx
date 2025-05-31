@@ -261,165 +261,187 @@ export default function EditItemPage() {
 
   return (
     <StandardPageLayout
-      title="Edit Item" // ← Change title to indicate editing
+      title="Edit Item"
       breadcrumb={[
         { label: "Manual", href: "/manual" },
-        { label: section.title, href: `/manual/sections/${sectionId}` },
-        {
-          label: item.title,
-          href: `/manual/sections/${sectionId}/items/${itemId}`,
-        },
-        { label: "Edit" },
+        { label: section?.title || "Loading...", href: `/manual/sections/${sectionId}` },
+        { label: item?.title || "Loading...", href: `/manual/sections/${sectionId}/items/${itemId}` },
+        { label: "Edit" }
       ]}
-      action={
-        <button
-          onClick={handleSave}
-          disabled={saving || isUploading}
-          className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
-        >
-          <Save className="h-4 w-4 mr-2" />
-          {saving ? "Saving..." : "Save Changes"}
-        </button>
-      }
     >
-      <div className="mb-6">
-        <Link
-          href={`/manual/sections/${sectionId}/items/${itemId}`}
-          className="inline-flex items-center text-sm text-gray-500 hover:text-gray-700"
-        >
-          <ArrowLeft className="h-4 w-4 mr-1" />
-          Back to Item
-        </Link>
-      </div>
-
       <StandardCard>
-        <div className="space-y-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Item Title *
-            </label>
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="Enter item title..."
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Content *
-            </label>
-            <textarea
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              rows={8}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm"
-              placeholder="Enter item content..."
-            />
-            <p className="text-sm text-gray-500 mt-1">Line breaks will be preserved in the display</p>
-          </div>
-
-          {/* Photo Upload Section */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Photos
-            </label>
-            
-            {/* Upload Buttons */}
-            <div className="flex flex-wrap gap-2 mb-4">
-              <label className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 cursor-pointer transition-colors">
-                <Upload className="h-4 w-4 mr-2" />
-                Upload Photos
-                <input
-                  type="file"
-                  multiple
-                  accept="image/*"
-                  onChange={handlePhotoUpload}
-                  className="hidden"
-                  disabled={isUploading}
-                />
+        <div className="p-6">
+          <form id="edit-item-form" onSubmit={handleSave} className="space-y-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Item Title *
               </label>
-
-              <label className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 cursor-pointer transition-colors md:hidden">
-                <Camera className="h-4 w-4 mr-2" />
-                Take Photo
-                <input
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  onChange={handlePhotoUpload}
-                  className="hidden"
-                  disabled={isUploading}
-                />
-              </label>
+              <input
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Enter item title..."
+              />
             </div>
 
-            {/* Upload Progress */}
-            {isUploading && (
-              <div className="mb-4">
-                <div className="flex items-center justify-between text-sm text-gray-600 mb-1">
-                  <span>Uploading...</span>
-                  <span>{uploadProgress}%</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div
-                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                    style={{ width: `${uploadProgress}%` }}
-                  ></div>
-                </div>
-              </div>
-            )}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Content *
+              </label>
+              <textarea
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                rows={8}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm"
+                placeholder="Enter item content..."
+              />
+              <p className="text-sm text-gray-500 mt-1">Line breaks will be preserved in the display</p>
+            </div>
 
-            {/* Photo Grid */}
-            {photos.length > 0 ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                {photos.map((photo, index) => (
-                  <div key={index} className="relative group">
-                    <Image
-                      src={photo}
-                      alt={`Item photo ${index + 1}`}
-                      width={200}
-                      height={96}
-                      className="w-full h-24 object-cover rounded-lg border"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => removePhoto(photo)}
-                      className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
+            {/* Photo Upload Section */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Photos
+              </label>
+              
+              {/* Upload Buttons */}
+              <div className="flex flex-wrap gap-2 mb-4">
+                <label className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 cursor-pointer transition-colors">
+                  <Upload className="h-4 w-4 mr-2" />
+                  Upload Photos
+                  <input
+                    type="file"
+                    multiple
+                    accept="image/*"
+                    onChange={handlePhotoUpload}
+                    className="hidden"
+                    disabled={isUploading}
+                  />
+                </label>
+
+                <label className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 cursor-pointer transition-colors md:hidden">
+                  <Camera className="h-4 w-4 mr-2" />
+                  Take Photo
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    onChange={handlePhotoUpload}
+                    className="hidden"
+                    disabled={isUploading}
+                  />
+                </label>
+              </div>
+
+              {/* Upload Progress */}
+              {isUploading && (
+                <div className="mb-4">
+                  <div className="flex items-center justify-between text-sm text-gray-600 mb-1">
+                    <span>Uploading...</span>
+                    <span>{uploadProgress}%</span>
                   </div>
-                ))}
-              </div>
-            ) : (
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                <ImageIcon className="h-12 w-12 text-gray-400 mx-auto mb-2" />
-                <p className="text-gray-500">No photos added yet</p>
-                <p className="text-sm text-gray-400 mt-1">Upload photos or take new ones to document this item</p>
-              </div>
-            )}
-          </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div
+                      className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${uploadProgress}%` }}
+                    ></div>
+                  </div>
+                </div>
+              )}
 
-          <div className="flex items-center">
-            <input
-              type="checkbox"
-              id="important"
-              checked={important}
-              onChange={(e) => setImportant(e.target.checked)}
-              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-            />
-            <label
-              htmlFor="important"
-              className="ml-2 block text-sm text-gray-900"
-            >
-              Mark as important
-            </label>
-          </div>
+              {/* Photo Grid */}
+              {photos.length > 0 ? (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                  {photos.map((photo, index) => (
+                    <div key={index} className="relative group">
+                      <Image
+                        src={photo}
+                        alt={`Item photo ${index + 1}`}
+                        width={200}
+                        height={96}
+                        className="w-full h-24 object-cover rounded-lg border"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removePhoto(photo)}
+                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                  <ImageIcon className="h-12 w-12 text-gray-400 mx-auto mb-2" />
+                  <p className="text-gray-500">No photos added yet</p>
+                  <p className="text-sm text-gray-400 mt-1">Upload photos or take new ones to document this item</p>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                id="important"
+                checked={important}
+                onChange={(e) => setImportant(e.target.checked)}
+                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              />
+              <label
+                htmlFor="important"
+                className="ml-2 block text-sm text-gray-900"
+              >
+                Mark as important
+              </label>
+            </div>
+          </form>
         </div>
       </StandardCard>
+
+      {/* Floating Action Buttons */}
+      <div className="fixed bottom-6 right-6 z-40 flex flex-col space-y-3">
+        {/* Save Changes */}
+        <button
+          type="submit"
+          form="edit-item-form"
+          disabled={saving}
+          className="group flex items-center justify-center bg-green-600 hover:bg-green-700 active:bg-green-800 text-white shadow-lg transition-all duration-300 hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-green-500 focus:ring-opacity-50 disabled:opacity-50 disabled:cursor-not-allowed
+          
+          /* Mobile: circular button */
+          w-14 h-14 rounded-full
+          
+          /* Desktop: expandable button with rounded corners */
+          sm:w-auto sm:h-auto sm:px-4 sm:py-3 sm:rounded-lg sm:hover:scale-105"
+          aria-label="Save changes"
+        >
+          <Save className="h-6 w-6 transition-transform group-hover:rotate-12 duration-200 sm:mr-0 group-hover:sm:mr-2" />
+
+          <span className="hidden sm:inline-block sm:w-0 sm:overflow-hidden sm:whitespace-nowrap sm:transition-all sm:duration-300 group-hover:sm:w-auto group-hover:sm:ml-2">
+            {saving ? "Saving..." : "Save Changes"}
+          </span>
+        </button>
+
+        {/* Back to Item */}
+        <Link
+          href={`/manual/sections/${sectionId}/items/${itemId}`}
+          className="group flex items-center justify-center bg-gray-600 hover:bg-gray-700 active:bg-gray-800 text-white shadow-lg transition-all duration-300 hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-gray-500 focus:ring-opacity-50
+          
+          /* Mobile: circular button */
+          w-14 h-14 rounded-full
+          
+          /* Desktop: expandable button with rounded corners */
+          sm:w-auto sm:h-auto sm:px-4 sm:py-3 sm:rounded-lg sm:hover:scale-105"
+          aria-label="Back to item"
+        >
+          <ArrowLeft className="h-6 w-6 transition-transform group-hover:-translate-x-1 duration-200 sm:mr-0 group-hover:sm:mr-2" />
+
+          <span className="hidden sm:inline-block sm:w-0 sm:overflow-hidden sm:whitespace-nowrap sm:transition-all sm:duration-300 group-hover:sm:w-auto group-hover:sm:ml-2">
+            Back to Item
+          </span>
+        </Link>
+      </div>
     </StandardPageLayout>
   );
 }
