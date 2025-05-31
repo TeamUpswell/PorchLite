@@ -203,18 +203,20 @@ export default function SideNavigation({
 
   return (
     <>
-      {/* Mobile Menu Button */}
+      {/* Mobile Menu Button - Back at top but with better positioning */}
       {isMobile && (
         <button
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           className={`fixed top-4 left-4 z-50 p-2 rounded-md ${
             isDarkMode ? "bg-gray-800 text-white" : "bg-white text-gray-900"
-          } shadow-lg md:hidden`}
+          } shadow-lg md:hidden border ${
+            isDarkMode ? "border-gray-700" : "border-gray-200"
+          }`}
         >
           {isMobileMenuOpen ? (
-            <X className="h-6 w-6" />
+            <X className="h-5 w-5" />
           ) : (
-            <Menu className="h-6 w-6" />
+            <Menu className="h-5 w-5" />
           )}
         </button>
       )}

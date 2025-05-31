@@ -35,10 +35,10 @@ const localizer = dateFnsLocalizer({
 });
 
 interface CalendarProps {
-  onNewReservation?: boolean;
+  newReservationTrigger?: number;
 }
 
-export function Calendar({ onNewReservation }: CalendarProps) {
+export function Calendar({ newReservationTrigger }: CalendarProps) {
   const { reservations, isLoading, fetchReservations } = useReservations();
   const { clearCompanions, fetchCompanions } = useCompanions();
 
@@ -69,10 +69,13 @@ export function Calendar({ onNewReservation }: CalendarProps) {
   }, [fetchReservations]);
 
   useEffect(() => {
-    if (onNewReservation) {
+    if (newReservationTrigger && newReservationTrigger > 0) {
+      setSelectedReservation(null);
+      setSelectedSlot({ start: new Date(), end: new Date() });
       setShowReservationModal(true);
+      clearCompanions();
     }
-  }, [onNewReservation]);
+  }, [newReservationTrigger, clearCompanions]);
 
   // Event handlers
   const handleReservationSelect = (reservation: Reservation) => {
@@ -243,11 +246,11 @@ export function Calendar({ onNewReservation }: CalendarProps) {
         {/* Reservation Modal */}
         {showReservationModal && (
           <ReservationModal
-            reservation={selectedReservation} // ← Changed from selectedReservation prop
+            selectedReservation={selectedReservation} // ← Change from "reservation" to "selectedReservation"
             selectedSlot={selectedSlot}
             onClose={handleModalClose}
             onSaved={handleReservationSaved}
-            onDelete={handleDeleteReservation} // ← Add the delete handler
+            onDelete={handleDeleteReservation}
           />
         )}
       </div>

@@ -2,20 +2,24 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Plus, BookOpen, Pin, Edit, Trash2 } from "lucide-react";
+import { Plus, BookOpen, Pin, Edit, Trash2, MapPin } from "lucide-react"; // ✅ Add MapPin
 import { toast } from "react-hot-toast";
 import StandardPageLayout from "@/components/layout/StandardPageLayout";
 import StandardCard from "@/components/ui/StandardCard";
 import { useAuth } from "@/components/AuthProvider";
+import { useProperty } from "@/lib/hooks/useProperty"; // ✅ Add this import
 import { supabase } from "@/lib/supabase";
 import { CreatePattern } from "@/components/ui/FloatingActionPresets";
+
+// ✅ Use existing PropertyMap component instead
+import PropertyMap from "@/components/PropertyMap";
 
 interface ManualSection {
   id: string;
   title: string;
   description?: string;
-  icon?: string; // ← Add the icon field
-  is_priority?: boolean; // ← Changed from priority to is_priority
+  icon?: string;
+  is_priority?: boolean;
   created_at: string;
   _count?: {
     items: number;
@@ -24,6 +28,7 @@ interface ManualSection {
 
 export default function ManualPage() {
   const { user } = useAuth();
+  const { currentProperty } = useProperty(); // ✅ Add this hook
   const [loading, setLoading] = useState(true);
   const [sections, setSections] = useState<ManualSection[]>([]);
 
@@ -136,14 +141,76 @@ export default function ManualPage() {
   };
 
   return (
-    <StandardPageLayout title="Property Manual">
+    <StandardPageLayout
+      title="Property Manual"
+      headerIcon={<BookOpen className="h-6 w-6 text-blue-600" />}
+      action={
+        <Link
+          href="/manual/sections/new"
+          className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+        >
+          <Plus className="h-4 w-4 mr-2" />
+          Add Section
+        </Link>
+      }
+    >
       <div className="space-y-8">
+        {/* ✅ Property Location Map Section - Smaller size like dashboard banner */}
+        {currentProperty &&
+          currentProperty.latitude &&
+          currentProperty.longitude && (
+            <StandardCard>
+              <div className="p-0 relative">
+                {/* Map Component - Reduced height to match dashboard banner */}
+                <PropertyMap
+                  latitude={parseFloat(currentProperty.latitude)}
+                  longitude={parseFloat(currentProperty.longitude)}
+                  address={currentProperty.address}
+                  height="200px"
+                  className="rounded-lg"
+                />
+
+                {/* Address Overlay - Bottom Left */}
+                <div className="absolute bottom-4 left-4 bg-white/95 backdrop-blur-sm rounded-lg shadow-lg border border-gray-200 p-3 max-w-xs">
+                  <h3 className="font-medium text-gray-900 text-sm mb-1">
+                    {currentProperty.name}
+                  </h3>
+                  {currentProperty.address && (
+                    <p className="text-xs text-gray-600 leading-relaxed">
+                      {currentProperty.address}
+                    </p>
+                  )}
+                  {currentProperty.city && currentProperty.state && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      {currentProperty.city}, {currentProperty.state}{" "}
+                      {currentProperty.zip}
+                    </p>
+                  )}
+                </div>
+
+                {/* Directions Button Overlay - Top Right */}
+                <div className="absolute top-4 right-4">
+                  <a
+                    href={`https://www.google.com/maps/dir/?api=1&destination=${parseFloat(
+                      currentProperty.latitude
+                    )},${parseFloat(currentProperty.longitude)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow-lg border border-blue-600 transition-all hover:shadow-xl"
+                  >
+                    <MapPin className="h-4 w-4 mr-1" />
+                    Directions
+                  </a>
+                </div>
+              </div>
+            </StandardCard>
+          )}
+
         {/* Priority Sections */}
         {prioritySections.length > 0 && (
           <div>
             <div className="flex items-center mb-4">
-              <Pin className="h-5 w-5 text-yellow-600 mr-2" />
-              <h2 className="text-lg font-semibold text-gray-900">
+              <h2 className="text-lg font-semibold text-white">
                 Priority Sections
               </h2>
             </div>
@@ -163,10 +230,10 @@ export default function ManualPage() {
         {/* All Sections */}
         <div>
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900">
+            <h2 className="text-lg font-semibold text-white">
               {prioritySections.length > 0 ? "All Sections" : "Manual Sections"}
             </h2>
-            <span className="text-sm text-gray-500">
+            <span className="text-sm text-gray-400">
               {sections.length} section{sections.length !== 1 ? "s" : ""}
             </span>
           </div>
@@ -184,11 +251,11 @@ export default function ManualPage() {
           ) : prioritySections.length === 0 ? (
             <StandardCard>
               <div className="text-center py-12">
-                <BookOpen className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                <BookOpen className="h-16 w-16 text-gray-600 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-white mb-2">
                   No manual sections yet
                 </h3>
-                <p className="text-gray-600 mb-6">
+                <p className="text-gray-400 mb-6">
                   Create your first section to start building your property
                   manual.
                 </p>

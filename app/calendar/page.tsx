@@ -3,27 +3,17 @@
 export const dynamic = "force-dynamic";
 
 import { Calendar as CalendarIcon, Plus } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import StandardPageLayout from "@/components/layout/StandardPageLayout";
 import StandardCard from "@/components/ui/StandardCard";
 import { Calendar } from "./components/Calendar";
 
 export default function ReservationCalendarPage() {
-  const [triggerNewReservation, setTriggerNewReservation] = useState(false);
+  const [newReservationTrigger, setNewReservationTrigger] = useState(0);
 
   const handleNewReservationClick = () => {
-    setTriggerNewReservation(true);
+    setNewReservationTrigger((prev) => prev + 1);
   };
-
-  // Reset the trigger after it's been used
-  useEffect(() => {
-    if (triggerNewReservation) {
-      const timer = setTimeout(() => {
-        setTriggerNewReservation(false);
-      }, 100);
-      return () => clearTimeout(timer);
-    }
-  }, [triggerNewReservation]);
 
   return (
     <StandardPageLayout
@@ -41,7 +31,7 @@ export default function ReservationCalendarPage() {
       }
     >
       <StandardCard className="h-full min-h-[800px]" padding="sm">
-        <Calendar onNewReservation={triggerNewReservation} />
+        <Calendar newReservationTrigger={newReservationTrigger} />
       </StandardCard>
     </StandardPageLayout>
   );

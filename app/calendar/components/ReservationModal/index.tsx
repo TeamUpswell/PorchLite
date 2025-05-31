@@ -23,7 +23,12 @@ export const ReservationModal = ({
 }: ReservationModalProps) => {
   const { user } = useAuth();
   const { currentProperty } = useProperty();
-  const { userRoles, canAutoApprove, canApproveOthers, determineReservationStatus } = useUserRoles();
+  const {
+    userRoles,
+    canAutoApprove,
+    canApproveOthers,
+    determineReservationStatus,
+  } = useUserRoles();
   const {
     companions,
     addCompanion,
@@ -34,9 +39,13 @@ export const ReservationModal = ({
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    
+  const handleFormSubmit = async (formData: {
+    title: string;
+    description: string;
+    startDate: Date;
+    endDate: Date;
+    guests: number;
+  }) => {
     if (!user || !currentProperty) {
       alert("Missing user or property data");
       return;
@@ -45,50 +54,19 @@ export const ReservationModal = ({
     setIsSubmitting(true);
 
     try {
-      // Get form data
-      const formData = new FormData(e.currentTarget);
-      const title = formData.get('title') as string;
-      const description = formData.get('description') as string;
-      
-      // ✅ NEW: Get calculated dates from our hidden fields
-      const calculatedStartDate = formData.get('calculatedStartDate') as string;
-      const calculatedEndDate = formData.get('calculatedEndDate') as string;
-      
-      // ✅ NEW: Use calculated dates if available, fallback to original logic
-      let startDate: Date;
-      let endDate: Date;
-      
-      if (calculatedStartDate && calculatedEndDate) {
-        startDate = new Date(calculatedStartDate);
-        endDate = new Date(calculatedEndDate);
-      } else {
-        // Fallback to original form data (for backward compatibility)
-        startDate = new Date(formData.get('startDate') as string);
-        endDate = new Date(formData.get('endDate') as string);
-      }
-      
-      const guests = parseInt(formData.get('guests') as string) || 1;
-
-      // ✅ Debug log to see what we're getting
-      console.log("🔍 Form submission debug:", {
-        calculatedStartDate,
-        calculatedEndDate,
-        startDate: startDate.toISOString(),
-        endDate: endDate.toISOString(),
-        title,
-        guests
-      });
+      const { title, description, startDate, endDate, guests } = formData;
 
       // Determine status
       const isEditing = !!selectedReservation?.id;
       let status = determineReservationStatus(isEditing);
-      
+
       if (isEditing && status === null) {
         status = selectedReservation.status || "pending approval";
       }
 
       // Include companion count in total guests
-      const totalGuests = guests + companions.filter(c => c.name.trim()).length;
+      const totalGuests =
+        guests + companions.filter((c) => c.name.trim()).length;
 
       const reservationData = {
         user_id: user.id,
@@ -114,7 +92,7 @@ export const ReservationModal = ({
       if (isEditing) {
         const updateData = { ...reservationData };
         delete updateData.created_at;
-        
+
         result = await supabase
           .from("reservations")
           .update(updateData)
@@ -125,9 +103,9 @@ export const ReservationModal = ({
         // Delete existing companions
         if (result.data) {
           await supabase
-            .from('reservation_companions')
+            .from("reservation_companions")
             .delete()
-            .eq('reservation_id', result.data.id);
+            .eq("reservation_id", result.data.id);
         }
       } else {
         result = await supabase
@@ -144,8 +122,8 @@ export const ReservationModal = ({
       // Save companions
       if (companions.length > 0 && result.data) {
         const companionsData = companions
-          .filter(companion => companion.name.trim())
-          .map(companion => ({
+          .filter((companion) => companion.name.trim())
+          .map((companion) => ({
             reservation_id: result.data.id,
             name: companion.name.trim(),
             email: companion.email?.trim() || null,
@@ -157,11 +135,14 @@ export const ReservationModal = ({
 
         if (companionsData.length > 0) {
           const companionResult = await supabase
-            .from('reservation_companions')
+            .from("reservation_companions")
             .insert(companionsData);
 
           if (companionResult.error) {
-            console.error("⚠️ Failed to save companions:", companionResult.error);
+            console.error(
+              "⚠️ Failed to save companions:",
+              companionResult.error
+            );
           }
         }
       }
@@ -176,59 +157,66 @@ export const ReservationModal = ({
 
       // Create approval request if needed
       if (status === "pending approval" && result.data) {
-        await supabase
-          .from("reservation_approvals")
-          .insert([{
+        await supabase.from("reservation_approvals").insert([
+          {
             reservation_id: result.data.id,
             requested_by: user.id,
-            status: 'pending',
+            status: "pending",
             requested_at: new Date().toISOString(),
-          }]);
+          },
+        ]);
       }
 
       // Success message
       let successMessage = "✅ Reservation saved!";
       if (status === "confirmed") {
-        const companionCount = companions.filter(c => c.name.trim()).length;
-        const inviteCount = companions.filter(c => c.name.trim() && c.email && c.invited_to_system).length;
-        
+        const companionCount = companions.filter((c) => c.name.trim()).length;
+        const inviteCount = companions.filter(
+          (c) => c.name.trim() && c.email && c.invited_to_system
+        ).length;
+
         if (canAutoApprove()) {
           successMessage = `✅ Reservation confirmed automatically!`;
         } else {
           successMessage = "✅ Reservation confirmed!";
         }
-        
+
         if (companionCount > 0) {
           successMessage += `\n👥 ${companionCount} companion(s) added.`;
         }
-        
+
         if (inviteCount > 0) {
           successMessage += `\n📧 Sent ${inviteCount} invitation(s).`;
         }
       } else if (status === "pending approval") {
-        const companionCount = companions.filter(c => c.name.trim()).length;
-        const inviteCount = companions.filter(c => c.name.trim() && c.email && c.invited_to_system).length;
-        
+        const companionCount = companions.filter((c) => c.name.trim()).length;
+        const inviteCount = companions.filter(
+          (c) => c.name.trim() && c.email && c.invited_to_system
+        ).length;
+
         successMessage = "✅ Reservation submitted for approval!";
-        
+
         if (companionCount > 0) {
           successMessage += `\n👥 ${companionCount} companion(s) will be included.`;
         }
-        
+
         if (inviteCount > 0) {
           successMessage += `\n📧 ${inviteCount} invitation(s) will be sent once approved.`;
         }
       }
-      
+
       alert(successMessage);
       onSaved();
-
     } catch (error: any) {
       console.error("❌ Error saving reservation:", error);
       alert(`❌ Failed to save reservation: ${error.message}`);
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleCancel = () => {
+    onClose(); // This will close the modal and return to calendar
   };
 
   return (
@@ -257,7 +245,9 @@ export const ReservationModal = ({
             onAddCompanion={addCompanion}
             onUpdateCompanion={updateCompanion}
             onRemoveCompanion={removeCompanion}
-            onSubmit={handleSubmit}
+            onSubmit={handleFormSubmit}
+            onCancel={onClose} // ✅ Add this line
+            isSubmitting={isSubmitting}
           />
         </div>
 

@@ -31,20 +31,22 @@ export default function StandardCard({
   };
 
   return (
-    <div className={`
-      bg-white rounded-xl shadow-sm border border-gray-200
+    <div
+      className={`
+      bg-white border border-gray-200 rounded-lg shadow-sm
       ${hover ? "hover:shadow-md transition-shadow duration-200" : ""}
       ${className}
-    `}>
+    `}
+    >
       {(title || headerActions) && (
-        <div className={`border-b border-gray-100 ${paddingClasses[padding]} pb-4`}>
+        <div
+          className={`border-b border-gray-100 ${paddingClasses[padding]} pb-4`}
+        >
           <div className="flex items-center justify-between">
             {(title || headerIcon) && (
               <div className="flex items-center space-x-3">
                 {headerIcon && (
-                  <div className="p-2 bg-blue-50 rounded-lg">
-                    {headerIcon}
-                  </div>
+                  <div className="p-2 bg-blue-50 rounded-lg">{headerIcon}</div>
                 )}
                 <div>
                   {title && (
@@ -59,15 +61,19 @@ export default function StandardCard({
               </div>
             )}
             {headerActions && (
-              <div className="flex items-center space-x-2">
-                {headerActions}
-              </div>
+              <div className="flex items-center space-x-2">{headerActions}</div>
             )}
           </div>
         </div>
       )}
-      
-      <div className={title || headerActions ? `${paddingClasses[padding]} pt-4` : paddingClasses[padding]}>
+
+      <div
+        className={
+          title || headerActions
+            ? `${paddingClasses[padding]} pt-4`
+            : paddingClasses[padding]
+        }
+      >
         {children}
       </div>
     </div>
