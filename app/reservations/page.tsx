@@ -27,7 +27,18 @@ export default function ReservationsPage() {
   const [formData, setFormData] = useState({
     title: "",
     start_date: "",
-    end_date: "",
+    nights: 1, // ✅ Changed from end_date to nights
+    notes: "",
+  });
+
+  // New states for editing reservations
+  const [editingReservation, setEditingReservation] =
+    useState<Reservation | null>(null);
+  const [showEditForm, setShowEditForm] = useState(false);
+  const [editFormData, setEditFormData] = useState({
+    title: "",
+    start_date: "",
+    nights: 1,
     notes: "",
   });
 
@@ -63,12 +74,18 @@ export default function ReservationsPage() {
     e.preventDefault();
     if (!user) return;
 
+    // Calculate end date from start date + nights
+    const startDate = new Date(formData.start_date);
+    const endDate = new Date(
+      startDate.getTime() + formData.nights * 24 * 60 * 60 * 1000
+    );
+
     try {
       const { error } = await supabase.from("reservations").insert([
         {
           title: formData.title,
           start_date: formData.start_date,
-          end_date: formData.end_date,
+          end_date: endDate.toISOString().split("T")[0], // ✅ Calculate end date
           notes: formData.notes,
           user_id: user.id,
           status: "pending",
@@ -78,7 +95,12 @@ export default function ReservationsPage() {
       if (error) throw error;
 
       setShowReservationForm(false);
-      setFormData({ title: "", start_date: "", end_date: "", notes: "" });
+      setFormData({
+        title: "",
+        start_date: "",
+        nights: 1, // ✅ Reset to default
+        notes: "",
+      });
       fetchReservations();
     } catch (error) {
       console.error("Error creating reservation:", error);
@@ -116,6 +138,108 @@ export default function ReservationsPage() {
       fetchReservations();
     } catch (error) {
       console.error("Error cancelling reservation:", error);
+    }
+  };
+
+  // Add this helper component for a more visual nights selector:
+  const NightsSelector = ({
+    nights,
+    onChange,
+  }: {
+    nights: number;
+    onChange: (nights: number) => void;
+  }) => {
+    return (
+      <div className="flex items-center justify-center space-x-4 p-4 bg-gray-50 rounded-lg">
+        <button
+          type="button"
+          onClick={() => onChange(Math.max(1, nights - 1))}
+          className="w-10 h-10 rounded-full bg-white border-2 border-gray-300 flex items-center justify-center text-gray-600 hover:border-blue-500 hover:text-blue-600 transition-colors"
+          disabled={nights <= 1}
+        >
+          <span className="text-lg font-bold">−</span>
+        </button>
+
+        <div className="text-center">
+          <div className="text-2xl font-bold text-gray-900">{nights}</div>
+          <div className="text-sm text-gray-600">
+            {nights === 1 ? "night" : "nights"}
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => onChange(Math.min(365, nights + 1))}
+          className="w-10 h-10 rounded-full bg-white border-2 border-gray-300 flex items-center justify-center text-gray-600 hover:border-blue-500 hover:text-blue-600 transition-colors"
+        >
+          <span className="text-lg font-bold">+</span>
+        </button>
+      </div>
+    );
+  };
+
+  // New function to handle reservation editing
+  const handleEditReservation = (reservation: Reservation) => {
+    // Warn if editing an approved reservation
+    if (reservation.status === "approved") {
+      const confirmEdit = confirm(
+        "This reservation is already approved. Editing will change its status back to pending. Continue?"
+      );
+      if (!confirmEdit) return;
+    }
+
+    // Calculate nights from start and end dates
+    const startDate = new Date(reservation.start_date);
+    const endDate = new Date(reservation.end_date);
+    const nights = Math.ceil(
+      (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
+    );
+
+    setEditingReservation(reservation);
+    setEditFormData({
+      title: reservation.title,
+      start_date: reservation.start_date,
+      nights: nights,
+      notes: reservation.notes || "",
+    });
+    setShowEditForm(true);
+  };
+
+  // Add the update function:
+  const handleUpdateReservation = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingReservation) return;
+
+    // Calculate end date from start date + nights
+    const startDate = new Date(editFormData.start_date);
+    const endDate = new Date(
+      startDate.getTime() + editFormData.nights * 24 * 60 * 60 * 1000
+    );
+
+    try {
+      const { error } = await supabase
+        .from("reservations")
+        .update({
+          title: editFormData.title,
+          start_date: editFormData.start_date,
+          end_date: endDate.toISOString().split("T")[0],
+          notes: editFormData.notes,
+        })
+        .eq("id", editingReservation.id);
+
+      if (error) throw error;
+
+      setShowEditForm(false);
+      setEditingReservation(null);
+      setEditFormData({
+        title: "",
+        start_date: "",
+        nights: 1,
+        notes: "",
+      });
+      fetchReservations();
+    } catch (error) {
+      console.error("Error updating reservation:", error);
     }
   };
 
@@ -160,81 +284,120 @@ export default function ReservationsPage() {
               </div>
             ) : (
               <div className="space-y-4">
-                {reservations.map((reservation) => (
-                  <div
-                    key={reservation.id}
-                    className="bg-white p-4 border rounded-lg shadow-sm"
-                  >
-                    {/* ... keep all your existing reservation card content */}
-                    <h3 className="font-medium text-lg">{reservation.title}</h3>
-                    <div className="flex flex-wrap gap-4 text-sm text-gray-600 mt-2">
-                      <p>
-                        From:{" "}
-                        {new Date(reservation.start_date).toLocaleDateString()}
-                      </p>
-                      <p>
-                        To:{" "}
-                        {new Date(reservation.end_date).toLocaleDateString()}
-                      </p>
-                      <p
-                        className={`font-medium ${
-                          reservation.status === "approved"
-                            ? "text-green-600"
-                            : reservation.status === "denied"
-                            ? "text-red-600"
-                            : reservation.status === "cancelled"
-                            ? "text-gray-600"
-                            : "text-amber-600"
-                        }`}
-                      >
-                        Status:{" "}
-                        {reservation.status.charAt(0).toUpperCase() +
-                          reservation.status.slice(1)}
-                      </p>
-                    </div>
+                {reservations.map((reservation) => {
+                  // Calculate nights for display
+                  const startDate = new Date(reservation.start_date);
+                  const endDate = new Date(reservation.end_date);
+                  const nights = Math.ceil(
+                    (endDate.getTime() - startDate.getTime()) /
+                      (1000 * 60 * 60 * 24)
+                  );
 
-                    {reservation.notes && (
-                      <p className="mt-2 text-gray-700">{reservation.notes}</p>
-                    )}
-
-                    {/* Manager controls */}
-                    {reservation.status === "pending" &&
-                      hasPermission("manager") && (
-                        <div className="flex space-x-2 mt-4">
-                          <button
-                            className="px-3 py-1 bg-green-500 text-white text-sm rounded-md"
-                            onClick={() =>
-                              updateReservationStatus(
-                                reservation.id,
-                                "approved"
-                              )
-                            }
-                          >
-                            Approve
-                          </button>
-                          <button
-                            className="px-3 py-1 bg-red-500 text-white text-sm rounded-md"
-                            onClick={() =>
-                              updateReservationStatus(reservation.id, "denied")
-                            }
-                          >
-                            Deny
-                          </button>
-                        </div>
-                      )}
-
-                    {/* User controls */}
-                    {reservation.user_id === user?.id &&
-                      ["pending", "approved"].includes(reservation.status) && (
-                        <button
-                          className="px-3 py-1 mt-4 bg-gray-200 text-gray-800 text-sm rounded-md"
-                          onClick={() => cancelReservation(reservation.id)}
+                  return (
+                    <div
+                      key={reservation.id}
+                      className="bg-white p-4 border rounded-lg shadow-sm"
+                    >
+                      <h3 className="font-medium text-lg">
+                        {reservation.title}
+                      </h3>
+                      <div className="flex flex-wrap gap-4 text-sm text-gray-600 mt-2">
+                        <p>
+                          Check-in:{" "}
+                          {new Date(
+                            reservation.start_date
+                          ).toLocaleDateString()}
+                        </p>
+                        <p>
+                          Check-out:{" "}
+                          {new Date(reservation.end_date).toLocaleDateString()}
+                        </p>
+                        <p className="font-medium text-blue-600">
+                          {nights} {nights === 1 ? "night" : "nights"}
+                        </p>
+                        <p
+                          className={`font-medium ${
+                            reservation.status === "approved"
+                              ? "text-green-600"
+                              : reservation.status === "denied"
+                              ? "text-red-600"
+                              : reservation.status === "cancelled"
+                              ? "text-gray-600"
+                              : "text-amber-600"
+                          }`}
                         >
-                          Cancel
-                        </button>
+                          Status:{" "}
+                          {reservation.status.charAt(0).toUpperCase() +
+                            reservation.status.slice(1)}
+                        </p>
+                      </div>
+
+                      {reservation.notes && (
+                        <p className="mt-2 text-gray-700">
+                          {reservation.notes}
+                        </p>
                       )}
-                  </div>
-                ))}
+
+                      {/* Manager controls */}
+                      {reservation.status === "pending" &&
+                        hasPermission("manager") && (
+                          <div className="flex space-x-2 mt-4">
+                            <button
+                              className="px-3 py-1 bg-green-500 text-white text-sm rounded-md"
+                              onClick={() =>
+                                updateReservationStatus(
+                                  reservation.id,
+                                  "approved"
+                                )
+                              }
+                            >
+                              Approve
+                            </button>
+                            <button
+                              className="px-3 py-1 bg-red-500 text-white text-sm rounded-md"
+                              onClick={() =>
+                                updateReservationStatus(
+                                  reservation.id,
+                                  "denied"
+                                )
+                              }
+                            >
+                              Deny
+                            </button>
+                          </div>
+                        )}
+
+                      {/* User controls */}
+                      {reservation.user_id === user?.id &&
+                        ["pending", "approved"].includes(
+                          reservation.status
+                        ) && (
+                          <div className="flex flex-wrap gap-2 mt-4">
+                            <button
+                              className="px-3 py-1 bg-blue-500 text-white text-sm rounded-md hover:bg-blue-600 transition-colors"
+                              onClick={() => handleEditReservation(reservation)}
+                            >
+                              ✏️ Edit
+                            </button>
+                            <button
+                              className="px-3 py-1 bg-gray-200 text-gray-800 text-sm rounded-md hover:bg-gray-300 transition-colors"
+                              onClick={() => {
+                                if (
+                                  confirm(
+                                    "Are you sure you want to cancel this reservation?"
+                                  )
+                                ) {
+                                  cancelReservation(reservation.id);
+                                }
+                              }}
+                            >
+                              ❌ Cancel
+                            </button>
+                          </div>
+                        )}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -246,7 +409,7 @@ export default function ReservationsPage() {
           label="Request Reservation"
         />
 
-        {/* Keep your existing modal */}
+        {/* Keep your existing modal for new reservations */}
         {showReservationForm && (
           <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
             <div className="bg-white rounded-lg shadow-lg w-full max-w-md">
@@ -290,7 +453,7 @@ export default function ReservationsPage() {
                     htmlFor="start-date"
                     className="block text-sm font-medium text-gray-700 mb-1"
                   >
-                    Start Date
+                    Check-in Date
                   </label>
                   <input
                     type="date"
@@ -300,26 +463,18 @@ export default function ReservationsPage() {
                       setFormData({ ...formData, start_date: e.target.value })
                     }
                     className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    min={new Date().toISOString().split("T")[0]} // ✅ Prevent past dates
                     required
                   />
                 </div>
 
                 <div className="mb-4">
-                  <label
-                    htmlFor="end-date"
-                    className="block text-sm font-medium text-gray-700 mb-1"
-                  >
-                    End Date
+                  <label className="block text-sm font-medium text-gray-700 mb-3">
+                    Number of Nights
                   </label>
-                  <input
-                    type="date"
-                    id="end-date"
-                    value={formData.end_date}
-                    onChange={(e) =>
-                      setFormData({ ...formData, end_date: e.target.value })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                    required
+                  <NightsSelector
+                    nights={formData.nights}
+                    onChange={(nights) => setFormData({ ...formData, nights })}
                   />
                 </div>
 
@@ -355,6 +510,139 @@ export default function ReservationsPage() {
                     className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
                   >
                     Submit Request
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* NEW: Edit Reservation Form Modal */}
+        {showEditForm && editingReservation && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-lg shadow-lg w-full max-w-md">
+              <div className="flex justify-between items-center p-4 border-b">
+                <h2 className="text-lg font-semibold">Edit Reservation</h2>
+                <button
+                  onClick={() => {
+                    setShowEditForm(false);
+                    setEditingReservation(null);
+                  }}
+                  className="text-gray-500 hover:text-gray-700"
+                  aria-label="Close form"
+                  title="Close"
+                >
+                  <XMarkIcon className="h-6 w-6" />
+                </button>
+              </div>
+
+              <form onSubmit={handleUpdateReservation} className="p-4">
+                <div className="mb-4">
+                  <label
+                    htmlFor="edit-title"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
+                    Title
+                  </label>
+                  <input
+                    type="text"
+                    id="edit-title"
+                    value={editFormData.title}
+                    onChange={(e) =>
+                      setEditFormData({
+                        ...editFormData,
+                        title: e.target.value,
+                      })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    placeholder="Reservation purpose"
+                    required
+                  />
+                </div>
+
+                <div className="mb-4">
+                  <label
+                    htmlFor="edit-start-date"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
+                    Check-in Date
+                  </label>
+                  <input
+                    type="date"
+                    id="edit-start-date"
+                    value={editFormData.start_date}
+                    onChange={(e) =>
+                      setEditFormData({
+                        ...editFormData,
+                        start_date: e.target.value,
+                      })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    min={new Date().toISOString().split("T")[0]}
+                    required
+                  />
+                </div>
+
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-3">
+                    Number of Nights
+                  </label>
+                  <NightsSelector
+                    nights={editFormData.nights}
+                    onChange={(nights) =>
+                      setEditFormData({ ...editFormData, nights })
+                    }
+                  />
+                  {/* Show calculated checkout date */}
+                  {editFormData.start_date && (
+                    <p className="text-sm text-gray-600 mt-2">
+                      Check-out:{" "}
+                      {new Date(
+                        new Date(editFormData.start_date).getTime() +
+                          editFormData.nights * 24 * 60 * 60 * 1000
+                      ).toLocaleDateString()}
+                    </p>
+                  )}
+                </div>
+
+                <div className="mb-4">
+                  <label
+                    htmlFor="edit-notes"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
+                    Notes
+                  </label>
+                  <textarea
+                    id="edit-notes"
+                    value={editFormData.notes}
+                    onChange={(e) =>
+                      setEditFormData({
+                        ...editFormData,
+                        notes: e.target.value,
+                      })
+                    }
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    placeholder="Any additional details..."
+                  />
+                </div>
+
+                <div className="flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowEditForm(false);
+                      setEditingReservation(null);
+                    }}
+                    className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                  >
+                    Update Reservation
                   </button>
                 </div>
               </form>

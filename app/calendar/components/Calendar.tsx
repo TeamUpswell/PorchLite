@@ -14,7 +14,7 @@ import styles from "../calendar.module.css";
 import { useReservations } from "../hooks/useReservations";
 import { useCompanions } from "../hooks/useCompanions";
 import { StatusLegend } from "./StatusLegend";
-import { ReservationModal } from "./ReservationModal";
+import { ReservationModal } from "./ReservationModal/index";
 import { CreatePattern } from "@/components/ui/FloatingActionPresets";
 
 // Types and utils
@@ -234,7 +234,9 @@ export function Calendar({ onNewReservation }: CalendarProps) {
 
         {/* Floating Action Button */}
         <CreatePattern
-          onClick={() => handleSlotSelect({ start: new Date(), end: new Date() })}
+          onClick={() =>
+            handleSlotSelect({ start: new Date(), end: new Date() })
+          }
           label="Add Booking"
         />
 

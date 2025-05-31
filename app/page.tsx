@@ -11,7 +11,7 @@ import "@/styles/dashboard.css";
 import {
   Calendar,
   AlertTriangle,
-  CheckCircle,
+  CheckCircle, // ✅ Add this
   Package,
   Cloud,
   Wrench,
@@ -20,7 +20,7 @@ import {
   Thermometer,
   Wind,
   Eye,
-  Clock,
+  Clock, // ✅ Already imported
   Home as HomeIcon,
   Wifi,
   Zap,
@@ -31,6 +31,7 @@ import {
   Pencil,
   Plus,
   X,
+  Camera, // ✅ Import Camera icon
 } from "lucide-react";
 import { v4 as uuidv4 } from "uuid";
 import { toast } from "react-hot-toast";
@@ -104,6 +105,17 @@ export default function HomePage() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [showAddReservationModal, setShowAddReservationModal] = useState(false);
   const [showBannerModal, setShowBannerModal] = useState(false);
+
+  // Only fetch when banner modal opens:
+  const [userUploadedBanners, setUserUploadedBanners] = useState<
+    Array<{
+      id: string;
+      url: string;
+      name: string;
+      uploaded_at: string;
+    }>
+  >([]);
+  const [bannersLoaded, setBannersLoaded] = useState(false);
 
   // REMOVE THE REDIRECT - This was causing the loop!
   useEffect(() => {
@@ -580,7 +592,61 @@ export default function HomePage() {
       console.error("Error updating banner:", error);
       toast.error("Failed to update banner");
     }
-  }; // ✅ Make sure this closing brace exists
+  };
+
+  // Fetch user's previously uploaded banners
+  const fetchUserBannersOnDemand = async () => {
+    if (bannersLoaded || !currentProperty) return;
+
+    setBannersLoaded(true);
+
+    try {
+      // Get all banner uploads for this property from storage
+      const { data: files, error } = await supabase.storage
+        .from("properties")
+        .list("", {
+          limit: 10, // ✅ Reduced from 50
+          search: "banner-",
+        });
+
+      if (error) throw error;
+
+      // Filter and format banner files
+      const bannerFiles =
+        files
+          ?.filter((file) => file.name.startsWith("banner-"))
+          ?.map((file) => {
+            const { data: publicUrlData } = supabase.storage
+              .from("properties")
+              .getPublicUrl(file.name);
+
+            return {
+              id: file.name,
+              url: publicUrlData.publicUrl,
+              name: `Banner ${new Date(
+                file.created_at || file.updated_at || Date.now()
+              ).toLocaleDateString()}`,
+              uploaded_at:
+                file.created_at || file.updated_at || new Date().toISOString(),
+            };
+          })
+          ?.sort(
+            (a, b) =>
+              new Date(b.uploaded_at).getTime() -
+              new Date(a.uploaded_at).getTime()
+          ) || [];
+
+      setUserUploadedBanners(bannerFiles);
+    } catch (error) {
+      console.error("Error fetching user banners:", error);
+    }
+  };
+
+  // Update the banner modal button:
+  const openBannerModal = () => {
+    setShowBannerModal(true);
+    fetchUserBannersOnDemand(); // ✅ Only fetch when needed
+  };
 
   // Loading state
   if (loading) {
@@ -662,7 +728,7 @@ export default function HomePage() {
             {/* Banner Change Button - SAME AS BEFORE */}
             <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
               <button
-                onClick={() => setShowBannerModal(true)}
+                onClick={openBannerModal}
                 className="flex items-center px-3 py-2 bg-white bg-opacity-90 backdrop-blur-sm rounded-lg text-gray-900 hover:bg-opacity-100 transition-all shadow-lg text-sm font-medium"
               >
                 <Pencil className="h-4 w-4 mr-2" />
@@ -1298,7 +1364,7 @@ export default function HomePage() {
           {/* Enhanced Banner Selection Modal */}
           {showBannerModal && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-              <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="bg-white rounded-lg max-w-5xl w-full max-h-[90vh] overflow-y-auto">
                 <div className="p-6">
                   <div className="flex items-center justify-between mb-6">
                     <h3 className="text-xl font-semibold text-gray-900">
@@ -1315,12 +1381,12 @@ export default function HomePage() {
                   {/* Upload Custom Image */}
                   <div className="mb-8">
                     <h4 className="font-medium text-gray-900 mb-3">
-                      Upload Custom Image
+                      Upload New Image
                     </h4>
                     <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors">
                       <input
                         type="file"
-                        accept="image/*"
+                        accept="image/jpeg,image/jpg,image/png,image/webp" // ✅ More specific
                         onChange={handleBannerUpload}
                         className="hidden"
                         id="banner-upload"
@@ -1368,10 +1434,100 @@ export default function HomePage() {
                     )}
                   </div>
 
-                  {/* Predefined Images Gallery */}
+                  {/* User's Previously Uploaded Banners */}
+                  {userUploadedBanners.length > 0 && (
+                    <div className="mb-8">
+                      <h4 className="font-medium text-gray-900 mb-4 flex items-center">
+                        <Clock className="h-5 w-5 mr-2 text-blue-600" />
+                        Your Previously Uploaded Banners
+                      </h4>
+                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                        {userUploadedBanners.map((banner) => (
+                          <div
+                            key={banner.id}
+                            className="group relative cursor-pointer rounded-lg overflow-hidden border-2 border-transparent hover:border-green-500 transition-all shadow-sm hover:shadow-md"
+                            onClick={() =>
+                              handlePredefinedBannerSelect(banner.url)
+                            }
+                          >
+                            <div className="aspect-[16/9] relative">
+                              <ResponsiveImage
+                                src={banner.url}
+                                alt={banner.name}
+                                fill
+                                className="object-cover transition-transform duration-200 group-hover:scale-105"
+                              />
+
+                              {/* Hover Overlay */}
+                              <div className="absolute inset-0 bg-black opacity-0 group-hover:opacity-30 transition-opacity"></div>
+
+                              {/* Selection Button */}
+                              <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                <div className="bg-white bg-opacity-95 backdrop-blur-sm rounded-lg px-3 py-2 shadow-lg">
+                                  <span className="text-sm font-medium text-gray-900">
+                                    Select
+                                  </span>
+                                </div>
+                              </div>
+
+                              {/* "Your Upload" Badge */}
+                              <div className="absolute top-2 left-2">
+                                <span className="px-2 py-1 bg-green-600 bg-opacity-90 text-white text-xs rounded-md font-medium">
+                                  Your Upload
+                                </span>
+                              </div>
+
+                              {/* Current Banner Indicator */}
+                              {currentProperty?.header_image_url ===
+                                banner.url && (
+                                <div className="absolute top-2 right-2">
+                                  <div className="bg-blue-600 text-white rounded-full p-1">
+                                    <CheckCircle className="h-4 w-4" />
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Banner Info */}
+                            <div className="p-3 bg-white">
+                              <h5 className="font-medium text-gray-900 text-sm text-center truncate">
+                                {banner.name}
+                              </h5>
+                              <p className="text-xs text-gray-500 text-center mt-1">
+                                {new Date(
+                                  banner.uploaded_at
+                                ).toLocaleDateString()}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Clear old banners option */}
+                      <div className="mt-4 text-center">
+                        <button
+                          onClick={() => {
+                            if (
+                              confirm(
+                                "This will remove old banner files from storage (but keep the current one). Continue?"
+                              )
+                            ) {
+                              // Add function to clean up old banners if needed
+                            }
+                          }}
+                          className="text-sm text-gray-500 hover:text-gray-700"
+                        >
+                          Clean up old banners
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Predefined Template Gallery */}
                   <div className="mb-8">
-                    <h4 className="font-medium text-gray-900 mb-4">
-                      Choose from Gallery
+                    <h4 className="font-medium text-gray-900 mb-4 flex items-center">
+                      <Package className="h-5 w-5 mr-2 text-purple-600" />
+                      Template Gallery
                     </h4>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                       {predefinedImages.map((image) => (
@@ -1384,7 +1540,7 @@ export default function HomePage() {
                         >
                           <div className="aspect-[16/9] relative">
                             <ResponsiveImage
-                              src={image.thumbnail} // Use thumbnail for faster loading
+                              src={image.thumbnail}
                               alt={image.name}
                               fill
                               className="object-cover transition-transform duration-200 group-hover:scale-105"
@@ -1402,12 +1558,22 @@ export default function HomePage() {
                               </div>
                             </div>
 
-                            {/* Category Badge */}
+                            {/* Template Badge */}
                             <div className="absolute top-2 left-2">
-                              <span className="px-2 py-1 bg-black bg-opacity-70 text-white text-xs rounded-md">
+                              <span className="px-2 py-1 bg-purple-600 bg-opacity-90 text-white text-xs rounded-md font-medium">
                                 {image.category}
                               </span>
                             </div>
+
+                            {/* Current Banner Indicator */}
+                            {currentProperty?.header_image_url ===
+                              image.url && (
+                              <div className="absolute top-2 right-2">
+                                <div className="bg-blue-600 text-white rounded-full p-1">
+                                  <CheckCircle className="h-4 w-4" />
+                                </div>
+                              </div>
+                            )}
                           </div>
 
                           {/* Image Name */}
@@ -1474,28 +1640,6 @@ export default function HomePage() {
                   </div>
                 </div>
               </div>
-            </div>
-          )}
-
-          {/* Debug Property - Development Only */}
-          {process.env.NODE_ENV === "development" && (
-            <div className="mb-4 p-4 bg-gray-800 rounded text-white">
-              <h3 className="text-white font-bold mb-2">
-                Debug Property Image Fields:
-              </h3>
-              <pre className="text-xs overflow-auto text-green-300">
-                {JSON.stringify(
-                  {
-                    id: currentProperty?.id,
-                    name: currentProperty?.name,
-                    header_image_url: currentProperty?.header_image_url, // ✅ Correct field
-                    main_photo_url: currentProperty?.main_photo_url,
-                    all_property_fields: Object.keys(currentProperty || {}),
-                  },
-                  null,
-                  2
-                )}
-              </pre>
             </div>
           )}
         </div>

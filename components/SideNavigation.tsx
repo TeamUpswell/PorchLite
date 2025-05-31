@@ -249,11 +249,19 @@ export default function SideNavigation({
         {/* Header with logo */}
         <div
           className={`p-4 border-b ${
-            isDarkMode ? "border-gray-800 bg-gray-900" : "border-gray-200 bg-white"
+            isDarkMode
+              ? "border-gray-800 bg-gray-900"
+              : "border-gray-200 bg-white"
           }`}
         >
           {/* Logo content with dark theme styles */}
-          <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg p-3">
+          <div
+            className={`rounded-lg p-3 ${
+              isDarkMode
+                ? "bg-gradient-to-r from-blue-800 to-purple-800"
+                : "bg-gradient-to-r from-blue-500 to-purple-500"
+            }`}
+          >
             <Link
               href="/"
               onClick={() => isMobile && setIsMobileMenuOpen(false)}

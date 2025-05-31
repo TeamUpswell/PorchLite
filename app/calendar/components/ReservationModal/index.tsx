@@ -49,9 +49,35 @@ export const ReservationModal = ({
       const formData = new FormData(e.currentTarget);
       const title = formData.get('title') as string;
       const description = formData.get('description') as string;
-      const startDate = new Date(formData.get('startDate') as string);
-      const endDate = new Date(formData.get('endDate') as string);
+      
+      // ✅ NEW: Get calculated dates from our hidden fields
+      const calculatedStartDate = formData.get('calculatedStartDate') as string;
+      const calculatedEndDate = formData.get('calculatedEndDate') as string;
+      
+      // ✅ NEW: Use calculated dates if available, fallback to original logic
+      let startDate: Date;
+      let endDate: Date;
+      
+      if (calculatedStartDate && calculatedEndDate) {
+        startDate = new Date(calculatedStartDate);
+        endDate = new Date(calculatedEndDate);
+      } else {
+        // Fallback to original form data (for backward compatibility)
+        startDate = new Date(formData.get('startDate') as string);
+        endDate = new Date(formData.get('endDate') as string);
+      }
+      
       const guests = parseInt(formData.get('guests') as string) || 1;
+
+      // ✅ Debug log to see what we're getting
+      console.log("🔍 Form submission debug:", {
+        calculatedStartDate,
+        calculatedEndDate,
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString(),
+        title,
+        guests
+      });
 
       // Determine status
       const isEditing = !!selectedReservation?.id;
