@@ -17,7 +17,6 @@ import {
   Settings as CogIcon,
   ChevronRight,
   FileText as DocumentTextIcon,
-  Sparkles,
   User as UserIcon,
   Plus,
   Menu,
@@ -73,7 +72,6 @@ const navigationStructure: NavigationSection[] = [
       { name: "Nearby Places", href: "/recommendations", icon: StarIcon },
       { name: "Inventory", href: "/inventory", icon: PackageIcon },
       { name: "Contacts", href: "/contacts", icon: PhoneIcon },
-      { name: "Cleaning", href: "/cleaning", icon: Sparkles },
     ],
   },
   {

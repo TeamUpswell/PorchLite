@@ -1,25 +1,22 @@
 "use client";
 
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 
-import { useState, useEffect, useRef } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import Link from "next/link";
-import { useAuth } from "@/components/AuthProvider";
-
-export default function CreateCleaningTask() {
-  const { user } = useAuth();
-  const [loading, setLoading] = useState(true);
+export default function CreateCleaningTaskRedirect() {
+  const router = useRouter();
 
   useEffect(() => {
-    setLoading(false);
-  }, []);
+    // Redirect directly to manual with cleaning focus
+    router.replace('/manual?highlight=cleaning');
+  }, [router]);
 
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold">Create Cleaning Task</h1>
-      <p>Task creation form will go here</p>
+    <div className="flex items-center justify-center min-h-screen">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto"></div>
+        <p className="mt-2 text-gray-600">Redirecting to Cleaning Section...</p>
+      </div>
     </div>
   );
 }
