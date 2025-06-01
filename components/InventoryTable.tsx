@@ -1,14 +1,14 @@
 // components/InventoryTable.tsx
 "use client";
 
-import { ActionButton } from "./ui/Icons";
-import { InventoryItem } from "./inventory/types";
+import React from "react";
+import { Edit, Trash2, Plus, Minus } from "lucide-react";
 
 interface InventoryTableProps {
-  items: InventoryItem[];
-  handleEdit: (item: InventoryItem) => void;
-  handleDelete: (id: string) => Promise<void>;
-  updateQuantity: (id: string, quantity: number) => Promise<void>;
+  items: any[];
+  handleEdit: (item: any) => void;
+  handleDelete: (id: string) => void;
+  updateQuantity: (id: string, quantity: number) => void;
 }
 
 export default function InventoryTable({
@@ -17,144 +17,153 @@ export default function InventoryTable({
   handleDelete,
   updateQuantity,
 }: InventoryTableProps) {
-  const handleQuantityChange = async (id: string, newQuantity: number) => {
-    if (newQuantity < 0) return;
-    await updateQuantity(id, newQuantity);
+  const getItemStatus = (item: any) => {
+    if (item.status) return item.status;
+    // Fallback to quantity-based logic for existing items
+    if (item.quantity === 0) return "out";
+    if (item.quantity <= item.threshold) return "low";
+    return "good";
   };
 
   if (items.length === 0) {
     return (
-      <div className="bg-white rounded-lg shadow-sm border p-8 text-center">
-        <div className="text-gray-400">
-          <svg
-            className="w-12 h-12 mx-auto mb-4"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={1}
-              d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
-            />
-          </svg>
-          <h3 className="text-lg font-medium text-gray-900 mb-2">
-            No items in inventory
-          </h3>
-          <p className="text-gray-600">
-            Get started by adding your first inventory item.
-          </p>
+      <div className="text-center py-12">
+        <div className="text-gray-500 text-lg">No items found</div>
+        <div className="text-gray-400 text-sm mt-1">
+          Add your first inventory item to get started.
         </div>
       </div>
     );
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Item
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Category
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Quantity
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Alert Threshold
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Status
-              </th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {items.map((item) => {
-              const isLowStock = item.quantity <= item.threshold;
-              const isOutOfStock = item.quantity === 0;
+    <div className="overflow-x-auto">
+      <table className="min-w-full divide-y divide-gray-200">
+        <thead className="bg-gray-50">
+          <tr>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Item Name
+            </th>
+            <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Quantity
+            </th>
+            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Actions
+            </th>
+          </tr>
+        </thead>
+        <tbody className="bg-white divide-y divide-gray-200">
+          {items.map((item) => {
+            const isOutOfStock = item.quantity === 0;
+            const isLowStock =
+              item.quantity <= item.threshold && item.quantity > 0;
 
-              return (
-                <tr key={item.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900">
+            return (
+              <tr
+                key={item.id}
+                className={`
+                  ${isOutOfStock ? "bg-red-50 border-l-4 border-red-400" : ""}
+                  ${isLowStock ? "bg-yellow-50" : ""}
+                  hover:bg-gray-50 transition-colors
+                `}
+              >
+                {/* Item Name */}
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div>
+                    <div
+                      className={`text-sm font-medium ${
+                        isOutOfStock ? "text-red-900" : "text-gray-900"
+                      }`}
+                    >
                       {item.name}
                     </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 capitalize">
-                      {item.category}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center space-x-2">
-                      <button
-                        onClick={() =>
-                          handleQuantityChange(item.id, item.quantity - 1)
-                        }
-                        disabled={item.quantity <= 0}
-                        className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center text-gray-600"
-                      >
-                        −
-                      </button>
-                      <span className="font-medium text-gray-900 min-w-[2rem] text-center">
-                        {item.quantity}
-                      </span>
-                      <button
-                        onClick={() =>
-                          handleQuantityChange(item.id, item.quantity + 1)
-                        }
-                        className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-600"
-                      >
-                        +
-                      </button>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {item.threshold}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {isOutOfStock ? (
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                        Out of Stock
-                      </span>
-                    ) : isLowStock ? (
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                        Low Stock
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                        In Stock
-                      </span>
+                    {item.description && (
+                      <div className="text-sm text-gray-500 truncate max-w-xs">
+                        {item.description}
+                      </div>
                     )}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <div className="flex items-center justify-end space-x-2">
-                      <ActionButton
-                        onClick={() => handleEdit(item)}
-                        title="Edit item"
-                        variant="edit"
-                      />
-                      <ActionButton
-                        onClick={() => handleDelete(item.id)}
-                        title="Delete item"
-                        variant="delete"
-                      />
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+                  </div>
+                </td>
+
+                {/* Status Controls instead of quantity */}
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="flex items-center justify-center space-x-1">
+                    <button
+                      onClick={() => updateItemStatus(item.id, "good")}
+                      className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                        getItemStatus(item) === "good"
+                          ? "bg-green-100 text-green-800 border-2 border-green-300"
+                          : "bg-gray-100 text-gray-600 hover:bg-green-50"
+                      }`}
+                    >
+                      ✅ Good
+                    </button>
+
+                    <button
+                      onClick={() => updateItemStatus(item.id, "low")}
+                      className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                        getItemStatus(item) === "low"
+                          ? "bg-yellow-100 text-yellow-800 border-2 border-yellow-300"
+                          : "bg-gray-100 text-gray-600 hover:bg-yellow-50"
+                      }`}
+                    >
+                      ⚠️ Low
+                    </button>
+
+                    <button
+                      onClick={() => updateItemStatus(item.id, "out")}
+                      className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                        getItemStatus(item) === "out"
+                          ? "bg-red-100 text-red-800 border-2 border-red-300"
+                          : "bg-gray-100 text-gray-600 hover:bg-red-50"
+                      }`}
+                    >
+                      🔴 Out
+                    </button>
+                  </div>
+                </td>
+
+                {/* Mobile: Single status selector */}
+                <td className="px-6 py-4 whitespace-nowrap md:hidden">
+                  <select
+                    value={getItemStatus(item)}
+                    onChange={(e) => updateItemStatus(item.id, e.target.value)}
+                    className={`w-full px-3 py-1 rounded border text-sm font-medium ${
+                      getItemStatus(item) === "good"
+                        ? "border-green-300 bg-green-50 text-green-800"
+                        : getItemStatus(item) === "low"
+                        ? "border-yellow-300 bg-yellow-50 text-yellow-800"
+                        : "border-red-300 bg-red-50 text-red-800"
+                    }`}
+                  >
+                    <option value="good">✅ Well Stocked</option>
+                    <option value="low">⚠️ Getting Low</option>
+                    <option value="out">🔴 Out of Stock</option>
+                  </select>
+                </td>
+
+                {/* Actions */}
+                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                  <div className="flex items-center justify-end space-x-2">
+                    <button
+                      onClick={() => handleEdit(item)}
+                      className="text-blue-600 hover:text-blue-900 transition-colors"
+                    >
+                      <Edit className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(item.id)}
+                      className="text-red-600 hover:text-red-900 transition-colors"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 }

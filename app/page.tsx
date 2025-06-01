@@ -10,17 +10,20 @@ import ProtectedPageWrapper from "@/components/layout/ProtectedPageWrapper";
 import "@/styles/dashboard.css";
 import {
   Calendar,
-  AlertTriangle,
-  CheckCircle, // ✅ Add this
+  Users,
+  DollarSign,
+  TrendingUp,
   Package,
+  AlertTriangle,
+  CheckCircle,
+  Plus,
+  ShoppingCart,
   Cloud,
   Wrench,
-  Users,
-  ChevronRight,
   Thermometer,
   Wind,
   Eye,
-  Clock, // ✅ Already imported
+  Clock,
   Home as HomeIcon,
   Wifi,
   Zap,
@@ -29,9 +32,9 @@ import {
   MapPin,
   Phone,
   Pencil,
-  Plus,
   X,
-  Camera, // ✅ Import Camera icon
+  Camera,
+  ChevronRight, // ✅ Add this missing import
 } from "lucide-react";
 import { v4 as uuidv4 } from "uuid";
 import { toast } from "react-hot-toast";
@@ -217,60 +220,49 @@ export default function HomePage() {
 
   // Fetch inventory alerts
   useEffect(() => {
-    async function fetchInventoryAlerts() {
-      if (!currentProperty) return;
+    const fetchInventoryAlerts = async () => {
+      if (!currentProperty?.id) return;
 
       try {
-        const { data: inventory, error } = await supabase
+        console.log(
+          "🔍 Fetching inventory alerts for property:",
+          currentProperty.id
+        );
+
+        // ✅ Get all items first, then filter in JavaScript to avoid SQL issues
+        const { data, error } = await supabase
           .from("inventory")
           .select("*")
           .eq("property_id", currentProperty.id)
-          .or("quantity.lte.threshold") // ✅ Fixed: was "current_stock.lte.min_stock"
-          .order("category");
+          .eq("is_active", true)
+          .order("category", { ascending: true });
 
-        if (error) throw error;
+        if (error) {
+          console.error("Error fetching inventory:", error);
+          return;
+        }
 
+        console.log("📦 Raw inventory data:", data);
+
+        // ✅ Filter and process in JavaScript
         const alerts =
-          inventory
-            ?.map((item) => ({
+          data
+            ?.filter((item) => {
+              // Check if item needs attention (low stock or out of stock)
+              return item.quantity <= item.threshold;
+            })
+            .map((item) => ({
               ...item,
-              current_stock: item.quantity, // ✅ Map for interface compatibility
-              min_stock: item.threshold, // ✅ Map for interface compatibility
-              status:
-                item.quantity <= 0 // ✅ Fixed: was current_stock
-                  ? ("critical" as const)
-                  : item.quantity <= item.threshold // ✅ Fixed: was current_stock/min_stock
-                  ? ("low" as const)
-                  : ("good" as const),
-            }))
-            .filter((item) => item.status !== "good") || [];
+              // Determine status based on quantity and existing status field
+              status: item.status || (item.quantity === 0 ? "critical" : "low"),
+            })) || [];
 
+        console.log("🚨 Filtered alerts:", alerts);
         setInventoryAlerts(alerts);
       } catch (error) {
         console.error("Error fetching inventory:", error);
-        // Create some example data if table doesn't exist
-        setInventoryAlerts([
-          {
-            id: "1",
-            name: "Toilet Paper",
-            current_stock: 2,
-            min_stock: 6,
-            category: "essentials",
-            last_restocked: "2024-01-15",
-            status: "low",
-          },
-          {
-            id: "2",
-            name: "Coffee",
-            current_stock: 0,
-            min_stock: 2,
-            category: "amenities",
-            last_restocked: "2024-01-10",
-            status: "critical",
-          },
-        ]);
       }
-    }
+    };
 
     fetchInventoryAlerts();
   }, [currentProperty]);
@@ -1139,81 +1131,220 @@ export default function HomePage() {
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-xl font-semibold flex items-center text-gray-900">
                     <Package className="h-6 w-6 text-green-600 mr-2" />
-                    Inventory Status
+                    Inventory Overview
                   </h2>
                   <Link
                     href="/inventory"
                     className="text-blue-600 hover:text-blue-800 text-sm font-medium"
                   >
-                    View All
+                    Manage All
                   </Link>
                 </div>
 
+                {/* Quick Stats Grid - Updated to work with actual data */}
+                <div className="grid grid-cols-3 gap-4 mb-6">
+                  <div className="text-center p-4 bg-green-50 rounded-lg border border-green-200">
+                    <div className="text-2xl font-bold text-green-700">
+                      {/* ✅ Count items that are well stocked */}
+                      {
+                        inventoryAlerts.filter(
+                          (item) =>
+                            item.quantity > item.threshold ||
+                            item.status === "good"
+                        ).length
+                      }
+                    </div>
+                    <div className="text-xs font-medium text-green-600">
+                      Well Stocked
+                    </div>
+                  </div>
+
+                  <div className="text-center p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+                    <div className="text-2xl font-bold text-yellow-700">
+                      {/* ✅ Count items that are low but not out */}
+                      {
+                        inventoryAlerts.filter(
+                          (item) =>
+                            item.quantity > 0 && item.quantity <= item.threshold
+                        ).length
+                      }
+                    </div>
+                    <div className="text-xs font-medium text-yellow-600">
+                      Running Low
+                    </div>
+                  </div>
+
+                  <div className="text-center p-4 bg-red-50 rounded-lg border border-red-200">
+                    <div className="text-2xl font-bold text-red-700">
+                      {/* ✅ Count items that are completely out */}
+                      {
+                        inventoryAlerts.filter((item) => item.quantity === 0)
+                          .length
+                      }
+                    </div>
+                    <div className="text-xs font-medium text-red-600">
+                      Out of Stock
+                    </div>
+                  </div>
+                </div>
+
+                {/* Items That Need Attention */}
                 {inventoryAlerts.length > 0 ? (
-                  <div className="space-y-3">
-                    {inventoryAlerts.map((item) => (
-                      <div
-                        key={item.id}
-                        className={`p-3 rounded-lg border-l-4 ${
-                          item.status === "critical"
-                            ? "border-l-red-400 bg-red-50"
-                            : "border-l-yellow-400 bg-yellow-50"
-                        }`}
-                      >
-                        <div className="flex justify-between items-center">
-                          <div>
-                            <h4
-                              className={`font-medium ${
-                                item.status === "critical"
-                                  ? "text-red-900"
-                                  : "text-yellow-900"
-                              }`}
-                            >
-                              {item.name}
-                            </h4>
-                            <p
-                              className={`text-sm ${
-                                item.status === "critical"
-                                  ? "text-red-800"
-                                  : "text-yellow-800"
-                              }`}
-                            >
-                              {item.current_stock} / {item.min_stock} minimum
-                            </p>
-                          </div>
-                          <span
-                            className={`px-2 py-1 rounded text-xs font-medium ${
-                              item.status === "critical"
-                                ? "bg-red-100 text-red-800"
-                                : "bg-yellow-100 text-yellow-800"
+                  <div className="space-y-3 mb-6">
+                    <h3 className="font-medium text-gray-900 text-sm">
+                      Items Needing Attention
+                    </h3>
+                    <div className="space-y-2 max-h-40 overflow-y-auto">
+                      {inventoryAlerts.slice(0, 6).map((item) => {
+                        // ✅ Determine status based on actual data
+                        const itemStatus =
+                          item.quantity === 0 ? "critical" : "low";
+
+                        return (
+                          <div
+                            key={item.id}
+                            className={`flex items-center justify-between p-3 rounded-lg border ${
+                              itemStatus === "critical"
+                                ? "border-red-200 bg-red-50"
+                                : "border-yellow-200 bg-yellow-50"
                             }`}
                           >
-                            {item.status}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
+                            <div className="flex items-center space-x-3">
+                              <div
+                                className={`w-2 h-2 rounded-full ${
+                                  itemStatus === "critical"
+                                    ? "bg-red-500"
+                                    : "bg-yellow-500"
+                                }`}
+                              />
+                              <div>
+                                <h4
+                                  className={`font-medium text-sm ${
+                                    itemStatus === "critical"
+                                      ? "text-red-900"
+                                      : "text-yellow-900"
+                                  }`}
+                                >
+                                  {item.name}
+                                </h4>
+                                <p
+                                  className={`text-xs ${
+                                    itemStatus === "critical"
+                                      ? "text-red-700"
+                                      : "text-yellow-700"
+                                  }`}
+                                >
+                                  {itemStatus === "critical"
+                                    ? "Out of stock"
+                                    : `${item.quantity} remaining (threshold: ${item.threshold})`}
+                                </p>
+                              </div>
+                            </div>
 
-                    <Link
-                      href="/inventory/restock"
-                      className="block w-full text-center py-2 bg-blue-600 hover:bg-blue-700 transition-colors font-medium"
-                      style={{ color: "#ffffff" }}
-                    >
-                      Create Shopping List
-                    </Link>
+                            <span
+                              className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                itemStatus === "critical"
+                                  ? "bg-red-100 text-red-800"
+                                  : "bg-yellow-100 text-yellow-800"
+                              }`}
+                            >
+                              {itemStatus === "critical" ? "🔴" : "⚠️"}
+                            </span>
+                          </div>
+                        );
+                      })}
+
+                      {inventoryAlerts.length > 6 && (
+                        <div className="text-center py-2">
+                          <Link
+                            href="/inventory"
+                            className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                          >
+                            View {inventoryAlerts.length - 6} more items →
+                          </Link>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 ) : (
-                  <div className="text-center py-6 text-gray-500">
-                    <Package className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-                    <p className="text-gray-700">
-                      All essentials are well stocked!
+                  <div className="text-center py-6 mb-6">
+                    <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                      <CheckCircle className="h-8 w-8 text-green-600" />
+                    </div>
+                    <p className="text-gray-700 font-medium">
+                      All items are well stocked!
                     </p>
+                    <p className="text-gray-500 text-sm">
+                      Everything looks good right now.
+                    </p>
+                  </div>
+                )}
+
+                {/* Quick Action Buttons */}
+                <div className="flex space-x-3">
+                  {/* Shopping List Button - Dynamic based on alerts */}
+                  {inventoryAlerts.length > 0 ? (
+                    <Link
+                      href="/inventory?create-shopping-list=true"
+                      className="flex-1 flex items-center justify-center py-3 px-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors font-medium text-sm"
+                    >
+                      <ShoppingCart className="h-4 w-4 mr-1 sm:mr-2" />
+                      <span className="hidden sm:inline">
+                        Create Shopping List
+                      </span>
+                      <span className="sm:hidden">List</span>
+                      <span className="ml-1 sm:ml-2 bg-green-500 text-white text-xs rounded-full px-1.5 py-0.5 min-w-[18px] text-center leading-none">
+                        {inventoryAlerts.length}
+                      </span>
+                    </Link>
+                  ) : (
                     <Link
                       href="/inventory"
-                      className="text-blue-600 hover:text-blue-800 text-sm mt-2 inline-block font-medium"
+                      className="flex-1 flex items-center justify-center py-3 px-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors font-medium text-sm"
                     >
-                      Manage inventory
+                      <Package className="h-4 w-4 mr-1 sm:mr-2" />
+                      <span className="hidden sm:inline">View Inventory</span>
+                      <span className="sm:hidden">View</span>
                     </Link>
+                  )}
+
+                  {/* Quick Add Item Button */}
+                  <Link
+                    href="/inventory?add-item=true"
+                    className="flex items-center justify-center py-3 px-3 sm:px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-sm"
+                    title="Add new item"
+                  >
+                    <Plus className="h-4 w-4" />
+                    <span className="ml-1 sm:hidden">Add</span>
+                  </Link>
+                </div>
+
+                {/* Smart Recommendations */}
+                {inventoryAlerts.length > 0 && (
+                  <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                    <div className="flex items-start space-x-2">
+                      <div className="flex-shrink-0">
+                        <div className="w-5 h-5 bg-blue-600 rounded-full flex items-center justify-center">
+                          <span className="text-white text-xs">💡</span>
+                        </div>
+                      </div>
+                      <div>
+                        <h4 className="font-medium text-blue-900 text-sm">
+                          Smart Tip
+                        </h4>
+                        <p className="text-blue-800 text-xs mt-1">
+                          {inventoryAlerts.filter(
+                            (item) => item.status === "critical"
+                          ).length > 0
+                            ? `You have ${
+                                inventoryAlerts.filter(
+                                  (item) => item.status === "critical"
+                                ).length
+                              } critical items. Consider creating a shopping list for your next trip.`
+                            : `${inventoryAlerts.length} items are running low. Plan ahead to avoid running out.`}
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 )}
               </section>
