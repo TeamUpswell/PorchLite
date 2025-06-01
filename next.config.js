@@ -49,6 +49,11 @@ const nextConfig = {
   experimental: {
     optimizeCss: false,
     optimizePackageImports: [],
+    appDir: true,
+  },
+  env: {
+    APP_NAME: 'PorchLite',
+    APP_DESCRIPTION: 'Property Management Platform',
   },
 }
 

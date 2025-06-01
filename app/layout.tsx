@@ -1,16 +1,23 @@
 import "./globals.css";
 import { Inter } from "next/font/google";
 import { AuthProvider } from "@/components/AuthProvider";
-import { TenantProvider } from "@/lib/hooks/useTenant"; // Fix: Import TenantProvider, not useTenant
 import { PropertyProvider } from "@/lib/hooks/useProperty";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { Toaster } from "react-hot-toast";
+import type { Metadata } from "next";
 
 const inter = Inter({ subsets: ["latin"] });
 
-export const metadata = {
-  title: "Stia",
-  description: "Shared Property Management",
+export const metadata: Metadata = {
+  title: "PorchLite - Property Management for Shared Spaces",
+  description:
+    "Professional property management platform designed for shared spaces and collaborative living",
+  keywords: [
+    "property management",
+    "shared spaces",
+    "collaborative living",
+    "PorchLite",
+  ],
 };
 
 export default function RootLayout({
@@ -20,15 +27,20 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
+      <head>
+        <title>PorchLite</title>
+        <meta
+          name="description"
+          content="PorchLite - Property Management Platform for Shared Spaces"
+        />
+      </head>
       <body className={inter.className}>
         <ThemeProvider>
           <AuthProvider>
-            <TenantProvider>
-              <PropertyProvider>
-                {children}
-                <Toaster />
-              </PropertyProvider>
-            </TenantProvider>
+            <PropertyProvider>
+              {children}
+              <Toaster />
+            </PropertyProvider>
           </AuthProvider>
         </ThemeProvider>
       </body>

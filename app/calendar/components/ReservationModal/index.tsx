@@ -39,13 +39,10 @@ export const ReservationModal = ({
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleFormSubmit = async (formData: {
-    title: string;
-    description: string;
-    startDate: Date;
-    endDate: Date;
-    guests: number;
-  }) => {
+  // ✅ SINGLE handleSubmit function - handles FormData from the form
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+
     if (!user || !currentProperty) {
       alert("Missing user or property data");
       return;
@@ -54,7 +51,27 @@ export const ReservationModal = ({
     setIsSubmitting(true);
 
     try {
-      const { title, description, startDate, endDate, guests } = formData;
+      // Get form data
+      const formData = new FormData(e.currentTarget);
+      const title = formData.get("title") as string;
+      const description = formData.get("description") as string;
+      const guests = parseInt(formData.get("guests") as string) || 1;
+
+      // ✅ Get the dates that were set by ReservationForm
+      const startDateStr = formData.get("start_date") as string;
+      const endDateStr = formData.get("end_date") as string;
+
+      if (!startDateStr || !endDateStr) {
+        throw new Error("Start date and end date are required");
+      }
+
+      const startDate = new Date(startDateStr);
+      const endDate = new Date(endDateStr);
+
+      // Validate dates
+      if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+        throw new Error("Invalid dates provided");
+      }
 
       // Determine status
       const isEditing = !!selectedReservation?.id;
@@ -245,8 +262,8 @@ export const ReservationModal = ({
             onAddCompanion={addCompanion}
             onUpdateCompanion={updateCompanion}
             onRemoveCompanion={removeCompanion}
-            onSubmit={handleFormSubmit}
-            onCancel={onClose} // ✅ Add this line
+            onSubmit={handleSubmit}
+            onCancel={onClose}
             isSubmitting={isSubmitting}
           />
         </div>

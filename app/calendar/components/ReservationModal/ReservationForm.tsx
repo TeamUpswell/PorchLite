@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"; // ✅ Add useEffect
+import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { Reservation, Companion } from "../../types";
 import { CompanionSection } from "./CompanionSection";
@@ -16,10 +16,10 @@ interface ReservationFormProps {
   ) => void;
   onRemoveCompanion: (index: number) => void;
   onSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
-  onCancel?: () => void; // ✅ Add this prop
+  onCancel?: () => void;
+  isSubmitting?: boolean;
 }
 
-// ✅ Add NightsSelector component
 const NightsSelector = ({
   nights,
   onChange,
@@ -65,12 +65,10 @@ export const ReservationForm = ({
   onUpdateCompanion,
   onRemoveCompanion,
   onSubmit,
-  onCancel, // ✅ Add this parameter
+  onCancel,
+  isSubmitting = false,
 }: ReservationFormProps) => {
-  // 🚨 TEMPORARY DEBUG - Remove this after testing
-  console.log("🔍 NIGHTS FORM LOADED!");
-
-  // ✅ Helper functions to get initial values
+  // Helper functions to get initial values
   const getDefaultStartDate = () => {
     if (selectedReservation) {
       return format(new Date(selectedReservation.start), "yyyy-MM-dd");
@@ -104,13 +102,13 @@ export const ReservationForm = ({
   const [startDate, setStartDate] = useState(getDefaultStartDate());
   const [nights, setNights] = useState(getDefaultNights());
 
-  // ✅ Update state when selectedReservation or selectedSlot changes
+  // Update state when selectedReservation or selectedSlot changes
   useEffect(() => {
     setStartDate(getDefaultStartDate());
     setNights(getDefaultNights());
   }, [selectedReservation, selectedSlot]);
 
-  // ✅ Calculate checkout date
+  // Calculate checkout date
   const getCheckoutDate = () => {
     if (!startDate) return "";
     const start = new Date(startDate);
@@ -118,35 +116,43 @@ export const ReservationForm = ({
     return checkout.toLocaleDateString();
   };
 
-  // ✅ Update form submission to include calculated end date
+  // Form submission handler
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    // Calculate end date from start date + nights
+    // Calculate dates
     const start = new Date(startDate);
     const end = new Date(start.getTime() + nights * 24 * 60 * 60 * 1000);
+
+    // Validate dates
+    if (!start || !end || isNaN(start.getTime()) || isNaN(end.getTime())) {
+      console.error("Invalid dates:", { start, end });
+      alert("Please check your dates and try again.");
+      return;
+    }
 
     // Get form data
     const formData = new FormData(e.currentTarget);
 
-    // ✅ Add calculated dates directly to FormData
-    formData.set("startDate", format(start, "yyyy-MM-dd'T'HH:mm"));
-    formData.set("endDate", format(end, "yyyy-MM-dd'T'HH:mm"));
+    // ✅ FIXED: Add the calculated dates with the exact field names the server expects
+    formData.set("start_date", start.toISOString());
+    formData.set("end_date", end.toISOString());
+    
+    // Also set start and end (in case server expects these names)
+    formData.set("start", start.toISOString());
+    formData.set("end", end.toISOString());
 
-    // ✅ Create a simple event object
-    const modifiedEvent = {
-      ...e,
-      currentTarget: {
-        ...e.currentTarget,
-        // Override FormData getter to return our modified data
-        elements: Array.from(formData.entries()).reduce((acc, [key, value]) => {
-          acc[key] = { value };
-          return acc;
-        }, {} as any),
-      },
-    } as React.FormEvent<HTMLFormElement>;
+    console.log("✅ Form submission with dates:", {
+      start_date: start.toISOString(),
+      end_date: end.toISOString(),
+      start: start.toISOString(),
+      end: end.toISOString(),
+      startDate: startDate,
+      nights: nights
+    });
 
-    onSubmit(modifiedEvent);
+    // Call the parent's onSubmit with the enhanced form event
+    onSubmit(e);
   };
 
   return (
@@ -164,14 +170,14 @@ export const ReservationForm = ({
           id="title"
           name="title"
           required
-          key={selectedReservation?.id || "new"} // ✅ Force re-render when editing
+          key={selectedReservation?.id || "new"}
           defaultValue={selectedReservation?.title || ""}
           className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
           placeholder="Weekend getaway, Family vacation, etc."
         />
       </div>
 
-      {/* ✅ Updated Date Fields - Start Date + Nights */}
+      {/* Date Fields */}
       <div className="space-y-4">
         <div>
           <label
@@ -197,7 +203,6 @@ export const ReservationForm = ({
             Number of Nights *
           </label>
           <NightsSelector nights={nights} onChange={setNights} />
-          {/* ✅ Show calculated checkout date */}
           {startDate && (
             <p className="text-sm text-gray-600 mt-2 text-center">
               Check-out:{" "}
@@ -221,7 +226,7 @@ export const ReservationForm = ({
           name="guests"
           min="1"
           required
-          key={`guests-${selectedReservation?.id || "new"}`} // ✅ Force re-render when editing
+          key={`guests-${selectedReservation?.id || "new"}`}
           defaultValue={selectedReservation?.guests || 1}
           className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
         />
@@ -239,7 +244,7 @@ export const ReservationForm = ({
           id="description"
           name="description"
           rows={3}
-          key={`description-${selectedReservation?.id || "new"}`} // ✅ Force re-render when editing
+          key={`description-${selectedReservation?.id || "new"}`}
           defaultValue={selectedReservation?.description || ""}
           className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
           placeholder="Add any special notes or requirements..."
@@ -255,43 +260,28 @@ export const ReservationForm = ({
         canAutoApprove={canAutoApprove}
       />
 
-      {/* ✅ Hidden fields to pass calculated dates */}
-      <input
-        type="hidden"
-        name="calculatedStartDate"
-        value={
-          startDate ? format(new Date(startDate), "yyyy-MM-dd'T'HH:mm") : ""
-        }
-      />
-      <input
-        type="hidden"
-        name="calculatedEndDate"
-        value={
-          startDate
-            ? format(
-                new Date(
-                  new Date(startDate).getTime() + nights * 24 * 60 * 60 * 1000
-                ),
-                "yyyy-MM-dd'T'HH:mm"
-              )
-            : ""
-        }
-      />
+      {/* Hidden fields for calculated values - ADD THESE */}
+      <input type="hidden" name="start_date" value={startDate ? new Date(startDate).toISOString() : ""} />
+      <input type="hidden" name="end_date" value={startDate ? new Date(new Date(startDate).getTime() + nights * 24 * 60 * 60 * 1000).toISOString() : ""} />
+      <input type="hidden" name="start" value={startDate ? new Date(startDate).toISOString() : ""} />
+      <input type="hidden" name="end" value={startDate ? new Date(new Date(startDate).getTime() + nights * 24 * 60 * 60 * 1000).toISOString() : ""} />
 
       {/* Submit Buttons */}
       <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200">
         <button
           type="button"
-          onClick={onCancel} // ✅ Use onCancel instead of window.history.back()
-          className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          onClick={onCancel}
+          disabled={isSubmitting}
+          className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
         >
           Cancel
         </button>
         <button
           type="submit"
-          className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          disabled={isSubmitting}
+          className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
         >
-          {selectedReservation ? "Update Reservation" : "Create Reservation"}
+          {isSubmitting ? "Saving..." : (selectedReservation ? "Update Reservation" : "Create Reservation")}
         </button>
       </div>
     </form>

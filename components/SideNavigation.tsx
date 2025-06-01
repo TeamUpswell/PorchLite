@@ -271,14 +271,14 @@ export default function SideNavigation({
             >
               <Image
                 src={logo}
-                alt="PropertyHub Logo"
+                alt="PorchLite Logo"
                 width={32}
                 height={32}
                 className="w-8 h-8 rounded-lg"
               />
               <div>
                 <h1 className="text-lg font-bold text-white drop-shadow-lg">
-                  Stia Hub
+                  PorchLite
                 </h1>
                 <p className="text-xs text-gray-200 drop-shadow">
                   For Shared Spaces

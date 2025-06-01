@@ -14,14 +14,14 @@ import {
   Lock,
   Globe,
   LogOut,
-} from "lucide-react"; // Add LogOut icon
+} from "lucide-react";
 import StandardPageLayout from "@/components/layout/StandardPageLayout";
 import StandardCard from "@/components/ui/StandardCard";
 import PropertySelector from "@/components/PropertySelector";
 import { useAuth } from "@/components/AuthProvider";
 import { useProperty } from "@/lib/hooks/useProperty";
 import { supabase } from "@/lib/supabase";
-import DatabaseDiagnostics from "@/components/admin/DatabaseDiagnostics"; // Import DatabaseDiagnostics
+import DatabaseDiagnostics from "@/components/admin/DatabaseDiagnostics";
 
 interface UserProfile {
   id: string;
@@ -42,15 +42,21 @@ interface UserPreferences {
 }
 
 export default function AccountPage() {
-  const { user, logout } = useAuth(); // Add logout from useAuth
-  console.log("Auth context:", { user, logout, hasLogout: typeof logout }); // Debug log
-  const { currentProperty, userProperties, loading: propertyLoading } =
-    useProperty();
+  const { user, logout } = useAuth();
+  const {
+    currentProperty,
+    currentTenant,
+    userProperties,
+    userTenants,
+    loading: propertyLoading,
+    error: propertyError,
+  } = useProperty();
+
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [preferences, setPreferences] = useState<UserPreferences>({
     notifications_email: true,
     notifications_push: true,
-    theme: "system",
+    theme: "system", // Fixed the syntax error here (removed 'f')
     language: "en",
     timezone: "UTC",
   });
@@ -114,7 +120,6 @@ export default function AccountPage() {
     // In a real app, you'd save this to your database
   };
 
-  // Add logout handler
   const handleSignOut = async () => {
     if (window.confirm("Are you sure you want to sign out?")) {
       try {
@@ -147,7 +152,7 @@ export default function AccountPage() {
     }
   };
 
-  if (loading) {
+  if (loading || propertyLoading) {
     return (
       <StandardPageLayout
         title="Account Settings"
@@ -169,6 +174,18 @@ export default function AccountPage() {
       subtitle="Manage your account and preferences"
       headerIcon={<User className="h-6 w-6 text-blue-600" />}
     >
+      {/* Debug Info - Remove in production */}
+      {propertyError && (
+        <StandardCard
+          title="Property Loading Error"
+          className="mb-6 border-red-200"
+        >
+          <div className="text-red-600 text-sm">
+            Error loading properties: {propertyError}
+          </div>
+        </StandardCard>
+      )}
+
       {/* Profile Information */}
       <StandardCard
         title="Profile Information"
@@ -198,6 +215,32 @@ export default function AccountPage() {
         )}
       </StandardCard>
 
+      {/* Current Tenant Info */}
+      {currentTenant && (
+        <StandardCard
+          title="Current Tenant"
+          subtitle="Your active tenant organization"
+          className="mb-6"
+        >
+          <div className="bg-green-50 rounded-lg p-4">
+            <div className="flex items-center">
+              <div className="p-2 bg-green-100 rounded-lg mr-3">
+                <Shield className="h-5 w-5 text-green-600" />
+              </div>
+              <div>
+                <h4 className="font-medium text-green-900">
+                  {currentTenant.name || "Unnamed Tenant"}
+                </h4>
+                <p className="text-sm text-green-700">
+                  {userTenants.length} tenant
+                  {userTenants.length !== 1 ? "s" : ""} total
+                </p>
+              </div>
+            </div>
+          </div>
+        </StandardCard>
+      )}
+
       {/* Property Selection */}
       <StandardCard
         title="Active Property"
@@ -220,15 +263,29 @@ export default function AccountPage() {
                 </div>
                 <div>
                   <h4 className="font-medium text-blue-900">
-                    {currentProperty.name}
+                    {currentProperty.name || "Unnamed Property"}
                   </h4>
                   {currentProperty.address && (
                     <p className="text-sm text-blue-700">
                       {currentProperty.address}
                     </p>
                   )}
+                  <p className="text-sm text-blue-600">
+                    {userProperties.length} propert
+                    {userProperties.length !== 1 ? "ies" : "y"} available
+                  </p>
                 </div>
               </div>
+            </div>
+          )}
+
+          {userProperties.length === 0 && !propertyLoading && (
+            <div className="bg-gray-50 rounded-lg p-4 text-center">
+              <Globe className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+              <p className="text-gray-600">No properties found</p>
+              <p className="text-sm text-gray-500">
+                Contact your administrator to be added to a property
+              </p>
             </div>
           )}
         </div>
@@ -297,7 +354,7 @@ export default function AccountPage() {
         </div>
       </StandardCard>
 
-      {/* Security Settings - Updated with Sign Out */}
+      {/* Security Settings */}
       <StandardCard
         title="Security Settings"
         subtitle="Manage your account security"
@@ -336,10 +393,11 @@ export default function AccountPage() {
         </div>
       </StandardCard>
 
-      {/* Sign Out Section - New Card */}
+      {/* Sign Out Section */}
       <StandardCard
         title="Account Actions"
         subtitle="Manage your account session"
+        className="mb-6"
       >
         <div className="space-y-4">
           <button
@@ -362,13 +420,13 @@ export default function AccountPage() {
         </div>
       </StandardCard>
 
-      {/* Database Diagnostics - New Component */}
+      {/* Database Diagnostics */}
       <DatabaseDiagnostics showAdvanced={true} showSeeding={true} />
     </StandardPageLayout>
   );
 }
 
-// Profile Form Component
+// ProfileForm Component (unchanged)
 function ProfileForm({
   profile,
   editing,

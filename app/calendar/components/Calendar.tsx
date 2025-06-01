@@ -51,9 +51,6 @@ export function Calendar({ newReservationTrigger }: CalendarProps) {
     end: Date;
   } | null>(null);
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [currentView, setCurrentView] = useState<"month" | "week" | "day">(
-    "month"
-  );
   const [isMobile, setIsMobile] = useState(false);
 
   // Effects
@@ -184,26 +181,53 @@ export function Calendar({ newReservationTrigger }: CalendarProps) {
               onSelectEvent={handleReservationSelect}
               onSelectSlot={handleSlotSelect}
               selectable
-              views={isMobile ? ["month"] : ["month", "week", "day"]}
-              view={isMobile ? "month" : currentView}
+              views={["month"]} // Only allow month view
+              view="month" // Force month view
               date={currentDate}
               onNavigate={setCurrentDate}
-              onView={setCurrentView}
               defaultView="month"
               toolbar={true}
-              eventPropGetter={eventStyleGetter}
-              onDoubleClickEvent={handleReservationSelect}
               components={{
+                toolbar: ({ label, onNavigate }) => (
+                  <div className="rbc-toolbar">
+                    <span className="rbc-btn-group">
+                      <button
+                        type="button"
+                        onClick={() => onNavigate("PREV")}
+                        className="rbc-btn"
+                      >
+                        ‹
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onNavigate("TODAY")}
+                        className="rbc-btn"
+                      >
+                        Today
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onNavigate("NEXT")}
+                        className="rbc-btn"
+                      >
+                        ›
+                      </button>
+                    </span>
+                    <span className="rbc-toolbar-label">{label}</span>
+                  </div>
+                ),
                 event: ({ event }) => (
                   <div
                     onContextMenu={(e) => handleEventRightClick(event, e)}
                     className="cursor-pointer"
-                    title="Right-click to delete" // ← Added helpful tooltip
+                    title="Right-click to delete"
                   >
                     {event.title}
                   </div>
                 ),
               }}
+              eventPropGetter={eventStyleGetter}
+              onDoubleClickEvent={handleReservationSelect}
               formats={{
                 monthHeaderFormat: (date: Date) =>
                   isMobile
@@ -213,19 +237,6 @@ export function Calendar({ newReservationTrigger }: CalendarProps) {
                   isMobile
                     ? format(date, "EEE M/d")
                     : format(date, "EEEE, MMMM do"),
-                dayRangeHeaderFormat: ({
-                  start,
-                  end,
-                }: {
-                  start: Date;
-                  end: Date;
-                }) =>
-                  isMobile
-                    ? `${format(start, "M/d")} - ${format(end, "M/d")}`
-                    : `${format(start, "MMM d")} - ${format(
-                        end,
-                        "MMM d, yyyy"
-                      )}`,
               }}
               showMultiDayTimes
               step={60}

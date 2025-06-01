@@ -62,7 +62,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       console.log('AuthProvider: SignUp successful:', data);
       
-      // Note: User might need to confirm email before they can sign in
       if (data.user && !data.session) {
         console.log('User created but needs email confirmation');
       }
@@ -82,17 +81,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log('AuthProvider: Starting logout...');
       setLoading(true);
       
-      // Sign out from Supabase
       const { error } = await supabase.auth.signOut();
       if (error) {
         console.error('Supabase signOut error:', error);
         throw error;
       }
       
-      // Clear user state
       setUser(null);
       
-      // Clear local storage
       if (typeof window !== 'undefined') {
         localStorage.removeItem('currentTenantId');
         localStorage.removeItem('currentPropertyId');
@@ -100,8 +96,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       
       console.log('AuthProvider: Logout successful, redirecting...');
-      
-      // Redirect to login
       window.location.href = '/login';
     } catch (error) {
       console.error('AuthProvider logout error:', error);
@@ -112,16 +106,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
-    // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
       setLoading(false);
     });
 
-    // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log('Auth state changed:', event, session?.user?.email);
+      (event, session) => {
         setUser(session?.user ?? null);
         setLoading(false);
       }

@@ -5,6 +5,12 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/components/AuthProvider";
+import { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Login - PorchLite",
+  description: "Login to your PorchLite account",
+};
 
 export default function LoginPage() {
   const router = useRouter();
@@ -55,67 +61,74 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="max-w-md w-full space-y-8 p-6">
-        <h2 className="text-3xl font-bold text-center">Sign In</h2>
-
-        {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-            {error}
-          </div>
-        )}
-
-        <form onSubmit={handleLogin} className="space-y-6">
-          <div>
-            <label className="block text-sm font-medium">Email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
-            />
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+      <div className="container mx-auto px-4 py-8">
+        <div className="max-w-md mx-auto">
+          <div className="text-center mb-8">
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">
+              Welcome back to PorchLite
+            </h1>
+            <p className="text-gray-600">Sign in to your account</p>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium">Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
-            />
-          </div>
+          {error && (
+            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+              {error}
+            </div>
+          )}
 
-          <div>
+          <form onSubmit={handleLogin} className="space-y-6">
+            <div>
+              <label className="block text-sm font-medium">Email</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium">Password</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
+              />
+            </div>
+
+            <div>
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 disabled:opacity-50"
+              >
+                {loading ? "Signing in..." : "Sign In"}
+              </button>
+            </div>
+
+            {/* Add this button temporarily in your JSX */}
             <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 disabled:opacity-50"
+              type="button"
+              onClick={handleQuickSignup}
+              className="w-full py-2 px-4 bg-green-600 text-white rounded-md hover:bg-green-700 mb-4"
             >
-              {loading ? "Signing in..." : "Sign In"}
+              Create Test Account
             </button>
-          </div>
 
-          {/* Add this button temporarily in your JSX */}
-          <button
-            type="button"
-            onClick={handleQuickSignup}
-            className="w-full py-2 px-4 bg-green-600 text-white rounded-md hover:bg-green-700 mb-4"
-          >
-            Create Test Account
-          </button>
-
-          <div className="text-center mt-4">
-            <p className="text-sm text-gray-600">
-              Don&apos;t have an account?{" "}
-              <a href="/signup" className="text-blue-600 hover:underline">
-                Sign up and add your first property
-              </a>
-            </p>
-          </div>
-        </form>
+            <div className="text-center mt-4">
+              <p className="text-sm text-gray-600">
+                Don&apos;t have an account?{" "}
+                <a href="/signup" className="text-blue-600 hover:underline">
+                  Sign up and add your first property
+                </a>
+              </p>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   );
