@@ -23,7 +23,7 @@ import { useProperty } from "@/lib/hooks/useProperty";
 
 export default function InventoryPage() {
   const inventoryHook = useInventory();
-  const { currentProperty } = useProperty();
+  const { currentProperty, currentTenant } = useProperty();
   const [showManageModal, setShowManageModal] = useState(false);
   const [showShoppingListModal, setShowShoppingListModal] = useState(false);
 
@@ -38,70 +38,45 @@ export default function InventoryPage() {
     if (!inventoryHook.filteredItems) return [];
 
     return inventoryHook.filteredItems.filter((item) => {
-      // Check if item is explicitly marked as low or out
-      if (item.status === "low" || item.status === "out") {
-        return true;
-      }
-
-      // Check if quantity is at or below threshold
-      if (item.quantity <= (item.threshold || 5)) {
-        return true;
-      }
-
-      return false;
+      // Only check explicit status - no automatic threshold logic
+      return item.status === "low" || item.status === "out";
     });
   }, [inventoryHook.filteredItems]);
 
-  // ✅ Memoize other stats
+  // ✅ Memoize stats with corrected logic
   const stats = useMemo(() => {
     const items = inventoryHook.filteredItems || [];
 
     return {
       totalItems: items.length,
-      goodStockItems: items.filter(
-        (item) =>
-          item.status === "good" ||
-          (!item.status && item.quantity > item.threshold)
-      ).length,
-      lowStockItems: items.filter(
-        (item) =>
-          item.status === "low" ||
-          (!item.status && item.quantity <= item.threshold && item.quantity > 0)
-      ).length,
-      outOfStockItems: items.filter(
-        (item) => item.status === "out" || (!item.status && item.quantity === 0)
-      ).length,
+      goodStockItems: items.filter((item) => {
+        // Check explicit status first
+        if (item.status === "good") return true;
+        if (item.status === "low" || item.status === "out") return false;
+
+        // Fallback: quantity-based logic (but be more conservative)
+        if (item.quantity === 0) return false;
+        if (item.quantity <= (item.threshold || 5)) return false;
+        return true;
+      }).length,
+
+      lowStockItems: items.filter((item) => {
+        // Only check explicit status
+        return item.status === "low";
+      }).length,
+
+      outOfStockItems: items.filter((item) => {
+        // Check explicit status first
+        if (item.status === "out") return true;
+        if (item.status === "good" || item.status === "low") return false;
+
+        // Fallback: only truly empty items
+        return item.quantity === 0;
+      }).length,
     };
   }, [inventoryHook.filteredItems]);
 
   const { totalItems, goodStockItems, lowStockItems, outOfStockItems } = stats;
-
-  // Debug logging
-  console.log("📊 Inventory Debug:", {
-    totalItems,
-    lowStockItems,
-    outOfStockItems,
-    shoppingListItems: shoppingListItems.length,
-    allItems: inventoryHook.filteredItems,
-  });
-
-  // Enhanced debugging for shopping list
-  console.log("🛒 Detailed Shopping List Debug:", {
-    totalItems,
-    sampleItems: inventoryHook.filteredItems?.slice(0, 3).map((item) => ({
-      name: item.name,
-      quantity: item.quantity,
-      threshold: item.threshold,
-      status: item.status,
-      lowStockCheck: item.quantity <= item.threshold,
-      statusCheck: item.status === "low" || item.status === "out",
-      shouldBeInList:
-        item.status === "low" ||
-        item.status === "out" ||
-        (!item.status && item.quantity <= item.threshold),
-    })),
-    shoppingListLength: shoppingListItems.length,
-  });
 
   // Add this to handle URL parameters for quick actions
   useEffect(() => {
@@ -120,64 +95,42 @@ export default function InventoryPage() {
     }
   }, []);
 
-  // Temporary debug - check first few items
-  useEffect(() => {
-    if (inventoryHook.filteredItems && inventoryHook.filteredItems.length > 0) {
-      console.log(
-        "🔍 First 3 inventory items:",
-        inventoryHook.filteredItems.slice(0, 3)
-      );
-    }
-  }, [inventoryHook.filteredItems]);
+  // Add this to handle loading state for property
+  if (!currentProperty?.id) {
+    return (
+      <StandardPageLayout>
+        <div className="flex items-center justify-center min-h-64">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+            <p className="mt-2 text-gray-600">Loading property...</p>
+          </div>
+        </div>
+      </StandardPageLayout>
+    );
+  }
 
-  // ✅ Only log when values actually change
-  useEffect(() => {
-    console.log("📊 Inventory Stats:", {
-      totalItems,
-      lowStockItems,
-      outOfStockItems,
-      shoppingListItems: shoppingListItems.length,
-    });
-  }, [totalItems, lowStockItems, outOfStockItems, shoppingListItems.length]);
-
-  // Add this after your other useMemo hooks
-  const testShoppingListItems = useMemo(
-    () => [
-      {
-        id: "test-1",
-        name: "Test Item - Toilet Paper",
-        quantity: 0,
-        threshold: 5,
-        status: "out",
-        category: "Bathroom",
-        unit: "rolls",
-      },
-      {
-        id: "test-2",
-        name: "Test Item - Cleaning Supplies",
-        quantity: 2,
-        threshold: 10,
-        status: "low",
-        category: "Cleaning",
-        unit: "bottles",
-      },
-    ],
-    []
-  );
-
-  // Add this temporarily to debug what's in your hook
-  useEffect(() => {
-    console.log("🔍 Available functions in inventoryHook:", {
-      hasUpdateItemStatus: !!inventoryHook.updateItemStatus,
-      availableFunctions: Object.keys(inventoryHook),
-    });
-  }, [inventoryHook]);
-
-  // Add this right before your return statement
-  console.log("🔍 Hook contents:", {
-    updateItemStatus: inventoryHook.updateItemStatus,
-    typeof: typeof inventoryHook.updateItemStatus,
-    allKeys: Object.keys(inventoryHook),
+  // Add this temporarily to see your threshold data
+  console.log("🔍 Threshold Analysis:", {
+    averageThreshold:
+      inventoryHook.filteredItems?.reduce(
+        (sum, item) => sum + (item.threshold || 0),
+        0
+      ) / (inventoryHook.filteredItems?.length || 1),
+    thresholdRange: {
+      min: Math.min(
+        ...(inventoryHook.filteredItems?.map((item) => item.threshold || 0) || [
+          0,
+        ])
+      ),
+      max: Math.max(
+        ...(inventoryHook.filteredItems?.map((item) => item.threshold || 0) || [
+          0,
+        ])
+      ),
+    },
+    itemsWithHighThreshold: inventoryHook.filteredItems?.filter(
+      (item) => (item.threshold || 0) > 10
+    ).length,
   });
 
   return (
