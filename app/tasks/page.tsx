@@ -56,6 +56,36 @@ type UserProfile = {
   role: string;
 };
 
+// Add these categories based on your database schema:
+
+const TASK_CATEGORIES = [
+  { value: "maintenance", label: "🔧 Maintenance", color: "orange" },
+  { value: "repair", label: "🛠️ Repair", color: "red" },
+  { value: "cleaning", label: "🧽 Cleaning", color: "blue" },
+  { value: "inspection", label: "🔍 Inspection", color: "purple" },
+  { value: "safety", label: "⚠️ Safety", color: "yellow" },
+  { value: "utilities", label: "⚡ Utilities", color: "indigo" },
+  { value: "landscaping", label: "🌱 Landscaping", color: "green" },
+  { value: "tenant_request", label: "🏠 Tenant Request", color: "teal" },
+  { value: "administrative", label: "📋 Administrative", color: "gray" },
+  { value: "seasonal", label: "🗓️ Seasonal", color: "cyan" },
+  { value: "inventory", label: "📦 Inventory", color: "pink" },
+  { value: "other", label: "📝 Other", color: "slate" },
+];
+
+const TASK_PRIORITIES = [
+  { value: "low", label: "Low", color: "green" },
+  { value: "medium", label: "Medium", color: "yellow" },
+  { value: "high", label: "High", color: "orange" },
+  { value: "critical", label: "Critical", color: "red" },
+];
+
+const TASK_STATUSES = [
+  { value: "pending", label: "Pending", color: "gray" },
+  { value: "in_progress", label: "In Progress", color: "blue" },
+  { value: "completed", label: "Completed", color: "green" },
+];
+
 export default function TasksPage() {
   const { user } = useAuth();
   const { currentProperty } = useProperty();
@@ -491,8 +521,50 @@ export default function TasksPage() {
       </div>
 
       {/* Task cards */}
-      {tasks.length === 0 && !["all", "open"].includes(filter) ? (
-        // Show empty state only for specific filters that might have no results
+      {tasks.length === 0 && filter === "open" ? (
+        // ✅ NEW: Beautiful "All Clear" empty state
+        <StandardCard>
+          <div className="text-center py-16">
+            <div className="relative mb-6">
+              <div className="w-24 h-24 bg-green-100 rounded-full mx-auto flex items-center justify-center">
+                <CheckSquareIcon className="h-12 w-12 text-green-600" />
+              </div>
+              <div className="absolute -top-2 -right-2 w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
+                <span className="text-white text-lg">✨</span>
+              </div>
+            </div>
+            <h3 className="text-2xl font-semibold text-gray-900 mb-3">
+              All Clear! 🎉
+            </h3>
+            <p className="text-gray-500 mb-2 max-w-md mx-auto">
+              No open tasks for <strong>{currentProperty.name}</strong>.
+              Everything is running smoothly!
+            </p>
+            <p className="text-sm text-gray-400 mb-8">
+              Check back later or create a new task if something needs
+              attention.
+            </p>
+
+            {/* Quick Actions */}
+            <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
+              <button
+                onClick={() => setIsCreateModalOpen(true)}
+                className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <PlusIcon className="h-5 w-5 mr-2" />
+                Create New Task
+              </button>
+              <button
+                onClick={() => setFilter("completed")}
+                className="inline-flex items-center px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                View Completed Tasks
+              </button>
+            </div>
+          </div>
+        </StandardCard>
+      ) : tasks.length === 0 ? (
+        // Existing empty state for other filters
         <StandardCard>
           <div className="text-center py-12">
             <CheckSquareIcon className="h-16 w-16 text-gray-300 mx-auto mb-4" />
@@ -530,7 +602,7 @@ export default function TasksPage() {
           </div>
         </StandardCard>
       ) : (
-        // Always show the grid with placeholder cards for "all" and "open" views
+        // Task grid
         <div className="grid gap-6 sm:grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
           {/* Existing tasks */}
           {tasks.map((task) => (

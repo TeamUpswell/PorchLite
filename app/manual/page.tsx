@@ -120,11 +120,11 @@ export default function ManualHomePage() {
 
   const fetchSections = async () => {
     if (!currentProperty?.id) {
-      console.log("❌ No current property, skipping section fetch");
+      console.log("❌ No current property, skipping instruction fetch"); // ✅ CHANGED
       return;
     }
 
-    console.log("🔍 Fetching sections for property:", currentProperty.id);
+    console.log("🔍 Fetching instruction sections for property:", currentProperty.id); // ✅ CHANGED
     setLoading(true);
 
     try {
@@ -144,15 +144,33 @@ export default function ManualHomePage() {
         .order("created_at", { ascending: true });
 
       if (error) {
-        console.error("❌ Error fetching sections:", error);
-        toast.error("Failed to load manual sections");
+        console.error("❌ Error fetching instruction sections:", error); // ✅ CHANGED
+        toast.error("Failed to load instruction sections"); // ✅ CHANGED
       } else {
-        console.log("✅ Fetched sections:", data);
-        setSections(data || []);
+        console.log("✅ Fetched instruction sections:", data); // ✅ CHANGED
+        
+        // ✅ IMPROVED: Sort to put cleaning section first in priority sections
+        const sortedData = data?.sort((a, b) => {
+          // First, group by priority
+          if (a.is_priority !== b.is_priority) {
+            return b.is_priority ? 1 : -1;
+          }
+          
+          // Within priority sections, put cleaning first
+          if (a.is_priority && b.is_priority) {
+            if (a.title === "Cleaning Procedures") return -1;
+            if (b.title === "Cleaning Procedures") return 1;
+          }
+          
+          // For everything else, sort by creation date
+          return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+        });
+        
+        setSections(sortedData || []);
       }
     } catch (error) {
       console.error("❌ Unexpected error in fetchSections:", error);
-      toast.error("Failed to load manual sections");
+      toast.error("Failed to load instruction sections"); // ✅ CHANGED
     } finally {
       setLoading(false);
     }
@@ -177,11 +195,11 @@ export default function ManualHomePage() {
 
   if (loading) {
     return (
-      <StandardPageLayout title="Manual">
+      <StandardPageLayout title="Instructions"> {/* ✅ CHANGED: From "Manual" */}
         <StandardCard>
           <div className="flex items-center justify-center py-8">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            <span className="ml-2">Loading sections...</span>
+            <span className="ml-2">Loading instructions...</span> {/* ✅ CHANGED: From "Loading sections..." */}
           </div>
         </StandardCard>
       </StandardPageLayout>
@@ -211,11 +229,11 @@ export default function ManualHomePage() {
 
   return (
     <StandardPageLayout
-      title="Property Manual"
+      title="Instructions" // ✅ CHANGED: From "Property Manual" to "Instructions"
       headerIcon={<BookOpen className="h-6 w-6 text-blue-600" />}
     >
       <div className="space-y-8">
-        {/* ✅ Property Location Map Section - Smaller size like dashboard banner */}
+        {/* ✅ Property Location Map Section - Keep this */}
         {currentProperty &&
           currentProperty.latitude &&
           currentProperty.longitude && (
@@ -266,15 +284,19 @@ export default function ManualHomePage() {
             </StandardCard>
           )}
 
-        {/* Priority Sections */}
+        {/* ✅ Priority Sections - with cleaning first */}
         {sections.filter((section) => section.is_priority).length > 0 && (
           <div>
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">
-              Priority Sections
-            </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {sections
                 .filter((section) => section.is_priority)
+                .sort((a, b) => {
+                  // ✅ CLEANING SECTION ALWAYS FIRST
+                  if (a.title === "Cleaning Procedures") return -1;
+                  if (b.title === "Cleaning Procedures") return 1;
+                  // Other priority sections sorted by creation date
+                  return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+                })
                 .map((section) => (
                   <PrioritySectionCard
                     key={section.id}
@@ -286,33 +308,35 @@ export default function ManualHomePage() {
           </div>
         )}
 
-        {/* All Sections */}
-        <div>
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">
-            All Sections
-          </h2>
-          {sections.length === 0 ? (
-            <div className="text-center py-12">
-              <BookOpen className="mx-auto h-12 w-12 text-gray-400" />
-              <h3 className="mt-2 text-sm font-medium text-gray-900">
-                No sections yet
-              </h3>
-              <p className="mt-1 text-sm text-gray-500">
-                Get started by creating your first manual section.
-              </p>
-            </div>
-          ) : (
+        {/* ✅ IMPROVED: Regular Sections (non-priority) */}
+        {sections.filter((section) => !section.is_priority).length > 0 && (
+          <div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {sections.map((section) => (
-                <SectionCard key={section.id} section={section} />
-              ))}
+              {sections
+                .filter((section) => !section.is_priority)
+                .map((section) => (
+                  <SectionCard key={section.id} section={section} />
+                ))}
             </div>
-          )}
-        </div>
+          </div>
+        )}
+
+        {/* ✅ IMPROVED: Empty state - only show if NO sections at all */}
+        {sections.length === 0 && (
+          <div className="text-center py-12">
+            <BookOpen className="mx-auto h-12 w-12 text-gray-400" />
+            <h3 className="mt-2 text-sm font-medium text-gray-900">
+              No instruction sections yet {/* ✅ CHANGED: From "No sections yet" */}
+            </h3>
+            <p className="mt-1 text-sm text-gray-500">
+              Get started by creating your first instruction section. {/* ✅ CHANGED: From "manual section" */}
+            </p>
+          </div>
+        )}
       </div>
 
       {/* ✅ KEEP this floating action button */}
-      <CreatePattern href="/manual/sections/new" label="Add Section" />
+      <CreatePattern href="/manual/sections/new" label="Add Instructions" /> {/* ✅ CHANGED: From "Add Section" */}
     </StandardPageLayout>
   );
 }

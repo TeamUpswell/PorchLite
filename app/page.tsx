@@ -219,17 +219,16 @@ export default function HomePage() {
   }, [currentProperty]);
 
   // Fetch inventory alerts
+  const [totalInventoryCount, setTotalInventoryCount] = useState(0);
+
   useEffect(() => {
     const fetchInventoryAlerts = async () => {
       if (!currentProperty?.id) return;
 
       try {
-        console.log(
-          "🔍 Fetching inventory alerts for property:",
-          currentProperty.id
-        );
+        console.log("🔍 Fetching inventory alerts for property:", currentProperty.id);
 
-        // ✅ Get all items first, then filter in JavaScript to avoid SQL issues
+        // ✅ Get all items first
         const { data, error } = await supabase
           .from("inventory")
           .select("*")
@@ -244,20 +243,16 @@ export default function HomePage() {
 
         console.log("📦 Raw inventory data:", data);
 
-        // ✅ Filter and process in JavaScript
-        const alerts =
-          data
-            ?.filter((item) => {
-              // Check if item needs attention (low stock or out of stock)
-              return item.quantity <= item.threshold;
-            })
-            .map((item) => ({
-              ...item,
-              // Determine status based on quantity and existing status field
-              status: item.status || (item.quantity === 0 ? "critical" : "low"),
-            })) || [];
+        // ✅ Set total count
+        setTotalInventoryCount(data?.length || 0);
 
-        console.log("🚨 Filtered alerts:", alerts);
+        // ✅ Use EXACT same logic as inventory page - only explicit status
+        const alerts = data?.filter((item) => {
+          // Only check explicit status - no automatic threshold logic
+          return item.status === "low" || item.status === "out";
+        }) || [];
+
+        console.log("🚨 Filtered alerts (explicit status only):", alerts);
         setInventoryAlerts(alerts);
       } catch (error) {
         console.error("Error fetching inventory:", error);
@@ -638,6 +633,112 @@ export default function HomePage() {
   const openBannerModal = () => {
     setShowBannerModal(true);
     fetchUserBannersOnDemand(); // ✅ Only fetch when needed
+  };
+
+  // Task Overview component
+  const TaskOverview = () => {
+    const [taskStats, setTaskStats] = useState({
+      open: 0,
+      inProgress: 0,
+      overdue: 0,
+      completedToday: 0,
+    });
+
+    // ✅ ADD: Fetch real task data
+    useEffect(() => {
+      const fetchTaskStats = async () => {
+        if (!currentProperty?.id) return;
+
+        try {
+          const today = new Date().toISOString().split('T')[0];
+          
+          const { data: tasks, error } = await supabase
+            .from('tasks')
+            .select('id, status, due_date, completed_at')
+            .eq('property_id', currentProperty.id);
+
+          if (error) throw error;
+
+          const stats = {
+            // ✅ Updated to match your actual status values
+            open: tasks?.filter(t => t.status === 'pending').length || 0,
+            inProgress: tasks?.filter(t => t.status === 'in_progress').length || 0,
+            overdue: tasks?.filter(t => 
+              t.status !== 'completed' && 
+              t.due_date && 
+              new Date(t.due_date) < new Date()
+            ).length || 0,
+            completedToday: tasks?.filter(t => 
+              t.status === 'completed' && 
+              t.completed_at?.startsWith(today)
+            ).length || 0,
+          };
+
+          setTaskStats(stats);
+        } catch (error) {
+          console.error('Error fetching task stats:', error);
+        }
+      };
+
+      fetchTaskStats();
+    }, [currentProperty]);
+
+    return (
+      <div className="bg-white rounded-lg shadow p-6">
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-lg font-semibold text-gray-900">Task Overview</h3>
+          <Link
+            href="/tasks"
+            className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+          >
+            View All →
+          </Link>
+        </div>
+
+        {taskStats.open === 0 && taskStats.inProgress === 0 ? (
+          // All clear state
+          <div className="text-center py-8">
+            <div className="w-16 h-16 bg-green-100 rounded-full mx-auto flex items-center justify-center mb-4">
+              <CheckCircle className="h-8 w-8 text-green-600" />
+            </div>
+            <p className="text-green-700 font-medium mb-1">
+              All Tasks Complete!
+            </p>
+            <p className="text-sm text-gray-500">
+              Your property is in great shape
+            </p>
+          </div>
+        ) : (
+          // Task stats grid
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="text-center p-4 bg-orange-50 rounded-lg">
+              <div className="text-2xl font-bold text-orange-600">
+                {taskStats.open}
+              </div>
+              <div className="text-sm text-orange-700">Open</div>
+            </div>
+            <div className="text-center p-4 bg-blue-50 rounded-lg">
+              <div className="text-2xl font-bold text-blue-600">
+                {taskStats.inProgress}
+              </div>
+              <div className="text-sm text-blue-700">In Progress</div>
+            </div>
+            <div className="text-center p-4 bg-red-50 rounded-lg">
+              <div className="text-2xl font-bold text-red-600">
+                {taskStats.overdue}
+              </div>
+              <div className="text-sm text-red-700">Overdue</div>
+            </div>
+            <div className="text-center p-4 bg-green-50 rounded-lg">
+              <div className="text-2xl font-bold text-green-600">
+                {taskStats.completedToday}
+              </div>
+              <div className="text-sm text-green-700">Done Today</div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
   };
 
   // Loading state
@@ -1074,6 +1175,9 @@ export default function HomePage() {
                 )}
               </section>
 
+              {/* ✅ ADD: Task Overview */}
+              <TaskOverview />
+
               {/* Quick Actions */}
               <section className="bg-white rounded-lg shadow p-6">
                 <h2 className="text-xl font-semibold mb-4 text-gray-900">
@@ -1145,14 +1249,9 @@ export default function HomePage() {
                 <div className="grid grid-cols-3 gap-4 mb-6">
                   <div className="text-center p-4 bg-green-50 rounded-lg border border-green-200">
                     <div className="text-2xl font-bold text-green-700">
-                      {/* ✅ Count items that are well stocked */}
-                      {
-                        inventoryAlerts.filter(
-                          (item) =>
-                            item.quantity > item.threshold ||
-                            item.status === "good"
-                        ).length
-                      }
+                      {/* ✅ Calculate well stocked using same logic as inventory page */}
+                      {/* This should be a separate query or calculated differently */}
+                      {totalInventoryCount - inventoryAlerts.length}
                     </div>
                     <div className="text-xs font-medium text-green-600">
                       Well Stocked
@@ -1161,12 +1260,9 @@ export default function HomePage() {
 
                   <div className="text-center p-4 bg-yellow-50 rounded-lg border border-yellow-200">
                     <div className="text-2xl font-bold text-yellow-700">
-                      {/* ✅ Count items that are low but not out */}
+                      {/* ✅ Only explicit "low" status */}
                       {
-                        inventoryAlerts.filter(
-                          (item) =>
-                            item.quantity > 0 && item.quantity <= item.threshold
-                        ).length
+                        inventoryAlerts.filter((item) => item.status === "low").length
                       }
                     </div>
                     <div className="text-xs font-medium text-yellow-600">
@@ -1176,10 +1272,9 @@ export default function HomePage() {
 
                   <div className="text-center p-4 bg-red-50 rounded-lg border border-red-200">
                     <div className="text-2xl font-bold text-red-700">
-                      {/* ✅ Count items that are completely out */}
+                      {/* ✅ Only explicit "out" status */}
                       {
-                        inventoryAlerts.filter((item) => item.quantity === 0)
-                          .length
+                        inventoryAlerts.filter((item) => item.status === "out").length
                       }
                     </div>
                     <div className="text-xs font-medium text-red-600">

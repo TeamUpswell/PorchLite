@@ -14,6 +14,7 @@ import {
   Lock,
   Globe,
   LogOut,
+  Home, // Add this
 } from "lucide-react";
 import StandardPageLayout from "@/components/layout/StandardPageLayout";
 import StandardCard from "@/components/ui/StandardCard";
@@ -21,7 +22,6 @@ import PropertySelector from "@/components/PropertySelector";
 import { useAuth } from "@/components/AuthProvider";
 import { useProperty } from "@/lib/hooks/useProperty";
 import { supabase } from "@/lib/supabase";
-import DatabaseDiagnostics from "@/components/admin/DatabaseDiagnostics";
 
 interface UserProfile {
   id: string;
@@ -215,32 +215,6 @@ export default function AccountPage() {
         )}
       </StandardCard>
 
-      {/* Current Tenant Info */}
-      {currentTenant && (
-        <StandardCard
-          title="Current Tenant"
-          subtitle="Your active tenant organization"
-          className="mb-6"
-        >
-          <div className="bg-green-50 rounded-lg p-4">
-            <div className="flex items-center">
-              <div className="p-2 bg-green-100 rounded-lg mr-3">
-                <Shield className="h-5 w-5 text-green-600" />
-              </div>
-              <div>
-                <h4 className="font-medium text-green-900">
-                  {currentTenant.name || "Unnamed Tenant"}
-                </h4>
-                <p className="text-sm text-green-700">
-                  {userTenants.length} tenant
-                  {userTenants.length !== 1 ? "s" : ""} total
-                </p>
-              </div>
-            </div>
-          </div>
-        </StandardCard>
-      )}
-
       {/* Property Selection */}
       <StandardCard
         title="Active Property"
@@ -420,8 +394,28 @@ export default function AccountPage() {
         </div>
       </StandardCard>
 
-      {/* Database Diagnostics */}
-      <DatabaseDiagnostics showAdvanced={true} showSeeding={true} />
+      {/* Your Property Group */}
+      <StandardCard
+        title="Home Account"
+        subtitle="Your vacation home management account"
+        className="mb-6"
+      >
+        <div className="bg-green-50 rounded-lg p-4">
+          <div className="flex items-center">
+            <div className="p-2 bg-green-100 rounded-lg mr-3">
+              <Home className="h-5 w-5 text-green-600" />
+            </div>
+            <div>
+              <h4 className="font-medium text-green-900">
+                {currentTenant.name || "The Smith Family"}
+              </h4>
+              <p className="text-sm text-green-700">
+                Family vacation home account
+              </p>
+            </div>
+          </div>
+        </div>
+      </StandardCard>
     </StandardPageLayout>
   );
 }

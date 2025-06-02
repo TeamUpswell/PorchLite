@@ -24,6 +24,7 @@ import {
   Activity,
   AlertTriangle,
   CheckSquare as CheckSquareIcon, // Add this import for Tasks icon
+  LogOut, // Add this for sign out button
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import Image from "next/image";
@@ -61,55 +62,41 @@ interface SideNavigationProps {
   user?: User | null;
 }
 
+// ✅ UPDATE: Navigation structure - removed Admin section
 const navigationStructure: NavigationSection[] = [
   {
     category: "General",
     items: [
       { name: "Dashboard", href: "/", icon: HomeIcon },
       { name: "Calendar", href: "/calendar", icon: CalendarIcon },
-      { name: "House Manual", href: "/manual", icon: BookOpenIcon },
+      { name: "Instructions", href: "/manual", icon: BookOpenIcon },
       { name: "Tasks", href: "/tasks", icon: CheckSquareIcon }, // Add Tasks here
       { name: "Nearby Places", href: "/recommendations", icon: StarIcon },
       { name: "Inventory", href: "/inventory", icon: PackageIcon },
       { name: "Contacts", href: "/contacts", icon: PhoneIcon },
     ],
   },
-  {
-    category: "Admin",
-    items: [
-      {
-        name: "Property Settings",
-        href: "/admin/property",
-        icon: CogIcon,
-        requiredRole: "manager",
-      },
-      {
-        name: "Users",
-        href: "/admin/users",
-        icon: UserGroupIcon,
-        requiredRole: "owner",
-      },
-      {
-        name: "Account Settings",
-        href: "/account", // Updated to match your account page
-        icon: CogIcon,
-        requiredRole: "owner",
-      },
-      {
-        name: "System Dashboard",
-        href: "/admin/system-dashboard",
-        icon: Activity,
-        permissions: ["admin"],
-      },
-      {
-        name: "Diagnostics",
-        href: "/admin/diagnostics",
-        icon: AlertTriangle,
-        permissions: ["admin"],
-      },
-    ],
-  },
 ];
+
+// ✅ UPDATE: Move account items to a section structure
+const accountSection: NavigationSection = {
+  category: "Account",
+  items: [
+    { name: "Profile", href: "/account/profile", icon: UserIcon },
+    {
+      name: "Property Settings",
+      href: "/account/properties",
+      icon: CogIcon,
+      requiredRole: "manager",
+    },
+    {
+      name: "User Management",
+      href: "/account/users",
+      icon: UserGroupIcon,
+      requiredRole: "manager",
+    },
+  ],
+};
 
 export default function SideNavigation({
   user: propUser,
@@ -117,11 +104,12 @@ export default function SideNavigation({
   const pathname = usePathname();
   const { user: authUser } = useAuth();
   const { theme } = useTheme();
+  // ✅ UPDATE: Add Account to expanded categories state
   const [expandedCategories, setExpandedCategories] = useState<
     Record<string, boolean>
   >({
     General: true,
-    Admin: false,
+    Account: false, // Account starts collapsed
   });
 
   // Use either the passed user or the auth user
@@ -286,7 +274,7 @@ export default function SideNavigation({
           </div>
         </div>
 
-        {/* Main Navigation - Add click handler to close mobile menu */}
+        {/* ✅ UPDATE: Main Navigation - now includes account section */}
         <div className="flex-1 px-3 py-4 space-y-6 overflow-y-auto">
           {navigationStructure.map((section) => {
             const isExpanded = expandedCategories[section.category] ?? true;
@@ -312,10 +300,7 @@ export default function SideNavigation({
                 {isExpanded && (
                   <div className="space-y-1 pl-1">
                     {section.items.map((item) => {
-                      if (
-                        item.requiredRole &&
-                        !hasPermission(item.requiredRole)
-                      ) {
+                      if (item.requiredRole && !hasPermission(item.requiredRole)) {
                         return null;
                       }
 
@@ -333,14 +318,11 @@ export default function SideNavigation({
                           }`}
                         >
                           <IconComponent
-                            className={`
-                              mr-3 flex-shrink-0 h-5 w-5
-                              ${
-                                isActive(item.href)
-                                  ? "text-gray-500"
-                                  : "text-gray-400 group-hover:text-gray-500"
-                              }
-                            `}
+                            className={`mr-3 flex-shrink-0 h-5 w-5 ${
+                              isActive(item.href)
+                                ? "text-gray-500"
+                                : "text-gray-400 group-hover:text-gray-500"
+                            }`}
                           />
                           {item.name}
                         </Link>
@@ -351,6 +333,85 @@ export default function SideNavigation({
               </div>
             );
           })}
+        </div>
+
+        {/* ✅ UPDATE: Account Section at Bottom - now expandable */}
+        <div
+          className={`border-t ${
+            isDarkMode ? "border-gray-800" : "border-gray-200"
+          } px-3 py-4`}
+        >
+          <div className="space-y-1.5">
+            {/* Account Header - now clickable to expand */}
+            <button
+              onClick={() => toggleCategory("Account")}
+              className={`w-full flex items-center justify-between text-left text-sm font-medium px-4 py-2 ${
+                isDarkMode
+                  ? "text-gray-300 hover:text-white"
+                  : "text-gray-600 hover:text-gray-900"
+              } mb-1 transition-colors duration-200`}
+            >
+              <span>Account</span>
+              <ChevronRight
+                className={`h-4 w-4 transition-transform ${
+                  expandedCategories.Account ? "rotate-90" : ""
+                }`}
+              />
+            </button>
+
+            {/* Account Navigation Items - only show when expanded */}
+            {expandedCategories.Account && (
+              <div className="space-y-1 pl-1">
+                {accountSection.items.map((item) => {
+                  // Check permissions
+                  if (item.requiredRole && !hasPermission(item.requiredRole)) {
+                    return null;
+                  }
+
+                  const IconComponent = item.icon || DocumentTextIcon;
+
+                  return (
+                    <Link
+                      key={item.name}
+                      href={item.href}
+                      onClick={() => isMobile && setIsMobileMenuOpen(false)}
+                      className={`flex items-center px-4 py-2 text-sm rounded-md ${
+                        isActive(item.href)
+                          ? "bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
+                          : "text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"
+                      }`}
+                    >
+                      <IconComponent
+                        className={`mr-3 flex-shrink-0 h-5 w-5 ${
+                          isActive(item.href)
+                            ? "text-gray-500"
+                            : "text-gray-400 group-hover:text-gray-500"
+                        }`}
+                      />
+                      {item.name}
+                    </Link>
+                  );
+                })}
+
+                {/* ✅ Sign Out Button - inside the expanded section */}
+                <button
+                  onClick={() => {
+                    // Add your sign out logic here
+                    console.log("Sign out clicked");
+                    if (isMobile) setIsMobileMenuOpen(false);
+                  }}
+                  className={`w-full flex items-center px-4 py-2 text-sm rounded-md ${
+                    isDarkMode
+                      ? "text-gray-200 hover:bg-gray-800"
+                      : "text-gray-700 hover:bg-gray-100"
+                  }`}
+                >
+                  <LogOut className="mr-3 flex-shrink-0 h-5 w-5 text-gray-400" />
+                  Sign Out
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </>
