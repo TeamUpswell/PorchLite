@@ -23,8 +23,9 @@ import {
   X,
   Activity,
   AlertTriangle,
-  CheckSquare as CheckSquareIcon, // Add this import for Tasks icon
-  LogOut, // Add this for sign out button
+  CheckSquare as CheckSquareIcon,
+  LogOut,
+  Building2 as HouseIcon, // Add this import for The House icon
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import Image from "next/image";
@@ -62,15 +63,16 @@ interface SideNavigationProps {
   user?: User | null;
 }
 
-// ✅ UPDATE: Navigation structure - removed Admin section
+// ✅ UPDATE: Navigation structure - add The House section
 const navigationStructure: NavigationSection[] = [
   {
     category: "General",
     items: [
       { name: "Dashboard", href: "/", icon: HomeIcon },
       { name: "Calendar", href: "/calendar", icon: CalendarIcon },
+      { name: "The House", href: "/house", icon: HouseIcon }, // Add The House here
       { name: "Instructions", href: "/manual", icon: BookOpenIcon },
-      { name: "Tasks", href: "/tasks", icon: CheckSquareIcon }, // Add Tasks here
+      { name: "Tasks", href: "/tasks", icon: CheckSquareIcon },
       { name: "Nearby Places", href: "/recommendations", icon: StarIcon },
       { name: "Inventory", href: "/inventory", icon: PackageIcon },
       { name: "Contacts", href: "/contacts", icon: PhoneIcon },
