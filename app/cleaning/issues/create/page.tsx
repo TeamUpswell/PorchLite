@@ -10,12 +10,6 @@ import { supabase } from "@/lib/supabase";
 import { useProperty } from "@/lib/hooks/useProperty";
 import { ArrowLeft, Upload, X } from "lucide-react";
 import { toast } from "react-hot-toast";
-import { Metadata } from "next";
-
-export const metadata: Metadata = {
-  title: "Report Cleaning Issue - PorchLite",
-  description: "Report a cleaning issue for your property",
-};
 
 const SEVERITY_LEVELS = [
   { id: "Low", label: "Low", color: "bg-blue-100 text-blue-800" },

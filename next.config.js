@@ -3,17 +3,17 @@ const nextConfig = {
   images: {
     remotePatterns: [
       {
-        protocol: 'https',
-        hostname: 'localhost',
+        protocol: "https",
+        hostname: "localhost",
       },
       {
-        protocol: 'https',
-        hostname: 'hkrgfqpshdoroimlulzw.supabase.co', // Your actual Supabase hostname
+        protocol: "https",
+        hostname: "hkrgfqpshdoroimlulzw.supabase.co", // Your actual Supabase hostname
       },
       {
-        protocol: 'https',
-        hostname: '*.supabase.co', // Wildcard for any Supabase domain
-        pathname: '/storage/v1/object/public/**',
+        protocol: "https",
+        hostname: "*.supabase.co", // Wildcard for any Supabase domain
+        pathname: "/storage/v1/object/public/**",
       },
     ],
   },
@@ -25,7 +25,7 @@ const nextConfig = {
     // Ignore TypeScript errors during build
     ignoreBuildErrors: true,
   },
-  
+
   // Optimize webpack for build
   webpack: (config, { isServer }) => {
     // Reduce complexity for the micromatch issue
@@ -36,25 +36,24 @@ const nextConfig = {
         path: false,
       };
     }
-    
+
     // Optimize build performance
     config.optimization = {
       ...config.optimization,
-      moduleIds: 'deterministic',
+      moduleIds: "deterministic",
     };
-    
+
     return config;
   },
   // Reduce build complexity
   experimental: {
     optimizeCss: false,
     optimizePackageImports: [],
-    appDir: true,
   },
   env: {
-    APP_NAME: 'PorchLite',
-    APP_DESCRIPTION: 'Property Management Platform',
+    APP_NAME: "PorchLite",
+    APP_DESCRIPTION: "Property Management Platform",
   },
-}
+};
 
-module.exports = nextConfig
+module.exports = nextConfig;

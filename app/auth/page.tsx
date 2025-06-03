@@ -3,12 +3,6 @@
 import { useState, FormEvent } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { useRouter } from "next/navigation";
-import { Metadata } from "next";
-
-export const metadata: Metadata = {
-  title: "Reset Password - PorchLite",
-  description: "Reset your PorchLite password",
-};
 
 export default function ResetPasswordPage() {
   const { user, signIn, signUp } = useAuth();

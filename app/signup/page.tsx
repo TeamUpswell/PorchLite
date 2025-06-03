@@ -3,12 +3,6 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { Metadata } from "next";
-
-export const metadata: Metadata = {
-  title: "Report Cleaning Issue - PorchLite",
-  description: "Create your PorchLite account",
-};
 
 export default function CreateCleaningIssuePage() {
   const router = useRouter();

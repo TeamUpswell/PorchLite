@@ -5,12 +5,6 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/components/AuthProvider";
-import { Metadata } from "next";
-
-export const metadata: Metadata = {
-  title: "Login - PorchLite",
-  description: "Login to your PorchLite account",
-};
 
 export default function LoginPage() {
   const router = useRouter();
