@@ -6,23 +6,18 @@ const nextConfig = {
         protocol: "https",
         hostname: "localhost",
       },
+      // Simplify by using just one wildcard pattern for all Supabase URLs
       {
         protocol: "https",
-        hostname: "hkrgfqpshdoroimlulzw.supabase.co", // Your actual Supabase hostname
-      },
-      {
-        protocol: "https",
-        hostname: "*.supabase.co", // Wildcard for any Supabase domain
-        pathname: "/storage/v1/object/public/**",
+        hostname: "*.supabase.co",
       },
     ],
   },
+
   eslint: {
-    // Ignore ESLint errors during build
     ignoreDuringBuilds: true,
   },
   typescript: {
-    // Ignore TypeScript errors during build
     ignoreBuildErrors: true,
   },
 
@@ -45,11 +40,15 @@ const nextConfig = {
 
     return config;
   },
+
   // Reduce build complexity
   experimental: {
     optimizeCss: false,
     optimizePackageImports: [],
+    // Add this to help with the micromatch issue
+    largePageDataBytes: 128 * 1000, // Increase from default
   },
+
   env: {
     APP_NAME: "PorchLite",
     APP_DESCRIPTION: "Property Management Platform",
