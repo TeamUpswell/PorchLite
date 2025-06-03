@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { XMarkIcon } from "@heroicons/react/24/outline";
 import styles from "/components/features/tasks/TaskForm.module.css"; // Updated import path
+import PhotoUpload from "/components/PhotoUpload"; // Adjust the import path as necessary
 
 // Update the interface to allow null values for description
 interface TaskData {
@@ -11,6 +12,7 @@ interface TaskData {
   status: string;
   priority: string;
   due_date: string | null;
+  attachments?: string[]; // Added for photo attachments
 }
 
 interface TaskFormProps {
@@ -26,6 +28,7 @@ export default function TaskForm({ task, onSave, onCancel }: TaskFormProps) {
     status: "todo",
     priority: "medium",
     due_date: null,
+    attachments: [], // Initialize as empty array
   });
 
   useEffect(() => {
@@ -38,6 +41,7 @@ export default function TaskForm({ task, onSave, onCancel }: TaskFormProps) {
         due_date: task.due_date
           ? new Date(task.due_date).toISOString().split("T")[0]
           : null,
+        attachments: task.attachments || [], // Ensure attachments are set
       });
     }
   }, [task]);
@@ -85,10 +89,7 @@ export default function TaskForm({ task, onSave, onCancel }: TaskFormProps) {
         <form onSubmit={handleSubmit} className={styles.form}>
           {/* Title */}
           <div className={styles.formGroup}>
-            <label
-              htmlFor="title"
-              className={styles.label}
-            >
+            <label htmlFor="title" className={styles.label}>
               Title *
             </label>
             <input
@@ -104,10 +105,7 @@ export default function TaskForm({ task, onSave, onCancel }: TaskFormProps) {
 
           {/* Description */}
           <div className={styles.formGroup}>
-            <label
-              htmlFor="description"
-              className={styles.label}
-            >
+            <label htmlFor="description" className={styles.label}>
               Description
             </label>
             <textarea
@@ -122,10 +120,7 @@ export default function TaskForm({ task, onSave, onCancel }: TaskFormProps) {
 
           {/* Status */}
           <div className={styles.formGroup}>
-            <label
-              htmlFor="status"
-              className={styles.label}
-            >
+            <label htmlFor="status" className={styles.label}>
               Status
             </label>
             <select
@@ -143,10 +138,7 @@ export default function TaskForm({ task, onSave, onCancel }: TaskFormProps) {
 
           {/* Due Date */}
           <div className={styles.formGroup}>
-            <label
-              htmlFor="due_date"
-              className={styles.label}
-            >
+            <label htmlFor="due_date" className={styles.label}>
               Due Date
             </label>
             <input
@@ -161,10 +153,7 @@ export default function TaskForm({ task, onSave, onCancel }: TaskFormProps) {
 
           {/* Priority */}
           <div className={styles.formGroup}>
-            <label
-              htmlFor="priority"
-              className={styles.label}
-            >
+            <label htmlFor="priority" className={styles.label}>
               Priority
             </label>
             <select
@@ -180,6 +169,24 @@ export default function TaskForm({ task, onSave, onCancel }: TaskFormProps) {
             </select>
           </div>
 
+          {/* Photo Upload */}
+          <div className={styles.formGroup}>
+            <label htmlFor="attachments" className={styles.label}>
+              Task Photos
+            </label>
+            <PhotoUpload
+              photos={formData.attachments || []}
+              onPhotosChange={(urls) =>
+                setFormData((prev) => ({ ...prev, attachments: urls }))
+              }
+              storageBucket="task-photos"
+              maxPhotos={3}
+              maxSizeMB={10}
+              label="Task Photos"
+              gridCols="2"
+            />
+          </div>
+
           {/* Form Actions */}
           <div className={styles.actionBar}>
             <button
@@ -189,10 +196,7 @@ export default function TaskForm({ task, onSave, onCancel }: TaskFormProps) {
             >
               Cancel
             </button>
-            <button
-              type="submit"
-              className={styles.submitButton}
-            >
+            <button type="submit" className={styles.submitButton}>
               {task ? "Update Task" : "Add Task"}
             </button>
           </div>

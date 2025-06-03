@@ -1,13 +1,16 @@
-// components/InventoryHeader.tsx
+// components/inventory/InventoryHeader.tsx
 import { PlusIcon } from "@heroicons/react/24/outline";
-import { InventoryItem } from "./inventory/types";
+import { InventoryItem } from "./types";
 
 interface InventoryHeaderProps {
   items: InventoryItem[];
   setIsAddingItem: (isAdding: boolean) => void;
 }
 
-export default function InventoryHeader({ items, setIsAddingItem }: InventoryHeaderProps) {
+export default function InventoryHeader({
+  items,
+  setIsAddingItem,
+}: InventoryHeaderProps) {
   // Calculate statistics
   const totalItems = items.length;
   const lowStockItems = items.filter(
@@ -21,7 +24,9 @@ export default function InventoryHeader({ items, setIsAddingItem }: InventoryHea
       {/* Page Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Inventory Management</h1>
+          <h1 className="text-2xl font-bold text-gray-900">
+            Inventory Management
+          </h1>
           <p className="text-gray-600 mt-1">
             Track supplies, set alerts, and manage stock levels
           </p>
@@ -80,7 +85,9 @@ export default function InventoryHeader({ items, setIsAddingItem }: InventoryHea
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Low Stock</p>
-              <p className="text-2xl font-bold text-gray-900">{lowStockItems}</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {lowStockItems}
+              </p>
             </div>
           </div>
         </div>
@@ -104,7 +111,9 @@ export default function InventoryHeader({ items, setIsAddingItem }: InventoryHea
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Out of Stock</p>
-              <p className="text-2xl font-bold text-gray-900">{outOfStockItems}</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {outOfStockItems}
+              </p>
             </div>
           </div>
         </div>

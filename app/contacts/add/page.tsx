@@ -2,7 +2,7 @@
 
 import { useState, FormEvent, ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/components/AuthProvider";
+import { useAuth } from "@/components/auth";
 import { supabase } from "@/lib/supabase";
 import SideNavigation from "@/components/SideNavigation";
 import { ArrowLeft, Save } from "lucide-react";
@@ -24,7 +24,9 @@ export default function AddContactPage() {
     priority: 0,
   });
 
-  const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+  const handleChange = (
+    e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
+  ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
@@ -62,7 +64,8 @@ export default function AddContactPage() {
       router.refresh();
     } catch (error: unknown) {
       console.error("Error adding contact:", error);
-      const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
+      const errorMessage =
+        error instanceof Error ? error.message : "An unknown error occurred";
       setError(errorMessage);
     } finally {
       setLoading(false);

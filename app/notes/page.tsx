@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import ProtectedPageWrapper from "@/components/layout/ProtectedPageWrapper";
 import { supabase } from "@/lib/supabase";
-import { useAuth } from "@/components/AuthProvider"; // Updated import statement
+import { useAuth } from "@/components/auth"; // Updated import statement
 import { PlusIcon, DocumentTextIcon } from "@heroicons/react/24/outline";
 
 // Add this hook to any component with loading states

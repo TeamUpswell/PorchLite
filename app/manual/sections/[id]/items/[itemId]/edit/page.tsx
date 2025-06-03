@@ -2,11 +2,18 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { ArrowLeft, Save, Upload, Camera, X, Image as ImageIcon } from "lucide-react";
+import {
+  ArrowLeft,
+  Save,
+  Upload,
+  Camera,
+  X,
+  Image as ImageIcon,
+} from "lucide-react";
 import Link from "next/link";
 import StandardPageLayout from "@/components/layout/StandardPageLayout";
 import StandardCard from "@/components/ui/StandardCard";
-import { useAuth } from "@/components/AuthProvider";
+import { useAuth } from "@/components/auth";
 import { supabase } from "@/lib/supabase";
 import { v4 as uuidv4 } from "uuid";
 import { toast } from "react-hot-toast";
@@ -167,7 +174,7 @@ export default function EditItemPage() {
   // Photo removal handler
   const removePhoto = async (photoUrl: string) => {
     try {
-      const newPhotos = photos.filter(url => url !== photoUrl);
+      const newPhotos = photos.filter((url) => url !== photoUrl);
       setPhotos(newPhotos);
 
       // Update database immediately
@@ -179,8 +186,8 @@ export default function EditItemPage() {
       if (error) throw error;
 
       // Optionally delete from storage
-      const fileName = photoUrl.split('/').pop();
-      if (fileName && fileName.includes('manual-items')) {
+      const fileName = photoUrl.split("/").pop();
+      if (fileName && fileName.includes("manual-items")) {
         await supabase.storage
           .from("property-images")
           .remove([`manual-items/${itemId}/${fileName}`]);
@@ -265,9 +272,15 @@ export default function EditItemPage() {
       title="Edit Item"
       breadcrumb={[
         { label: "Manual", href: "/manual" },
-        { label: section?.title || "Loading...", href: `/manual/sections/${sectionId}` },
-        { label: item?.title || "Loading...", href: `/manual/sections/${sectionId}/items/${itemId}` },
-        { label: "Edit" }
+        {
+          label: section?.title || "Loading...",
+          href: `/manual/sections/${sectionId}`,
+        },
+        {
+          label: item?.title || "Loading...",
+          href: `/manual/sections/${sectionId}/items/${itemId}`,
+        },
+        { label: "Edit" },
       ]}
     >
       <StandardCard>
@@ -297,7 +310,9 @@ export default function EditItemPage() {
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm"
                 placeholder="Enter item content..."
               />
-              <p className="text-sm text-gray-500 mt-1">Line breaks will be preserved in the display</p>
+              <p className="text-sm text-gray-500 mt-1">
+                Line breaks will be preserved in the display
+              </p>
             </div>
 
             {/* Photo Upload Section */}
@@ -305,7 +320,7 @@ export default function EditItemPage() {
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Photos
               </label>
-              
+
               {/* Upload Buttons */}
               <div className="flex flex-wrap gap-2 mb-4">
                 <label className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 cursor-pointer transition-colors">
@@ -377,7 +392,9 @@ export default function EditItemPage() {
                 <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
                   <ImageIcon className="h-12 w-12 text-gray-400 mx-auto mb-2" />
                   <p className="text-gray-500">No photos added yet</p>
-                  <p className="text-sm text-gray-400 mt-1">Upload photos or take new ones to document this item</p>
+                  <p className="text-sm text-gray-400 mt-1">
+                    Upload photos or take new ones to document this item
+                  </p>
                 </div>
               )}
             </div>

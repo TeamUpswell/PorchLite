@@ -2,40 +2,47 @@
 
 import { useState, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
-import { CheckCircle, XCircle, AlertTriangle, Database, User, Shield } from "lucide-react";
-import AuthenticatedLayout from "@/components/AuthenticatedLayout";
+import {
+  CheckCircle,
+  XCircle,
+  AlertTriangle,
+  Database,
+  User,
+  Shield,
+} from "lucide-react";
+import AuthenticatedLayout from "@/components/auth/AuthenticatedLayout";
 
 export default function DiagnoseDatabase() {
   const [dbInfo, setDbInfo] = useState<any>({});
   const [loading, setLoading] = useState(true);
-  
+
   useEffect(() => {
     async function checkDatabase() {
       try {
         const adminSupabase = createClient(
-          process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-          process.env.SUPABASE_SERVICE_ROLE_KEY || ''
+          process.env.NEXT_PUBLIC_SUPABASE_URL || "",
+          process.env.SUPABASE_SERVICE_ROLE_KEY || ""
         );
-        
+
         // Check for duplicate email constraint issues
         const { data: profileData, error: profileError } = await adminSupabase
-          .from('profiles')
-          .select('id, email')
-          .eq('email', 'drew@pdxbernards.com');
-          
+          .from("profiles")
+          .select("id, email")
+          .eq("email", "drew@pdxbernards.com");
+
         // Check user_roles table
         const { data: roleData, error: roleError } = await adminSupabase
-          .from('user_roles')
-          .select('user_id, role');
-        
+          .from("user_roles")
+          .select("user_id, role");
+
         // Get schema info
-        const { data: schemaData, error: schemaError } = await adminSupabase
-          .rpc('get_schema_info');
-        
+        const { data: schemaData, error: schemaError } =
+          await adminSupabase.rpc("get_schema_info");
+
         setDbInfo({
           profileCheck: { data: profileData, error: profileError },
           roleCheck: { data: roleData, error: roleError },
-          schemaInfo: { data: schemaData, error: schemaError }
+          schemaInfo: { data: schemaData, error: schemaError },
         });
       } catch (err) {
         setDbInfo({ error: err });
@@ -43,16 +50,16 @@ export default function DiagnoseDatabase() {
         setLoading(false);
       }
     }
-    
+
     checkDatabase();
   }, []);
 
-  const DiagnosticSection = ({ 
-    title, 
-    icon, 
-    data, 
-    error 
-  }: { 
+  const DiagnosticSection = ({
+    title,
+    icon,
+    data,
+    error,
+  }: {
     title: string;
     icon: React.ReactNode;
     data: any;
@@ -60,9 +67,11 @@ export default function DiagnoseDatabase() {
   }) => (
     <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
       <div className="flex items-center mb-4">
-        <div className={`p-2 rounded-lg mr-3 ${
-          error ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'
-        }`}>
+        <div
+          className={`p-2 rounded-lg mr-3 ${
+            error ? "bg-red-100 text-red-600" : "bg-green-100 text-green-600"
+          }`}
+        >
           {icon}
         </div>
         <div>
@@ -71,7 +80,9 @@ export default function DiagnoseDatabase() {
             {error ? (
               <>
                 <XCircle className="h-4 w-4 text-red-600 mr-1" />
-                <span className="text-sm text-red-700 font-medium">Error Detected</span>
+                <span className="text-sm text-red-700 font-medium">
+                  Error Detected
+                </span>
               </>
             ) : (
               <>
@@ -86,7 +97,9 @@ export default function DiagnoseDatabase() {
       {error && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
           <h4 className="font-semibold text-red-800 mb-2">Error Details:</h4>
-          <p className="text-red-700 text-sm">{error.message || JSON.stringify(error)}</p>
+          <p className="text-red-700 text-sm">
+            {error.message || JSON.stringify(error)}
+          </p>
         </div>
       )}
 
@@ -98,7 +111,7 @@ export default function DiagnoseDatabase() {
       </div>
     </div>
   );
-  
+
   return (
     <AuthenticatedLayout>
       <div className="p-6 max-w-6xl mx-auto">
@@ -107,14 +120,17 @@ export default function DiagnoseDatabase() {
             Authentication & Database Diagnosis
           </h1>
           <p className="text-gray-700">
-            Comprehensive analysis of authentication and database connectivity issues.
+            Comprehensive analysis of authentication and database connectivity
+            issues.
           </p>
         </div>
-        
+
         {loading ? (
           <div className="flex items-center justify-center py-12">
             <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500 mr-3"></div>
-            <span className="text-gray-700 font-medium">Loading database information...</span>
+            <span className="text-gray-700 font-medium">
+              Loading database information...
+            </span>
           </div>
         ) : (
           <div className="space-y-6">
@@ -125,14 +141,14 @@ export default function DiagnoseDatabase() {
               data={dbInfo.profileCheck?.data}
               error={dbInfo.profileCheck?.error}
             />
-            
+
             <DiagnosticSection
               title="User Roles Check"
               icon={<Shield className="h-5 w-5" />}
               data={dbInfo.roleCheck?.data}
               error={dbInfo.roleCheck?.error}
             />
-            
+
             <DiagnosticSection
               title="Database Schema Info"
               icon={<Database className="h-5 w-5" />}
@@ -148,27 +164,49 @@ export default function DiagnoseDatabase() {
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="bg-white p-4 rounded border">
-                  <h4 className="font-semibold text-gray-900">Profile Status</h4>
-                  <p className={`text-sm ${
-                    dbInfo.profileCheck?.error ? 'text-red-700' : 'text-green-700'
-                  } font-medium`}>
-                    {dbInfo.profileCheck?.error ? 'Issues Found' : 'Working Correctly'}
+                  <h4 className="font-semibold text-gray-900">
+                    Profile Status
+                  </h4>
+                  <p
+                    className={`text-sm ${
+                      dbInfo.profileCheck?.error
+                        ? "text-red-700"
+                        : "text-green-700"
+                    } font-medium`}
+                  >
+                    {dbInfo.profileCheck?.error
+                      ? "Issues Found"
+                      : "Working Correctly"}
                   </p>
                 </div>
                 <div className="bg-white p-4 rounded border">
                   <h4 className="font-semibold text-gray-900">Role System</h4>
-                  <p className={`text-sm ${
-                    dbInfo.roleCheck?.error ? 'text-red-700' : 'text-green-700'
-                  } font-medium`}>
-                    {dbInfo.roleCheck?.error ? 'Issues Found' : 'Working Correctly'}
+                  <p
+                    className={`text-sm ${
+                      dbInfo.roleCheck?.error
+                        ? "text-red-700"
+                        : "text-green-700"
+                    } font-medium`}
+                  >
+                    {dbInfo.roleCheck?.error
+                      ? "Issues Found"
+                      : "Working Correctly"}
                   </p>
                 </div>
                 <div className="bg-white p-4 rounded border">
-                  <h4 className="font-semibold text-gray-900">Database Schema</h4>
-                  <p className={`text-sm ${
-                    dbInfo.schemaInfo?.error ? 'text-red-700' : 'text-green-700'
-                  } font-medium`}>
-                    {dbInfo.schemaInfo?.error ? 'Issues Found' : 'Working Correctly'}
+                  <h4 className="font-semibold text-gray-900">
+                    Database Schema
+                  </h4>
+                  <p
+                    className={`text-sm ${
+                      dbInfo.schemaInfo?.error
+                        ? "text-red-700"
+                        : "text-green-700"
+                    } font-medium`}
+                  >
+                    {dbInfo.schemaInfo?.error
+                      ? "Issues Found"
+                      : "Working Correctly"}
                   </p>
                 </div>
               </div>

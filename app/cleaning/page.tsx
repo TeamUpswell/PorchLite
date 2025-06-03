@@ -7,7 +7,7 @@ import { ClipboardCheck, Plus, Wrench, Package } from "lucide-react";
 import Link from "next/link";
 import StandardPageLayout from "@/components/layout/StandardPageLayout";
 import StandardCard from "@/components/ui/StandardCard";
-import { useAuth } from "@/components/AuthProvider";
+import { useAuth } from "@/components/auth";
 import { useProperty } from "@/lib/hooks/useProperty";
 import { supabase } from "@/lib/supabase";
 import RoomCard from "./components/RoomCard";
@@ -60,20 +60,20 @@ export default function CleaningPage() {
       name: "Room Checklist",
       href: "/cleaning/checklist",
       icon: ClipboardCheck,
-      description: "View cleaning checklists"
+      description: "View cleaning checklists",
     },
     {
       name: "Manage Tasks",
       href: "/cleaning/tasks",
       icon: Wrench,
-      description: "Manage cleaning tasks"
+      description: "Manage cleaning tasks",
     },
     {
       name: "Inventory",
       href: "/cleaning/inventory",
       icon: Package,
-      description: "Check cleaning supplies"
-    }
+      description: "Check cleaning supplies",
+    },
   ];
 
   return (
@@ -105,9 +105,7 @@ export default function CleaningPage() {
                   <h3 className="font-semibold text-gray-900 mb-1">
                     {action.name}
                   </h3>
-                  <p className="text-sm text-gray-600">
-                    {action.description}
-                  </p>
+                  <p className="text-sm text-gray-600">{action.description}</p>
                 </div>
               </Link>
             </StandardCard>
@@ -128,7 +126,10 @@ export default function CleaningPage() {
         ) : rooms.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {rooms.map((room) => (
-              <div key={room.id} className="border border-gray-200 rounded-lg hover:shadow-md transition-shadow">
+              <div
+                key={room.id}
+                className="border border-gray-200 rounded-lg hover:shadow-md transition-shadow"
+              >
                 <RoomCard room={room} />
               </div>
             ))}
@@ -137,7 +138,9 @@ export default function CleaningPage() {
           <div className="text-center py-8 text-gray-500">
             <ClipboardCheck className="h-12 w-12 text-gray-300 mx-auto mb-3" />
             <p>No rooms found</p>
-            <p className="text-sm mt-1">Add rooms to start managing cleaning tasks</p>
+            <p className="text-sm mt-1">
+              Add rooms to start managing cleaning tasks
+            </p>
           </div>
         )}
       </StandardCard>

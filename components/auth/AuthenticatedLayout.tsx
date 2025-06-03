@@ -1,7 +1,7 @@
 "use client";
 
-import { useAuth } from "@/components/AuthProvider";
-import SideNavigation from "@/components/SideNavigation"; // Remove /layout/
+import { useAuth } from "@/components/auth"; // Updated path
+import SideNavigation from "@/components/SideNavigation";
 import Script from "next/script";
 
 export default function AuthenticatedLayout({

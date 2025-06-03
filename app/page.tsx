@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
-import { useAuth } from "@/components/AuthProvider";
+import { useAuth } from "@/components/auth";
 import { useRouter } from "next/navigation";
 import { useProperty } from "@/lib/hooks/useProperty";
 import ProtectedPageWrapper from "@/components/layout/ProtectedPageWrapper";
@@ -226,7 +226,10 @@ export default function HomePage() {
       if (!currentProperty?.id) return;
 
       try {
-        console.log("🔍 Fetching inventory alerts for property:", currentProperty.id);
+        console.log(
+          "🔍 Fetching inventory alerts for property:",
+          currentProperty.id
+        );
 
         // ✅ Get all items first
         const { data, error } = await supabase
@@ -247,10 +250,11 @@ export default function HomePage() {
         setTotalInventoryCount(data?.length || 0);
 
         // ✅ Use EXACT same logic as inventory page - only explicit status
-        const alerts = data?.filter((item) => {
-          // Only check explicit status - no automatic threshold logic
-          return item.status === "low" || item.status === "out";
-        }) || [];
+        const alerts =
+          data?.filter((item) => {
+            // Only check explicit status - no automatic threshold logic
+            return item.status === "low" || item.status === "out";
+          }) || [];
 
         console.log("🚨 Filtered alerts (explicit status only):", alerts);
         setInventoryAlerts(alerts);
@@ -650,33 +654,37 @@ export default function HomePage() {
         if (!currentProperty?.id) return;
 
         try {
-          const today = new Date().toISOString().split('T')[0];
-          
+          const today = new Date().toISOString().split("T")[0];
+
           const { data: tasks, error } = await supabase
-            .from('tasks')
-            .select('id, status, due_date, completed_at')
-            .eq('property_id', currentProperty.id);
+            .from("tasks")
+            .select("id, status, due_date, completed_at")
+            .eq("property_id", currentProperty.id);
 
           if (error) throw error;
 
           const stats = {
             // ✅ Updated to match your actual status values
-            open: tasks?.filter(t => t.status === 'pending').length || 0,
-            inProgress: tasks?.filter(t => t.status === 'in_progress').length || 0,
-            overdue: tasks?.filter(t => 
-              t.status !== 'completed' && 
-              t.due_date && 
-              new Date(t.due_date) < new Date()
-            ).length || 0,
-            completedToday: tasks?.filter(t => 
-              t.status === 'completed' && 
-              t.completed_at?.startsWith(today)
-            ).length || 0,
+            open: tasks?.filter((t) => t.status === "pending").length || 0,
+            inProgress:
+              tasks?.filter((t) => t.status === "in_progress").length || 0,
+            overdue:
+              tasks?.filter(
+                (t) =>
+                  t.status !== "completed" &&
+                  t.due_date &&
+                  new Date(t.due_date) < new Date()
+              ).length || 0,
+            completedToday:
+              tasks?.filter(
+                (t) =>
+                  t.status === "completed" && t.completed_at?.startsWith(today)
+              ).length || 0,
           };
 
           setTaskStats(stats);
         } catch (error) {
-          console.error('Error fetching task stats:', error);
+          console.error("Error fetching task stats:", error);
         }
       };
 
@@ -1262,7 +1270,8 @@ export default function HomePage() {
                     <div className="text-2xl font-bold text-yellow-700">
                       {/* ✅ Only explicit "low" status */}
                       {
-                        inventoryAlerts.filter((item) => item.status === "low").length
+                        inventoryAlerts.filter((item) => item.status === "low")
+                          .length
                       }
                     </div>
                     <div className="text-xs font-medium text-yellow-600">
@@ -1274,7 +1283,8 @@ export default function HomePage() {
                     <div className="text-2xl font-bold text-red-700">
                       {/* ✅ Only explicit "out" status */}
                       {
-                        inventoryAlerts.filter((item) => item.status === "out").length
+                        inventoryAlerts.filter((item) => item.status === "out")
+                          .length
                       }
                     </div>
                     <div className="text-xs font-medium text-red-600">

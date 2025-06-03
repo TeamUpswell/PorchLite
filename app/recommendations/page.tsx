@@ -14,13 +14,14 @@ import {
 import Link from "next/link";
 import StandardPageLayout from "@/components/layout/StandardPageLayout";
 import StandardCard from "@/components/ui/StandardCard";
-import { useAuth } from "@/components/AuthProvider";
+import { useAuth } from "@/components/auth";
 import { useProperty } from "@/lib/hooks/useProperty";
 import { supabase } from "@/lib/supabase";
 import GooglePlacePhoto from "@/components/GooglePlacePhoto";
 import RecommendationComments from "@/components/recommendations/RecommendationComments";
 import RecommendationFilters from "@/components/recommendations/RecommendationFilters";
 import { MultiActionPattern } from "@/components/ui/FloatingActionPresets";
+import PlaceSearch from "@/components/maps/PlaceSearch";
 
 interface Recommendation {
   id: string;
@@ -459,48 +460,21 @@ export default function RecommendationsPage() {
       }`}
       headerIcon={<Star className="h-6 w-6 text-blue-600" />}
     >
-      {/* Google Places Search - ALWAYS VISIBLE BY DEFAULT */}
+      {/* Google Places Search */}
       <StandardCard
         title="Find Places"
         subtitle="Discover local places and add them to your recommendations"
         className="mb-6"
       >
         <div className="space-y-4">
-          <div className="relative" ref={autocompleteRef}>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search for places (e.g., 'Starbucks near me', 'Italian restaurant')..."
-                value={placesSearchTerm}
-                onChange={(e) => handleSearchInput(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-lg"
-                autoComplete="off"
-              />
-            </div>
-
-            {showAutocomplete && autocompletePredictions.length > 0 && (
-              <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-64 overflow-y-auto">
-                {autocompletePredictions.map((prediction) => (
-                  <button
-                    key={prediction.place_id}
-                    onClick={() => selectPrediction(prediction)}
-                    className="w-full px-4 py-3 text-left hover:bg-gray-50 border-b border-gray-100 last:border-b-0 focus:bg-gray-50 focus:outline-none"
-                  >
-                    <div className="font-medium text-gray-900">
-                      {prediction.structured_formatting.main_text}
-                    </div>
-                    <div className="text-sm text-gray-600">
-                      {prediction.structured_formatting.secondary_text}
-                    </div>
-                    <div className="text-xs text-gray-500 mt-1">
-                      {prediction.types.slice(0, 3).join(", ")}
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          <PlaceSearch
+            onPlaceSelect={(place) => {
+              setSelectedPlace(place);
+              setPlacesLoading(false);
+            }}
+            defaultLocation={currentProperty?.coordinates}
+            placeholder="Search for places (e.g., 'Starbucks near me', 'Italian restaurant')..."
+          />
 
           {placesLoading && (
             <div className="flex items-center justify-center py-4">
@@ -761,20 +735,25 @@ export default function RecommendationsPage() {
             icon: Search,
             label: "Find with Google",
             onClick: () => {
-              const searchInput = document.querySelector('input[placeholder*="Search for places"]') as HTMLInputElement;
+              const searchInput = document.querySelector(
+                'input[placeholder*="Search for places"]'
+              ) as HTMLInputElement;
               if (searchInput) {
                 searchInput.focus();
-                searchInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                searchInput.scrollIntoView({
+                  behavior: "smooth",
+                  block: "center",
+                });
               }
             },
-            variant: "secondary"
+            variant: "secondary",
           },
           {
             icon: Plus,
             label: "Add Manually",
             onClick: () => setShowManualModal(true),
-            variant: "primary"
-          }
+            variant: "primary",
+          },
         ]}
       />
 

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { useAuth } from "@/components/AuthProvider";
+import { useAuth } from "@/components/auth";
 import { supabase } from "../supabase";
 
 interface TenantContextType {
@@ -98,16 +98,14 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <TenantContext.Provider value={value}>
-      {children}
-    </TenantContext.Provider>
+    <TenantContext.Provider value={value}>{children}</TenantContext.Provider>
   );
 }
 
 export function useTenant() {
   const context = useContext(TenantContext);
   if (context === undefined) {
-    throw new Error('useTenant must be used within a TenantProvider');
+    throw new Error("useTenant must be used within a TenantProvider");
   }
   return context;
 }

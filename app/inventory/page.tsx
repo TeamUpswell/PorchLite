@@ -12,9 +12,10 @@ import {
 import { useEffect, useState, useMemo } from "react";
 import StandardPageLayout from "@/components/layout/StandardPageLayout";
 import StandardCard from "@/components/ui/StandardCard";
-import InventoryFilters from "@/components/InventoryFilters";
+import InventoryFilters from "@/components/inventory/InventoryFilters";
+
 import InventoryTable from "@/components/inventory/InventoryTable";
-import ItemModal from "@/components/ItemModal";
+import ItemModal from "@/components/inventory/ItemModal";
 import ManageItemsModal from "@/components/ManageItemsModal";
 import ShoppingListModal from "@/components/ShoppingListModal";
 

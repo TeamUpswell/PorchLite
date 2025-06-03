@@ -9,7 +9,7 @@ import React, {
   useCallback,
   useRef,
 } from "react";
-import { useAuth } from "@/components/AuthProvider";
+import { useAuth } from "@/components/auth";
 import { supabase } from "../supabase";
 
 interface PropertyContextType {
@@ -23,9 +23,12 @@ interface PropertyContextType {
   setCurrentTenant: (tenant: any) => void;
   switchProperty: (propertyId: string) => Promise<void>;
   updateProperty: (propertyId: string, updates: any) => Promise<{ error: any }>;
+  refreshProperty: () => Promise<void>;
 }
 
-const PropertyContext = createContext<PropertyContextType | undefined>(undefined);
+const PropertyContext = createContext<PropertyContextType | undefined>(
+  undefined
+);
 
 export function PropertyProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
@@ -38,60 +41,59 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
 
   const loadUserTenants = async () => {
     if (!user?.id) {
-      console.log('🔍 No user, skipping tenant load');
+      console.log("🔍 No user, skipping tenant load");
       return [];
     }
 
     try {
-      console.log('🔍 Loading tenants for user:', user.id);
-      
+      console.log("🔍 Loading tenants for user:", user.id);
+
       // Get tenant user relationships first
       const { data: tenantUsers, error: tenantUserError } = await supabase
-        .from('tenant_users')
-        .select('tenant_id, role')
-        .eq('user_id', user.id);
+        .from("tenant_users")
+        .select("tenant_id, role")
+        .eq("user_id", user.id);
 
       if (tenantUserError) {
-        console.error('❌ Error loading tenant users:', tenantUserError);
+        console.error("❌ Error loading tenant users:", tenantUserError);
         setUserTenants([]);
         return [];
       }
 
       if (!tenantUsers || tenantUsers.length === 0) {
-        console.log('🔍 No tenant associations found');
+        console.log("🔍 No tenant associations found");
         setUserTenants([]);
         return [];
       }
 
       // Get tenant details
-      const tenantIds = tenantUsers.map(tu => tu.tenant_id);
+      const tenantIds = tenantUsers.map((tu) => tu.tenant_id);
       const { data: tenants, error: tenantError } = await supabase
-        .from('tenants')
-        .select('*')
-        .in('id', tenantIds);
+        .from("tenants")
+        .select("*")
+        .in("id", tenantIds);
 
       if (tenantError) {
-        console.error('❌ Error loading tenants:', tenantError);
+        console.error("❌ Error loading tenants:", tenantError);
         setUserTenants([]);
         return [];
       }
 
-      console.log('✅ Loaded tenants:', tenants);
+      console.log("✅ Loaded tenants:", tenants);
       setUserTenants(tenants || []);
-      
+
       // Set first tenant as current if none selected and tenants exist
       if (tenants && tenants.length > 0 && !currentTenant) {
         const firstTenant = tenants[0];
-        console.log('✅ Setting first tenant as current:', firstTenant);
+        console.log("✅ Setting first tenant as current:", firstTenant);
         setCurrentTenant(firstTenant);
-        localStorage.setItem('currentTenantId', firstTenant.id);
+        localStorage.setItem("currentTenantId", firstTenant.id);
         return firstTenant;
       }
-      
+
       return tenants && tenants.length > 0 ? tenants[0] : null;
-      
     } catch (err) {
-      console.error('❌ Failed to load tenants:', err);
+      console.error("❌ Failed to load tenants:", err);
       setError(err.message);
       return null;
     }
@@ -99,43 +101,42 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
 
   const loadProperties = async (tenant = null) => {
     const activeTenant = tenant || currentTenant;
-    
-    console.log('🔍 loadProperties called');
-    console.log('🔍 currentTenant:', activeTenant);
+
+    console.log("🔍 loadProperties called");
+    console.log("🔍 currentTenant:", activeTenant);
 
     if (!activeTenant?.id) {
-      console.log('❌ No current tenant, skipping property load');
+      console.log("❌ No current tenant, skipping property load");
       setLoading(false);
       return;
     }
 
     try {
-      console.log('🔍 Loading properties for tenant:', activeTenant.id);
+      console.log("🔍 Loading properties for tenant:", activeTenant.id);
       setLoading(true);
-      
+
       const { data, error } = await supabase
-        .from('properties')
-        .select('*')
-        .eq('tenant_id', activeTenant.id);
+        .from("properties")
+        .select("*")
+        .eq("tenant_id", activeTenant.id);
 
       if (error) {
-        console.error('❌ Error loading properties:', error);
+        console.error("❌ Error loading properties:", error);
         setError(error.message);
         return;
       }
 
-      console.log('✅ Loaded properties:', data);
+      console.log("✅ Loaded properties:", data);
       setUserProperties(data || []);
-      
+
       // Set first property as current if none selected
       if (data && data.length > 0 && !currentProperty) {
-        console.log('✅ Setting first property as current:', data[0]);
+        console.log("✅ Setting first property as current:", data[0]);
         setCurrentProperty(data[0]);
-        localStorage.setItem('currentPropertyId', data[0].id);
+        localStorage.setItem("currentPropertyId", data[0].id);
       }
-
     } catch (err) {
-      console.error('❌ Failed to load properties:', err);
+      console.error("❌ Failed to load properties:", err);
       setError(err.message);
     } finally {
       setLoading(false);
@@ -146,8 +147,8 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
     const property = userProperties.find((p) => p.id === propertyId);
     if (property) {
       setCurrentProperty(property);
-      localStorage.setItem('currentPropertyId', propertyId);
-      console.log('✅ Switched to property:', property);
+      localStorage.setItem("currentPropertyId", propertyId);
+      console.log("✅ Switched to property:", property);
     }
   };
 
@@ -157,13 +158,28 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
       .from("properties")
       .update(updates)
       .eq("id", propertyId);
-    
+
     if (!error) {
       // Update local state
-      setCurrentProperty(prev => prev ? { ...prev, ...updates } : null);
+      setCurrentProperty((prev) => (prev ? { ...prev, ...updates } : null));
     }
-    
+
     return { error };
+  };
+
+  const refreshProperty = async () => {
+    if (currentProperty?.id) {
+      // Reload property data from database
+      const { data } = await supabase
+        .from("properties")
+        .select("*")
+        .eq("id", currentProperty.id)
+        .single();
+
+      if (data) {
+        setCurrentProperty(data);
+      }
+    }
   };
 
   // Load tenants and properties when user changes
@@ -204,6 +220,7 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
     setCurrentTenant,
     switchProperty,
     updateProperty,
+    refreshProperty,
   };
 
   return (
@@ -216,7 +233,7 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
 export function useProperty() {
   const context = useContext(PropertyContext);
   if (context === undefined) {
-    throw new Error('useProperty must be used within a PropertyProvider');
+    throw new Error("useProperty must be used within a PropertyProvider");
   }
   return context;
 }

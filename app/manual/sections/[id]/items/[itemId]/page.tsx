@@ -6,7 +6,7 @@ import { ArrowLeft, Edit, ExternalLink } from "lucide-react";
 import Link from "next/link";
 import StandardPageLayout from "@/components/layout/StandardPageLayout";
 import StandardCard from "@/components/ui/StandardCard";
-import { useAuth } from "@/components/AuthProvider";
+import { useAuth } from "@/components/auth";
 import { supabase } from "@/lib/supabase";
 import Image from "next/image";
 
@@ -115,8 +115,11 @@ export default function ItemDetailPage() {
       title={item?.title || "Loading..."}
       breadcrumb={[
         { label: "Manual", href: "/manual" },
-        { label: section?.title || "Loading...", href: `/manual/sections/${sectionId}` },
-        { label: item?.title || "Loading..." }
+        {
+          label: section?.title || "Loading...",
+          href: `/manual/sections/${sectionId}`,
+        },
+        { label: item?.title || "Loading..." },
       ]}
     >
       <StandardCard>

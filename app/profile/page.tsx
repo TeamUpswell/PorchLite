@@ -1,7 +1,7 @@
 "use client";
 
 import ProtectedPageWrapper from "@/components/layout/ProtectedPageWrapper";
-import { useAuth } from "@/components/AuthProvider";
+import { useAuth } from "@/components/auth";
 import { UserCircleIcon } from "@heroicons/react/24/outline";
 
 export default function ProfilePage() {

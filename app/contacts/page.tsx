@@ -7,7 +7,7 @@ import { Users, Plus, Phone, Mail, MapPin, Edit } from "lucide-react";
 import Link from "next/link";
 import StandardPageLayout from "@/components/layout/StandardPageLayout";
 import StandardCard from "@/components/ui/StandardCard";
-import { useAuth } from "@/components/AuthProvider";
+import { useAuth } from "@/components/auth";
 import { supabase } from "@/lib/supabase";
 import ContactFilters from "@/components/contacts/ContactFilters";
 
@@ -94,10 +94,12 @@ export default function ContactsPage() {
   }, [user]);
 
   const getCategoryInfo = (categoryId: string) => {
-    return categories.find((cat) => cat.id === categoryId) || {
-      name: categoryId,
-      icon: "👤",
-    };
+    return (
+      categories.find((cat) => cat.id === categoryId) || {
+        name: categoryId,
+        icon: "👤",
+      }
+    );
   };
 
   return (
@@ -123,9 +125,9 @@ export default function ContactsPage() {
 
       {/* Contacts Grid */}
       <StandardCard
-        title={`${
-          filteredContacts.length
-        } Contact${filteredContacts.length !== 1 ? "s" : ""}`}
+        title={`${filteredContacts.length} Contact${
+          filteredContacts.length !== 1 ? "s" : ""
+        }`}
         subtitle="Browse your property contacts and vendors"
       >
         {loading ? (
@@ -196,11 +198,14 @@ export default function ContactsPage() {
                     <div className="mt-4 pt-3 border-t border-gray-100 flex justify-between items-center">
                       <span className="text-xs text-gray-500">
                         Added{" "}
-                        {new Date(contact.created_at).toLocaleDateString("en-US", {
-                          year: "numeric",
-                          month: "short",
-                          day: "numeric",
-                        })}
+                        {new Date(contact.created_at).toLocaleDateString(
+                          "en-US",
+                          {
+                            year: "numeric",
+                            month: "short",
+                            day: "numeric",
+                          }
+                        )}
                       </span>
                       <Link
                         href={`/contacts/edit/${contact.id}`}

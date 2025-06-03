@@ -19,12 +19,67 @@ import {
 import StandardPageLayout from "@/components/layout/StandardPageLayout";
 import StandardCard from "@/components/ui/StandardCard";
 import PropertySelector from "@/components/PropertySelector";
-import { useAuth } from "@/components/AuthProvider";
+import { useAuth } from "@/components/auth";
 import { useProperty } from "@/lib/hooks/useProperty";
 import { supabase } from "@/lib/supabase";
 
 interface UserProfile {
-  id: string;
+  id: string; (cd "$(git rev-parse --show-toplevel)" && git apply --3way <<'EOF' 
+diff --git a/app/account/page.tsx b/app/account/page.tsx
+index 1636fa9667f4f629f38557efa081830d85c9dde8..f797ba512a48339329a2aa3a3ff077bdab0a9bf2 100644
+--- a/app/account/page.tsx
++++ b/app/account/page.tsx
+@@ -1,46 +1,46 @@
+ // app/account/page.tsx
+ "use client";
+ 
+ export const dynamic = "force-dynamic";
+ 
+ import { useState, useEffect } from "react";
+ import {
+   User,
+   Edit,
+   Save,
+   Camera,
+   Shield,
+   Bell,
+   Lock,
+   Globe,
+   LogOut,
+   Home, // Add this
+ } from "lucide-react";
+ import StandardPageLayout from "@/components/layout/StandardPageLayout";
+ import StandardCard from "@/components/ui/StandardCard";
+-import PropertySelector from "@/components/PropertySelector";
++import PropertySelector from "@/components/properties/PropertySelector";
+ import { useAuth } from "@/components/auth";
+ import { useProperty } from "@/lib/hooks/useProperty";
+ import { supabase } from "@/lib/supabase";
+ 
+ interface UserProfile {
+   id: string;
+   full_name: string;
+   phone_number?: string;
+   email: string;
+   avatar_url?: string;
+   created_at: string;
+   updated_at: string;
+ }
+ 
+ interface UserPreferences {
+   notifications_email: boolean;
+   notifications_push: boolean;
+   theme: "light" | "dark" | "system";
+   language: string;
+   timezone: string;
+ }
+ 
+ export default function AccountPage() {
+   const { user, logout } = useAuth();
+   const {
+ 
+EOF
+)
   full_name: string;
   phone_number?: string;
   email: string;

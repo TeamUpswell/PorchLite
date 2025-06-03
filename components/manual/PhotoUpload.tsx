@@ -3,7 +3,7 @@
 import { useState, useRef } from "react";
 import { Camera, X, Upload, Image as ImageIcon } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-import { useAuth } from "@/components/AuthProvider";
+import { useAuth } from "@/components/auth";
 
 interface PhotoUploadProps {
   onPhotosChange: (urls: string[]) => void;
@@ -11,17 +11,19 @@ interface PhotoUploadProps {
   maxPhotos: number;
 }
 
-export default function PhotoUpload({ 
-  onPhotosChange, 
-  existingPhotos, 
-  maxPhotos 
+export default function PhotoUpload({
+  onPhotosChange,
+  existingPhotos,
+  maxPhotos,
 }: PhotoUploadProps) {
   const { user } = useAuth();
   const [photos, setPhotos] = useState<string[]>(existingPhotos);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
     const files = event.target.files;
     if (!files || files.length === 0) return;
 
@@ -36,9 +38,9 @@ export default function PhotoUpload({
     try {
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
-        
+
         // Validate file type
-        if (!file.type.startsWith('image/')) {
+        if (!file.type.startsWith("image/")) {
           alert(`File ${file.name} is not an image`);
           continue;
         }
@@ -50,27 +52,29 @@ export default function PhotoUpload({
         }
 
         // Generate unique filename
-        const fileExt = file.name.split('.').pop();
-        const fileName = `${user?.id}/${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+        const fileExt = file.name.split(".").pop();
+        const fileName = `${user?.id}/${Date.now()}-${Math.random()
+          .toString(36)
+          .substring(2)}.${fileExt}`;
 
         // Upload to Supabase Storage
         const { data, error } = await supabase.storage
-          .from('manual-photos')
+          .from("manual-photos")
           .upload(fileName, file, {
-            cacheControl: '3600',
-            upsert: false
+            cacheControl: "3600",
+            upsert: false,
           });
 
         if (error) {
-          console.error('Upload error:', error);
+          console.error("Upload error:", error);
           alert(`Failed to upload ${file.name}: ${error.message}`);
           continue;
         }
 
         // Get public URL
-        const { data: { publicUrl } } = supabase.storage
-          .from('manual-photos')
-          .getPublicUrl(fileName);
+        const {
+          data: { publicUrl },
+        } = supabase.storage.from("manual-photos").getPublicUrl(fileName);
 
         newPhotos.push(publicUrl);
       }
@@ -78,15 +82,14 @@ export default function PhotoUpload({
       const updatedPhotos = [...photos, ...newPhotos];
       setPhotos(updatedPhotos);
       onPhotosChange(updatedPhotos);
-
     } catch (error) {
-      console.error('Error uploading photos:', error);
-      alert('Failed to upload photos. Please try again.');
+      console.error("Error uploading photos:", error);
+      alert("Failed to upload photos. Please try again.");
     } finally {
       setUploading(false);
       // Reset file input
       if (fileInputRef.current) {
-        fileInputRef.current.value = '';
+        fileInputRef.current.value = "";
       }
     }
   };
@@ -94,26 +97,25 @@ export default function PhotoUpload({
   const removePhoto = async (photoUrl: string) => {
     try {
       // Extract filename from URL to delete from storage
-      const urlParts = photoUrl.split('/');
+      const urlParts = photoUrl.split("/");
       const fileName = urlParts[urlParts.length - 1];
       const fullPath = `${user?.id}/${fileName}`;
 
       // Delete from Supabase Storage
       const { error } = await supabase.storage
-        .from('manual-photos')
+        .from("manual-photos")
         .remove([fullPath]);
 
       if (error) {
-        console.error('Delete error:', error);
+        console.error("Delete error:", error);
       }
 
       // Remove from state regardless of delete success
-      const updatedPhotos = photos.filter(url => url !== photoUrl);
+      const updatedPhotos = photos.filter((url) => url !== photoUrl);
       setPhotos(updatedPhotos);
       onPhotosChange(updatedPhotos);
-
     } catch (error) {
-      console.error('Error removing photo:', error);
+      console.error("Error removing photo:", error);
     }
   };
 

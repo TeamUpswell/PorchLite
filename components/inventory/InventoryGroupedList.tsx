@@ -1,5 +1,15 @@
+"use client";
+
+import { useInventoryCategories } from "@/lib/hooks/useInventoryCategories";
+import { getCategoryIcon } from "@/lib/utils"; // Adjust this path if getCategoryIcon is elsewhere
+import InventoryItemCard from "./InventoryItemCard"; // Assuming this is also in the inventory folder
+
 // components/InventoryGroupedList.tsx - Group items by category with icons
-export default function InventoryGroupedList({ items, onEditItem, onDeleteItem }) {
+export default function InventoryGroupedList({
+  items,
+  onEditItem,
+  onDeleteItem,
+}) {
   const { categories } = useInventoryCategories();
 
   // Group items by category
@@ -16,7 +26,7 @@ export default function InventoryGroupedList({ items, onEditItem, onDeleteItem }
     <div className="space-y-8">
       {Object.entries(groupedItems).map(([categoryName, categoryItems]) => {
         const categoryIcon = getCategoryIcon(categoryName, categories);
-        
+
         return (
           <div key={categoryName}>
             {/* Category Header */}
@@ -29,7 +39,7 @@ export default function InventoryGroupedList({ items, onEditItem, onDeleteItem }
                 ({categoryItems.length} items)
               </span>
             </div>
-            
+
             {/* Items in this category */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {categoryItems.map((item) => (

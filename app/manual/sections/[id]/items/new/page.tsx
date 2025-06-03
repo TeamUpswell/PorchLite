@@ -2,17 +2,25 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { ArrowLeft, Save, Upload, Camera, X, Image as ImageIcon } from "lucide-react";
+import {
+  ArrowLeft,
+  Save,
+  Upload,
+  Camera,
+  X,
+  Image as ImageIcon,
+} from "lucide-react";
 import Link from "next/link";
 import StandardPageLayout from "@/components/layout/StandardPageLayout";
 import StandardCard from "@/components/ui/StandardCard";
-import { useAuth } from "@/components/AuthProvider";
+import { useAuth } from "@/components/auth";
 import { supabase } from "@/lib/supabase";
 import { v4 as uuidv4 } from "uuid";
 import { toast } from "react-hot-toast";
 import { convertToWebP, supportsWebP } from "@/lib/imageUtils";
 import Image from "next/image";
 import { EditPattern } from "@/components/ui/FloatingActionPresets";
+import PhotoUpload from "@/components/ui/PhotoUpload";
 
 interface ManualSection {
   id: string;
@@ -31,11 +39,18 @@ export default function NewItemPage() {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [important, setImportant] = useState(false);
-  
+
   // Photo upload states (matching dashboard pattern)
   const [photos, setPhotos] = useState<string[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+
+  const [formData, setFormData] = useState({
+    title: "",
+    content: "",
+    media_urls: [] as string[],
+    important: false,
+  });
 
   useEffect(() => {
     if (sectionId) {
@@ -114,7 +129,7 @@ export default function NewItemPage() {
           .from("property-images")
           .getPublicUrl(fileName);
 
-        setPhotos(prev => [...prev, publicUrlData.publicUrl]);
+        setPhotos((prev) => [...prev, publicUrlData.publicUrl]);
         toast.success("Photo uploaded successfully!");
       } catch (error) {
         console.error("Error uploading photo:", error);
@@ -128,7 +143,7 @@ export default function NewItemPage() {
 
   // Photo removal handler
   const removePhoto = (photoUrl: string) => {
-    setPhotos(prev => prev.filter(url => url !== photoUrl));
+    setPhotos((prev) => prev.filter((url) => url !== photoUrl));
     toast.success("Photo removed");
   };
 
@@ -259,7 +274,9 @@ export default function NewItemPage() {
 You can use line breaks to format your content.
 Each new line will be preserved when displayed."
             />
-            <p className="text-sm text-gray-500 mt-1">Line breaks will be preserved in the display</p>
+            <p className="text-sm text-gray-500 mt-1">
+              Line breaks will be preserved in the display
+            </p>
           </div>
 
           {/* Photo Upload Section */}
@@ -267,7 +284,7 @@ Each new line will be preserved when displayed."
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Photos
             </label>
-            
+
             {/* Upload Buttons */}
             <div className="flex flex-wrap gap-2 mb-4">
               <label className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 cursor-pointer transition-colors">
@@ -339,7 +356,9 @@ Each new line will be preserved when displayed."
               <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
                 <ImageIcon className="h-12 w-12 text-gray-400 mx-auto mb-2" />
                 <p className="text-gray-500">No photos added yet</p>
-                <p className="text-sm text-gray-400 mt-1">Upload photos or take new ones to document this item</p>
+                <p className="text-sm text-gray-400 mt-1">
+                  Upload photos or take new ones to document this item
+                </p>
               </div>
             )}
           </div>

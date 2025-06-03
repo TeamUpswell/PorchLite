@@ -4,8 +4,8 @@ import React from "react";
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Reset Password - PorchLite",
-  description: "Reset your PorchLite password",
+  title: "Authentication - PorchLite",
+  description: "Sign in, sign up, or reset your password",
 };
 
 export default function AuthLayout({
@@ -14,7 +14,7 @@ export default function AuthLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
       <div className="absolute top-4 left-4">
         <Link href="/" className="flex items-center space-x-2">
           <Image
@@ -27,7 +27,10 @@ export default function AuthLayout({
           <span className="text-xl font-bold text-gray-900">PorchLite</span>
         </Link>
       </div>
-      {children}
+
+      <div className="bg-white rounded-lg shadow-xl p-8 w-full max-w-md">
+        {children}
+      </div>
     </div>
   );
 }

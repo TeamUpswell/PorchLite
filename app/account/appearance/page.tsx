@@ -1,14 +1,14 @@
 "use client";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 import React, { useState } from "react";
-import { useAuth } from "@/components/AuthProvider";
+import { useAuth } from "@/components/auth";
 import { useTheme } from "@/components/ThemeProvider";
 
 // Define the Theme type or import it
-type Theme = 'light' | 'dark' | 'system';
+type Theme = "light" | "dark" | "system";
 
 export default function AppearancePage() {
   const { user } = useAuth();
@@ -25,12 +25,12 @@ export default function AppearancePage() {
   return (
     <div className="p-6">
       <h1 className="text-2xl font-bold mb-6">Appearance Settings</h1>
-      
+
       <div className="space-y-4">
         <div>
           <label className="block text-sm font-medium mb-2">Theme</label>
-          <select 
-            value={theme} 
+          <select
+            value={theme}
             onChange={(e) => handleThemeChange(e.target.value as Theme)}
             className="w-full p-2 border rounded"
           >
@@ -39,7 +39,7 @@ export default function AppearancePage() {
             <option value="system">System</option>
           </select>
         </div>
-        
+
         {saveMessage && (
           <div className="text-green-600 text-sm">{saveMessage}</div>
         )}

@@ -4,7 +4,7 @@ import { useState, useEffect, FormEvent } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/components/AuthProvider";
+import { useAuth } from "@/components/auth";
 import { supabase } from "@/lib/supabase";
 import PermissionGate from "@/components/PermissionGate";
 import SideNavigation from "@/components/SideNavigation";

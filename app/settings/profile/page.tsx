@@ -1,10 +1,10 @@
 "use client";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 import { useState, useEffect } from "react";
-import { useAuth } from "@/components/AuthProvider";
+import { useAuth } from "@/components/auth";
 import { supabase } from "@/lib/supabase";
 
 export default function ProfilePage() {
@@ -34,7 +34,5 @@ export default function ProfilePage() {
     return true;
   };
 
-  return (
-    <div>Profile page content</div>
-  );
+  return <div>Profile page content</div>;
 }

@@ -6,7 +6,7 @@ import { Plus, Edit, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import StandardPageLayout from "@/components/layout/StandardPageLayout";
 import StandardCard from "@/components/ui/StandardCard";
-import { useAuth } from "@/components/AuthProvider";
+import { useAuth } from "@/components/auth";
 import { supabase } from "@/lib/supabase";
 import { MultiActionPattern } from "@/components/ui/FloatingActionPresets";
 

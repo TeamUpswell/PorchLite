@@ -2,8 +2,16 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
-import { useAuth } from "@/components/AuthProvider";
-import { Database, AlertTriangle, CheckCircle, XCircle, Users, Home, Building } from "lucide-react";
+import { useAuth } from "@/components/auth";
+import {
+  Database,
+  AlertTriangle,
+  CheckCircle,
+  XCircle,
+  Users,
+  Home,
+  Building,
+} from "lucide-react";
 
 interface DatabaseDiagnosticsProps {
   showAdvanced?: boolean;
@@ -58,31 +66,36 @@ export default function DatabaseDiagnostics({
           propertyCount: 0,
           userTenants: [],
           userProperties: [],
-          errors: []
-        }
+          errors: [],
+        },
       };
 
       // Test essential tables
-      const tablesToTest = ['profiles', 'tenants', 'tenant_users', 'properties'];
-      
+      const tablesToTest = [
+        "profiles",
+        "tenants",
+        "tenant_users",
+        "properties",
+      ];
+
       for (const table of tablesToTest) {
         try {
           const { data, error, count } = await supabase
             .from(table)
-            .select('*', { count: 'exact' })
+            .select("*", { count: "exact" })
             .limit(3);
 
           diagnosticResults.tableTests[table] = {
             exists: !error,
             count: count || 0,
             error: error?.message,
-            sampleData: data?.slice(0, 2) || []
+            sampleData: data?.slice(0, 2) || [],
           };
         } catch (err: any) {
           diagnosticResults.tableTests[table] = {
             exists: false,
             count: 0,
-            error: err.message
+            error: err.message,
           };
         }
       }
@@ -92,62 +105,75 @@ export default function DatabaseDiagnostics({
         try {
           // Check user profile
           const { data: profile, error: profileError } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', user.id)
+            .from("profiles")
+            .select("*")
+            .eq("id", user.id)
             .single();
 
-          diagnosticResults.userRelationships.hasProfile = !profileError && !!profile;
-          if (profileError) diagnosticResults.userRelationships.errors.push(`Profile: ${profileError.message}`);
+          diagnosticResults.userRelationships.hasProfile =
+            !profileError && !!profile;
+          if (profileError)
+            diagnosticResults.userRelationships.errors.push(
+              `Profile: ${profileError.message}`
+            );
 
           // Check user's tenant associations (separate queries to avoid relationship issues)
           const { data: tenantUsers, error: tenantUserError } = await supabase
-            .from('tenant_users')
-            .select('tenant_id, role, created_at')
-            .eq('user_id', user.id);
+            .from("tenant_users")
+            .select("tenant_id, role, created_at")
+            .eq("user_id", user.id);
 
           if (tenantUserError) {
-            diagnosticResults.userRelationships.errors.push(`Tenant Users: ${tenantUserError.message}`);
+            diagnosticResults.userRelationships.errors.push(
+              `Tenant Users: ${tenantUserError.message}`
+            );
           } else if (tenantUsers && tenantUsers.length > 0) {
             // Get tenant details for each tenant_id
-            const tenantIds = tenantUsers.map(tu => tu.tenant_id);
-            
+            const tenantIds = tenantUsers.map((tu) => tu.tenant_id);
+
             const { data: tenants, error: tenantsError } = await supabase
-              .from('tenants')
-              .select('*')
-              .in('id', tenantIds);
+              .from("tenants")
+              .select("*")
+              .in("id", tenantIds);
 
             if (tenantsError) {
-              diagnosticResults.userRelationships.errors.push(`Tenants: ${tenantsError.message}`);
+              diagnosticResults.userRelationships.errors.push(
+                `Tenants: ${tenantsError.message}`
+              );
             } else {
               diagnosticResults.userRelationships.userTenants = tenants || [];
-              diagnosticResults.userRelationships.tenantCount = tenants?.length || 0;
+              diagnosticResults.userRelationships.tenantCount =
+                tenants?.length || 0;
 
               // Check user's properties (via tenants)
               if (tenants && tenants.length > 0) {
                 const { data: properties, error: propError } = await supabase
-                  .from('properties')
-                  .select('*')
-                  .in('tenant_id', tenantIds)
-                  .eq('is_active', true);
+                  .from("properties")
+                  .select("*")
+                  .in("tenant_id", tenantIds)
+                  .eq("is_active", true);
 
                 if (propError) {
-                  diagnosticResults.userRelationships.errors.push(`Properties: ${propError.message}`);
+                  diagnosticResults.userRelationships.errors.push(
+                    `Properties: ${propError.message}`
+                  );
                 } else {
-                  diagnosticResults.userRelationships.userProperties = properties || [];
-                  diagnosticResults.userRelationships.propertyCount = properties?.length || 0;
+                  diagnosticResults.userRelationships.userProperties =
+                    properties || [];
+                  diagnosticResults.userRelationships.propertyCount =
+                    properties?.length || 0;
                 }
               }
             }
           }
-
         } catch (err: any) {
-          diagnosticResults.userRelationships.errors.push(`General: ${err.message}`);
+          diagnosticResults.userRelationships.errors.push(
+            `General: ${err.message}`
+          );
         }
       }
 
       setResults(diagnosticResults);
-
     } catch (err: any) {
       setResults({
         connected: false,
@@ -160,8 +186,8 @@ export default function DatabaseDiagnostics({
           propertyCount: 0,
           userTenants: [],
           userProperties: [],
-          errors: [err.message]
-        }
+          errors: [err.message],
+        },
       });
     } finally {
       setIsLoading(false);
@@ -170,93 +196,102 @@ export default function DatabaseDiagnostics({
 
   const createTestData = async () => {
     if (!user?.id) {
-      alert('You must be logged in to create test data');
+      alert("You must be logged in to create test data");
       return;
     }
 
     setCreatingTestData(true);
     try {
-      console.log('Creating test data for user:', user.id);
+      console.log("Creating test data for user:", user.id);
 
       // Create profile if missing
       if (!results?.userRelationships.hasProfile) {
-        console.log('Creating profile...');
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .upsert([{
+        console.log("Creating profile...");
+        const { error: profileError } = await supabase.from("profiles").upsert([
+          {
             id: user.id,
             email: user.email,
-            full_name: user.email?.split('@')[0] || 'Test User',
-            created_at: new Date().toISOString()
-          }]);
+            full_name: user.email?.split("@")[0] || "Test User",
+            created_at: new Date().toISOString(),
+          },
+        ]);
 
         if (profileError) {
-          console.error('Profile creation error:', profileError);
+          console.error("Profile creation error:", profileError);
           throw new Error(`Profile creation failed: ${profileError.message}`);
         }
-        console.log('✅ Profile created');
+        console.log("✅ Profile created");
       }
 
       // Create tenant if missing
       if (results?.userRelationships.tenantCount === 0) {
-        console.log('Creating tenant...');
+        console.log("Creating tenant...");
         const { data: tenant, error: tenantError } = await supabase
-          .from('tenants')
-          .insert([{
-            name: `${user.email?.split('@')[0] || 'User'}'s Organization`,
-            created_at: new Date().toISOString()
-          }])
+          .from("tenants")
+          .insert([
+            {
+              name: `${user.email?.split("@")[0] || "User"}'s Organization`,
+              created_at: new Date().toISOString(),
+            },
+          ])
           .select()
           .single();
 
         if (tenantError) {
-          console.error('Tenant creation error:', tenantError);
+          console.error("Tenant creation error:", tenantError);
           throw new Error(`Tenant creation failed: ${tenantError.message}`);
         }
-        console.log('✅ Tenant created:', tenant);
+        console.log("✅ Tenant created:", tenant);
 
         // Associate user with tenant
-        console.log('Creating tenant user association...');
+        console.log("Creating tenant user association...");
         const { error: tenantUserError } = await supabase
-          .from('tenant_users')
-          .insert([{
-            tenant_id: tenant.id,
-            user_id: user.id,
-            role: 'admin',
-            created_at: new Date().toISOString()
-          }]);
+          .from("tenant_users")
+          .insert([
+            {
+              tenant_id: tenant.id,
+              user_id: user.id,
+              role: "admin",
+              created_at: new Date().toISOString(),
+            },
+          ]);
 
         if (tenantUserError) {
-          console.error('Tenant user creation error:', tenantUserError);
-          throw new Error(`Tenant user creation failed: ${tenantUserError.message}`);
+          console.error("Tenant user creation error:", tenantUserError);
+          throw new Error(
+            `Tenant user creation failed: ${tenantUserError.message}`
+          );
         }
-        console.log('✅ Tenant user association created');
+        console.log("✅ Tenant user association created");
 
         // Create a property for this tenant
-        console.log('Creating property...');
+        console.log("Creating property...");
         const { error: propertyError } = await supabase
-          .from('properties')
-          .insert([{
-            name: 'My First Property',
-            address: '123 Main Street',
-            tenant_id: tenant.id,
-            created_by: user.id,
-            is_active: true,
-            created_at: new Date().toISOString()
-          }]);
+          .from("properties")
+          .insert([
+            {
+              name: "My First Property",
+              address: "123 Main Street",
+              tenant_id: tenant.id,
+              created_by: user.id,
+              is_active: true,
+              created_at: new Date().toISOString(),
+            },
+          ]);
 
         if (propertyError) {
-          console.error('Property creation error:', propertyError);
+          console.error("Property creation error:", propertyError);
           throw new Error(`Property creation failed: ${propertyError.message}`);
         }
-        console.log('✅ Property created');
+        console.log("✅ Property created");
       }
 
-      alert('Test data created successfully! Your organization and property are now set up.');
+      alert(
+        "Test data created successfully! Your organization and property are now set up."
+      );
       await runDiagnostics(); // Refresh results
-      
     } catch (error: any) {
-      console.error('Error creating test data:', error);
+      console.error("Error creating test data:", error);
       alert(`Error creating test data: ${error.message}`);
     } finally {
       setCreatingTestData(false);
@@ -304,7 +339,9 @@ export default function DatabaseDiagnostics({
             ) : (
               <XCircle className="h-5 w-5 text-red-500 mr-2" />
             )}
-            <span className={results.connected ? "text-green-700" : "text-red-700"}>
+            <span
+              className={results.connected ? "text-green-700" : "text-red-700"}
+            >
               {results.connected ? "Database Connected" : "Connection Failed"}
             </span>
           </div>
@@ -322,7 +359,9 @@ export default function DatabaseDiagnostics({
                   )}
                 </div>
                 <div className="text-sm text-gray-600">
-                  {test.exists ? `${test.count} records` : 'Table not accessible'}
+                  {test.exists
+                    ? `${test.count} records`
+                    : "Table not accessible"}
                 </div>
                 {test.error && (
                   <div className="text-xs text-red-600 mt-1">{test.error}</div>
@@ -345,20 +384,27 @@ export default function DatabaseDiagnostics({
                   ) : (
                     <XCircle className="h-4 w-4 text-red-500 mr-2" />
                   )}
-                  <span>Profile: {results.userRelationships.hasProfile ? 'Found' : 'Missing'}</span>
+                  <span>
+                    Profile:{" "}
+                    {results.userRelationships.hasProfile ? "Found" : "Missing"}
+                  </span>
                 </div>
-                
+
                 <div className="flex items-center">
                   <Building className="h-4 w-4 mr-2" />
-                  <span>Organizations: {results.userRelationships.tenantCount}</span>
+                  <span>
+                    Organizations: {results.userRelationships.tenantCount}
+                  </span>
                 </div>
-                
+
                 <div className="flex items-center">
                   <Home className="h-4 w-4 mr-2" />
-                  <span>Properties: {results.userRelationships.propertyCount}</span>
+                  <span>
+                    Properties: {results.userRelationships.propertyCount}
+                  </span>
                 </div>
               </div>
-              
+
               {results.userRelationships.errors.length > 0 && (
                 <div className="mt-3 p-2 bg-red-100 rounded">
                   <div className="text-sm text-red-700">
@@ -371,12 +417,13 @@ export default function DatabaseDiagnostics({
                   </div>
                 </div>
               )}
-              
+
               {results.userRelationships.tenantCount === 0 && showSeeding && (
                 <div className="mt-3 p-2 bg-yellow-100 rounded">
                   <div className="text-sm text-yellow-700">
-                    <strong>Setup Required:</strong> You don't have any organizations set up. 
-                    Click "Create Test Data" to create your first organization and property.
+                    <strong>Setup Required:</strong> You don't have any
+                    organizations set up. Click "Create Test Data" to create
+                    your first organization and property.
                   </div>
                 </div>
               )}
@@ -387,9 +434,11 @@ export default function DatabaseDiagnostics({
                   <div className="text-sm text-green-700">
                     <strong>Organizations:</strong>
                     <ul className="list-disc list-inside mt-1">
-                      {results.userRelationships.userTenants.map((tenant, i) => (
-                        <li key={i}>{tenant.name}</li>
-                      ))}
+                      {results.userRelationships.userTenants.map(
+                        (tenant, i) => (
+                          <li key={i}>{tenant.name}</li>
+                        )
+                      )}
                     </ul>
                   </div>
                 </div>
@@ -406,7 +455,9 @@ export default function DatabaseDiagnostics({
           {showAdvanced && (
             <div className="mt-4 p-3 bg-gray-50 rounded text-sm">
               <h5 className="font-medium mb-2">Raw Results:</h5>
-              <pre className="text-xs overflow-auto max-h-64">{JSON.stringify(results, null, 2)}</pre>
+              <pre className="text-xs overflow-auto max-h-64">
+                {JSON.stringify(results, null, 2)}
+              </pre>
             </div>
           )}
         </div>

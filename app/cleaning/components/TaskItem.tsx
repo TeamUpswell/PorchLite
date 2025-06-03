@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { useAuth } from "@/components/AuthProvider";
+import { useAuth } from "@/components/auth";
 import { Check, Camera, Info } from "lucide-react";
 import Image from "next/image";
 import { toast } from "react-hot-toast";

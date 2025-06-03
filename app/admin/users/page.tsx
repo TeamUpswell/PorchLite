@@ -3,11 +3,21 @@
 export const dynamic = "force-dynamic";
 
 import { useState, useEffect } from "react";
-import { Users, Plus, Edit, Trash2, Shield, Mail, Phone, Search, Filter } from "lucide-react";
+import {
+  Users,
+  Plus,
+  Edit,
+  Trash2,
+  Shield,
+  Mail,
+  Phone,
+  Search,
+  Filter,
+} from "lucide-react";
 import Link from "next/link";
 import StandardPageLayout from "@/components/layout/StandardPageLayout";
 import StandardCard from "@/components/ui/StandardCard";
-import { useAuth } from "@/components/AuthProvider";
+import { useAuth } from "@/components/auth";
 import { supabase } from "@/lib/supabase";
 
 interface User {
@@ -66,7 +76,7 @@ export default function AdminUsersPage() {
 
         // Create role mapping
         const roleMap: Record<string, string> = {};
-        rolesData?.forEach(role => {
+        rolesData?.forEach((role) => {
           roleMap[role.user_id] = role.role;
         });
 
@@ -82,9 +92,10 @@ export default function AdminUsersPage() {
     fetchUsers();
   }, []);
 
-  const filteredUsers = users.filter(user => {
-    const matchesSearch = user.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         user.email.toLowerCase().includes(searchTerm.toLowerCase());
+  const filteredUsers = users.filter((user) => {
+    const matchesSearch =
+      user.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.email.toLowerCase().includes(searchTerm.toLowerCase());
     const userRole = userRoles[user.id];
     const matchesRole = selectedRole === "all" || userRole === selectedRole;
     return matchesSearch && matchesRole;
@@ -108,7 +119,7 @@ export default function AdminUsersPage() {
       }
 
       // Update local state
-      setUserRoles(prev => ({ ...prev, [userId]: newRole }));
+      setUserRoles((prev) => ({ ...prev, [userId]: newRole }));
     } catch (error) {
       console.error("Error updating user role:", error);
       alert("Failed to update user role");
@@ -121,16 +132,17 @@ export default function AdminUsersPage() {
       return;
     }
 
-    if (!confirm("Are you sure you want to delete this user? This action cannot be undone.")) {
+    if (
+      !confirm(
+        "Are you sure you want to delete this user? This action cannot be undone."
+      )
+    ) {
       return;
     }
 
     try {
       // Delete user role first
-      await supabase
-        .from("user_roles")
-        .delete()
-        .eq("user_id", userId);
+      await supabase.from("user_roles").delete().eq("user_id", userId);
 
       // Delete user profile
       const { error } = await supabase
@@ -141,8 +153,8 @@ export default function AdminUsersPage() {
       if (error) throw error;
 
       // Update local state
-      setUsers(prev => prev.filter(u => u.id !== userId));
-      setUserRoles(prev => {
+      setUsers((prev) => prev.filter((u) => u.id !== userId));
+      setUserRoles((prev) => {
         const newRoles = { ...prev };
         delete newRoles[userId];
         return newRoles;
@@ -155,18 +167,29 @@ export default function AdminUsersPage() {
 
   const getRoleColor = (role: string) => {
     switch (role) {
-      case "admin": return "bg-red-100 text-red-800";
-      case "manager": return "bg-blue-100 text-blue-800";
-      case "staff": return "bg-green-100 text-green-800";
-      case "guest": return "bg-gray-100 text-gray-800";
-      default: return "bg-gray-100 text-gray-800";
+      case "admin":
+        return "bg-red-100 text-red-800";
+      case "manager":
+        return "bg-blue-100 text-blue-800";
+      case "staff":
+        return "bg-green-100 text-green-800";
+      case "guest":
+        return "bg-gray-100 text-gray-800";
+      default:
+        return "bg-gray-100 text-gray-800";
     }
   };
 
   const totalUsers = users.length;
-  const adminCount = Object.values(userRoles).filter(role => role === "admin").length;
-  const managerCount = Object.values(userRoles).filter(role => role === "manager").length;
-  const staffCount = Object.values(userRoles).filter(role => role === "staff").length;
+  const adminCount = Object.values(userRoles).filter(
+    (role) => role === "admin"
+  ).length;
+  const managerCount = Object.values(userRoles).filter(
+    (role) => role === "manager"
+  ).length;
+  const staffCount = Object.values(userRoles).filter(
+    (role) => role === "staff"
+  ).length;
 
   return (
     <StandardPageLayout
@@ -251,7 +274,9 @@ export default function AdminUsersPage() {
       {/* Users List */}
       <StandardCard
         title="Users"
-        subtitle={`${filteredUsers.length} user${filteredUsers.length !== 1 ? 's' : ''} found`}
+        subtitle={`${filteredUsers.length} user${
+          filteredUsers.length !== 1 ? "s" : ""
+        } found`}
       >
         {loading ? (
           <div className="flex justify-center py-8">
@@ -262,12 +287,14 @@ export default function AdminUsersPage() {
             {filteredUsers.map((user) => {
               const userRole = userRoles[user.id];
               const isCurrentUser = user.id === currentUser?.id;
-              
+
               return (
                 <div
                   key={user.id}
                   className={`border rounded-lg p-4 transition-all ${
-                    isCurrentUser ? "border-blue-200 bg-blue-50" : "border-gray-200 hover:shadow-md"
+                    isCurrentUser
+                      ? "border-blue-200 bg-blue-50"
+                      : "border-gray-200 hover:shadow-md"
                   }`}
                 >
                   <div className="flex items-start justify-between">
@@ -283,7 +310,7 @@ export default function AdminUsersPage() {
                           <Users className="h-6 w-6 text-gray-400" />
                         )}
                       </div>
-                      
+
                       <div>
                         <div className="flex items-center space-x-2 mb-1">
                           <h3 className="font-medium text-gray-900">
@@ -295,19 +322,23 @@ export default function AdminUsersPage() {
                             </span>
                           )}
                           {userRole && (
-                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getRoleColor(userRole)}`}>
+                            <span
+                              className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getRoleColor(
+                                userRole
+                              )}`}
+                            >
                               <Shield className="h-3 w-3 mr-1" />
                               {userRole}
                             </span>
                           )}
                         </div>
-                        
+
                         <div className="space-y-1 text-sm text-gray-600">
                           <div className="flex items-center">
                             <Mail className="h-4 w-4 mr-2" />
                             <span>{user.email}</span>
                           </div>
-                          
+
                           {user.phone_number && (
                             <div className="flex items-center">
                               <Phone className="h-4 w-4 mr-2" />
@@ -315,9 +346,10 @@ export default function AdminUsersPage() {
                             </div>
                           )}
                         </div>
-                        
+
                         <div className="mt-2 text-xs text-gray-500">
-                          Joined {new Date(user.created_at).toLocaleDateString()}
+                          Joined{" "}
+                          {new Date(user.created_at).toLocaleDateString()}
                         </div>
                       </div>
                     </div>
@@ -328,7 +360,9 @@ export default function AdminUsersPage() {
                         <>
                           <select
                             value={userRole || ""}
-                            onChange={(e) => handleRoleChange(user.id, e.target.value)}
+                            onChange={(e) =>
+                              handleRoleChange(user.id, e.target.value)
+                            }
                             className="text-xs border border-gray-300 rounded px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                           >
                             <option value="">No Role</option>
@@ -337,7 +371,7 @@ export default function AdminUsersPage() {
                             <option value="staff">Staff</option>
                             <option value="guest">Guest</option>
                           </select>
-                          
+
                           <Link
                             href={`/admin/users/${user.id}/edit`}
                             className="p-1.5 text-gray-400 hover:text-blue-600 transition-colors"
@@ -345,7 +379,7 @@ export default function AdminUsersPage() {
                           >
                             <Edit className="h-4 w-4" />
                           </Link>
-                          
+
                           <button
                             onClick={() => handleDeleteUser(user.id)}
                             className="p-1.5 text-gray-400 hover:text-red-600 transition-colors"
@@ -366,10 +400,9 @@ export default function AdminUsersPage() {
             <Users className="h-12 w-12 text-gray-300 mx-auto mb-3" />
             <p>No users found</p>
             <p className="text-sm mt-1">
-              {searchTerm || selectedRole !== "all" 
-                ? "Try adjusting your search or filters" 
-                : "Invite users to get started"
-              }
+              {searchTerm || selectedRole !== "all"
+                ? "Try adjusting your search or filters"
+                : "Invite users to get started"}
             </p>
           </div>
         )}

@@ -3,7 +3,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useAuth } from "@/components/AuthProvider";
+import { useAuth } from "@/components/auth";
 import { useTheme } from "@/components/ThemeProvider";
 import {
   Home as HomeIcon,
@@ -302,7 +302,10 @@ export default function SideNavigation({
                 {isExpanded && (
                   <div className="space-y-1 pl-1">
                     {section.items.map((item) => {
-                      if (item.requiredRole && !hasPermission(item.requiredRole)) {
+                      if (
+                        item.requiredRole &&
+                        !hasPermission(item.requiredRole)
+                      ) {
                         return null;
                       }
 

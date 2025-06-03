@@ -1,6 +1,6 @@
 "use client";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
@@ -8,7 +8,7 @@ import { ArrowLeft, Save } from "lucide-react";
 import Link from "next/link";
 import StandardPageLayout from "@/components/layout/StandardPageLayout";
 import StandardCard from "@/components/ui/StandardCard";
-import { useAuth } from "@/components/AuthProvider";
+import { useAuth } from "@/components/auth";
 import { useProperty } from "@/lib/hooks/useProperty";
 import { supabase } from "@/lib/supabase";
 
@@ -134,13 +134,20 @@ export default function EditSectionPage() {
       title="Edit Section"
       breadcrumb={[
         { label: "Manual", href: "/manual" },
-        { label: section?.title || "Loading...", href: `/manual/sections/${sectionId}` },
-        { label: "Edit" }
+        {
+          label: section?.title || "Loading...",
+          href: `/manual/sections/${sectionId}`,
+        },
+        { label: "Edit" },
       ]}
     >
       <StandardCard>
         <div className="p-6">
-          <form id="edit-section-form" onSubmit={handleSave} className="space-y-6">
+          <form
+            id="edit-section-form"
+            onSubmit={handleSave}
+            className="space-y-6"
+          >
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Section Title
@@ -179,7 +186,9 @@ export default function EditSectionPage() {
                 placeholder="🏠"
                 maxLength={2}
               />
-              <p className="text-sm text-gray-500 mt-1">Enter an emoji to represent this section</p>
+              <p className="text-sm text-gray-500 mt-1">
+                Enter an emoji to represent this section
+              </p>
             </div>
 
             <div>
@@ -193,7 +202,9 @@ export default function EditSectionPage() {
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 placeholder="Enter category..."
               />
-              <p className="text-sm text-gray-500 mt-1">Optional: Group related sections together</p>
+              <p className="text-sm text-gray-500 mt-1">
+                Optional: Group related sections together
+              </p>
             </div>
           </form>
         </div>

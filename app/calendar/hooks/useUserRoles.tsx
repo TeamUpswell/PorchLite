@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useAuth } from "@/components/AuthProvider";
+import { useAuth } from "@/components/auth";
 import { roleHierarchy, UserRole } from "../types";
 
 export const useUserRoles = () => {
@@ -40,8 +40,13 @@ export const useUserRoles = () => {
 
   const canAutoApprove = () => {
     if (!userRoles || userRoles.length === 0) return false;
-    
-    const autoApprovalRoles = ["owner", "property_manager", "family", "friends"];
+
+    const autoApprovalRoles = [
+      "owner",
+      "property_manager",
+      "family",
+      "friends",
+    ];
     return userRoles.some((role) => autoApprovalRoles.includes(role));
   };
 

@@ -14,7 +14,7 @@ import {
 import { toast } from "react-hot-toast";
 import StandardPageLayout from "@/components/layout/StandardPageLayout";
 import StandardCard from "@/components/ui/StandardCard";
-import { useAuth } from "@/components/AuthProvider";
+import { useAuth } from "@/components/auth";
 import { useProperty } from "@/lib/hooks/useProperty";
 import { supabase } from "@/lib/supabase";
 import { CreatePattern } from "@/components/ui/FloatingActionPresets";
@@ -41,7 +41,9 @@ export default function ManualHomePage() {
   // ✅ ADD: Function to create default cleaning section
   const createDefaultCleaningSection = async () => {
     if (!currentProperty?.id || !user?.id) {
-      console.log("❌ Cannot create cleaning section - missing property or user");
+      console.log(
+        "❌ Cannot create cleaning section - missing property or user"
+      );
       return null;
     }
 
@@ -54,8 +56,11 @@ export default function ManualHomePage() {
         .eq("property_id", currentProperty.id)
         .single();
 
-      if (checkError && checkError.code !== 'PGRST116') {
-        console.error("Error checking for existing cleaning section:", checkError);
+      if (checkError && checkError.code !== "PGRST116") {
+        console.error(
+          "Error checking for existing cleaning section:",
+          checkError
+        );
         return null;
       }
 
@@ -73,13 +78,19 @@ export default function ManualHomePage() {
         .limit(1)
         .single();
 
-      const nextOrderIndex = maxOrderData?.order_index ? maxOrderData.order_index + 1 : 1;
+      const nextOrderIndex = maxOrderData?.order_index
+        ? maxOrderData.order_index + 1
+        : 1;
 
-      console.log("🚀 Creating new cleaning section for property:", currentProperty.id);
-      
+      console.log(
+        "🚀 Creating new cleaning section for property:",
+        currentProperty.id
+      );
+
       const insertData = {
         title: "Cleaning Procedures",
-        description: "Cleaning tasks, checklists, and maintenance procedures for your property",
+        description:
+          "Cleaning tasks, checklists, and maintenance procedures for your property",
         icon: "✨",
         is_priority: true,
         property_id: currentProperty.id,
@@ -102,7 +113,7 @@ export default function ManualHomePage() {
           code: createError.code,
           insertData: insertData,
         });
-        
+
         toast.error(`Database error: ${createError.message}`);
         return null;
       }
@@ -110,7 +121,6 @@ export default function ManualHomePage() {
       console.log("✅ Successfully created cleaning section:", newSection);
       toast.success("Cleaning section created!");
       return newSection;
-
     } catch (error) {
       console.error("❌ Unexpected error creating cleaning section:", error);
       toast.error(`Unexpected error: ${error}`);
@@ -124,7 +134,10 @@ export default function ManualHomePage() {
       return;
     }
 
-    console.log("🔍 Fetching instruction sections for property:", currentProperty.id); // ✅ CHANGED
+    console.log(
+      "🔍 Fetching instruction sections for property:",
+      currentProperty.id
+    ); // ✅ CHANGED
     setLoading(true);
 
     try {
@@ -148,24 +161,26 @@ export default function ManualHomePage() {
         toast.error("Failed to load instruction sections"); // ✅ CHANGED
       } else {
         console.log("✅ Fetched instruction sections:", data); // ✅ CHANGED
-        
+
         // ✅ IMPROVED: Sort to put cleaning section first in priority sections
         const sortedData = data?.sort((a, b) => {
           // First, group by priority
           if (a.is_priority !== b.is_priority) {
             return b.is_priority ? 1 : -1;
           }
-          
+
           // Within priority sections, put cleaning first
           if (a.is_priority && b.is_priority) {
             if (a.title === "Cleaning Procedures") return -1;
             if (b.title === "Cleaning Procedures") return 1;
           }
-          
+
           // For everything else, sort by creation date
-          return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+          return (
+            new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+          );
         });
-        
+
         setSections(sortedData || []);
       }
     } catch (error) {
@@ -195,11 +210,14 @@ export default function ManualHomePage() {
 
   if (loading) {
     return (
-      <StandardPageLayout title="Instructions"> {/* ✅ CHANGED: From "Manual" */}
+      <StandardPageLayout title="Instructions">
+        {" "}
+        {/* ✅ CHANGED: From "Manual" */}
         <StandardCard>
           <div className="flex items-center justify-center py-8">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            <span className="ml-2">Loading instructions...</span> {/* ✅ CHANGED: From "Loading sections..." */}
+            <span className="ml-2">Loading instructions...</span>{" "}
+            {/* ✅ CHANGED: From "Loading sections..." */}
           </div>
         </StandardCard>
       </StandardPageLayout>
@@ -229,61 +247,11 @@ export default function ManualHomePage() {
 
   return (
     <StandardPageLayout
-      title="Instructions" // ✅ CHANGED: From "Property Manual" to "Instructions"
+      title="House Manual & Instructions"
+      subtitle="Operating procedures and helpful information"
       headerIcon={<BookOpen className="h-6 w-6 text-blue-600" />}
     >
       <div className="space-y-8">
-        {/* ✅ Property Location Map Section - Keep this */}
-        {currentProperty &&
-          currentProperty.latitude &&
-          currentProperty.longitude && (
-            <StandardCard>
-              <div className="p-0 relative">
-                {/* Map Component - Reduced height to match dashboard banner */}
-                <PropertyMap
-                  latitude={parseFloat(currentProperty.latitude)}
-                  longitude={parseFloat(currentProperty.longitude)}
-                  address={currentProperty.address}
-                  height="200px"
-                  className="rounded-lg"
-                />
-
-                {/* Address Overlay - Bottom Left */}
-                <div className="absolute bottom-4 left-4 bg-white/95 backdrop-blur-sm rounded-lg shadow-lg border border-gray-200 p-3 max-w-xs">
-                  <h3 className="font-medium text-gray-900 text-sm mb-1">
-                    {currentProperty.name}
-                  </h3>
-                  {currentProperty.address && (
-                    <p className="text-xs text-gray-600 leading-relaxed">
-                      {currentProperty.address}
-                    </p>
-                  )}
-                  {currentProperty.city && currentProperty.state && (
-                    <p className="text-xs text-gray-500 mt-1">
-                      {currentProperty.city}, {currentProperty.state}{" "}
-                      {currentProperty.zip}
-                    </p>
-                  )}
-                </div>
-
-                {/* Directions Button Overlay - Top Right */}
-                <div className="absolute top-4 right-4">
-                  <a
-                    href={`https://www.google.com/maps/dir/?api=1&destination=${parseFloat(
-                      currentProperty.latitude
-                    )},${parseFloat(currentProperty.longitude)}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow-lg border border-blue-600 transition-all hover:shadow-xl"
-                  >
-                    <MapPin className="h-4 w-4 mr-1" />
-                    Directions
-                  </a>
-                </div>
-              </div>
-            </StandardCard>
-          )}
-
         {/* ✅ Priority Sections - with cleaning first */}
         {sections.filter((section) => section.is_priority).length > 0 && (
           <div>
@@ -295,7 +263,10 @@ export default function ManualHomePage() {
                   if (a.title === "Cleaning Procedures") return -1;
                   if (b.title === "Cleaning Procedures") return 1;
                   // Other priority sections sorted by creation date
-                  return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+                  return (
+                    new Date(a.created_at).getTime() -
+                    new Date(b.created_at).getTime()
+                  );
                 })
                 .map((section) => (
                   <PrioritySectionCard
@@ -326,17 +297,22 @@ export default function ManualHomePage() {
           <div className="text-center py-12">
             <BookOpen className="mx-auto h-12 w-12 text-gray-400" />
             <h3 className="mt-2 text-sm font-medium text-gray-900">
-              No instruction sections yet {/* ✅ CHANGED: From "No sections yet" */}
+              No instruction sections yet{" "}
+              {/* ✅ CHANGED: From "No sections yet" */}
             </h3>
             <p className="mt-1 text-sm text-gray-500">
-              Get started by creating your first instruction section. {/* ✅ CHANGED: From "manual section" */}
+              Get started by creating your first instruction section.{" "}
+              {/* ✅ CHANGED: From "manual section" */}
             </p>
           </div>
         )}
       </div>
-
       {/* ✅ KEEP this floating action button */}
-      <CreatePattern href="/manual/sections/new" label="Add Instructions" /> {/* ✅ CHANGED: From "Add Section" */}
+      <CreatePattern
+        href="/manual/sections/new"
+        label="Add Instructions"
+      />{" "}
+      {/* ✅ CHANGED: From "Add Section" */}
     </StandardPageLayout>
   );
 }

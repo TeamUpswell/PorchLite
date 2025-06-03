@@ -1,15 +1,15 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import Image from "next/image";
-import { useAuth } from "@/components/AuthProvider";
-import AuthenticatedLayout from "@/components/AuthenticatedLayout";
+import { useAuth } from "@/components/auth";
+import AuthenticatedLayout from "@/components/auth/AuthenticatedLayout";
 import { supabase } from "@/lib/supabase";
 import { useProperty } from "@/lib/hooks/useProperty";
-import { ArrowLeft, Upload, X } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { toast } from "react-hot-toast";
+import PhotoUpload from "@/components/ui/PhotoUpload"; // Use the new component
 
 const SEVERITY_LEVELS = [
   { id: "Low", label: "Low", color: "bg-blue-100 text-blue-800" },
@@ -35,9 +35,7 @@ export default function CreateCleaningIssuePage() {
   const { currentProperty } = useProperty();
 
   const [loading, setLoading] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const [photos, setPhotos] = useState<{ file: File; preview: string }[]>([]);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [photos, setPhotos] = useState<string[]>([]); // Simplified to just URLs
 
   const [issueData, setIssueData] = useState({
     description: "",
@@ -53,65 +51,6 @@ export default function CreateCleaningIssuePage() {
   ) => {
     const { name, value } = e.target;
     setIssueData((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-
-    const newPhotos = Array.from(files).map((file) => ({
-      file,
-      preview: URL.createObjectURL(file),
-    }));
-
-    setPhotos((prev) => [...prev, ...newPhotos]);
-  };
-
-  const removePhoto = (index: number) => {
-    setPhotos((prev) => {
-      const updated = [...prev];
-      URL.revokeObjectURL(updated[index].preview);
-      updated.splice(index, 1);
-      return updated;
-    });
-  };
-
-  const uploadPhotos = async () => {
-    if (!photos.length) return [];
-
-    setUploading(true);
-    const uploadedUrls = [];
-
-    try {
-      for (const photo of photos) {
-        const fileExt = photo.file.name.split(".").pop();
-        const fileName = `${Date.now()}-${Math.random()
-          .toString(36)
-          .substring(2, 15)}.${fileExt}`;
-        const filePath = `cleaning-issues/${fileName}`;
-
-        const { error } = await supabase.storage
-          .from("cleaning-photos")
-          .upload(filePath, photo.file);
-
-        if (error) throw error;
-
-        // Get public URL
-        const { data } = supabase.storage
-          .from("cleaning-photos")
-          .getPublicUrl(filePath);
-
-        uploadedUrls.push(data.publicUrl);
-      }
-
-      return uploadedUrls;
-    } catch (error) {
-      console.error("Error uploading photos:", error);
-      toast.error("Failed to upload one or more photos");
-      throw error;
-    } finally {
-      setUploading(false);
-    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -130,17 +69,14 @@ export default function CreateCleaningIssuePage() {
     setLoading(true);
 
     try {
-      // First upload photos if any
-      const photoUrls = await uploadPhotos();
-
-      // Then create the issue record
+      // Create the issue record (photos are already uploaded by PhotoUpload component)
       const { error } = await supabase.from("cleaning_issues").insert([
         {
-          property_id: currentProperty.id, // ✅ Use currentProperty.id
+          property_id: currentProperty.id,
           description: issueData.description,
           severity: issueData.severity,
           location: issueData.location,
-          photo_urls: photoUrls,
+          photo_urls: photos, // Photos are already uploaded
           reported_by: user.id,
           notes: issueData.notes,
         },
@@ -171,7 +107,6 @@ export default function CreateCleaningIssuePage() {
           </Link>
         </div>
 
-        {/* ✅ Add property validation: */}
         {!currentProperty ? (
           <div className="text-center py-8">
             <h2 className="text-xl font-semibold mb-2">No Property Selected</h2>
@@ -194,7 +129,7 @@ export default function CreateCleaningIssuePage() {
                     htmlFor="description"
                     className="block text-sm font-medium text-gray-700 mb-1"
                   >
-                    Issue Description *
+                    Issue Description <span className="text-red-500">*</span>
                   </label>
                   <textarea
                     id="description"
@@ -208,15 +143,14 @@ export default function CreateCleaningIssuePage() {
                   />
                 </div>
 
-                {/* Location & Severity (side by side on larger screens) */}
+                {/* Location & Severity */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Location dropdown */}
                   <div>
                     <label
                       htmlFor="location"
                       className="block text-sm font-medium text-gray-700 mb-1"
                     >
-                      Location *
+                      Location <span className="text-red-500">*</span>
                     </label>
                     <select
                       id="location"
@@ -235,10 +169,9 @@ export default function CreateCleaningIssuePage() {
                     </select>
                   </div>
 
-                  {/* Severity selection */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Severity *
+                      Severity <span className="text-red-500">*</span>
                     </label>
                     <div className="flex space-x-4">
                       {SEVERITY_LEVELS.map((level) => (
@@ -252,12 +185,12 @@ export default function CreateCleaningIssuePage() {
                             className="sr-only"
                           />
                           <div
-                            className={`px-3 py-1 rounded-full text-sm font-medium ${
+                            className={`px-3 py-1 rounded-full text-sm font-medium cursor-pointer transition-all ${
                               issueData.severity === level.id
                                 ? level.color +
                                   " ring-2 ring-offset-2 ring-gray-500"
-                                : "bg-gray-100 text-gray-800"
-                            } cursor-pointer`}
+                                : "bg-gray-100 text-gray-800 hover:bg-gray-200"
+                            }`}
                           >
                             {level.label}
                           </div>
@@ -267,53 +200,17 @@ export default function CreateCleaningIssuePage() {
                   </div>
                 </div>
 
-                {/* Photo Upload */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Photos (Optional)
-                  </label>
-
-                  <div className="flex flex-wrap gap-4 mb-3">
-                    {photos.map((photo, index) => (
-                      <div key={index} className="relative w-24 h-24">
-                        <img
-                          src={photo.preview}
-                          alt={`Preview ${index}`}
-                          className="w-24 h-24 object-cover rounded-md border border-gray-300"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => removePhoto(index)}
-                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1"
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                      </div>
-                    ))}
-
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="w-24 h-24 border-2 border-dashed border-gray-300 rounded-md flex flex-col items-center justify-center text-gray-500 hover:text-gray-700 hover:border-gray-500"
-                    >
-                      <Upload className="h-8 w-8 mb-1" />
-                      <span className="text-xs">Add Photo</span>
-                    </button>
-
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      className="hidden"
-                      onChange={handlePhotoSelect}
-                    />
-                  </div>
-
-                  <p className="text-xs text-gray-500">
-                    Upload photos of the issue to help with resolution
-                  </p>
-                </div>
+                {/* Photo Upload - Using New Component */}
+                <PhotoUpload
+                  photos={photos}
+                  onPhotosChange={setPhotos}
+                  storageBucket="cleaning-photos"
+                  maxPhotos={5}
+                  maxSizeMB={5}
+                  label="Issue Photos"
+                  required={false}
+                  gridCols="3"
+                />
 
                 {/* Additional Notes */}
                 <div>
@@ -321,7 +218,8 @@ export default function CreateCleaningIssuePage() {
                     htmlFor="notes"
                     className="block text-sm font-medium text-gray-700 mb-1"
                   >
-                    Additional Notes (Optional)
+                    Additional Notes{" "}
+                    <span className="text-gray-400">(optional)</span>
                   </label>
                   <textarea
                     id="notes"
@@ -335,20 +233,26 @@ export default function CreateCleaningIssuePage() {
                 </div>
 
                 {/* Submit Button */}
-                <div className="flex justify-end">
+                <div className="flex justify-end space-x-4">
+                  <Link
+                    href="/cleaning/issues"
+                    className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+                  >
+                    Cancel
+                  </Link>
                   <button
                     type="submit"
-                    disabled={loading || uploading}
-                    className={`px-4 py-2 rounded-md text-white font-medium ${
-                      loading || uploading
+                    disabled={loading}
+                    className={`px-6 py-2 rounded-md text-white font-medium ${
+                      loading
                         ? "bg-blue-400 cursor-not-allowed"
                         : "bg-blue-600 hover:bg-blue-700"
                     }`}
                   >
-                    {loading || uploading ? (
+                    {loading ? (
                       <div className="flex items-center">
                         <div className="h-4 w-4 border-2 border-t-transparent border-white rounded-full animate-spin mr-2"></div>
-                        {uploading ? "Uploading Photos..." : "Submitting..."}
+                        Submitting...
                       </div>
                     ) : (
                       "Submit Issue Report"

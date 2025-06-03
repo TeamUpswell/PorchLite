@@ -1,13 +1,13 @@
 "use client";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
-import { useAuth } from "@/components/AuthProvider";
-import AuthenticatedLayout from "@/components/AuthenticatedLayout";
+import { useAuth } from "@/components/auth";
+import AuthenticatedLayout from "@/components/auth/AuthenticatedLayout";
 import { supabase } from "@/lib/supabase";
 import { useProperty } from "@/lib/hooks/useProperty";
 import { ArrowLeft, Calendar, Check, X, ChevronRight } from "lucide-react";

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useAuth } from "@/components/AuthProvider";
+import { useAuth } from "@/components/auth";
 import { useProperty } from "@/lib/hooks/useProperty";
 import { supabase } from "@/lib/supabase";
 import StandardPageLayout from "@/components/layout/StandardPageLayout";
@@ -98,7 +98,9 @@ export default function PropertySettingsPage() {
           {/* Header without Add Button */}
           <div className="flex justify-between items-center">
             <div>
-              <h2 className="text-xl font-semibold text-white">Your Properties</h2>
+              <h2 className="text-xl font-semibold text-white">
+                Your Properties
+              </h2>
             </div>
           </div>
 

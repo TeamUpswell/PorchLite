@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { useAuth } from "@/components/AuthProvider";
+import { useAuth } from "@/components/auth";
 import { useProperty } from "@/lib/hooks/useProperty";
 import { supabase } from "@/lib/supabase";
 import StandardPageLayout from "@/components/layout/StandardPageLayout";
@@ -493,7 +493,7 @@ export default function TasksPage() {
 
   return (
     <StandardPageLayout
-      title={`${currentProperty.name} - Tasks`}
+      title="Tasks"
       headerIcon={<CheckSquareIcon className="h-6 w-6 text-blue-600" />}
     >
       {/* Filter dropdown */}
@@ -602,9 +602,8 @@ export default function TasksPage() {
           </div>
         </StandardCard>
       ) : (
-        // Task grid
-        <div className="grid gap-6 sm:grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-          {/* Existing tasks */}
+        // Task list - full width cards
+        <div className="space-y-4">
           {tasks.map((task) => (
             <TaskCard
               key={task.id}
@@ -615,19 +614,32 @@ export default function TasksPage() {
               onEdit={editTask}
               onDelete={deleteTask}
               onViewPhotos={setViewingPhotos}
+              layout="wide" // Add this prop if TaskCard supports it
             />
           ))}
 
-          {/* Create task placeholder cards - show until we have 4 tasks */}
-          {tasks.length < 4 &&
-            Array.from({ length: 4 - tasks.length }).map((_, index) => (
-              <CreateTaskPlaceholder
-                key={`placeholder-${index}`}
+          {/* "That's it!" message when there are few tasks */}
+          {tasks.length > 0 && tasks.length <= 5 && (
+            <div className="text-center py-8 border-t border-gray-200 mt-8">
+              <div className="flex items-center justify-center mb-3">
+                <div className="h-px bg-gray-200 flex-1 max-w-20"></div>
+                <span className="px-4 text-sm text-gray-400">That's it!</span>
+                <div className="h-px bg-gray-200 flex-1 max-w-20"></div>
+              </div>
+              <p className="text-sm text-gray-500">
+                {tasks.length === 1
+                  ? "Just one task to focus on."
+                  : `Only ${tasks.length} tasks to manage right now.`}
+              </p>
+              <button
                 onClick={() => setIsCreateModalOpen(true)}
-                taskCount={tasks.length}
-                placeholderIndex={index}
-              />
-            ))}
+                className="mt-4 inline-flex items-center px-4 py-2 text-sm text-blue-600 hover:text-blue-700 font-medium"
+              >
+                <PlusIcon className="h-4 w-4 mr-1" />
+                Add another task
+              </button>
+            </div>
+          )}
         </div>
       )}
 

@@ -1,4 +1,4 @@
-// components/ItemModal.tsx - Add better error handling and debug info
+// components/inventory/ItemModal.tsx - Add better error handling and debug info
 "use client";
 
 import { useState, useEffect } from "react";
@@ -211,7 +211,8 @@ export default function ItemModal({
             <div className="flex items-center space-x-2">
               {/* Show selected category icon */}
               <span className="text-2xl">
-                {categories.find((c) => c.name === formData.category)?.icon || "📋"}
+                {categories.find((c) => c.name === formData.category)?.icon ||
+                  "📋"}
               </span>
               <select
                 id="item-category"

@@ -1,6 +1,6 @@
 "use client";
 
-import { useAuth } from "@/components/AuthProvider";
+import { useAuth } from "@/components/auth";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { Shield } from "lucide-react";
@@ -22,7 +22,12 @@ export default function PermissionGate({
 
   // ✅ Add debug logging
   useEffect(() => {
-    console.log("🔒 PermissionGate: user:", user?.id, "requiredRole:", requiredRole);
+    console.log(
+      "🔒 PermissionGate: user:",
+      user?.id,
+      "requiredRole:",
+      requiredRole
+    );
   }, [user, requiredRole]);
 
   useEffect(() => {
@@ -35,7 +40,7 @@ export default function PermissionGate({
 
       try {
         console.log("🔒 PermissionGate: Checking role for user:", user.id);
-        
+
         const { data: roleData, error } = await supabase
           .from("user_roles")
           .select("role")
@@ -49,7 +54,10 @@ export default function PermissionGate({
           setUserRole(null);
         } else {
           setUserRole(roleData?.role || null);
-          console.log("🔒 PermissionGate: User role set to:", roleData?.role || null);
+          console.log(
+            "🔒 PermissionGate: User role set to:",
+            roleData?.role || null
+          );
         }
       } catch (error) {
         console.error("🔒 PermissionGate: Error in role check:", error);
@@ -76,7 +84,14 @@ export default function PermissionGate({
       hasAccess = userRole === requiredRole;
     }
 
-    console.log("🔒 PermissionGate: Permission check - userRole:", userRole, "requiredRole:", requiredRole, "hasAccess:", hasAccess);
+    console.log(
+      "🔒 PermissionGate: Permission check - userRole:",
+      userRole,
+      "requiredRole:",
+      requiredRole,
+      "hasAccess:",
+      hasAccess
+    );
     return hasAccess;
   };
 
@@ -91,27 +106,36 @@ export default function PermissionGate({
 
   if (!user || !hasPermission()) {
     console.log("🔒 PermissionGate: Access denied");
-    
+
     // ✅ Enhanced fallback with debug info
     return (
       <div className="p-8 text-center">
         <div className="mx-auto h-12 w-12 rounded-full bg-red-100 flex items-center justify-center mb-4">
           <Shield className="h-6 w-6 text-red-600" />
         </div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">Access Restricted</h3>
+        <h3 className="text-lg font-semibold text-gray-900 mb-2">
+          Access Restricted
+        </h3>
         <p className="text-gray-600 mb-4">
           Property settings are restricted to property owners and managers only.
         </p>
-        
+
         {/* ✅ Debug info */}
         <div className="mt-4 p-3 bg-gray-100 rounded text-left text-xs max-w-md mx-auto">
-          <p><strong>Debug Info:</strong></p>
-          <p>User ID: {user?.id || 'No user'}</p>
-          <p>User Role: {userRole || 'No role found'}</p>
-          <p>Required Role: {Array.isArray(requiredRole) ? requiredRole.join(', ') : requiredRole}</p>
+          <p>
+            <strong>Debug Info:</strong>
+          </p>
+          <p>User ID: {user?.id || "No user"}</p>
+          <p>User Role: {userRole || "No role found"}</p>
+          <p>
+            Required Role:{" "}
+            {Array.isArray(requiredRole)
+              ? requiredRole.join(", ")
+              : requiredRole}
+          </p>
           <p>Has Permission: {hasPermission().toString()}</p>
         </div>
-        
+
         <p className="text-sm text-gray-500 mt-4">
           Contact the property owner if you need to make changes.
         </p>

@@ -1,4 +1,4 @@
-// components/InventoryFilters.tsx - Show icons in category filter
+// components/inventory/InventoryFilters.tsx - Show icons in category filter
 "use client";
 
 import { useState, useEffect } from "react";

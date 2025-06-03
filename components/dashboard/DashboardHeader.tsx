@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { Camera } from "lucide-react";
 import Image from "next/image";
 import { useProperty } from "@/lib/hooks/useProperty";
-import { useAuth } from "@/components/AuthProvider";
+import { useAuth } from "@/components/auth";
 import { supabase } from "@/lib/supabase";
 import HeaderImageManager from "./HeaderImageManager";
 
@@ -81,7 +81,8 @@ export default function DashboardHeader({ children }: DashboardHeaderProps) {
   };
 
   // Check if user can edit (owner, manager, or admin) - SAME AS HeaderImageManager
-  const canEdit = userRole && ["owner", "manager", "admin"].includes(userRole.toLowerCase());
+  const canEdit =
+    userRole && ["owner", "manager", "admin"].includes(userRole.toLowerCase());
 
   return (
     <>

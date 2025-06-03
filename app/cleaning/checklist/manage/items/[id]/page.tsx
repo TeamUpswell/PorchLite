@@ -2,7 +2,7 @@
 
 import { useState, useEffect, FormEvent, ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/components/AuthProvider";
+import { useAuth } from "@/components/auth";
 import { supabase } from "@/lib/supabase";
 import {
   ArrowLeft,
@@ -478,7 +478,10 @@ export default function ChecklistItemsPage({ params }: PageParams) {
                     strategy={verticalListSortingStrategy}
                   >
                     {items.map((item) => (
-                      <div key={item.id} className="bg-white rounded-lg shadow-sm border p-4">
+                      <div
+                        key={item.id}
+                        className="bg-white rounded-lg shadow-sm border p-4"
+                      >
                         <div className="flex justify-between items-center">
                           <div className="flex-1">
                             {editingItem?.id === item.id ? (
@@ -488,7 +491,10 @@ export default function ChecklistItemsPage({ params }: PageParams) {
                                   value={editingItem?.text || ""}
                                   onChange={(e) =>
                                     editingItem &&
-                                    setEditingItem({ ...editingItem, text: e.target.value })
+                                    setEditingItem({
+                                      ...editingItem,
+                                      text: e.target.value,
+                                    })
                                   }
                                   className="flex-1 px-3 py-2 border border-gray-300 rounded-md"
                                 />

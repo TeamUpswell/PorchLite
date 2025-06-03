@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
-import { useAuth } from "@/components/AuthProvider";
+import { useAuth } from "@/components/auth";
 import { useProperty } from "@/lib/hooks/useProperty";
 import { supabase } from "@/lib/supabase";
 import StandardPageLayout from "@/components/layout/StandardPageLayout";
@@ -74,24 +74,25 @@ export default function PropertyDetailsPage() {
         setProperty(propertyData);
 
         // Fetch property statistics in parallel
-        const [reservations, tasks, manualSections, inventory] = await Promise.all([
-          supabase
-            .from("reservations")
-            .select("id", { count: "exact" })
-            .eq("property_id", id),
-          supabase
-            .from("tasks")
-            .select("id", { count: "exact" })
-            .eq("property_id", id),
-          supabase
-            .from("manual_sections")
-            .select("id", { count: "exact" })
-            .eq("property_id", id),
-          supabase
-            .from("inventory_items")
-            .select("id", { count: "exact" })
-            .eq("property_id", id),
-        ]);
+        const [reservations, tasks, manualSections, inventory] =
+          await Promise.all([
+            supabase
+              .from("reservations")
+              .select("id", { count: "exact" })
+              .eq("property_id", id),
+            supabase
+              .from("tasks")
+              .select("id", { count: "exact" })
+              .eq("property_id", id),
+            supabase
+              .from("manual_sections")
+              .select("id", { count: "exact" })
+              .eq("property_id", id),
+            supabase
+              .from("inventory_items")
+              .select("id", { count: "exact" })
+              .eq("property_id", id),
+          ]);
 
         setStats({
           totalReservations: reservations.count || 0,
@@ -102,7 +103,9 @@ export default function PropertyDetailsPage() {
         });
       } catch (err) {
         console.error("Error fetching property details:", err);
-        setError(err instanceof Error ? err.message : "Failed to load property");
+        setError(
+          err instanceof Error ? err.message : "Failed to load property"
+        );
       } finally {
         setLoading(false);
       }
@@ -264,7 +267,9 @@ export default function PropertyDetailsPage() {
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">
                     Description
                   </h3>
-                  <p className="text-gray-700 whitespace-pre-wrap">{property.description}</p>
+                  <p className="text-gray-700 whitespace-pre-wrap">
+                    {property.description}
+                  </p>
                 </div>
               )}
 
@@ -344,7 +349,9 @@ export default function PropertyDetailsPage() {
               <Calendar className="h-6 w-6 text-blue-600 mr-3 group-hover:scale-110 transition-transform" />
               <div>
                 <div className="font-medium text-gray-900">Manage Calendar</div>
-                <div className="text-sm text-gray-500">View and manage reservations</div>
+                <div className="text-sm text-gray-500">
+                  View and manage reservations
+                </div>
               </div>
               <ExternalLink className="h-4 w-4 text-gray-400 ml-auto" />
             </Link>
@@ -356,7 +363,9 @@ export default function PropertyDetailsPage() {
               <CheckSquare className="h-6 w-6 text-green-600 mr-3 group-hover:scale-110 transition-transform" />
               <div>
                 <div className="font-medium text-gray-900">Manage Tasks</div>
-                <div className="text-sm text-gray-500">Create and track tasks</div>
+                <div className="text-sm text-gray-500">
+                  Create and track tasks
+                </div>
               </div>
               <ExternalLink className="h-4 w-4 text-gray-400 ml-auto" />
             </Link>
@@ -368,7 +377,9 @@ export default function PropertyDetailsPage() {
               <BookOpen className="h-6 w-6 text-purple-600 mr-3 group-hover:scale-110 transition-transform" />
               <div>
                 <div className="font-medium text-gray-900">Property Manual</div>
-                <div className="text-sm text-gray-500">Instructions and guides</div>
+                <div className="text-sm text-gray-500">
+                  Instructions and guides
+                </div>
               </div>
               <ExternalLink className="h-4 w-4 text-gray-400 ml-auto" />
             </Link>
@@ -380,7 +391,9 @@ export default function PropertyDetailsPage() {
               <Package className="h-6 w-6 text-orange-600 mr-3 group-hover:scale-110 transition-transform" />
               <div>
                 <div className="font-medium text-gray-900">Inventory</div>
-                <div className="text-sm text-gray-500">Track items and supplies</div>
+                <div className="text-sm text-gray-500">
+                  Track items and supplies
+                </div>
               </div>
               <ExternalLink className="h-4 w-4 text-gray-400 ml-auto" />
             </Link>
@@ -392,7 +405,9 @@ export default function PropertyDetailsPage() {
               <Users className="h-6 w-6 text-teal-600 mr-3 group-hover:scale-110 transition-transform" />
               <div>
                 <div className="font-medium text-gray-900">Contacts</div>
-                <div className="text-sm text-gray-500">Manage property contacts</div>
+                <div className="text-sm text-gray-500">
+                  Manage property contacts
+                </div>
               </div>
               <ExternalLink className="h-4 w-4 text-gray-400 ml-auto" />
             </Link>
@@ -404,7 +419,9 @@ export default function PropertyDetailsPage() {
               <Settings className="h-6 w-6 text-gray-600 mr-3 group-hover:scale-110 transition-transform" />
               <div>
                 <div className="font-medium text-gray-900">Settings</div>
-                <div className="text-sm text-gray-500">Property configuration</div>
+                <div className="text-sm text-gray-500">
+                  Property configuration
+                </div>
               </div>
               <ExternalLink className="h-4 w-4 text-gray-400 ml-auto" />
             </Link>

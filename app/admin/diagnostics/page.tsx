@@ -3,9 +3,9 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import DatabaseDiagnostic from "@/components/DatabaseDiagnostic"; // ✅ Updated import
-import { useAuth } from "@/components/AuthProvider";
+import { useAuth } from "@/components/auth";
 import Link from "next/link";
-import AuthenticatedLayout from "@/components/AuthenticatedLayout";
+import AuthenticatedLayout from "@/components/auth/AuthenticatedLayout";
 import PermissionGate from "@/components/PermissionGate";
 import { Shield, AlertTriangle } from "lucide-react";
 

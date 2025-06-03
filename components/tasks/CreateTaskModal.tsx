@@ -231,21 +231,21 @@ export default function CreateTaskModal({
 
             <div>
               <label
-                htmlFor="task-description"
-                className="block text-sm font-medium text-gray-700 mb-2"
+                htmlFor="description"
+                className="block text-sm font-medium text-gray-700 mb-1"
               >
-                Description *
+                Description <span className="text-gray-400">(optional)</span>
               </label>
               <textarea
-                id="task-description"
-                className="w-full border border-gray-300 rounded-lg px-3 sm:px-4 py-2 sm:py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base resize-none"
-                rows={3}
+                id="description"
+                name="description"
                 value={newTask.description}
                 onChange={(e) =>
                   setNewTask({ ...newTask, description: e.target.value })
                 }
-                placeholder="Provide details about the task..."
-                required
+                rows={3}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Add details about this task (optional)..."
               />
             </div>
 

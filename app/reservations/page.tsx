@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import ProtectedPageWrapper from "@/components/layout/ProtectedPageWrapper";
 import PermissionGate from "@/components/PermissionGate";
-import { useAuth } from "@/components/AuthProvider";
+import { useAuth } from "@/components/auth";
 import { PlusIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import { supabase } from "@/lib/supabase";
 import { CreatePattern } from "@/components/ui/FloatingActionPresets";

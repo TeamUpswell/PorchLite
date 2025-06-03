@@ -1,6 +1,6 @@
 "use client";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -8,7 +8,7 @@ import { ArrowLeft, Save } from "lucide-react";
 import Link from "next/link";
 import StandardPageLayout from "@/components/layout/StandardPageLayout";
 import StandardCard from "@/components/ui/StandardCard";
-import { useAuth } from "@/components/AuthProvider";
+import { useAuth } from "@/components/auth";
 import { useProperty } from "@/lib/hooks/useProperty";
 import { supabase } from "@/lib/supabase";
 import { toast } from "react-hot-toast";
@@ -18,27 +18,27 @@ export default function NewSectionPage() {
   const router = useRouter();
   const { user } = useAuth();
   const { currentProperty } = useProperty();
-  
+
   const [formData, setFormData] = useState({
     title: "",
     description: "",
     icon: "📖",
     order_index: 1,
     category: "",
-    type: ""
+    type: "",
   });
   const [saving, setSaving] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!currentProperty || !user) {
       toast.error("Missing property or user information");
       return;
     }
 
     setSaving(true);
-    
+
     try {
       const { data, error } = await supabase
         .from("manual_sections")
@@ -47,7 +47,7 @@ export default function NewSectionPage() {
             ...formData,
             property_id: currentProperty.id,
             created_by: user.id,
-          }
+          },
         ])
         .select()
         .single();
@@ -65,11 +65,11 @@ export default function NewSectionPage() {
   };
 
   return (
-    <StandardPageLayout 
+    <StandardPageLayout
       title="Create Section"
       breadcrumb={[
         { label: "Manual", href: "/manual" },
-        { label: "Create Section" }
+        { label: "Create Section" },
       ]}
     >
       <StandardCard>
@@ -82,7 +82,9 @@ export default function NewSectionPage() {
               <input
                 type="text"
                 value={formData.title}
-                onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, title: e.target.value }))
+                }
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 placeholder="e.g., Smart TV Operation"
                 required
@@ -95,7 +97,12 @@ export default function NewSectionPage() {
               </label>
               <textarea
                 value={formData.description}
-                onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    description: e.target.value,
+                  }))
+                }
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 rows={3}
                 placeholder="Brief description of this section..."
@@ -109,7 +116,9 @@ export default function NewSectionPage() {
               <input
                 type="text"
                 value={formData.icon}
-                onChange={(e) => setFormData(prev => ({ ...prev, icon: e.target.value }))}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, icon: e.target.value }))
+                }
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 placeholder="📖"
               />
@@ -121,7 +130,9 @@ export default function NewSectionPage() {
               </label>
               <select
                 value={formData.category}
-                onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, category: e.target.value }))
+                }
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="">Select a category</option>

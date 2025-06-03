@@ -3,11 +3,20 @@
 export const dynamic = "force-dynamic";
 
 import { useState, useEffect } from "react";
-import { Building, Plus, Edit, Trash2, Users, Settings, MapPin, Calendar } from "lucide-react";
+import {
+  Building,
+  Plus,
+  Edit,
+  Trash2,
+  Users,
+  Settings,
+  MapPin,
+  Calendar,
+} from "lucide-react";
 import Link from "next/link";
 import StandardPageLayout from "@/components/layout/StandardPageLayout";
 import StandardCard from "@/components/ui/StandardCard";
-import { useAuth } from "@/components/AuthProvider";
+import { useAuth } from "@/components/auth";
 import { useProperty } from "@/lib/hooks/useProperty";
 import { supabase } from "@/lib/supabase";
 
@@ -32,7 +41,9 @@ export default function AdminPropertyPage() {
   const { currentProperty, properties, setCurrentProperty } = useProperty();
   const [loading, setLoading] = useState(true);
   const [allProperties, setAllProperties] = useState<Property[]>([]);
-  const [propertyStats, setPropertyStats] = useState<Record<string, PropertyStats>>({});
+  const [propertyStats, setPropertyStats] = useState<
+    Record<string, PropertyStats>
+  >({});
   const [showCreateModal, setShowCreateModal] = useState(false);
 
   useEffect(() => {
@@ -75,7 +86,7 @@ export default function AdminPropertyPage() {
             totalRooms: roomCount || 0,
             totalReservations: reservationCount || 0,
             totalUsers: userCount || 0,
-            lastActivity: property.updated_at
+            lastActivity: property.updated_at,
           };
         }
 
@@ -91,7 +102,11 @@ export default function AdminPropertyPage() {
   }, []);
 
   const handleDeleteProperty = async (propertyId: string) => {
-    if (!confirm("Are you sure you want to delete this property? This action cannot be undone.")) {
+    if (
+      !confirm(
+        "Are you sure you want to delete this property? This action cannot be undone."
+      )
+    ) {
       return;
     }
 
@@ -104,8 +119,8 @@ export default function AdminPropertyPage() {
       if (error) throw error;
 
       // Update local state
-      setAllProperties(prev => prev.filter(p => p.id !== propertyId));
-      
+      setAllProperties((prev) => prev.filter((p) => p.id !== propertyId));
+
       // If the deleted property was the current one, clear it
       if (currentProperty?.id === propertyId) {
         setCurrentProperty(null);
@@ -117,9 +132,18 @@ export default function AdminPropertyPage() {
   };
 
   const totalProperties = allProperties.length;
-  const totalRooms = Object.values(propertyStats).reduce((sum, stats) => sum + stats.totalRooms, 0);
-  const totalReservations = Object.values(propertyStats).reduce((sum, stats) => sum + stats.totalReservations, 0);
-  const totalUsers = Object.values(propertyStats).reduce((sum, stats) => sum + stats.totalUsers, 0);
+  const totalRooms = Object.values(propertyStats).reduce(
+    (sum, stats) => sum + stats.totalRooms,
+    0
+  );
+  const totalReservations = Object.values(propertyStats).reduce(
+    (sum, stats) => sum + stats.totalReservations,
+    0
+  );
+  const totalUsers = Object.values(propertyStats).reduce(
+    (sum, stats) => sum + stats.totalUsers,
+    0
+  );
 
   return (
     <StandardPageLayout
@@ -201,7 +225,7 @@ export default function AdminPropertyPage() {
                 )}
               </div>
             </div>
-            
+
             <div className="flex items-center space-x-2">
               <Link
                 href={`/admin/property/${currentProperty.id}/settings`}
@@ -262,7 +286,7 @@ export default function AdminPropertyPage() {
             {allProperties.map((property) => {
               const stats = propertyStats[property.id];
               const isCurrentProperty = currentProperty?.id === property.id;
-              
+
               return (
                 <div
                   key={property.id}
@@ -274,12 +298,18 @@ export default function AdminPropertyPage() {
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex items-start space-x-3">
-                      <div className={`p-2 rounded-lg ${
-                        isCurrentProperty ? "bg-blue-100" : "bg-gray-100"
-                      }`}>
-                        <Building className={`h-5 w-5 ${
-                          isCurrentProperty ? "text-blue-600" : "text-gray-600"
-                        }`} />
+                      <div
+                        className={`p-2 rounded-lg ${
+                          isCurrentProperty ? "bg-blue-100" : "bg-gray-100"
+                        }`}
+                      >
+                        <Building
+                          className={`h-5 w-5 ${
+                            isCurrentProperty
+                              ? "text-blue-600"
+                              : "text-gray-600"
+                          }`}
+                        />
                       </div>
                       <div>
                         <div className="flex items-center space-x-2 mb-1">
@@ -292,14 +322,14 @@ export default function AdminPropertyPage() {
                             </span>
                           )}
                         </div>
-                        
+
                         {property.address && (
                           <div className="flex items-center text-gray-600 mb-1">
                             <MapPin className="h-3 w-3 mr-1" />
                             <span className="text-sm">{property.address}</span>
                           </div>
                         )}
-                        
+
                         {property.description && (
                           <p className="text-gray-600 text-sm mb-2">
                             {property.description}
@@ -312,7 +342,12 @@ export default function AdminPropertyPage() {
                             <span>{stats.totalRooms} rooms</span>
                             <span>{stats.totalReservations} reservations</span>
                             <span>{stats.totalUsers} users</span>
-                            <span>Updated {new Date(stats.lastActivity).toLocaleDateString()}</span>
+                            <span>
+                              Updated{" "}
+                              {new Date(
+                                stats.lastActivity
+                              ).toLocaleDateString()}
+                            </span>
                           </div>
                         )}
                       </div>
@@ -328,7 +363,7 @@ export default function AdminPropertyPage() {
                           Select
                         </button>
                       )}
-                      
+
                       <Link
                         href={`/admin/property/${property.id}/edit`}
                         className="p-1.5 text-gray-400 hover:text-blue-600 transition-colors"
@@ -336,7 +371,7 @@ export default function AdminPropertyPage() {
                       >
                         <Edit className="h-4 w-4" />
                       </Link>
-                      
+
                       <button
                         onClick={() => handleDeleteProperty(property.id)}
                         className="p-1.5 text-gray-400 hover:text-red-600 transition-colors"
@@ -355,7 +390,9 @@ export default function AdminPropertyPage() {
           <div className="text-center py-8 text-gray-500">
             <Building className="h-12 w-12 text-gray-300 mx-auto mb-3" />
             <p>No properties found</p>
-            <p className="text-sm mt-1 mb-4">Create your first property to get started</p>
+            <p className="text-sm mt-1 mb-4">
+              Create your first property to get started
+            </p>
             <button
               onClick={() => setShowCreateModal(true)}
               className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
@@ -369,10 +406,10 @@ export default function AdminPropertyPage() {
 
       {/* Create Property Modal */}
       {showCreateModal && (
-        <CreatePropertyModal 
+        <CreatePropertyModal
           onClose={() => setShowCreateModal(false)}
           onCreated={(newProperty) => {
-            setAllProperties(prev => [newProperty, ...prev]);
+            setAllProperties((prev) => [newProperty, ...prev]);
             setShowCreateModal(false);
           }}
         />
@@ -382,10 +419,10 @@ export default function AdminPropertyPage() {
 }
 
 // Create Property Modal Component
-function CreatePropertyModal({ 
-  onClose, 
-  onCreated 
-}: { 
+function CreatePropertyModal({
+  onClose,
+  onCreated,
+}: {
   onClose: () => void;
   onCreated: (property: Property) => void;
 }) {
@@ -403,11 +440,13 @@ function CreatePropertyModal({
 
       const { data, error } = await supabase
         .from("properties")
-        .insert([{
-          name: name.trim(),
-          address: address.trim() || null,
-          description: description.trim() || null,
-        }])
+        .insert([
+          {
+            name: name.trim(),
+            address: address.trim() || null,
+            description: description.trim() || null,
+          },
+        ])
         .select()
         .single();
 
@@ -425,8 +464,10 @@ function CreatePropertyModal({
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Create New Property</h2>
-        
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">
+          Create New Property
+        </h2>
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">

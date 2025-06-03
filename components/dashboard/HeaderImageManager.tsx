@@ -6,7 +6,7 @@ import Image from "next/image";
 import { toast } from "react-hot-toast";
 import { supabase } from "@/lib/supabase";
 import { useProperty } from "@/lib/hooks/useProperty";
-import { useAuth } from "@/components/AuthProvider";
+import { useAuth } from "@/components/auth";
 
 // Role permissions for header image management
 const ALLOWED_ROLES = ["owner", "manager", "admin"]; // ← Added 'admin'
@@ -499,40 +499,39 @@ export default function HeaderImageManager({
   const handleDeleteImage = async (imageId: string, imageName: string) => {
     // Create a more user-friendly confirmation
     const confirmMessage = `Delete "${imageName}"?\n\nThis action cannot be undone and will permanently remove this image from your library.`;
-    
+
     if (!confirm(confirmMessage)) {
       return;
     }
 
     try {
-      console.log('🗑️ Deleting image:', { imageId, imageName });
+      console.log("🗑️ Deleting image:", { imageId, imageName });
 
       // Delete from Supabase Storage
       const { error } = await supabase.storage
-        .from('property-images')
+        .from("property-images")
         .remove([`headers/${imageId}`]);
 
       if (error) {
-        console.error('❌ Delete error:', error);
-        toast.error('Failed to delete image');
+        console.error("❌ Delete error:", error);
+        toast.error("Failed to delete image");
         return;
       }
 
-      console.log('✅ Image deleted successfully');
+      console.log("✅ Image deleted successfully");
 
       // Remove from local state
-      setUserImages(prev => prev.filter(img => img.id !== imageId));
-      
+      setUserImages((prev) => prev.filter((img) => img.id !== imageId));
+
       // Clear selection if deleted image was selected
       if (selectedUserImage === imageId) {
         setSelectedUserImage(null);
       }
 
       toast.success(`"${imageName}" deleted successfully`);
-
     } catch (error) {
-      console.error('❌ Delete error:', error);
-      toast.error('Failed to delete image');
+      console.error("❌ Delete error:", error);
+      toast.error("Failed to delete image");
     }
   };
 
@@ -541,7 +540,6 @@ export default function HeaderImageManager({
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
       <div className="bg-white rounded-lg max-w-4xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-hidden flex flex-col">
-        
         {/* Sticky Save Bar - Mobile Optimized */}
         {(selectedPreset || customImageUrl || selectedUserImage) && (
           <div className="sticky top-0 z-10 bg-blue-50 border-b border-blue-200 px-3 sm:px-6 py-3 sm:py-4 rounded-t-lg">
@@ -606,8 +604,10 @@ export default function HeaderImageManager({
                   <Image
                     src={
                       customImageUrl ||
-                      userImages.find((img) => img.id === selectedUserImage)?.url ||
-                      availablePresets.find((p) => p.id === selectedPreset)?.url ||
+                      userImages.find((img) => img.id === selectedUserImage)
+                        ?.url ||
+                      availablePresets.find((p) => p.id === selectedPreset)
+                        ?.url ||
                       ""
                     }
                     alt="Header preview"

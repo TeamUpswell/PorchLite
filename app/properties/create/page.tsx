@@ -7,7 +7,7 @@ import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useTenant } from "@/lib/hooks/useTenant";
 import { supabase } from "@/lib/supabase";
-import AuthenticatedLayout from "@/components/AuthenticatedLayout";
+import AuthenticatedLayout from "@/components/auth/AuthenticatedLayout";
 import { MapPin, Check, AlertCircle } from "lucide-react";
 
 // Google Places types

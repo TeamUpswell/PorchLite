@@ -1,6 +1,6 @@
 import "./globals.css";
 import { Inter } from "next/font/google";
-import { AuthProvider } from "@/components/AuthProvider";
+import { AuthProvider } from "@/components/auth"; // Updated import path
 import { PropertyProvider } from "@/lib/hooks/useProperty";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { Toaster } from "react-hot-toast";

@@ -4,7 +4,7 @@
 import { useState, useEffect } from "react";
 import { MessageCircle, Send, Trash2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-import { useAuth } from "@/components/AuthProvider";
+import { useAuth } from "@/components/auth";
 import { toast } from "react-hot-toast";
 
 interface Comment {
@@ -42,10 +42,12 @@ export default function RecommendationComments({
     try {
       const { data, error } = await supabase
         .from("recommendation_notes") // ← Correct table name
-        .select(`
+        .select(
+          `
           *,
           profiles!user_id(id, email, full_name, first_name, last_name)
-        `) // ← Fixed relationship syntax
+        `
+        ) // ← Fixed relationship syntax
         .eq("recommendation_id", recommendationId)
         .order("created_at", { ascending: false });
 
@@ -67,12 +69,12 @@ export default function RecommendationComments({
     if (!comment.profiles) return "Unknown User";
 
     const { profiles: userData } = comment;
-    
+
     // Try full_name first
     if (userData.full_name?.trim()) {
       return userData.full_name.trim();
     }
-    
+
     // Try first_name + last_name
     if (userData.first_name || userData.last_name) {
       const firstName = userData.first_name?.trim() || "";
@@ -80,12 +82,12 @@ export default function RecommendationComments({
       const fullName = `${firstName} ${lastName}`.trim();
       if (fullName) return fullName;
     }
-    
+
     // Fall back to email (first part before @)
     if (userData.email) {
-      return userData.email.split('@')[0];
+      return userData.email.split("@")[0];
     }
-    
+
     return "Unknown User";
   };
 
@@ -105,10 +107,12 @@ export default function RecommendationComments({
             content: newComment.trim(), // ← Changed from 'comment' to 'content'
           },
         ])
-        .select(`
+        .select(
+          `
           *,
           profiles!user_id(id, email, full_name, first_name, last_name)
-        `)
+        `
+        )
         .single();
 
       if (error) throw error;
@@ -195,16 +199,20 @@ export default function RecommendationComments({
                           {getUserDisplayName(comment)}
                         </span>
                         <span className="text-gray-500 text-xs">
-                          {new Date(comment.created_at).toLocaleDateString("en-US", {
-                            month: "short",
-                            day: "numeric",
-                            year: "numeric",
-                          })}
+                          {new Date(comment.created_at).toLocaleDateString(
+                            "en-US",
+                            {
+                              month: "short",
+                              day: "numeric",
+                              year: "numeric",
+                            }
+                          )}
                         </span>
                       </div>
-                      <p className="text-gray-700">{comment.content}</p> {/* ← Changed from comment.comment to comment.content */}
+                      <p className="text-gray-700">{comment.content}</p>{" "}
+                      {/* ← Changed from comment.comment to comment.content */}
                     </div>
-                    
+
                     {/* Delete button - only show for comment author */}
                     {user && comment.user_id === user.id && (
                       <button

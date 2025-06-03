@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { useAuth } from "@/components/AuthProvider";
-import AuthenticatedLayout from "@/components/AuthenticatedLayout";
+import { useAuth } from "@/components/auth";
+import AuthenticatedLayout from "@/components/auth/AuthenticatedLayout";
 import { supabase } from "@/lib/supabase";
 import { useProperty } from "@/lib/hooks/useProperty";
 import {
