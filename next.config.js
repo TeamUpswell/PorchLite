@@ -1,10 +1,5 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: "export", // Generate static HTML files
-  images: {
-    unoptimized: true, // Required for static export
-  },
-
   eslint: {
     ignoreDuringBuilds: true,
   },
@@ -17,10 +12,8 @@ const nextConfig = {
     return config;
   },
 
-  // No experimental features
-  experimental: {
-    // Completely disable experimental features
-  },
+  // Skip experimental features
+  experimental: {},
 };
 
 module.exports = nextConfig;

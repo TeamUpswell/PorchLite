@@ -1,4 +1,9 @@
-"use client";
+import { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Login - PorchLite",
+  description: "Login to your PorchLite account",
+};
 
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
