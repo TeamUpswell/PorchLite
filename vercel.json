@@ -1,5 +1,16 @@
 {
   "framework": null,
   "buildCommand": "echo 'Building static site' && mkdir -p dist && echo '<html><head><title>PorchLite Staging</title></head><body><h1>PorchLite Staging</h1><p>Temporary deployment</p></body></html>' > dist/index.html",
-  "outputDirectory": "dist"
+  "outputDirectory": "dist",
+  "functions": {
+    "middleware": {
+      "runtime": "@vercel/node@latest"
+    }
+  },
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
+    }
+  ]
 }

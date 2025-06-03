@@ -1,8 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Drastically simplified config
+  output: "export", // Generate static HTML files
   images: {
-    domains: ["localhost", "supabase.co"],
+    unoptimized: true, // Required for static export
   },
 
   eslint: {
