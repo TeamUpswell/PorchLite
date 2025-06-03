@@ -1,5 +1,8 @@
 "use client";
 
+// Add this line at the top of your file to skip static prerendering
+export const dynamic = "force-dynamic";
+
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useTenant } from "@/lib/hooks/useTenant";
@@ -28,11 +31,13 @@ export default function CreatePropertyPage() {
   const router = useRouter();
   const { currentTenant } = useTenant();
   const [isLoading, setIsLoading] = useState(false);
-  const [addressSuggestions, setAddressSuggestions] = useState<PlaceResult[]>([]);
+  const [addressSuggestions, setAddressSuggestions] = useState<PlaceResult[]>(
+    []
+  );
   const [selectedPlace, setSelectedPlace] = useState<PlaceResult | null>(null);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [addressValidated, setAddressValidated] = useState(false);
-  
+
   const [formData, setFormData] = useState({
     name: "",
     address: "",
@@ -56,32 +61,44 @@ export default function CreatePropertyPage() {
 
     try {
       const service = new window.google.maps.places.AutocompleteService();
-      
+
       service.getPlacePredictions(
         {
           input: query,
-          types: ['address'],
-          componentRestrictions: { country: 'US' }, // Adjust as needed
+          types: ["address"],
+          componentRestrictions: { country: "US" }, // Adjust as needed
         },
         (predictions, status) => {
-          if (status === window.google.maps.places.PlacesServiceStatus.OK && predictions) {
+          if (
+            status === window.google.maps.places.PlacesServiceStatus.OK &&
+            predictions
+          ) {
             // Get detailed place information
             const detailedPlaces: PlaceResult[] = [];
-            
+
             predictions.forEach((prediction, index) => {
               const service = new window.google.maps.places.PlacesService(
-                document.createElement('div')
+                document.createElement("div")
               );
-              
+
               service.getDetails(
                 {
                   placeId: prediction.place_id,
-                  fields: ['place_id', 'formatted_address', 'geometry', 'address_components'],
+                  fields: [
+                    "place_id",
+                    "formatted_address",
+                    "geometry",
+                    "address_components",
+                  ],
                 },
                 (place, status) => {
-                  if (status === window.google.maps.places.PlacesServiceStatus.OK && place) {
+                  if (
+                    status ===
+                      window.google.maps.places.PlacesServiceStatus.OK &&
+                    place
+                  ) {
                     detailedPlaces.push(place as PlaceResult);
-                    
+
                     // Update suggestions when all results are loaded
                     if (detailedPlaces.length === predictions.length) {
                       setAddressSuggestions(detailedPlaces);
@@ -94,7 +111,7 @@ export default function CreatePropertyPage() {
         }
       );
     } catch (error) {
-      console.error('Error searching addresses:', error);
+      console.error("Error searching addresses:", error);
     }
   }, []);
 
@@ -104,12 +121,12 @@ export default function CreatePropertyPage() {
     setAddressValidated(false);
     setSelectedPlace(null);
     setShowSuggestions(true);
-    
+
     // Debounce the search
     const timeoutId = setTimeout(() => {
       searchAddresses(value);
     }, 300);
-    
+
     return () => clearTimeout(timeoutId);
   };
 
@@ -118,8 +135,10 @@ export default function CreatePropertyPage() {
     // Extract address components
     const addressComponents = place.address_components;
     const getComponent = (type: string) => {
-      const component = addressComponents.find(comp => comp.types.includes(type));
-      return component ? component.long_name : '';
+      const component = addressComponents.find((comp) =>
+        comp.types.includes(type)
+      );
+      return component ? component.long_name : "";
     };
 
     setFormData({
@@ -128,10 +147,11 @@ export default function CreatePropertyPage() {
       latitude: place.geometry.location.lat(),
       longitude: place.geometry.location.lng(),
       place_id: place.place_id,
-      city: getComponent('locality') || getComponent('administrative_area_level_2'),
-      state: getComponent('administrative_area_level_1'),
-      zip: getComponent('postal_code'),
-      country: getComponent('country'),
+      city:
+        getComponent("locality") || getComponent("administrative_area_level_2"),
+      state: getComponent("administrative_area_level_1"),
+      zip: getComponent("postal_code"),
+      country: getComponent("country"),
     });
 
     setSelectedPlace(place);
@@ -142,7 +162,7 @@ export default function CreatePropertyPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!currentTenant) {
       alert("Please select a property portfolio first");
       return;
@@ -197,20 +217,26 @@ export default function CreatePropertyPage() {
     <AuthenticatedLayout>
       <div className="container mx-auto px-4 py-8">
         <h1 className="text-2xl font-bold mb-6">Create New Property</h1>
-        
+
         {!currentTenant && (
           <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-md">
-            <p className="text-yellow-800">Please select a property portfolio first</p>
+            <p className="text-yellow-800">
+              Please select a property portfolio first
+            </p>
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="max-w-lg space-y-6">
           <div>
-            <label className="block text-sm font-medium mb-1">Property Name</label>
+            <label className="block text-sm font-medium mb-1">
+              Property Name
+            </label>
             <input
               type="text"
               value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, name: e.target.value })
+              }
               className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               placeholder="e.g., Mountain Cabin, Beach House"
               required
@@ -218,7 +244,9 @@ export default function CreatePropertyPage() {
           </div>
 
           <div className="relative">
-            <label className="block text-sm font-medium mb-1">Property Address</label>
+            <label className="block text-sm font-medium mb-1">
+              Property Address
+            </label>
             <div className="relative">
               <input
                 type="text"
@@ -226,18 +254,20 @@ export default function CreatePropertyPage() {
                 onChange={(e) => handleAddressChange(e.target.value)}
                 onFocus={() => setShowSuggestions(true)}
                 className={`w-full px-3 py-2 pr-10 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                  addressValidated ? 'border-green-500' : 'border-gray-300'
+                  addressValidated ? "border-green-500" : "border-gray-300"
                 }`}
                 placeholder="Start typing the property address..."
                 required
               />
-              
+
               {/* Validation indicator */}
               <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
                 {addressValidated ? (
                   <Check className="h-5 w-5 text-green-500" />
-                ) : formData.address && (
-                  <AlertCircle className="h-5 w-5 text-yellow-500" />
+                ) : (
+                  formData.address && (
+                    <AlertCircle className="h-5 w-5 text-yellow-500" />
+                  )
                 )}
               </div>
             </div>
@@ -268,10 +298,11 @@ export default function CreatePropertyPage() {
             {/* Validation message */}
             {formData.address && !addressValidated && (
               <p className="mt-1 text-sm text-yellow-600">
-                Please select an address from the suggestions for accurate location data
+                Please select an address from the suggestions for accurate
+                location data
               </p>
             )}
-            
+
             {addressValidated && (
               <p className="mt-1 text-sm text-green-600 flex items-center">
                 <Check className="h-4 w-4 mr-1" />
@@ -283,24 +314,31 @@ export default function CreatePropertyPage() {
           {/* Show location details when address is validated */}
           {addressValidated && formData.latitude && formData.longitude && (
             <div className="p-4 bg-green-50 border border-green-200 rounded-md">
-              <h3 className="text-sm font-medium text-green-800 mb-2">Location Details</h3>
+              <h3 className="text-sm font-medium text-green-800 mb-2">
+                Location Details
+              </h3>
               <div className="grid grid-cols-2 gap-2 text-xs text-green-700">
                 <div>City: {formData.city}</div>
                 <div>State: {formData.state}</div>
                 <div>ZIP: {formData.zip}</div>
                 <div>Country: {formData.country}</div>
                 <div className="col-span-2">
-                  Coordinates: {formData.latitude.toFixed(6)}, {formData.longitude.toFixed(6)}
+                  Coordinates: {formData.latitude.toFixed(6)},{" "}
+                  {formData.longitude.toFixed(6)}
                 </div>
               </div>
             </div>
           )}
 
           <div>
-            <label className="block text-sm font-medium mb-1">Description (Optional)</label>
+            <label className="block text-sm font-medium mb-1">
+              Description (Optional)
+            </label>
             <textarea
               value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, description: e.target.value })
+              }
               className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               rows={3}
               placeholder="Describe your property, amenities, or special features..."
@@ -314,7 +352,7 @@ export default function CreatePropertyPage() {
           >
             {isLoading ? "Creating Property..." : "Create Property"}
           </button>
-          
+
           {!addressValidated && formData.address && (
             <p className="text-sm text-gray-600 text-center">
               Please select a validated address to continue
