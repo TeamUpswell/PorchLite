@@ -1,7 +1,4 @@
 {
-  "buildCommand": "mkdir -p .vercel/output/static && echo '<html><head><title>PorchLite (Staging)</title></head><body style=\"font-family: sans-serif; max-width: 800px; margin: 0 auto; padding: 20px;\"><h1>PorchLite Staging Environment</h1><p>This is a temporary deployment that bypasses the build process due to a known issue with micromatch in Next.js.</p><p><a href=\"https://github.com/TeamUpswell/PorchLite/tree/staging\">View source code on GitHub</a></p><p>Last updated: June 2, 2025</p></body></html>' > .vercel/output/static/index.html && cp -r public/* .vercel/output/static/ || true",
-  "outputDirectory": ".vercel/output/static",
-  "github": {
-    "silent": true
-  }
+  "buildCommand": "mkdir -p .vercel/output/static && echo '<html><head><title>PorchLite Staging</title></head><body><h1>PorchLite Staging</h1><p>Temporary deployment</p></body></html>' > .vercel/output/static/index.html",
+  "outputDirectory": ".vercel/output/static"
 }
