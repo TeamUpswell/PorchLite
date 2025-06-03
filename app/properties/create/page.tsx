@@ -2,8 +2,9 @@
 
 // Add this line at the top of your file to skip static prerendering
 export const dynamic = "force-dynamic";
+export const runtime = "edge"; // Try this as well
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useTenant } from "@/lib/hooks/useTenant";
 import { supabase } from "@/lib/supabase";
@@ -27,7 +28,8 @@ interface PlaceResult {
   }>;
 }
 
-export default function CreatePropertyPage() {
+// Separate the main component logic from the page component
+function PropertyCreateForm() {
   const router = useRouter();
   const { currentTenant } = useTenant();
   const [isLoading, setIsLoading] = useState(false);
@@ -369,4 +371,32 @@ export default function CreatePropertyPage() {
       />
     </AuthenticatedLayout>
   );
+}
+
+// Main page component that uses conditional rendering
+export default function CreatePropertyPage() {
+  const [isMounted, setIsMounted] = useState(false);
+
+  // Only render on client-side
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  // Show loading state or nothing during server-side rendering
+  if (!isMounted) {
+    return (
+      <AuthenticatedLayout>
+        <div className="container mx-auto px-4 py-8">
+          <h1 className="text-2xl font-bold mb-6">Create New Property</h1>
+          <div className="flex items-center justify-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <span className="ml-2">Loading property form...</span>
+          </div>
+        </div>
+      </AuthenticatedLayout>
+    );
+  }
+
+  // Only render the actual form component on the client
+  return <PropertyCreateForm />;
 }
