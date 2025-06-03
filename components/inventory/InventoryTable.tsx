@@ -1,4 +1,4 @@
-// components/InventoryTable.tsx
+// components/inventory/InventoryTable.tsx
 "use client";
 
 import React, { useState } from "react";
