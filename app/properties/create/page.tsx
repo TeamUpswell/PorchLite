@@ -1,8 +1,7 @@
 "use client";
 
-// Add this line at the top of your file to skip static prerendering
+// Only keep the dynamic directive, remove edge runtime
 export const dynamic = "force-dynamic";
-export const runtime = "edge"; // Try this as well
 
 import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";

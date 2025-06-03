@@ -1,0 +1,4 @@
+# Ignore problematic folders
+.git
+node_modules
+.next
