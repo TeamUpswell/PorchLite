@@ -1,0 +1,7 @@
+{
+  "buildCommand": "NODE_OPTIONS='--max-old-space-size=3072' next build",
+  "ignoreCommand": "node -e \"process.exit(0)\"",
+  "github": {
+    "silent": true
+  }
+}
