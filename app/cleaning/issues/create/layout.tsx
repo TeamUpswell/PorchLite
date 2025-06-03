@@ -6,5 +6,5 @@ export const metadata: Metadata = {
 };
 
 export default function CleaningIssuesCreateLayout({ children }) {
-  return children;
+  return <>{children}</>;
 }
