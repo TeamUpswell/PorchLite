@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { CreatePattern } from "@/components/ui/FloatingActionPresets";
-import StandardPageLayout from "@/components/layouts/StandardPageLayout";
+import StandardPageLayout from "@/components/layouts/StandardPageLayout"; // Fix path here
 
 export default function GuestsPage() {
   const [showAddGuestModal, setShowAddGuestModal] = useState(false);
