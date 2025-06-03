@@ -5,6 +5,8 @@ export const metadata: Metadata = {
   description: "Login to your PorchLite account",
 };
 
+("use client");
+
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";

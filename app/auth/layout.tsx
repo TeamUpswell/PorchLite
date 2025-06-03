@@ -1,6 +1,12 @@
 import Link from "next/link";
 import Image from "next/image";
 import React from "react";
+import { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Reset Password - PorchLite",
+  description: "Reset your PorchLite password",
+};
 
 export default function AuthLayout({
   children,
