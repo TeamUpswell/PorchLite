@@ -1,14 +1,13 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: "export", // Generate static HTML files
-  images: {
-    unoptimized: true, // Required for static export
-  },
   eslint: {
     ignoreDuringBuilds: true,
   },
   typescript: {
     ignoreBuildErrors: true,
+  },
+  experimental: {
+    largePageDataBytes: 256 * 1000, // Increase the limit for page data size
   },
 };
 
