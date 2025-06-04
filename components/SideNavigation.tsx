@@ -83,7 +83,7 @@ const navigationStructure: NavigationSection[] = [
 const accountSection: NavigationSection = {
   category: "Account",
   items: [
-    { name: "Profile", href: "/account/profile", icon: UserIcon },
+    { name: "Profile", href: "/profile", icon: UserIcon }, // Updated profile link
     {
       name: "Property Settings",
       href: "/account/properties",
