@@ -596,6 +596,15 @@ export default function RecommendationsPage() {
                   key={rec.id}
                   className="border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow relative group"
                 >
+                  {/* DELETE BUTTON - Appears on hover */}
+                  <button
+                    onClick={() => confirmDelete(rec)}
+                    className="absolute top-2 right-2 z-10 p-2 bg-red-500 text-white rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-all duration-200 hover:bg-red-600 hover:scale-110"
+                    title="Delete recommendation"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+
                   <div className="h-48 relative">
                     {rec.place_id ? (
                       <DynamicGooglePlacePhoto
@@ -693,13 +702,6 @@ export default function RecommendationsPage() {
                           <Globe className="h-3 w-3 mr-1" />
                           View on Google
                         </a>
-                        <button
-                          onClick={() => confirmDelete(rec)}
-                          className="text-red-600 hover:text-red-800 text-sm font-medium"
-                          title="Delete recommendation"
-                        >
-                          Delete
-                        </button>
                       </div>
                     </div>
 
