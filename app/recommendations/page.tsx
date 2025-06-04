@@ -326,6 +326,39 @@ export default function RecommendationsPage() {
     try {
       const category = getCategoryFromTypes(place.types);
 
+      // Get photo references from Place Details API (not from the photos objects)
+      let photoReferences = [];
+
+      if (place.place_id) {
+        try {
+          console.log("🔍 Fetching place details for photo references...");
+          const response = await fetch(
+            `/api/places/details?place_id=${place.place_id}`
+          );
+          const data = await response.json();
+
+          console.log("📋 Place details API response:", data);
+
+          if (data.result && data.result.photos) {
+            photoReferences = data.result.photos
+              .slice(0, 5) // Limit to 5 photos
+              .map((photo: any) => photo.photo_reference)
+              .filter(Boolean);
+
+            console.log(
+              "✅ Extracted photo references from API:",
+              photoReferences
+            );
+          } else {
+            console.log("❌ No photos in Place Details API response");
+          }
+        } catch (error) {
+          console.error("❌ Error fetching place details for photos:", error);
+        }
+      }
+
+      console.log("💾 Final photo references to store:", photoReferences);
+
       const newRecommendation = {
         name: place.name,
         category,
@@ -337,7 +370,7 @@ export default function RecommendationsPage() {
         rating: place.rating || 0,
         website: place.website || null,
         phone_number: place.formatted_phone_number || null,
-        images: place.photos ? place.photos.map((p) => p.photo_reference) : [],
+        images: photoReferences, // Now contains actual photo references
         place_id: place.place_id,
         property_id: currentProperty?.id || null,
         is_recommended: true,
@@ -471,6 +504,11 @@ export default function RecommendationsPage() {
             onPlaceSelect={(place) => {
               setSelectedPlace(place);
               setPlacesLoading(false);
+              console.log("🖼️ Place selected:", place);
+              console.log("📸 Photos data:", place.photos);
+              if (place.photos && place.photos.length > 0) {
+                console.log("📸 First photo URL:", place.photos[0].getUrl());
+              }
             }}
             defaultLocation={currentProperty?.coordinates}
             placeholder="Search for places (e.g., 'Starbucks near me', 'Italian restaurant')..."
@@ -565,6 +603,13 @@ export default function RecommendationsPage() {
         ) : filteredRecommendations.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredRecommendations.map((rec) => {
+              // Add this debug log
+              console.log(`Recommendation ${rec.name}:`, {
+                images: rec.images,
+                imageCount: rec.images?.length || 0,
+                firstImage: rec.images?.[0],
+              });
+
               const categories = [
                 { id: "all", name: "All Categories", icon: "🏪" },
                 { id: "restaurant", name: "Restaurants", icon: "🍽️" },
@@ -583,23 +628,17 @@ export default function RecommendationsPage() {
                   key={rec.id}
                   className="border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow relative group"
                 >
-                  <button
-                    onClick={() => confirmDelete(rec)}
-                    className="absolute top-2 right-2 z-10 bg-red-600 text-white p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-700"
-                    title="Delete recommendation"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-
                   <div className="h-48 relative">
                     {rec.images && rec.images.length > 0 ? (
-                      <GooglePlacePhoto
-                        photoReference={rec.images[0]}
-                        alt={rec.name}
-                        width={400}
-                        height={300}
-                        className="w-full h-full object-cover"
-                      />
+                      <>
+                        <GooglePlacePhoto
+                          photoReference={rec.images[0]}
+                          alt={rec.name}
+                          width={400}
+                          height={300}
+                          className="w-full h-full object-cover"
+                        />
+                      </>
                     ) : (
                       <div className="h-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center">
                         <span className="text-4xl">

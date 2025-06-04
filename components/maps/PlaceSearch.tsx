@@ -2,88 +2,162 @@
 
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { Loader } from "@googlemaps/js-api-loader";
+import { useEffect, useRef, useState } from "react";
 import { Search } from "lucide-react";
 
 interface PlaceSearchProps {
-  onPlaceSelect: (place: google.maps.places.PlaceResult) => void;
+  onPlaceSelect: (place: any) => void;
+  defaultLocation?: { lat: number; lng: number };
   placeholder?: string;
 }
 
 export default function PlaceSearch({
   onPlaceSelect,
-  placeholder = "Search for a place...",
+  defaultLocation,
+  placeholder = "Search for places...",
 }: PlaceSearchProps) {
-  const [isLoaded, setIsLoaded] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-  const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
-
-  const inputId = "place-search-input"; // Add a consistent ID
+  const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
-    const loadGoogleMapsAPI = async () => {
+    // Add debug logging
+    console.log("🗺️ PlaceSearch initializing...");
+    console.log("🗺️ window.google exists:", typeof window.google !== "undefined");
+    console.log("🗺️ window.google.maps exists:", typeof window.google?.maps !== "undefined");
+    console.log("🗺️ window.google.maps.places exists:", typeof window.google?.maps?.places !== "undefined");
+
+    const initializeAutocomplete = async () => {
+      console.log("🗺️ Attempting to initialize autocomplete...");
+      
+      // Wait for Google Maps to load
+      if (typeof window.google === "undefined") {
+        console.error("❌ Google Maps JavaScript API not loaded");
+        return;
+      }
+
+      if (!window.google.maps) {
+        console.error("❌ Google Maps core not available");
+        return;
+      }
+
+      if (!window.google.maps.places) {
+        console.error("❌ Google Maps Places library not available");
+        return;
+      }
+
+      console.log("✅ Google Maps and Places library available");
+
       try {
-        const loader = new Loader({
-          apiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "",
-          version: "weekly",
-          libraries: ["places"],
+        console.log("🗺️ Creating Autocomplete instance...");
+        const autocomplete = new google.maps.places.Autocomplete(
+          inputRef.current!,
+          {
+            fields: [
+              "place_id",
+              "name",
+              "formatted_address",
+              "rating",
+              "price_level",
+              "types",
+              "geometry",
+              "photos",
+              "formatted_phone_number",
+              "website",
+              "opening_hours",
+            ],
+            types: ["establishment"],
+          }
+        );
+
+        console.log("✅ Autocomplete instance created");
+
+        // Set location bias if provided
+        if (defaultLocation) {
+          console.log("🗺️ Setting location bias:", defaultLocation);
+          const circle = new google.maps.Circle({
+            center: defaultLocation,
+            radius: 5000,
+          });
+          autocomplete.setBounds(circle.getBounds()!);
+        }
+
+        // Set up event listener for place selection
+        autocomplete.addListener("place_changed", () => {
+          console.log("🗺️ Place selected!");
+          const place = autocomplete.getPlace();
+          
+          if (place && place.place_id) {
+            console.log("✅ Valid place selected:", place.name);
+            onPlaceSelect({
+              place_id: place.place_id,
+              name: place.name,
+              formatted_address: place.formatted_address,
+              rating: place.rating,
+              price_level: place.price_level,
+              types: place.types || [],
+              geometry: place.geometry,
+              photos: place.photos,
+              formatted_phone_number: place.formatted_phone_number,
+              website: place.website,
+              opening_hours: place.opening_hours,
+            });
+          } else {
+            console.warn("⚠️ Invalid place selected");
+          }
         });
 
-        await loader.load();
+        console.log("✅ PlaceSearch fully initialized");
         setIsLoaded(true);
       } catch (error) {
-        console.error("Error loading Google Maps API:", error);
+        console.error("❌ Error initializing Places Autocomplete:", error);
       }
     };
 
-    loadGoogleMapsAPI();
-  }, []);
-
-  useEffect(() => {
-    if (isLoaded && inputRef.current) {
-      // Initialize Google Places Autocomplete
-      autocompleteRef.current = new google.maps.places.Autocomplete(
-        inputRef.current,
-        { types: ["establishment"] }
-      );
-
-      // Add listener for place selection
-      autocompleteRef.current.addListener("place_changed", () => {
-        const place = autocompleteRef.current?.getPlace();
-        if (place && place.place_id) {
-          onPlaceSelect(place);
+    // Check if Google Maps is already loaded
+    if (window.google && window.google.maps && window.google.maps.places) {
+      console.log("✅ Google Maps already loaded, initializing immediately");
+      initializeAutocomplete();
+    } else {
+      console.log("⏳ Waiting for Google Maps to load...");
+      // Wait for Google Maps to load
+      let attempts = 0;
+      const maxAttempts = 100; // 10 seconds
+      
+      const checkGoogleMaps = setInterval(() => {
+        attempts++;
+        console.log(`🗺️ Check attempt ${attempts}/${maxAttempts}`);
+        
+        if (window.google && window.google.maps && window.google.maps.places) {
+          console.log("✅ Google Maps loaded, initializing autocomplete");
+          clearInterval(checkGoogleMaps);
+          initializeAutocomplete();
+        } else if (attempts >= maxAttempts) {
+          console.error("❌ Timeout waiting for Google Maps to load");
+          clearInterval(checkGoogleMaps);
         }
-      });
+      }, 100);
     }
-
-    // Cleanup listener on component unmount
-    return () => {
-      if (autocompleteRef.current) {
-        google.maps.event.clearInstanceListeners(autocompleteRef.current);
-      }
-    };
-  }, [isLoaded, onPlaceSelect]);
+  }, [defaultLocation, onPlaceSelect]);
 
   return (
     <div className="relative">
-      <label htmlFor={inputId} className="sr-only">
-        Search for places
-      </label>
-      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-        <Search className="h-5 w-5 text-gray-400" />
+      <div className="flex items-center relative">
+        <Search className="absolute left-3 h-5 w-5 text-gray-400 z-10" />
+        <input
+          ref={inputRef}
+          type="text"
+          placeholder={placeholder}
+          className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+          disabled={!isLoaded}
+        />
       </div>
-      <input
-        id={inputId}
-        ref={inputRef}
-        type="text"
-        className="w-full pl-10 px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-        placeholder={placeholder}
-        disabled={!isLoaded}
-      />
+
       {!isLoaded && (
-        <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
-          <div className="h-4 w-4 border-t-2 border-blue-500 border-r-2 rounded-full animate-spin"></div>
+        <div className="absolute inset-0 bg-gray-50 rounded-lg flex items-center justify-center">
+          <div className="flex items-center text-gray-500 text-sm">
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-400 mr-2"></div>
+            Loading places search...
+          </div>
         </div>
       )}
     </div>

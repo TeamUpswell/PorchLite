@@ -33,6 +33,12 @@ export default function RootLayout({
           name="description"
           content="PorchLite - Property Management Platform for Shared Spaces"
         />
+        {/* Add your Google Maps script here if it's missing */}
+        <script
+          async
+          defer
+          src={`https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=places&v=weekly`}
+        />
       </head>
       <body className={inter.className}>
         <ThemeProvider>

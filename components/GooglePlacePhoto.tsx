@@ -1,7 +1,7 @@
 // components/GooglePlacePhoto.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Image from "next/image";
 
 interface GooglePlacePhotoProps {
@@ -19,60 +19,36 @@ export default function GooglePlacePhoto({
   height = 300,
   className = "",
 }: GooglePlacePhotoProps) {
-  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [imageError, setImageError] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
 
-  useEffect(() => {
-    if (photoReference) {
-      // Create the photo URL using our API endpoint
-      const url = `/api/places/photo?photo_reference=${photoReference}&maxwidth=${width}&maxheight=${height}`;
-      setPhotoUrl(url);
-      setLoading(false);
-    } else {
-      setLoading(false);
-      setError(true);
-    }
-  }, [photoReference, width, height]);
-
-  const handleImageError = () => {
-    console.error('❌ Failed to load photo:', photoReference);
-    setError(true);
-    setLoading(false);
-  };
-
-  const handleImageLoad = () => {
-    console.log('✅ Photo loaded successfully:', photoReference);
-    setLoading(false);
-  };
-
-  if (loading) {
+  if (!photoReference || imageError) {
     return (
-      <div className={`${className} bg-gray-200 animate-pulse flex items-center justify-center`}>
-        <div className="text-gray-400 text-sm">Loading image...</div>
+      <div className={`bg-gray-200 flex items-center justify-center ${className}`}>
+        <span className="text-gray-400">No image available</span>
       </div>
     );
   }
 
-  if (error || !photoUrl) {
-    return (
-      <div className={`${className} bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center`}>
-        <span className="text-white text-2xl">📸</span>
-      </div>
-    );
-  }
+  const imageUrl = `/api/places/photo?photo_reference=${encodeURIComponent(photoReference)}&maxwidth=${width}&maxheight=${height}`;
 
   return (
-    <Image
-      src={photoUrl}
-      alt={alt}
-      width={width}
-      height={height}
-      className={className}
-      style={{ objectFit: 'cover' }}
-      onError={handleImageError}
-      onLoad={handleImageLoad}
-      unoptimized={true} // Important: Disable Next.js optimization for external images
-    />
+    <div className={className}>
+      {loading && (
+        <div className="absolute inset-0 bg-gray-200 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        </div>
+      )}
+      <img
+        src={imageUrl}
+        alt={alt}
+        className="w-full h-full object-cover"
+        onLoad={() => setLoading(false)}
+        onError={() => {
+          setImageError(true);
+          setLoading(false);
+        }}
+      />
+    </div>
   );
 }
