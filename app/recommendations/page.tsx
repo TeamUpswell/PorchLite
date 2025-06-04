@@ -326,38 +326,26 @@ export default function RecommendationsPage() {
     try {
       const category = getCategoryFromTypes(place.types);
 
-      // Get photo references from Place Details API (not from the photos objects)
+      // Get photo references from Place Details API
       let photoReferences = [];
 
       if (place.place_id) {
         try {
-          console.log("🔍 Fetching place details for photo references...");
           const response = await fetch(
             `/api/places/details?place_id=${place.place_id}`
           );
           const data = await response.json();
-
-          console.log("📋 Place details API response:", data);
 
           if (data.result && data.result.photos) {
             photoReferences = data.result.photos
               .slice(0, 5) // Limit to 5 photos
               .map((photo: any) => photo.photo_reference)
               .filter(Boolean);
-
-            console.log(
-              "✅ Extracted photo references from API:",
-              photoReferences
-            );
-          } else {
-            console.log("❌ No photos in Place Details API response");
           }
         } catch (error) {
-          console.error("❌ Error fetching place details for photos:", error);
+          console.error("Error fetching place details for photos:", error);
         }
       }
-
-      console.log("💾 Final photo references to store:", photoReferences);
 
       const newRecommendation = {
         name: place.name,
@@ -370,7 +358,7 @@ export default function RecommendationsPage() {
         rating: place.rating || 0,
         website: place.website || null,
         phone_number: place.formatted_phone_number || null,
-        images: photoReferences, // Now contains actual photo references
+        images: photoReferences,
         place_id: place.place_id,
         property_id: currentProperty?.id || null,
         is_recommended: true,
@@ -603,13 +591,6 @@ export default function RecommendationsPage() {
         ) : filteredRecommendations.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredRecommendations.map((rec) => {
-              // Add this debug log
-              console.log(`Recommendation ${rec.name}:`, {
-                images: rec.images,
-                imageCount: rec.images?.length || 0,
-                firstImage: rec.images?.[0],
-              });
-
               const categories = [
                 { id: "all", name: "All Categories", icon: "🏪" },
                 { id: "restaurant", name: "Restaurants", icon: "🍽️" },
