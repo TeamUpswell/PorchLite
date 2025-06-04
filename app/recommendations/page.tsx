@@ -78,6 +78,16 @@ interface AutocompletePrediction {
 }
 
 export default function RecommendationsPage() {
+  // 🔍 TEMPORARY DEBUG - Remove after fixing
+  useEffect(() => {
+    console.log("🔑 Environment check:", {
+      hasGoogleMapsKey: !!process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY,
+      keyLength: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY?.length || 0,
+      environment: process.env.NODE_ENV,
+      // Don't log the actual key for security
+    });
+  }, []);
+
   const { user } = useAuth();
   const { currentProperty } = useProperty();
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);

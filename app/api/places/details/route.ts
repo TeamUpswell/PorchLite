@@ -1,39 +1,87 @@
 // app/api/places/details/route.ts
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from "next/server";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
   try {
-    const searchParams = request.nextUrl.searchParams;
-    const placeId = searchParams.get('place_id');
+    const url = new URL(request.url);
+    const placeId = url.searchParams.get("place_id");
 
     if (!placeId) {
-      return NextResponse.json({ error: 'Place ID is required' }, { status: 400 });
+      console.error("❌ Missing place_id parameter");
+      return NextResponse.json(
+        { error: "place_id is required" },
+        { status: 400 }
+      );
     }
 
-    const apiKey = process.env.GOOGLE_PLACES_API_KEY;
+    // Use the public API key for Places API calls
+    const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+
     if (!apiKey) {
-      return NextResponse.json({ error: 'Google Places API key not configured' }, { status: 500 });
+      console.error("❌ Google Maps API key not configured");
+      return NextResponse.json(
+        { error: "API key not configured" },
+        { status: 500 }
+      );
     }
 
-    const url = new URL('https://maps.googleapis.com/maps/api/place/details/json');
-    url.searchParams.append('place_id', placeId);
-    url.searchParams.append('key', apiKey);
-    url.searchParams.append('fields', 'name,formatted_address,geometry,rating,price_level,types,formatted_phone_number,website,opening_hours,photos');
+    console.log(`🔍 Fetching place details for: ${placeId}`);
 
-    const response = await fetch(url.toString());
-    const data = await response.json();
+    // Fetch place details to get photo references
+    const googleApiUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=photos&key=${apiKey}`;
+
+    const response = await fetch(googleApiUrl);
 
     if (!response.ok) {
-      throw new Error(data.error_message || 'Failed to get place details');
+      console.error(`❌ Google API HTTP error: ${response.status}`);
+      return NextResponse.json(
+        {
+          error: `Google API HTTP error: ${response.status}`,
+        },
+        { status: response.status }
+      );
     }
 
-    return NextResponse.json(data);
+    const data = await response.json();
+    console.log(`📸 Google API response status: ${data.status}`);
+
+    if (data.status !== "OK") {
+      console.error(`❌ Google API error: ${data.status}`, data.error_message);
+      return NextResponse.json(
+        {
+          error: `Google API error: ${data.status}`,
+          details: data.error_message,
+        },
+        { status: 400 }
+      );
+    }
+
+    if (data.result?.photos?.[0]?.photo_reference) {
+      const photoRef = data.result.photos[0].photo_reference;
+      console.log(`✅ Found photo reference: ${photoRef.substring(0, 20)}...`);
+
+      return NextResponse.json({
+        photo_reference: photoRef,
+        total_photos: data.result.photos.length,
+      });
+    } else {
+      console.log("⚠️ No photos found for this place");
+      return NextResponse.json(
+        {
+          error: "No photos available for this place",
+        },
+        { status: 404 }
+      );
+    }
   } catch (error) {
-    console.error('Places Details API error:', error);
+    console.error("❌ Error fetching place details:", error);
     return NextResponse.json(
-      { error: 'Failed to get place details' },
+      {
+        error: "Failed to fetch place details",
+        details: error instanceof Error ? error.message : "Unknown error",
+      },
       { status: 500 }
     );
   }

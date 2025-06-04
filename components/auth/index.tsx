@@ -22,12 +22,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Get initial session
     const getInitialSession = async () => {
       try {
+        console.log('🔍 Checking initial auth session...');
         const {
           data: { session },
         } = await supabase.auth.getSession();
         setUser(session?.user ?? null);
+        console.log('✅ Initial session check complete:', session?.user?.email || 'No user');
       } catch (error) {
-        console.error("Error getting initial session:", error);
+        console.error("❌ Error getting initial session:", error);
         setUser(null);
       } finally {
         setIsLoading(false);
@@ -40,6 +42,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('🔄 Auth state changed:', event, session?.user?.email || 'No user');
       setUser(session?.user ?? null);
       setIsLoading(false);
     });
@@ -49,6 +52,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signIn = async (email: string, password: string) => {
     try {
+      setIsLoading(true); // Set loading during sign in
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -56,11 +60,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { error };
     } catch (error) {
       return { error };
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const signUp = async (email: string, password: string) => {
     try {
+      setIsLoading(true); // Set loading during sign up
       const { error } = await supabase.auth.signUp({
         email,
         password,
@@ -68,11 +75,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { error };
     } catch (error) {
       return { error };
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const signOut = async () => {
     try {
+      setIsLoading(true);
       await supabase.auth.signOut();
       // Redirect to login or home page after sign out
       window.location.href = "/auth/login";
