@@ -1,7 +1,7 @@
 "use client";
 
+export const revalidate = 0; // Using 0 instead of false
 export const dynamic = "force-dynamic";
-export const revalidate = false;
 
 import React, { useState } from "react";
 import { useAuth } from "@/components/auth";

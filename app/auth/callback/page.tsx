@@ -1,6 +1,6 @@
 "use client";
 
-export const revalidate = false;
+export const revalidate = 0; // Using 0 instead of false
 export const dynamic = "force-dynamic";
 
 import { useEffect, useState } from "react";
