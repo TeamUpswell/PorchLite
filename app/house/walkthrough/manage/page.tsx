@@ -7,16 +7,14 @@ import { supabase } from "@/lib/supabase";
 import StandardPageLayout from "@/components/layout/StandardPageLayout";
 import StandardCard from "@/components/ui/StandardCard";
 import {
-  Plus,
-  Edit,
-  Trash2,
+  ArrowLeft,
+  ArrowRight,
+  Camera,
   Eye,
+  EyeOff,
+  Plus,
+  Navigation,
   Settings,
-  GripVertical,
-  ChevronDown,
-  ChevronUp,
-  Route,
-  TestTube,
 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "react-hot-toast";
@@ -495,7 +493,7 @@ export default function WalkthroughManagePage() {
         {sections.length === 0 ? (
           <StandardCard>
             <div className="text-center py-8">
-              <Route className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+              <Navigation className="h-12 w-12 text-gray-300 mx-auto mb-3" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">
                 No Sections Yet
               </h3>

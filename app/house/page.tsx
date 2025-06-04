@@ -8,18 +8,18 @@ import { supabase } from "@/lib/supabase";
 import StandardPageLayout from "@/components/layout/StandardPageLayout";
 import StandardCard from "@/components/ui/StandardCard";
 import {
-  Building2,
-  MapPin,
-  Bike,
-  Waves,
-  Camera,
-  Gamepad2,
-  Wifi,
-  Car,
-  Route,
-  ExternalLink,
-  Plus,
   ArrowRight,
+  Bike,
+  Building2,
+  Camera,
+  Car,
+  ExternalLink,
+  Gamepad2,
+  MapPin,
+  Plus,
+  Navigation, // Replace Route with Navigation
+  Waves,
+  Wifi,
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
@@ -234,7 +234,7 @@ export default function HousePage() {
                       href="/house/walkthrough"
                       className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                     >
-                      <Route className="h-4 w-4 mr-2" />
+                      <Compass className="h-4 w-4 mr-2" />
                       Take Walkthrough
                     </Link>
                   )}
@@ -349,7 +349,7 @@ export default function HousePage() {
               <StandardCard
                 title="House Walkthrough"
                 description="Get familiar with your vacation home"
-                icon={<Route className="h-6 w-6 text-blue-600" />}
+                icon={<Compass className="h-6 w-6 text-blue-600" />}
               >
                 <div className="space-y-4">
                   <p className="text-gray-600">
@@ -377,7 +377,7 @@ export default function HousePage() {
                 <div className="flex items-center justify-between p-4">
                   <div className="flex items-center space-x-3">
                     <div className="p-2 bg-blue-100 rounded-lg">
-                      <Route className="h-5 w-5 text-blue-600" />
+                      <Compass className="h-5 w-5 text-blue-600" />
                     </div>
                     <div>
                       <h3 className="font-medium text-gray-900">

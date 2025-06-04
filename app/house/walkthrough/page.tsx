@@ -7,7 +7,7 @@ import { supabase } from "@/lib/supabase";
 import StandardPageLayout from "@/components/layout/StandardPageLayout";
 import StandardCard from "@/components/ui/StandardCard";
 import {
-  Route,
+  Navigation,
   ArrowLeft,
   ArrowRight,
   Camera,
@@ -163,7 +163,7 @@ export default function WalkthroughPage() {
       <StandardPageLayout
         title="House Walkthrough"
         subtitle="Get familiar with your vacation home"
-        headerIcon={<Route className="h-6 w-6 text-blue-600" />}
+        headerIcon={<Navigation className="h-6 w-6 text-blue-600" />}
         breadcrumb={[
           { label: "The House", href: "/house" },
           { label: "Walkthrough" },
@@ -171,7 +171,7 @@ export default function WalkthroughPage() {
       >
         <StandardCard>
           <div className="text-center py-8">
-            <Route className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+            <Navigation className="h-12 w-12 text-gray-300 mx-auto mb-3" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">
               No Property Selected
             </h3>
@@ -196,7 +196,7 @@ export default function WalkthroughPage() {
       <StandardPageLayout
         title="House Walkthrough"
         subtitle={`Loading walkthrough for ${currentProperty.name}`}
-        headerIcon={<Route className="h-6 w-6 text-blue-600" />}
+        headerIcon={<Navigation className="h-6 w-6 text-blue-600" />}
         breadcrumb={[
           { label: "The House", href: "/house" },
           { label: "Walkthrough" },
@@ -218,7 +218,7 @@ export default function WalkthroughPage() {
       <StandardPageLayout
         title="House Walkthrough"
         subtitle={`Walkthrough for ${currentProperty.name}`}
-        headerIcon={<Route className="h-6 w-6 text-gray-600" />}
+        headerIcon={<Navigation className="h-6 w-6 text-gray-600" />}
         breadcrumb={[
           { label: "The House", href: "/house" },
           { label: "Walkthrough" },
@@ -315,7 +315,7 @@ export default function WalkthroughPage() {
       <StandardPageLayout
         title="House Walkthrough"
         subtitle={`Walkthrough for ${currentProperty.name}`}
-        headerIcon={<Route className="h-6 w-6 text-blue-600" />}
+        headerIcon={<Navigation className="h-6 w-6 text-blue-600" />}
         breadcrumb={[
           { label: "The House", href: "/house" },
           { label: "Walkthrough" },
@@ -403,7 +403,7 @@ export default function WalkthroughPage() {
     <StandardPageLayout
       title="House Walkthrough"
       subtitle="Get familiar with your vacation home"
-      headerIcon={<Route className="h-6 w-6 text-blue-600" />}
+      headerIcon={<Navigation className="h-6 w-6 text-blue-600" />}
       breadcrumb={[
         { label: "The House", href: "/house" },
         { label: "Walkthrough" },

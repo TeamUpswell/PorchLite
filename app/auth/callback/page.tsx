@@ -1,7 +1,8 @@
-"use client";
+export const revalidate = false;
 
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+("use client");
+
+export const dynamic = "force-dynamic";
 
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -16,16 +17,16 @@ export default function AuthCallback() {
       try {
         const { data, error } = await supabase.auth.getSession();
         if (error) {
-          router.push('/login?error=auth_callback_failed');
+          router.push("/login?error=auth_callback_failed");
           return;
         }
         if (data.session) {
-          router.push('/');
+          router.push("/");
         } else {
-          router.push('/login');
+          router.push("/login");
         }
       } catch (error) {
-        router.push('/login?error=callback_failed');
+        router.push("/login?error=callback_failed");
       } finally {
         setLoading(false);
       }
