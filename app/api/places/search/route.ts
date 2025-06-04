@@ -1,41 +1,59 @@
 // app/api/places/search/route.ts
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(request: NextRequest) {
   try {
-    const { query, location, radius = 5000 } = await request.json();
+    const { query, location, types, radius = 50000 } = await request.json();
+    const apiKey = process.env.NEXT_PUBLIC_GOOGLE_PLACES_API_KEY;
 
-    if (!query) {
-      return NextResponse.json({ error: 'Query is required' }, { status: 400 });
-    }
-
-    const apiKey = process.env.GOOGLE_PLACES_API_KEY;
     if (!apiKey) {
-      return NextResponse.json({ error: 'Google Places API key not configured' }, { status: 500 });
+      return NextResponse.json(
+        { error: "Google Places API key not configured" },
+        { status: 500 }
+      );
     }
 
-    // Use Google Places Text Search API
-    const url = new URL('https://maps.googleapis.com/maps/api/place/textsearch/json');
-    url.searchParams.append('query', query);
-    url.searchParams.append('key', apiKey);
-    
+    // Build the Places API URL
+    let url = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(
+      query
+    )}&key=${apiKey}`;
+
+    // Add location bias if provided
     if (location) {
-      url.searchParams.append('location', `${location.lat},${location.lng}`);
-      url.searchParams.append('radius', radius.toString());
+      if (typeof location === "string") {
+        // If location is a string (address), add it to query
+        url = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(
+          query + " near " + location
+        )}&key=${apiKey}`;
+      } else if (location.lat && location.lng) {
+        // If location is coordinates, add location bias
+        url += `&location=${location.lat},${location.lng}&radius=${radius}`;
+      }
     }
 
-    const response = await fetch(url.toString());
+    // Add type filtering if provided
+    if (types && types.length > 0) {
+      url += `&type=${types.join("|")}`;
+    }
+
+    const response = await fetch(url);
     const data = await response.json();
 
-    if (!response.ok) {
-      throw new Error(data.error_message || 'Failed to search places');
+    if (data.status === "OK") {
+      return NextResponse.json({
+        results: data.results.slice(0, 10), // Limit to 10 results
+        status: "success",
+      });
+    } else {
+      return NextResponse.json(
+        { error: `Google Places API error: ${data.status}` },
+        { status: 400 }
+      );
     }
-
-    return NextResponse.json(data);
   } catch (error) {
-    console.error('Places API error:', error);
+    console.error("Places search error:", error);
     return NextResponse.json(
-      { error: 'Failed to search places' },
+      { error: "Failed to search places" },
       { status: 500 }
     );
   }

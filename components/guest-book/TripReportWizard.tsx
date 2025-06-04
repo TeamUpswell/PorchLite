@@ -1,67 +1,30 @@
 "use client";
 
 import { useState } from "react";
-import { supabase } from "@/lib/supabase";
-import { toast } from "react-hot-toast";
-import StandardCard from "@/components/ui/StandardCard";
-import { 
-  ChevronLeft, 
-  ChevronRight, 
-  Star, 
-  Camera, 
-  MapPin, 
-  AlertTriangle,
-  Package,
-  Heart,
-  Check
-} from "lucide-react";
-import BasicInfoStep from "./BasicInfoStep";
+import { Heart, Camera, MapPin, AlertTriangle, Package, Check, ChevronLeft, ChevronRight } from "lucide-react";
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'; // Add this import
+import BasicStep from "./BasicInfoStep";
 import PhotosStep from "./PhotosStep";
-
-interface TripReportWizardProps {
-  property: any;
-  onComplete: () => void;
-}
+import RecommendationsStep from "./RecommendationsStep";
+import IssuesStep from "./IssuesStep";
+import SuppliesStep from "./SuppliesStep";
+import ReviewStep from "./ReviewStep";
 
 interface FormData {
-  // Basic Info
   guestName: string;
   guestEmail: string;
   visitDate: string;
+  numberOfNights: number;
   rating: number;
   title: string;
   message: string;
-  
-  // Photos
   photos: File[];
   photoCaptions: string[];
-  
-  // Recommendations
-  recommendations: {
-    placeName: string;
-    placeType: string;
-    location: string;
-    rating: number;
-    notes: string;
-    wouldRecommend: boolean;
-  }[];
-  
-  // Issues
-  issues: {
-    issueType: string;
-    description: string;
-    location: string;
-    priority: string;
-    photo?: File;
-  }[];
-  
-  // Inventory Notes
-  inventoryNotes: {
-    itemName: string;
-    noteType: string;
-    notes: string;
-    quantityUsed?: number;
-  }[];
+  recommendations: any[];
+  issues: any[];
+  inventoryNotes: any[];
+  everythingWasGreat?: boolean;
+  everythingWellStocked?: boolean;
 }
 
 const STEPS = [
@@ -73,28 +36,63 @@ const STEPS = [
   { id: 'review', title: 'Review', icon: Check }
 ];
 
+interface TripReportWizardProps {
+  property: any;
+  onComplete: (result: any) => void;
+}
+
 export default function TripReportWizard({ property, onComplete }: TripReportWizardProps) {
   const [currentStep, setCurrentStep] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState<FormData>({
-    guestName: '',
-    guestEmail: '',
-    visitDate: '',
+    guestName: "",
+    guestEmail: "",
+    visitDate: "",
+    numberOfNights: 1,
     rating: 5,
-    title: '',
-    message: '',
+    title: "",
+    message: "",
     photos: [],
     photoCaptions: [],
     recommendations: [],
     issues: [],
-    inventoryNotes: []
+    inventoryNotes: [],
+    everythingWasGreat: false,
+    everythingWellStocked: false,
   });
+
+  // Initialize Supabase client
+  const supabase = createClientComponentClient();
 
   const updateFormData = (updates: Partial<FormData>) => {
     setFormData(prev => ({ ...prev, ...updates }));
   };
 
   const nextStep = () => {
+    if (currentStep === 0) {
+      // Basic step validation
+      if (!formData.guestName.trim()) {
+        alert("Please enter your name");
+        return;
+      }
+      if (!formData.visitDate) {
+        alert("Please select your visit date");
+        return;
+      }
+      if (!formData.numberOfNights || formData.numberOfNights < 1) {
+        alert("Please select the number of nights");
+        return;
+      }
+      if (formData.rating === 0) {
+        alert("Please provide a rating");
+        return;
+      }
+      if (!formData.message.trim()) {
+        alert("Please share your experience");
+        return;
+      }
+    }
+    
     if (currentStep < STEPS.length - 1) {
       setCurrentStep(currentStep + 1);
     }
@@ -106,286 +104,326 @@ export default function TripReportWizard({ property, onComplete }: TripReportWiz
     }
   };
 
-  const handleSubmit = async () => {
-    if (!property?.id) {
-      toast.error("Property not found");
-      return;
-    }
-
-    setIsSubmitting(true);
-
+  const submitForm = async () => {
     try {
-      // 1. Create guest book entry
-      const { data: guestBookEntry, error: entryError } = await supabase
+      setIsSubmitting(true);
+
+      // Upload photos first
+      const uploadedPhotoUrls: string[] = [];
+      for (let i = 0; i < formData.photos.length; i++) {
+        const photo = formData.photos[i];
+        const fileExt = photo.name.split('.').pop();
+        const fileName = `${property.id}/${Date.now()}-${i}.${fileExt}`;
+        
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('guest-photos')
+          .upload(fileName, photo);
+
+        if (uploadError) {
+          throw new Error(`Photo upload failed: ${uploadError.message}`);
+        }
+
+        const { data: publicUrlData } = supabase.storage
+          .from('guest-photos')
+          .getPublicUrl(fileName);
+        
+        uploadedPhotoUrls.push(publicUrlData.publicUrl);
+      }
+
+      // Create guest book entry
+      const { data: guestBookEntry, error: guestBookError } = await supabase
         .from('guest_book_entries')
         .insert({
           property_id: property.id,
           guest_name: formData.guestName,
           guest_email: formData.guestEmail,
           visit_date: formData.visitDate,
+          number_of_nights: formData.numberOfNights,
           rating: formData.rating,
           title: formData.title,
           message: formData.message,
-          is_public: true,
-          is_approved: false // Requires owner approval
+          photos: uploadedPhotoUrls,
+          photo_captions: formData.photoCaptions,
+          status: 'pending',
+          everything_was_great: formData.everythingWasGreat || false,
+          everything_well_stocked: formData.everythingWellStocked || false,
         })
         .select()
         .single();
 
-      if (entryError) throw entryError;
+      if (guestBookError) {
+        throw new Error(`Guest book entry failed: ${guestBookError.message}`);
+      }
 
-      // 2. Upload and save photos
-      if (formData.photos.length > 0) {
-        for (let i = 0; i < formData.photos.length; i++) {
-          const file = formData.photos[i];
-          const fileName = `guest-photos/${guestBookEntry.id}/${Date.now()}-${i}.jpg`;
-          
-          const { error: uploadError } = await supabase.storage
-            .from('properties')
-            .upload(fileName, file);
+      // Handle recommendations
+      if (formData.recommendations.length > 0) {
+        for (const rec of formData.recommendations) {
+          let recommendationId = rec.existing_recommendation_id;
 
-          if (!uploadError) {
-            const { data: publicUrl } = supabase.storage
-              .from('properties')
-              .getPublicUrl(fileName);
+          // If it's a new recommendation, create it first
+          if (rec.is_new_recommendation) {
+            const { data: newRec, error: recError } = await supabase
+              .from('recommendations')
+              .insert({
+                name: rec.name,
+                category: rec.category,
+                address: rec.address,
+                coordinates: rec.coordinates,
+                description: rec.description || `Recommended by ${formData.guestName}`,
+                rating: rec.rating,
+                website: rec.website,
+                phone_number: rec.phone_number,
+                place_id: rec.place_id,
+                property_id: property.id,
+                is_recommended: true,
+                images: [],
+              })
+              .select()
+              .single();
 
-            await supabase
-              .from('guest_photos')
+            if (recError) {
+              console.error('Error creating recommendation:', recError);
+              continue;
+            }
+            recommendationId = newRec.id;
+          }
+
+          // Create guest recommendation link
+          if (recommendationId) {
+            const { error: guestRecError } = await supabase
+              .from('guest_recommendations')
               .insert({
                 guest_book_entry_id: guestBookEntry.id,
-                photo_url: publicUrl.publicUrl,
-                caption: formData.photoCaptions[i] || '',
-                sort_order: i
+                recommendation_id: recommendationId,
+                guest_rating: rec.guest_rating,
+                guest_notes: rec.guest_notes,
+                place_name: rec.name,
+                place_type: rec.category,
+                location: rec.address,
+                rating: rec.guest_rating,
+                notes: rec.guest_notes,
               });
+
+            if (guestRecError) {
+              console.error('Error linking guest recommendation:', guestRecError);
+            }
           }
         }
       }
 
-      // 3. Save recommendations
-      if (formData.recommendations.length > 0) {
-        await supabase
-          .from('guest_recommendations')
-          .insert(
-            formData.recommendations.map(rec => ({
-              guest_book_entry_id: guestBookEntry.id,
-              ...rec
-            }))
-          );
-      }
-
-      // 4. Create tasks from issues
-      if (formData.issues.length > 0) {
+      // Handle issues (only if not "everything was great")
+      if (!formData.everythingWasGreat && formData.issues.length > 0) {
         for (const issue of formData.issues) {
-          // Create task
-          const { data: task, error: taskError } = await supabase
+          // Upload issue photo if exists
+          let issuePhotoUrl = null;
+          if (issue.photo) {
+            const fileExt = issue.photo.name.split('.').pop();
+            const fileName = `issues/${property.id}/${Date.now()}-${Math.random()}.${fileExt}`;
+            
+            const { data: uploadData, error: uploadError } = await supabase.storage
+              .from('issue-photos')
+              .upload(fileName, issue.photo);
+
+            if (!uploadError) {
+              const { data: publicUrlData } = supabase.storage
+                .from('issue-photos')
+                .getPublicUrl(fileName);
+              issuePhotoUrl = publicUrlData.publicUrl;
+            }
+          }
+
+          // Create task for property owner
+          const { error: taskError } = await supabase
             .from('tasks')
             .insert({
               property_id: property.id,
-              title: `Guest Report: ${issue.issueType}`,
+              title: `${issue.issueType.replace('_', ' ')} - ${issue.location || 'Property'}`,
               description: issue.description,
-              location: issue.location,
               priority: issue.priority,
-              status: 'pending',
+              status: 'todo',
               category: 'maintenance',
-              created_by: 'guest',
-              source: 'guest_report'
-            })
-            .select()
-            .single();
+              location: issue.location,
+              reported_by_guest: true,
+              guest_book_entry_id: guestBookEntry.id,
+              photos: issuePhotoUrl ? [issuePhotoUrl] : [],
+              due_date: issue.priority === 'high' ? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) : null,
+            });
 
-          if (!taskError) {
-            // Link to guest report
-            await supabase
-              .from('guest_reported_issues')
-              .insert({
-                guest_book_entry_id: guestBookEntry.id,
-                task_id: task.id,
-                issue_type: issue.issueType,
-                description: issue.description,
-                location: issue.location,
-                priority: issue.priority
-              });
+          if (taskError) {
+            console.error('Error creating task from issue:', taskError);
           }
         }
       }
 
-      // 5. Save inventory notes
-      if (formData.inventoryNotes.length > 0) {
-        await supabase
-          .from('guest_inventory_notes')
-          .insert(
-            formData.inventoryNotes.map(note => ({
+      // Handle inventory notes (only if not "everything well-stocked")
+      if (!formData.everythingWellStocked && formData.inventoryNotes.length > 0) {
+        for (const note of formData.inventoryNotes) {
+          const { error: inventoryError } = await supabase
+            .from('inventory_notes')
+            .insert({
+              property_id: property.id,
               guest_book_entry_id: guestBookEntry.id,
               item_name: note.itemName,
               note_type: note.noteType,
               notes: note.notes,
-              quantity_used: note.quantityUsed
-            }))
-          );
+              quantity_used: note.quantityUsed,
+              guest_name: formData.guestName,
+            });
+
+          if (inventoryError) {
+            console.error('Error creating inventory note:', inventoryError);
+          }
+        }
       }
 
-      toast.success("Thank you for sharing your experience!");
-      onComplete();
+      // Send notification email to property owner
+      try {
+        await fetch('/api/notifications/guest-book-entry', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            propertyId: property.id,
+            guestName: formData.guestName,
+            rating: formData.rating,
+            hasIssues: !formData.everythingWasGreat && formData.issues.length > 0,
+            hasRecommendations: formData.recommendations.length > 0,
+            numberOfNights: formData.numberOfNights,
+          }),
+        });
+      } catch (emailError) {
+        console.error('Email notification failed:', emailError);
+      }
+
+      // Success!
+      onComplete({
+        success: true,
+        message: "Thank you for your wonderful review! Your entry has been submitted and will appear after owner approval.",
+        entryId: guestBookEntry.id,
+      });
 
     } catch (error) {
-      console.error('Error submitting trip report:', error);
-      toast.error("Failed to submit report. Please try again.");
-    } finally {
+      console.error('Submission error:', error);
       setIsSubmitting(false);
+      
+      alert(`Failed to submit your review: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`);
     }
   };
 
   const renderStep = () => {
-    switch (STEPS[currentStep].id) {
-      case 'basic':
-        return (
-          <BasicInfoStep 
-            formData={formData} 
-            updateFormData={updateFormData} 
-          />
-        );
-      case 'photos':
-        return (
-          <PhotosStep 
-            formData={formData} 
-            updateFormData={updateFormData} 
-          />
-        );
-      case 'recommendations':
-        return (
-          <RecommendationsStep 
-            formData={formData} 
-            updateFormData={updateFormData} 
-          />
-        );
-      case 'issues':
-        return (
-          <IssuesStep 
-            formData={formData} 
-            updateFormData={updateFormData} 
-          />
-        );
-      case 'supplies':
-        return (
-          <SuppliesStep 
-            formData={formData} 
-            updateFormData={updateFormData} 
-          />
-        );
-      case 'review':
-        return (
-          <ReviewStep 
-            formData={formData} 
-            property={property}
-          />
-        );
+    switch (currentStep) {
+      case 0:
+        return <BasicStep formData={formData} updateFormData={updateFormData} />;
+      case 1:
+        return <PhotosStep formData={formData} updateFormData={updateFormData} />;
+      case 2:
+        return <RecommendationsStep formData={formData} updateFormData={updateFormData} property={property} />;
+      case 3:
+        return <IssuesStep formData={formData} updateFormData={updateFormData} />;
+      case 4:
+        return <SuppliesStep formData={formData} updateFormData={updateFormData} />;
+      case 5:
+        return <ReviewStep formData={formData} property={property} />;
       default:
-        return null;
+        return <BasicStep formData={formData} updateFormData={updateFormData} />;
     }
   };
 
+  const isLastStep = currentStep === STEPS.length - 1;
+  const isFirstStep = currentStep === 0;
+
   return (
-    <div className="max-w-4xl mx-auto">
-      {/* Progress Bar */}
-      <div className="mb-8">
-        <div className="flex items-center justify-between">
-          {STEPS.map((step, index) => {
-            const Icon = step.icon;
-            const isActive = index === currentStep;
-            const isCompleted = index < currentStep;
-            
-            return (
-              <div key={step.id} className="flex items-center">
-                <div className={`
-                  flex items-center justify-center w-10 h-10 rounded-full border-2
-                  ${isActive 
-                    ? 'border-blue-500 bg-blue-500 text-white' 
-                    : isCompleted 
-                    ? 'border-green-500 bg-green-500 text-white'
-                    : 'border-gray-300 bg-white text-gray-400'
-                  }
-                `}>
-                  <Icon className="h-5 w-5" />
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+        {/* Progress Steps */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between">
+            {STEPS.map((step, index) => {
+              const Icon = step.icon;
+              const isActive = index === currentStep;
+              const isCompleted = index < currentStep;
+              
+              return (
+                <div key={step.id} className="flex items-center">
+                  <div className={`flex items-center justify-center w-10 h-10 rounded-full border-2 ${
+                    isActive 
+                      ? 'border-blue-600 bg-blue-600 text-white' 
+                      : isCompleted
+                      ? 'border-green-600 bg-green-600 text-white'
+                      : 'border-gray-300 bg-white text-gray-400'
+                  }`}>
+                    <Icon className="h-5 w-5" />
+                  </div>
+                  <div className="ml-3 hidden sm:block">
+                    <p className={`text-sm font-medium ${
+                      isActive ? 'text-blue-600' : isCompleted ? 'text-green-600' : 'text-gray-500'
+                    }`}>
+                      {step.title}
+                    </p>
+                  </div>
+                  {index < STEPS.length - 1 && (
+                    <div className={`hidden sm:block w-16 h-px mx-4 ${
+                      isCompleted ? 'bg-green-600' : 'bg-gray-300'
+                    }`} />
+                  )}
                 </div>
-                <span className={`ml-2 text-sm font-medium ${
-                  isActive ? 'text-blue-600' : isCompleted ? 'text-green-600' : 'text-gray-500'
-                }`}>
-                  {step.title}
-                </span>
-                {index < STEPS.length - 1 && (
-                  <div className={`h-px w-12 mx-4 ${
-                    isCompleted ? 'bg-green-500' : 'bg-gray-300'
-                  }`} />
-                )}
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
-      </div>
 
-      {/* Step Content */}
-      <StandardCard className="mb-6">
-        {renderStep()}
-      </StandardCard>
+        {/* Step Content */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-8">
+          {renderStep()}
+        </div>
 
-      {/* Navigation */}
-      <div className="flex justify-between">
-        <button
-          onClick={prevStep}
-          disabled={currentStep === 0}
-          className="flex items-center px-4 py-2 text-gray-600 hover:text-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          <ChevronLeft className="h-4 w-4 mr-1" />
-          Previous
-        </button>
-
-        {currentStep === STEPS.length - 1 ? (
+        {/* Navigation */}
+        <div className="flex justify-between">
           <button
-            onClick={handleSubmit}
-            disabled={isSubmitting}
-            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center"
+            onClick={prevStep}
+            disabled={isFirstStep}
+            className={`flex items-center px-6 py-3 rounded-lg ${
+              isFirstStep
+                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+            }`}
           >
-            {isSubmitting ? 'Submitting...' : 'Submit Report'}
+            <ChevronLeft className="h-4 w-4 mr-2" />
+            Previous
           </button>
-        ) : (
-          <button
-            onClick={nextStep}
-            className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-          >
-            Next
-            <ChevronRight className="h-4 w-4 ml-1" />
-          </button>
-        )}
+
+          {isLastStep ? (
+            <button
+              onClick={submitForm}
+              disabled={isSubmitting}
+              className={`flex items-center px-6 py-3 rounded-lg ${
+                isSubmitting
+                  ? 'bg-blue-400 cursor-not-allowed'
+                  : 'bg-blue-600 hover:bg-blue-700'
+              } text-white`}
+            >
+              {isSubmitting ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  Submitting...
+                </>
+              ) : (
+                <>
+                  Submit Review
+                  <Check className="h-4 w-4 ml-2" />
+                </>
+              )}
+            </button>
+          ) : (
+            <button
+              onClick={nextStep}
+              className="flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              Next
+              <ChevronRight className="h-4 w-4 ml-2" />
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
 }
-
-// Placeholder components for the missing steps
-const RecommendationsStep = ({ formData, updateFormData }: any) => (
-  <div className="p-6">
-    <h2 className="text-2xl font-bold mb-4">Places you visited</h2>
-    <p className="text-gray-600">This step is coming soon...</p>
-  </div>
-);
-
-const IssuesStep = ({ formData, updateFormData }: any) => (
-  <div className="p-6">
-    <h2 className="text-2xl font-bold mb-4">Report any issues</h2>
-    <p className="text-gray-600">This step is coming soon...</p>
-  </div>
-);
-
-const SuppliesStep = ({ formData, updateFormData }: any) => (
-  <div className="p-6">
-    <h2 className="text-2xl font-bold mb-4">Supplies feedback</h2>
-    <p className="text-gray-600">This step is coming soon...</p>
-  </div>
-);
-
-const ReviewStep = ({ formData, property }: any) => (
-  <div className="p-6">
-    <h2 className="text-2xl font-bold mb-4">Review your submission</h2>
-    <p className="text-gray-600">This step is coming soon...</p>
-  </div>
-);

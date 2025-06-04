@@ -1,0 +1,606 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { Plus, MapPin, Star, Trash2, Search, MessageCircle, Users } from "lucide-react";
+import GooglePlacesSearch, {
+  useGooglePlacesSearch,
+} from "@/components/ui/GooglePlacesSearch";
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+
+interface ExistingRecommendation {
+  id: string;
+  name: string;
+  category: string;
+  address: string;
+  rating: number;
+  place_id?: string;
+  guest_reviews?: {
+    guest_name: string;
+    guest_rating: number;
+    guest_notes: string;
+    visit_date: string;
+  }[];
+  total_reviews: number;
+  average_guest_rating: number;
+}
+
+interface RecommendationsStepProps {
+  formData: {
+    recommendations: {
+      name: string;
+      category: string;
+      address: string;
+      coordinates: { lat: number; lng: number };
+      description: string;
+      rating: number;
+      website?: string;
+      phone_number?: string;
+      place_id?: string;
+      guest_rating: number;
+      guest_notes: string;
+      existing_recommendation_id?: string; // Link to existing recommendation
+      is_new_recommendation?: boolean; // Track if this is completely new
+    }[];
+  };
+  updateFormData: (updates: any) => void;
+  property?: any;
+}
+
+export default function RecommendationsStep({
+  formData,
+  updateFormData,
+  property,
+}: RecommendationsStepProps) {
+  const { selectedPlace, setSelectedPlace, clearSelection } = useGooglePlacesSearch();
+  const [useManualEntry, setUseManualEntry] = useState(false);
+  const [existingRecommendation, setExistingRecommendation] = useState<ExistingRecommendation | null>(null);
+  const [checkingExisting, setCheckingExisting] = useState(false);
+  const supabase = createClientComponentClient();
+  
+  const [newRecommendation, setNewRecommendation] = useState({
+    name: "",
+    category: "restaurant",
+    address: "",
+    coordinates: { lat: 0, lng: 0 },
+    description: "",
+    rating: 0,
+    website: "",
+    phone_number: "",
+    place_id: "",
+    guest_rating: 5,
+    guest_notes: "",
+    existing_recommendation_id: undefined as string | undefined,
+    is_new_recommendation: true,
+  });
+
+  const categories = [
+    { id: "restaurant", name: "Restaurants", icon: "🍽️" },
+    { id: "grocery", name: "Grocery", icon: "🛒" },
+    { id: "entertainment", name: "Entertainment", icon: "🎭" },
+    { id: "healthcare", name: "Healthcare", icon: "🏥" },
+    { id: "shopping", name: "Shopping", icon: "🛍️" },
+    { id: "services", name: "Services", icon: "🔧" },
+    { id: "outdoor", name: "Outdoor", icon: "🌲" },
+    { id: "emergency", name: "Emergency", icon: "🚨" },
+  ];
+
+  // Check for existing recommendations when a place is selected
+  const checkForExistingRecommendation = async (placeId?: string, placeName?: string) => {
+    if (!property?.id) return null;
+    
+    setCheckingExisting(true);
+    try {
+      let query = supabase
+        .from('recommendations')
+        .select(`
+          id,
+          name,
+          category,
+          address,
+          rating,
+          place_id,
+          guest_recommendations!inner(
+            guest_book_entries!inner(
+              guest_name,
+              visit_date
+            ),
+            guest_rating,
+            guest_notes
+          )
+        `)
+        .eq('property_id', property.id)
+        .eq('is_recommended', true);
+
+      if (placeId) {
+        query = query.eq('place_id', placeId);
+      } else if (placeName) {
+        query = query.ilike('name', `%${placeName}%`);
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        console.error('Error checking existing recommendations:', error);
+        return null;
+      }
+
+      if (data && data.length > 0) {
+        const rec = data[0];
+        const guestReviews = rec.guest_recommendations?.map((gr: any) => ({
+          guest_name: gr.guest_book_entries.guest_name,
+          guest_rating: gr.guest_rating,
+          guest_notes: gr.guest_notes,
+          visit_date: gr.guest_book_entries.visit_date,
+        })) || [];
+
+        const avgRating = guestReviews.length > 0 
+          ? guestReviews.reduce((sum: number, review: any) => sum + review.guest_rating, 0) / guestReviews.length
+          : 0;
+
+        return {
+          id: rec.id,
+          name: rec.name,
+          category: rec.category,
+          address: rec.address,
+          rating: rec.rating,
+          place_id: rec.place_id,
+          guest_reviews: guestReviews,
+          total_reviews: guestReviews.length,
+          average_guest_rating: avgRating,
+        };
+      }
+
+      return null;
+    } catch (error) {
+      console.error('Error checking existing recommendations:', error);
+      return null;
+    } finally {
+      setCheckingExisting(false);
+    }
+  };
+
+  // Enhanced category detection
+  const getCategoryFromTypes = (types: string[]): string => {
+    // ... your existing getCategoryFromTypes function ...
+    const typeMap: Record<string, string> = {
+      restaurant: "restaurant",
+      food: "restaurant",
+      meal_takeaway: "restaurant",
+      grocery_or_supermarket: "grocery",
+      shopping_mall: "shopping",
+      tourist_attraction: "entertainment",
+      park: "outdoor",
+      hospital: "healthcare",
+      // ... add all your existing mappings
+    };
+
+    for (const type of types) {
+      if (typeMap[type]) {
+        return typeMap[type];
+      }
+    }
+    return "services";
+  };
+
+  const handleGooglePlaceSelect = async (place: any) => {
+    const detectedCategory = getCategoryFromTypes(place.types || []);
+    
+    // Check for existing recommendation
+    const existing = await checkForExistingRecommendation(place.place_id, place.name);
+    setExistingRecommendation(existing);
+
+    setSelectedPlace(place);
+    setNewRecommendation({
+      name: place.name,
+      category: detectedCategory,
+      address: place.formatted_address,
+      coordinates: place.geometry.location,
+      description: existing ? existing.address : `Found via Google Places - ${place.types?.slice(0, 3).join(", ") || ""}`,
+      rating: place.rating || 0,
+      website: place.website || "",
+      phone_number: place.formatted_phone_number || "",
+      place_id: place.place_id,
+      guest_rating: place.rating ? Math.round(place.rating) : 5,
+      guest_notes: "",
+      existing_recommendation_id: existing?.id,
+      is_new_recommendation: !existing,
+    });
+  };
+
+  const addRecommendation = () => {
+    if (!newRecommendation.name.trim()) return;
+
+    updateFormData({
+      recommendations: [...formData.recommendations, newRecommendation],
+    });
+
+    // Reset form
+    setNewRecommendation({
+      name: "",
+      category: "restaurant",
+      address: "",
+      coordinates: { lat: 0, lng: 0 },
+      description: "",
+      rating: 0,
+      website: "",
+      phone_number: "",
+      place_id: "",
+      guest_rating: 5,
+      guest_notes: "",
+      existing_recommendation_id: undefined,
+      is_new_recommendation: true,
+    });
+    setSelectedPlace(null);
+    setExistingRecommendation(null);
+    clearSelection();
+  };
+
+  const removeRecommendation = (index: number) => {
+    const updated = formData.recommendations.filter((_, i) => i !== index);
+    updateFormData({ recommendations: updated });
+  };
+
+  const renderStars = (
+    rating: number,
+    onRatingChange?: (rating: number) => void
+  ) => {
+    return Array.from({ length: 5 }, (_, i) => (
+      <button
+        key={i}
+        type="button"
+        onClick={() => onRatingChange?.(i + 1)}
+        className={`${onRatingChange ? "cursor-pointer" : "cursor-default"} ${
+          i < rating ? "text-yellow-400" : "text-gray-300"
+        }`}
+      >
+        <Star className={`h-4 w-4 ${i < rating ? "fill-current" : ""}`} />
+      </button>
+    ));
+  };
+
+  return (
+    <div className="space-y-6 p-6">
+      <div>
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">
+          Places you discovered
+        </h2>
+        <p className="text-gray-600">
+          Help future guests by sharing your favorite local spots
+        </p>
+      </div>
+
+      {/* Add New Recommendation */}
+      <div className="bg-gray-50 p-4 rounded-lg space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-medium text-gray-900">
+            Add a recommendation
+          </h3>
+          <button
+            type="button"
+            onClick={() => {
+              setUseManualEntry(!useManualEntry);
+              setSelectedPlace(null);
+              setExistingRecommendation(null);
+              clearSelection();
+              setNewRecommendation({
+                name: "",
+                category: "restaurant",
+                address: "",
+                coordinates: { lat: 0, lng: 0 },
+                description: "",
+                rating: 0,
+                website: "",
+                phone_number: "",
+                place_id: "",
+                guest_rating: 5,
+                guest_notes: "",
+                existing_recommendation_id: undefined,
+                is_new_recommendation: true,
+              });
+            }}
+            className="text-sm text-blue-600 hover:text-blue-800"
+          >
+            {useManualEntry ? "Use Google Search" : "Manual Entry"}
+          </button>
+        </div>
+
+        {!useManualEntry ? (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              <Search className="inline h-4 w-4 mr-1" />
+              Search for a place
+            </label>
+            <GooglePlacesSearch
+              onPlaceSelect={handleGooglePlaceSelect}
+              placeholder="Type the name of a restaurant, attraction, shop..."
+              propertyLocation={property?.coordinates || property?.address}
+              radius={25000}
+              showDetails={true}
+            />
+            
+            {checkingExisting && (
+              <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-sm text-blue-800">
+                🔍 Checking if this place has been recommended before...
+              </div>
+            )}
+
+            {selectedPlace && existingRecommendation && (
+              <div className="mt-3 p-4 bg-blue-50 border border-blue-200 rounded">
+                <div className="flex items-start justify-between mb-3">
+                  <div>
+                    <h4 className="font-medium text-blue-900 flex items-center">
+                      <Users className="h-4 w-4 mr-1" />
+                      This place has been recommended before!
+                    </h4>
+                    <p className="text-sm text-blue-700">
+                      {existingRecommendation.total_reviews} guest{existingRecommendation.total_reviews !== 1 ? 's have' : ' has'} recommended this place
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <div className="flex items-center">
+                      {renderStars(Math.round(existingRecommendation.average_guest_rating))}
+                      <span className="ml-1 text-sm text-blue-700">
+                        {existingRecommendation.average_guest_rating.toFixed(1)}/5
+                      </span>
+                    </div>
+                    <p className="text-xs text-blue-600">Guest average</p>
+                  </div>
+                </div>
+
+                {/* Show recent guest reviews */}
+                {existingRecommendation.guest_reviews && existingRecommendation.guest_reviews.length > 0 && (
+                  <div className="space-y-2">
+                    <h5 className="text-sm font-medium text-blue-900">Recent guest comments:</h5>
+                    {existingRecommendation.guest_reviews.slice(0, 3).map((review, idx) => (
+                      <div key={idx} className="bg-white p-2 rounded border border-blue-200">
+                        <div className="flex justify-between items-start mb-1">
+                          <span className="text-xs font-medium text-gray-700">{review.guest_name}</span>
+                          <div className="flex items-center">
+                            {renderStars(review.guest_rating)}
+                            <span className="ml-1 text-xs text-gray-600">{review.guest_rating}/5</span>
+                          </div>
+                        </div>
+                        {review.guest_notes && (
+                          <p className="text-xs text-gray-600 italic">"{review.guest_notes}"</p>
+                        )}
+                      </div>
+                    ))}
+                    {existingRecommendation.guest_reviews.length > 3 && (
+                      <p className="text-xs text-blue-600">
+                        ...and {existingRecommendation.guest_reviews.length - 3} more review{existingRecommendation.guest_reviews.length - 3 !== 1 ? 's' : ''}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded">
+                  <p className="text-sm text-green-800 font-medium">
+                    ✓ Add your own experience to this recommendation
+                  </p>
+                  <p className="text-xs text-green-700 mt-1">
+                    Your rating and comments will be added to help future guests
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {selectedPlace && !existingRecommendation && (
+              <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded text-sm">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="font-medium text-green-800">✓ New place discovered!</p>
+                    <p className="text-green-700">{selectedPlace.name}</p>
+                    <p className="text-green-600">{selectedPlace.formatted_address}</p>
+                    {selectedPlace.rating && (
+                      <p className="text-green-600">Google Rating: {selectedPlace.rating}★</p>
+                    )}
+                  </div>
+                </div>
+                <div className="mt-2 p-2 bg-white border border-green-200 rounded">
+                  <p className="text-xs text-green-700 font-medium">
+                    You'll be the first guest to recommend this place! 🎉
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          // Manual Entry - Show category selector for manual entries
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Place Name *
+                </label>
+                <input
+                  type="text"
+                  value={newRecommendation.name}
+                  onChange={(e) =>
+                    setNewRecommendation((prev) => ({
+                      ...prev,
+                      name: e.target.value,
+                    }))
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="e.g., Blue Ocean Restaurant"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Address
+                </label>
+                <input
+                  type="text"
+                  value={newRecommendation.address}
+                  onChange={(e) =>
+                    setNewRecommendation((prev) => ({
+                      ...prev,
+                      address: e.target.value,
+                    }))
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Address or general area"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Category *
+              </label>
+              <select
+                value={newRecommendation.category}
+                onChange={(e) =>
+                  setNewRecommendation((prev) => ({
+                    ...prev,
+                    category: e.target.value,
+                  }))
+                }
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                {categories.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.icon} {category.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        )}
+
+        {/* Rating and Notes - always show when a place is selected */}
+        {(selectedPlace || (useManualEntry && newRecommendation.name)) && (
+          <>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Your Rating
+              </label>
+              <div className="flex items-center space-x-1">
+                {renderStars(newRecommendation.guest_rating, (rating) =>
+                  setNewRecommendation((prev) => ({
+                    ...prev,
+                    guest_rating: rating,
+                  }))
+                )}
+                <span className="ml-2 text-sm text-gray-600">
+                  {newRecommendation.guest_rating} star
+                  {newRecommendation.guest_rating !== 1 ? "s" : ""}
+                </span>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                {existingRecommendation ? "Add Your Experience" : "Your Experience & Tips"}
+              </label>
+              <textarea
+                value={newRecommendation.guest_notes}
+                onChange={(e) =>
+                  setNewRecommendation((prev) => ({
+                    ...prev,
+                    guest_notes: e.target.value,
+                  }))
+                }
+                rows={3}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder={
+                  existingRecommendation 
+                    ? "What was your experience like? Any tips to add to this recommendation?"
+                    : "What made this place special? Any tips for future guests?"
+                }
+              />
+            </div>
+
+            <button
+              onClick={addRecommendation}
+              disabled={!newRecommendation.name.trim()}
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              {existingRecommendation ? "Add Your Review" : "Add Recommendation"}
+            </button>
+          </>
+        )}
+      </div>
+
+      {/* Existing Recommendations */}
+      {formData.recommendations.length > 0 && (
+        <div className="space-y-4">
+          <h3 className="text-lg font-medium text-gray-900">
+            Your Recommendations ({formData.recommendations.length})
+          </h3>
+
+          {formData.recommendations.map((rec, index) => (
+            <div
+              key={index}
+              className="border border-gray-200 rounded-lg p-4 bg-white"
+            >
+              <div className="flex justify-between items-start mb-2">
+                <div>
+                  <h4 className="font-medium text-gray-900">{rec.name}</h4>
+                  <p className="text-sm text-gray-600 capitalize flex items-center">
+                    {categories.find((c) => c.id === rec.category)?.icon}{" "}
+                    {categories.find((c) => c.id === rec.category)?.name}
+                    {rec.place_id && (
+                      <span className="ml-2 inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800">
+                        <Search className="h-3 w-3 mr-1" />
+                        Google Verified
+                      </span>
+                    )}
+                    {!rec.is_new_recommendation && (
+                      <span className="ml-2 inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">
+                        <MessageCircle className="h-3 w-3 mr-1" />
+                        Adding Review
+                      </span>
+                    )}
+                  </p>
+                </div>
+                <button
+                  onClick={() => removeRecommendation(index)}
+                  className="text-red-600 hover:text-red-800"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+
+              {rec.address && (
+                <div className="flex items-center text-sm text-gray-600 mb-2">
+                  <MapPin className="h-4 w-4 mr-1" />
+                  {rec.address}
+                </div>
+              )}
+
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center">
+                  {renderStars(rec.guest_rating)}
+                  <span className="ml-2 text-sm text-gray-600">
+                    Your rating: {rec.guest_rating}/5
+                  </span>
+                </div>
+                {rec.rating > 0 && (
+                  <div className="text-sm text-gray-500">
+                    Google: {rec.rating}★
+                  </div>
+                )}
+              </div>
+
+              {rec.guest_notes && (
+                <p className="text-sm text-gray-700 bg-gray-50 p-2 rounded">
+                  "{rec.guest_notes}"
+                </p>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {formData.recommendations.length === 0 && (
+        <div className="text-center py-8 text-gray-500">
+          <MapPin className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+          <p>No recommendations added yet. Share your favorite discoveries!</p>
+        </div>
+      )}
+    </div>
+  );
+}

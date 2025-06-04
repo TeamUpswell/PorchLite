@@ -23,6 +23,7 @@ import RecommendationFilters from "@/components/recommendations/RecommendationFi
 import { MultiActionPattern } from "@/components/ui/FloatingActionPresets";
 import PlaceSearch from "@/components/maps/PlaceSearch";
 import DynamicGooglePlacePhoto from "@/components/DynamicGooglePlacePhoto";
+import GooglePlacesSearch from "@/components/ui/GooglePlacesSearch";
 
 interface Recommendation {
   id: string;
@@ -461,6 +462,12 @@ export default function RecommendationsPage() {
     }
   };
 
+  // Handle place selection from GooglePlacesSearch
+  const handlePlaceSelect = (place: PlacesResult) => {
+    setSelectedPlace(place);
+    setPlacesLoading(false);
+  };
+
   return (
     <StandardPageLayout
       title="Local Recommendations"
@@ -476,19 +483,12 @@ export default function RecommendationsPage() {
         className="mb-6"
       >
         <div className="space-y-4">
-          <PlaceSearch
-            onPlaceSelect={(place) => {
-              setSelectedPlace(place);
-              setPlacesLoading(false);
-              // Remove these debug logs for production:
-              // console.log("🖼️ Place selected:", place);
-              // console.log("📸 Photos data:", place.photos);
-              // if (place.photos && place.photos.length > 0) {
-              //   console.log("📸 First photo URL:", place.photos[0].getUrl());
-              // }
-            }}
-            defaultLocation={currentProperty?.coordinates}
-            placeholder="Search for places (e.g., 'Starbucks near me', 'Italian restaurant')..."
+          <GooglePlacesSearch
+            onPlaceSelect={handlePlaceSelect}
+            placeholder="Search for places to recommend..."
+            propertyLocation={currentProperty?.coordinates}
+            showDetails={true}
+            className="mb-4"
           />
 
           {placesLoading && (
