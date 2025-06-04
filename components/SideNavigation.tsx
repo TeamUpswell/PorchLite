@@ -26,6 +26,7 @@ import {
   CheckSquare as CheckSquareIcon,
   LogOut,
   Building2 as HouseIcon,
+  Heart as HeartIcon, // Add this import
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import Image from "next/image";
@@ -69,9 +70,10 @@ const navigationStructure: NavigationSection[] = [
     items: [
       { name: "Dashboard", href: "/", icon: HomeIcon },
       { name: "Calendar", href: "/calendar", icon: CalendarIcon },
-      { name: "The House", href: "/house", icon: HouseIcon }, // Add The House here
+      { name: "The House", href: "/house", icon: HouseIcon },
       { name: "Instructions", href: "/manual", icon: BookOpenIcon },
       { name: "Tasks", href: "/tasks", icon: CheckSquareIcon },
+      { name: "Guest Book", href: "/guest-book", icon: HeartIcon }, // Add this line
       { name: "Nearby Places", href: "/recommendations", icon: StarIcon },
       { name: "Inventory", href: "/inventory", icon: PackageIcon },
       { name: "Contacts", href: "/contacts", icon: PhoneIcon },

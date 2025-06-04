@@ -1,739 +1,329 @@
-# PorchLite Development Rules & Patterns
+# Porchlite Development Rules & Guidelines
 
-## 🔐 Authentication & Layout Patterns
+## Core Architecture
 
-### Protected Pages Structure
-```tsx
-// For pages with existing ProtectedPageWrapper
-return (
-  <ProtectedRoute>
-    <ProtectedPageWrapper>
-      {/* Page content */}
-    </ProtectedPageWrapper>
-  </ProtectedRoute>
-);
+### Database Schema Updates
 
-// For new pages without existing layout
-return (
-  <ProtectedRoute>
-    <AuthenticatedLayout>
-      {/* Page content */}
-    </AuthenticatedLayout>
-  </ProtectedRoute>
-);
-```
+#### Guest Experience System Tables
 
-### Public Pages (Auth related)
-- Never wrap `/auth/*`, `/login`, `/signup` with ProtectedRoute
-- These should remain completely public
-
-## 🧭 Navigation & Layout Patterns
-
-### Side Navigation
-- Use consistent navigation structure across all pages
-- Maintain active state indicators for current page
-- Ensure responsive behavior for mobile devices
-- Include user context and property selection in nav
-
-### Page Layouts
-- Use `StandardPageLayout` for consistent page structure
-- Include proper page titles and subtitles
-- Add appropriate header icons for visual hierarchy
-- Maintain consistent spacing and padding
-
-## 🎨 Design System & UI Components
-
-### Color Patterns
-- Primary: Blue (#3B82F6, #1D4ED8) for main actions
-- Success: Green for positive actions/states
-- Warning: Yellow/Orange for attention items
-- Error: Red for destructive actions/errors
-- Gray scale: Consistent gray palette for text hierarchy
-
-### Card Components
-- Use `StandardCard` for consistent card layouts
-- Include proper shadow and border radius
-- Maintain consistent padding (p-4, p-6)
-- Use white backgrounds for content cards
-
-### Button Patterns
-```tsx
-// Primary action buttons
-className="bg-blue-600 hover:bg-blue-700 text-white"
-
-// Secondary buttons  
-className="bg-gray-200 hover:bg-gray-300 text-gray-900"
-
-// Destructive actions
-className="bg-red-600 hover:bg-red-700 text-white"
-```
-
-### Icon Usage
-- Use Lucide React icons consistently
-- Size: h-4 w-4 for inline, h-6 w-6 for headers
-- Always include proper accessibility labels
-- Use semantic icons that match action purpose
-
-## 📊 Data Display Patterns
-
-### Loading States
-```tsx
-// Skeleton loading for lists/grids
-<div className="animate-pulse">
-  <div className="h-4 bg-gray-200 rounded mb-2"></div>
-  <div className="h-4 w-3/4 bg-gray-200 rounded"></div>
-</div>
-
-// Spinner for actions
-<div className="animate-spin h-4 w-4 border-2 border-blue-600 rounded-full border-t-transparent"></div>
-```
-
-### Grid Layouts
-- Use responsive grid: `grid-cols-1 md:grid-cols-2 lg:grid-cols-3`
-- Consistent gap spacing: `gap-4` or `gap-6`
-- Maintain aspect ratios for images/cards
-
-### Form Patterns
-- Use consistent input styling
-- Include proper validation states
-- Add clear error messaging
-- Implement proper focus states
-
-## 🔄 State Management Rules
-
-### Modal Patterns
-- Use boolean state for modal visibility
-- Include proper backdrop click handling
-- Implement escape key functionality
-- Clear form state on modal close
-
-### Data Fetching
-```tsx
-// Standard data fetching pattern
-const [data, setData] = useState([]);
-const [loading, setLoading] = useState(true);
-const [error, setError] = useState(null);
-
-useEffect(() => {
-  const fetchData = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch('/api/endpoint');
-      const result = await response.json();
-      setData(result);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-  
-  fetchData();
-}, []);
-```
-
-## 🚀 Performance Rules
-
-### Image Handling
-- Use ResponsiveImage component for all images
-- Implement proper loading states and fallbacks
-- Optimize uploads with WebP conversion when supported
-
-### API Usage
-- Don't store Google API data unnecessarily
-- Use dynamic fetching for external APIs (photos, weather)
-- Implement proper caching strategies
-
-## 🎯 Interactive Elements
-
-### Hover States
-- Cards: `hover:shadow-md transition-shadow`
-- Buttons: Color darkening on hover
-- Links: `hover:text-blue-600` for text links
-- Interactive elements: Include `cursor-pointer`
-
-### Focus States
-- Maintain visible focus indicators
-- Use `focus:ring-2 focus:ring-blue-500`
-- Ensure keyboard navigation works
-- Test with screen readers
-
-### Animation Guidelines
-- Use subtle transitions: `transition-all duration-200`
-- Prefer transform over changing layout properties
-- Use `animate-pulse` for loading states
-- Keep animations under 300ms for interactions
-
-## 📱 Responsive Design Rules
-
-### Breakpoints (Tailwind)
-- `sm:` 640px+ (small tablets)
-- `md:` 768px+ (tablets)  
-- `lg:` 1024px+ (small laptops)
-- `xl:` 1280px+ (desktops)
-
-### Mobile-First Patterns
-```tsx
-// Start with mobile, enhance for larger screens
-className="text-sm md:text-base lg:text-lg"
-className="p-4 md:p-6 lg:p-8"
-className="grid-cols-1 md:grid-cols-2 lg:grid-cols-3"
-```
-
-### Navigation Behavior
-- Show/hide side nav based on screen size
-- Implement hamburger menu for mobile
-- Maintain navigation state across page changes
-
-## 🧩 Component Architecture
-
-### File Organization
-```
-components/
-├── ui/           # Reusable UI components
-├── auth/         # Authentication components
-├── layout/       # Layout components
-├── forms/        # Form components
-├── maps/         # Map-related components
-└── [feature]/    # Feature-specific components
-```
-
-### Component Naming
-- Use PascalCase for component names
-- Be descriptive: `RecommendationFilters` not `Filters`
-- Include purpose: `DeleteButton`, `AddItemModal`
-
-### Props Patterns
-```tsx
-interface ComponentProps {
-  // Required props first
-  data: DataType[];
-  onAction: (item: DataType) => void;
-  
-  // Optional props with defaults
-  className?: string;
-  variant?: 'primary' | 'secondary';
-  disabled?: boolean;
-}
-```
-
-## 🔧 Development Workflow
-
-### Error Handling
-- Always wrap async operations in try/catch
-- Provide user-friendly error messages
-- Log errors to console with clear context
-- Include retry mechanisms where appropriate
-
-### TypeScript Standards
-- Define interfaces for all data structures
-- Use strict typing, avoid `any`
-- Export interfaces that might be reused
-- Use union types for specific value sets
-
-### Console Logging
-- Use emoji prefixes for easy scanning
-- Include context in log messages
-- Remove debug logs before production
-- Use different log levels appropriately
-
-## 🎨 Styling Conventions
-
-### Tailwind Patterns
-- Use consistent spacing scale (4, 6, 8, 12, 16)
-- Group related classes: positioning, sizing, colors, effects
-- Use design tokens for consistency
-- Prefer utility classes over custom CSS
-
-### Component Styling
-- Use conditional classes with template literals
-- Extract complex class logic to functions
-- Maintain consistent hover/focus states
-- Use CSS variables for theme customization
-
-## 🗄️ Database & Data Management Patterns
-
-### Supabase Configuration
-```tsx
-// Project Reference: hkrgfqpshdoroimlulzw
-// URL: https://hkrgfqpshdoroimlulzw.supabase.co
-
-import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
-```
-
-### Core Database Tables & Interfaces
-
-#### Properties (Multi-tenant Structure)
-```tsx
-interface Property {
-  id: string;
-  name: string;
-  address: string;
-  description?: string;
-  tenant_id: string;              // Always required - multi-tenant support
-  created_by: string;
-  main_photo_url?: string;
-  header_image_url?: string;
-  property_type?: string;
-  bedrooms?: number;
-  bathrooms?: number;
-  max_occupancy?: number;
-  latitude?: number;
-  longitude?: number;
-  wifi_name?: string;
-  wifi_password?: string;
-  amenities?: string[];           // Array of amenity strings
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
-}
-```
-
-#### Recommendations (Property-scoped)
-```tsx
-interface Recommendation {
-  id: string;
-  property_id: string;            // Always required - property-scoped
-  name: string;
-  category: 'restaurant' | 'grocery' | 'entertainment' | 'healthcare' | 'shopping' | 'services' | 'outdoor' | 'emergency';
-  address: string;
-  coordinates?: { lat: number; lng: number };
-  description: string;
-  rating?: number;
-  website?: string;
-  phone_number?: string;
-  images: string[];               // Array of image URLs
-  place_id?: string;              // Google Places ID for dynamic fetching
-  is_recommended: boolean;
-  created_at: string;
-  updated_at: string;
-}
-```
-
-#### Reservations (Property-scoped)
-```tsx
-interface Reservation {
-  id: string;
-  property_id: string;            // Always required
-  tenant_id: string;              // Multi-tenant support
-  user_id: string;
-  title: string;
-  description?: string;
-  start_date: string;             // timestamp with time zone
-  end_date: string;               // timestamp with time zone
-  guests: number;
-  companion_count: number;
-  status: 'pending approval' | 'confirmed' | 'cancelled' | 'rejected';
-  created_at: string;
-  updated_at: string;
-}
-```
-
-#### Cleaning System Tables
-```tsx
-interface CleaningTask {
-  id: string;
-  property_id: string;            // Property-scoped
-  room: string;
-  task: string;
-  name?: string;
-  description?: string;
-  is_completed: boolean;
-  completed_by?: string;
-  completed_at?: string;
-  photo_url?: string;
-  display_order: number;
-  created_at: string;
-  updated_at: string;
-}
-
-interface CleaningVisit {
-  id: string;
-  property_id: string;
-  reservation_id?: string;        // Optional link to reservation
-  visit_date: string;             // date
-  notes?: string;
-  status: 'in_progress' | 'completed' | 'cancelled';
-  created_at: string;
-  updated_at: string;
-}
-```
-
-#### Manual/Documentation System
-```tsx
-interface ManualSection {
-  id: string;
-  property_id: string;            // Property-scoped
-  title: string;
-  description?: string;
-  icon?: string;
-  category?: string;
-  type?: string;
-  order_index: number;
-  is_priority: boolean;
-  priority_order?: number;
-  created_at: string;
-  updated_at: string;
-}
-
-interface ManualItem {
-  id: string;
-  section_id: string;
-  title: string;
-  content: string;
-  photos: string[];               // Array of photo URLs
-  photo_captions: string[];       // Array of captions
-  order_index: number;
-  important: boolean;
-  created_at: string;
-  updated_at: string;
-}
-```
-
-### Standard Query Patterns
-
-#### Property-Scoped Queries (Most Common)
-```tsx
-// Always filter by current property for property-scoped data
-const fetchRecommendations = async () => {
-  if (!currentProperty?.id) {
-    setRecommendations([]);
-    return;
-  }
-  
-  const { data, error } = await supabase
-    .from('recommendations')
-    .select('*')
-    .eq('property_id', currentProperty.id)
-    .order('created_at', { ascending: false });
-
-  if (error) {
-    console.error('❌ Database error:', error);
-    throw error;
-  }
-  
-  setRecommendations(data || []);
-};
-
-// Clear data when property changes
-useEffect(() => {
-  fetchRecommendations();
-}, [currentProperty?.id]);
-```
-
-#### Multi-tenant Queries
-```tsx
-// For tenant-scoped data (properties, tenant users)
-const fetchProperties = async () => {
-  const { data, error } = await supabase
-    .from('properties')
-    .select('*')
-    .eq('tenant_id', currentTenant?.id)
-    .eq('is_active', true)
-    .order('name');
-
-  if (error) throw error;
-  return data;
-};
-```
-
-#### Complex Joins
-```tsx
-// Fetch cleaning visits with related tasks
-const fetchCleaningHistory = async () => {
-  const { data, error } = await supabase
-    .from('cleaning_visits')
-    .select(`
-      *,
-      cleaning_visit_tasks (
-        *,
-        cleaning_tasks (
-          name,
-          room,
-          description
-        )
-      ),
-      reservations (
-        title,
-        guest_name
-      )
-    `)
-    .eq('property_id', currentProperty?.id)
-    .order('visit_date', { ascending: false });
-
-  return data;
-};
-```
-
-### Database Operation Patterns
-
-#### Insert with Proper Error Handling
-```tsx
-const addRecommendation = async (newRec: Partial<Recommendation>) => {
-  if (!currentProperty?.id) {
-    throw new Error('No property selected');
-  }
-
-  const { data, error } = await supabase
-    .from('recommendations')
-    .insert([{
-      ...newRec,
-      property_id: currentProperty.id,
-      id: uuid(), // Generate UUID if needed
-    }])
-    .select()
-    .single();
-
-  if (error) {
-    console.error('❌ Insert failed:', error);
-    throw error;
-  }
-  
-  // Update local state optimistically
-  setRecommendations(prev => [data, ...prev]);
-  return data;
-};
-```
-
-#### Update Operations
-```tsx
-const updateTaskStatus = async (taskId: string, isCompleted: boolean) => {
-  const { error } = await supabase
-    .from('cleaning_tasks')
-    .update({
-      is_completed: isCompleted,
-      completed_by: isCompleted ? user?.id : null,
-      completed_at: isCompleted ? new Date().toISOString() : null,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', taskId);
-
-  if (error) {
-    console.error('❌ Update failed:', error);
-    throw error;
-  }
-};
-```
-
-#### Soft Delete Pattern
-```tsx
-// For important data, consider soft deletes
-const softDeleteReservation = async (reservationId: string) => {
-  const { error } = await supabase
-    .from('reservations')
-    .update({
-      status: 'cancelled',
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', reservationId);
-
-  if (error) throw error;
-};
-```
-
-### External API Data Rules
-
-#### Google Places Integration
-```tsx
-// Store place_id, not photo references (they expire)
-interface Recommendation {
-  place_id?: string;              // ✅ Store this for dynamic fetching
-  images: string[];               // ✅ Keep empty for Google Places
-}
-
-// Fetch photos dynamically, don't store URLs
-const DynamicGooglePlacePhoto = ({ placeId }) => {
-  // Always fetch fresh photo reference
-  // Don't cache photo URLs in database
-};
-```
-
-#### Weather and Real-time Data
-```tsx
-// Don't store weather data - always fetch fresh
-// Store location coordinates for API calls
-interface Property {
-  latitude?: number;
-  longitude?: number;
-  // Don't store: current_weather, forecast, etc.
-}
-```
-
-### Security & Permissions
-
-#### Row Level Security (RLS) Patterns
 ```sql
--- Property-based access control (most tables follow this pattern)
-CREATE POLICY "Users can access their property data" ON recommendations
-  FOR ALL USING (
-    property_id IN (
-      SELECT property_id FROM property_users 
-      WHERE user_id = auth.uid()
-    )
-  );
+-- Guest Book Entries
+CREATE TABLE guest_book_entries (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  property_id UUID REFERENCES properties(id) ON DELETE CASCADE,
+  reservation_id UUID REFERENCES reservations(id) ON DELETE SET NULL,
+  guest_name VARCHAR(255) NOT NULL,
+  guest_email VARCHAR(255),
+  visit_date DATE NOT NULL,
+  rating INTEGER CHECK (rating >= 1 AND rating <= 5),
+  title VARCHAR(255),
+  message TEXT,
+  is_public BOOLEAN DEFAULT true,
+  is_approved BOOLEAN DEFAULT false, -- For moderation
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
 
--- Tenant-based access for tenant-scoped data
-CREATE POLICY "Users can access their tenant data" ON properties
-  FOR ALL USING (
-    tenant_id IN (
-      SELECT tenant_id FROM tenant_users 
-      WHERE user_id = auth.uid()
-    )
-  );
+-- Guest Photos
+CREATE TABLE guest_photos (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  guest_book_entry_id UUID REFERENCES guest_book_entries(id) ON DELETE CASCADE,
+  photo_url TEXT NOT NULL,
+  caption TEXT,
+  sort_order INTEGER DEFAULT 0,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Guest Recommendations (places they visited)
+CREATE TABLE guest_recommendations (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  guest_book_entry_id UUID REFERENCES guest_book_entries(id) ON DELETE CASCADE,
+  place_name VARCHAR(255) NOT NULL,
+  place_type VARCHAR(100), -- restaurant, activity, attraction, etc
+  location TEXT,
+  rating INTEGER CHECK (rating >= 1 AND rating <= 5),
+  notes TEXT,
+  would_recommend BOOLEAN DEFAULT true,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Guest Reported Issues (becomes tasks)
+CREATE TABLE guest_reported_issues (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  guest_book_entry_id UUID REFERENCES guest_book_entries(id) ON DELETE CASCADE,
+  task_id UUID REFERENCES tasks(id) ON DELETE SET NULL, -- Links to created task
+  issue_type VARCHAR(100), -- maintenance, cleanliness, amenity, etc
+  description TEXT NOT NULL,
+  location TEXT, -- where in the property
+  priority VARCHAR(20) DEFAULT 'medium', -- low, medium, high
+  photo_url TEXT, -- optional photo of the issue
+  status VARCHAR(50) DEFAULT 'reported', -- reported, acknowledged, resolved
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Guest Inventory Notes (low supplies, etc)
+CREATE TABLE guest_inventory_notes (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  guest_book_entry_id UUID REFERENCES guest_book_entries(id) ON DELETE CASCADE,
+  inventory_id UUID REFERENCES inventory(id) ON DELETE SET NULL,
+  item_name VARCHAR(255) NOT NULL,
+  note_type VARCHAR(50), -- low_stock, missing, damaged, suggestion
+  quantity_used INTEGER,
+  notes TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
 ```
 
-#### Role-based Access
-```tsx
-// Check user role before operations
-const canManageProperty = (userRole: string) => {
-  return ['owner', 'property_manager'].includes(userRole);
-};
+#### Existing Core Tables (Reference)
 
-// Role hierarchy from role_definitions table
-const ROLE_HIERARCHY = {
-  owner: 1,
-  property_manager: 2,
-  renter: 3,
-  guest: 4,
-  friend: 5,
-};
+```sql
+-- Properties
+CREATE TABLE properties (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  tenant_id UUID REFERENCES tenants(id),
+  name VARCHAR(255) NOT NULL,
+  address TEXT,
+  description TEXT,
+  main_photo_url TEXT,
+  header_image_url TEXT, -- Used for dashboard banners
+  latitude DECIMAL(10, 8),
+  longitude DECIMAL(11, 8),
+  max_guests INTEGER DEFAULT 1,
+  bedrooms INTEGER DEFAULT 1,
+  bathrooms DECIMAL(3,1) DEFAULT 1,
+  square_footage INTEGER,
+  amenities JSONB DEFAULT '[]',
+  house_rules TEXT,
+  check_in_instructions TEXT,
+  wifi_name VARCHAR(255),
+  wifi_password VARCHAR(255),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Tasks (Dashboard Widget)
+CREATE TABLE tasks (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  property_id UUID REFERENCES properties(id) ON DELETE CASCADE,
+  title VARCHAR(255) NOT NULL,
+  description TEXT,
+  status VARCHAR(50) DEFAULT 'pending', -- pending, in_progress, completed
+  priority VARCHAR(20) DEFAULT 'medium', -- low, medium, high
+  category VARCHAR(100), -- maintenance, cleaning, inventory, guest_request
+  due_date DATE,
+  estimated_duration INTEGER, -- minutes
+  assigned_to UUID REFERENCES users(id),
+  created_by UUID REFERENCES users(id),
+  completed_at TIMESTAMP WITH TIME ZONE,
+  source VARCHAR(50), -- manual, guest_report, automated
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Inventory (Dashboard Widget)
+CREATE TABLE inventory (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  property_id UUID REFERENCES properties(id) ON DELETE CASCADE,
+  name VARCHAR(255) NOT NULL,
+  category VARCHAR(100), -- essentials, cleaning, amenities, maintenance
+  quantity INTEGER DEFAULT 0,
+  min_stock INTEGER DEFAULT 0,
+  status VARCHAR(50) DEFAULT 'good', -- good, low, out, damaged
+  location VARCHAR(255), -- where in property
+  cost_per_unit DECIMAL(10,2),
+  supplier VARCHAR(255),
+  notes TEXT,
+  last_restocked DATE,
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
 ```
 
-### Data Validation
+### Component Architecture
 
-#### Required Field Validation
-```tsx
-const validateRecommendation = (data: Partial<Recommendation>) => {
-  if (!data.name?.trim()) throw new Error('Name is required');
-  if (!data.category) throw new Error('Category is required');
-  if (!data.address?.trim()) throw new Error('Address is required');
-  if (!data.property_id) throw new Error('Property ID is required');
-  return true;
-};
+#### Dashboard System
+- **Modular Components**: Each dashboard widget is a separate component in `/components/dashboard/`
+- **DashboardLayout**: Main layout component that orchestrates all widgets
+- **Configurable**: Uses `enabledComponents` prop for future customization
+- **Clickable Navigation**: All widgets link to their respective sections
+
+#### Guest Experience System
+- **Guest Book**: Public display of guest experiences (`/app/guest-book/`)
+- **Trip Report Wizard**: Multi-step form for comprehensive guest feedback
+- **Automatic Integration**: Guest reports create tasks and inventory notes
+- **Moderation System**: Owner approval required for public entries
+
+### File Structure Standards
+
 ```
-
-#### Status Enum Validation
-```tsx
-// Use explicit status values from database constraints
-type ReservationStatus = 'pending approval' | 'confirmed' | 'cancelled' | 'rejected';
-type TaskStatus = 'pending' | 'in_progress' | 'completed';
-type CleaningVisitStatus = 'in_progress' | 'completed' | 'cancelled';
-type IssueSeverity = 'Low' | 'Medium' | 'High';
-
-// Always use these exact strings to match DB constraints
-```
-
-### Performance Optimization
-
-#### Selective Field Queries
-```tsx
-// Only select fields you need
-const { data } = await supabase
-  .from('reservations')
-  .select('id, title, start_date, end_date, status, guests')
-  .eq('property_id', propertyId)
-  .order('start_date', { ascending: false });
-```
-
-#### Pagination for Large Datasets
-```tsx
-const fetchReservationsPage = async (page: number, pageSize: number = 10) => {
-  const start = page * pageSize;
-  const end = start + pageSize - 1;
+/components/
+  /dashboard/
+    DashboardLayout.tsx       # Main dashboard orchestrator
+    StatsOverview.tsx         # 4-card stats grid
+    UpcomingVisits.tsx        # Visits widget
+    InventoryAlerts.tsx       # Inventory alerts widget
+    TaskAlerts.tsx            # Tasks widget (replaces maintenance)
+    DashboardHeader.tsx       # Existing header with image management
+    HeaderImageManager.tsx    # Existing image upload modal
   
-  const { data, error, count } = await supabase
-    .from('reservations')
-    .select('*', { count: 'exact' })
-    .eq('property_id', currentProperty?.id)
-    .range(start, end)
-    .order('start_date', { ascending: false });
-    
-  return { data, totalCount: count };
-};
+  /guest-book/
+    TripReportWizard.tsx      # Multi-step guest feedback form
+    BasicInfoStep.tsx         # Step 1: Basic guest info
+    PhotosStep.tsx            # Step 2: Photo uploads
+    RecommendationsStep.tsx   # Step 3: Place recommendations
+    IssuesStep.tsx            # Step 4: Report issues
+    SuppliesStep.tsx          # Step 5: Inventory feedback
+    ReviewStep.tsx            # Step 6: Final review
+
+/app/
+  page.tsx                    # Main dashboard page
+  /guest-book/
+    page.tsx                  # Guest book display
+    /new/
+      page.tsx                # New guest entry form
 ```
 
-### Real-time Features
+### useProperty Hook Standards
 
-#### Supabase Subscriptions
 ```tsx
-// Listen for real-time updates on property-scoped data
+// Always use loading guards to prevent duplicate API calls
+const [isLoadingTenants, setIsLoadingTenants] = useState(false);
+const [isLoadingProperties, setIsLoadingProperties] = useState(false);
+
+// useCallback for all async functions
+const loadUserTenants = useCallback(async () => {
+  if (!user?.id || isLoadingTenants) return;
+  // ... implementation
+}, [user?.id, isLoadingTenants]);
+
+// Minimal useEffect hooks with proper dependencies
 useEffect(() => {
-  if (!currentProperty?.id) return;
-
-  const subscription = supabase
-    .channel(`property_${currentProperty.id}_changes`)
-    .on('postgres_changes', 
-      { 
-        event: '*', 
-        schema: 'public', 
-        table: 'recommendations',
-        filter: `property_id=eq.${currentProperty.id}`
-      },
-      (payload) => {
-        console.log('🔄 Real-time update:', payload);
-        // Update local state based on payload.eventType
-      }
-    )
-    .subscribe();
-
-  return () => subscription.unsubscribe();
-}, [currentProperty?.id]);
-```
-
-### Schema Management
-
-#### Migration Commands
-```bash
-# Export current schema
-supabase db dump --project-ref hkrgfqpshdoroimlulzw --schema public > schema.sql
-
-# Generate TypeScript types
-npx supabase gen types typescript --project-id hkrgfqpshdoroimlulzw > types/database.types.ts
-
-# Always run after schema changes
-```
-
-#### Foreign Key Relationships
-- Most tables are **property-scoped** via `property_id`
-- Some tables are **tenant-scoped** via `tenant_id`
-- User relationships via `auth.users(id)`
-- Maintain referential integrity with proper constraints
-
-### Common Pitfalls to Avoid
-
-1. **❌ Don't store Google photo URLs** - they expire
-2. **❌ Don't store weather data** - always fetch fresh
-3. **❌ Don't forget property_id filtering** - causes data leaks
-4. **❌ Don't use calculated status fields** - store explicit status
-5. **❌ Don't skip error handling** - always check for errors
-6. **❌ Don't ignore RLS policies** - test permissions thoroughly
-
-### Backup & Export
-
-#### Property Data Export
-```tsx
-const exportPropertyData = async (propertyId: string) => {
-  const tables = [
-    'recommendations', 'reservations', 'cleaning_tasks', 
-    'cleaning_visits', 'manual_sections', 'manual_items',
-    'contacts', 'inventory', 'notes', 'tasks'
-  ];
-  
-  const exportData: Record<string, any[]> = {};
-  
-  for (const table of tables) {
-    const { data } = await supabase
-      .from(table)
-      .select('*')
-      .eq('property_id', propertyId);
-    exportData[table] = data || [];
+  if (user?.id) {
+    loadUserTenants();
   }
-  
-  return exportData;
-};
+}, [user?.id]);
 ```
+
+### Dashboard Widget Standards
+
+#### Navigation Rules
+- **Stats cards** → Link to main sections (`/calendar`, `/inventory`, `/tasks`)
+- **Widget headers** → Clickable with external link icons
+- **Individual items** → Deep link with query params (`/tasks?task=123`)
+- **Empty states** → Show helpful links to create content
+
+#### Visual Standards
+- **Hover effects** → `hover:scale-105` for cards, color changes for headers
+- **Loading states** → Consistent spinners and guards
+- **Icons** → Lucide icons with semantic meaning
+- **Colors** → Blue (visits), Green (inventory), Yellow (alerts), Purple (tasks)
+
+### Guest Experience Integration
+
+#### Automatic Task Creation
+```tsx
+// Guest issues automatically become tasks
+const { data: task } = await supabase
+  .from('tasks')
+  .insert({
+    property_id: property.id,
+    title: `Guest Report: ${issue.issueType}`,
+    description: issue.description,
+    priority: issue.priority,
+    status: 'pending',
+    category: 'maintenance',
+    source: 'guest_report'
+  });
+```
+
+#### Inventory Integration
+```tsx
+// Guest inventory notes link to existing inventory
+await supabase
+  .from('guest_inventory_notes')
+  .insert({
+    guest_book_entry_id: entryId,
+    item_name: note.itemName,
+    note_type: note.noteType, // low_stock, missing, damaged
+    notes: note.notes
+  });
+```
+
+### API Best Practices
+
+#### Supabase Queries
+- **Always filter by property_id** for multi-tenant security
+- **Use select() with specific columns** to optimize performance
+- **Include proper error handling** with try/catch blocks
+- **Limit results** with `.limit()` for dashboard widgets
+
+#### State Management
+- **Loading guards** prevent duplicate API calls
+- **Error boundaries** handle failed requests gracefully
+- **Optimistic updates** for better UX where appropriate
+
+### Permission System
+
+#### Guest Book Moderation
+- **is_approved** flag for owner moderation
+- **is_public** flag for guest privacy control
+- **Role-based access** for management features
+
+#### Header Image Management
+- **ALLOWED_ROLES**: `["owner", "manager", "admin"]`
+- **Permission checks** before showing upload UI
+- **Graceful degradation** for unauthorized users
+
+### Performance Guidelines
+
+#### Image Optimization
+- **WebP conversion** for modern browsers
+- **Compression** at 85% quality for 1920px width
+- **Lazy loading** for gallery components
+- **CDN delivery** via Supabase Storage
+
+#### Database Performance
+- **Proper indexing** on property_id, status, created_at
+- **Pagination** for large datasets
+- **Efficient joins** using select() with relationships
+
+### Testing Standards
+
+#### Component Testing
+- **Loading states** should be tested
+- **Error states** should be handled
+- **Navigation** should work correctly
+- **Form validation** should prevent invalid submissions
+
+#### Integration Testing
+- **Guest report workflow** end-to-end
+- **Task creation** from guest issues
+- **Inventory updates** from guest notes
+- **Permission enforcement** for all features
+
+### Future Considerations
+
+#### Customization System
+- **Widget configuration** stored in user preferences
+- **Drag-and-drop** dashboard layouts
+- **Custom widget** creation for power users
+
+#### Analytics Integration
+- **Guest satisfaction** tracking
+- **Task completion** metrics
+- **Inventory turnover** analysis
+- **Property performance** dashboards
+
+### Migration Notes
+
+#### Dashboard Updates
+- **Maintenance widget** renamed to Tasks widget
+- **Navigation routes** updated to `/tasks` instead of `/maintenance`
+- **Color scheme** changed from red to purple for tasks
+- **Data source** changed from `cleaning_issues` to `tasks` table
+
+#### Backward Compatibility
+- **Prop names** maintained for `maintenanceAlerts` in DashboardLayout
+- **State variables** can be gradually renamed
+- **API endpoints** maintain existing contracts
