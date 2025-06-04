@@ -120,7 +120,12 @@ export default function HomePage() {
     }>
   >([]);
   const [bannersLoaded, setBannersLoaded] = useState(false);
-  const [isFetching, setIsFetching] = useState(false);
+
+  // ✅ SEPARATE LOADING STATES for each fetch operation
+  const [isVisitsFetching, setIsVisitsFetching] = useState(false);
+  const [isInventoryFetching, setIsInventoryFetching] = useState(false);
+  const [isTasksFetching, setIsTasksFetching] = useState(false);
+
   const [totalInventoryCount, setTotalInventoryCount] = useState(0);
 
   // Add this state for predefined images:
@@ -166,8 +171,9 @@ export default function HomePage() {
   // Fetch upcoming visits/reservations - with proper guard
   useEffect(() => {
     async function fetchUpcomingVisits() {
-      if (!currentProperty?.id) return;
+      if (!currentProperty?.id || isVisitsFetching) return;
 
+      setIsVisitsFetching(true);
       try {
         const today = new Date().toISOString();
         const nextMonth = new Date();
@@ -178,9 +184,7 @@ export default function HomePage() {
           "🔍 Fetching reservations for property:",
           currentProperty.id
         );
-        console.log("Date range:", today, "to", nextMonthStr);
 
-        // Query with correct column names from your schema
         const { data: visits, error } = await supabase
           .from("reservations")
           .select(
@@ -209,19 +213,14 @@ export default function HomePage() {
           .order("start_date", { ascending: true })
           .limit(10);
 
-        console.log("Raw reservations data:", visits);
-        console.log("Query error:", error);
-
         if (error) {
           console.error("Error fetching reservations:", error);
           setUpcomingVisits([]);
           return;
         }
 
-        // Format the data to match your interface
         const formattedVisits =
           visits?.map((v) => {
-            // Get primary companion info (first companion or fallback)
             const primaryCompanion = v.reservation_companions?.[0];
             const totalGuests = (v.guests || 0) + (v.companion_count || 0);
 
@@ -242,32 +241,30 @@ export default function HomePage() {
             };
           }) || [];
 
-        console.log("Formatted visits:", formattedVisits);
         setUpcomingVisits(formattedVisits);
       } catch (error) {
         console.error("Error fetching upcoming visits:", error);
         setUpcomingVisits([]);
       } finally {
-        setIsFetching(false);
+        setIsVisitsFetching(false);
       }
     }
 
     fetchUpcomingVisits();
-  }, [currentProperty?.id]);
+  }, [currentProperty?.id]); // Only depend on property ID
 
   // Fetch inventory alerts - ADD PROPER DEPENDENCIES
   useEffect(() => {
     const fetchInventoryAlerts = async () => {
-      if (!currentProperty?.id || isFetching) return;
+      if (!currentProperty?.id || isInventoryFetching) return;
 
-      setIsFetching(true);
+      setIsInventoryFetching(true);
       try {
         console.log(
           "🔍 Fetching inventory alerts for property:",
           currentProperty.id
         );
 
-        // ✅ Get all items first
         const { data, error } = await supabase
           .from("inventory")
           .select("*")
@@ -280,47 +277,40 @@ export default function HomePage() {
           return;
         }
 
-        console.log("📦 Raw inventory data:", data);
-
-        // ✅ Set total count
         setTotalInventoryCount(data?.length || 0);
 
-        // ✅ Use EXACT same logic as inventory page - only explicit status
         const alerts =
           data?.filter((item) => {
-            // Only check explicit status - no automatic threshold logic
             return item.status === "low" || item.status === "out";
           }) || [];
 
-        console.log("🚨 Filtered alerts (explicit status only):", alerts);
         setInventoryAlerts(alerts);
       } catch (error) {
         console.error("Error fetching inventory:", error);
       } finally {
-        setIsFetching(false);
+        setIsInventoryFetching(false);
       }
     };
 
     fetchInventoryAlerts();
-  }, [currentProperty?.id]);
+  }, [currentProperty?.id]); // Only depend on property ID
 
   // Fetch task alerts (replace the maintenance alerts useEffect)
   useEffect(() => {
     async function fetchTaskAlerts() {
-      if (!currentProperty?.id || isFetching) return;
+      if (!currentProperty?.id || isTasksFetching) return; // ✅ Use isTasksFetching
 
-      setIsFetching(true);
+      setIsTasksFetching(true); // ✅ Use isTasksFetching
       try {
         console.log("🔍 Fetching tasks for property:", currentProperty.id);
 
-        // Fetch from tasks table instead of cleaning_issues
         const { data: tasks, error } = await supabase
           .from("tasks")
           .select("*")
           .eq("property_id", currentProperty.id)
-          .in("status", ["pending", "in_progress"]) // Only active tasks
-          .order("priority", { ascending: false }) // High priority first
-          .order("due_date", { ascending: true }); // Then by due date
+          .in("status", ["pending", "in_progress"])
+          .order("priority", { ascending: false })
+          .order("due_date", { ascending: true });
 
         if (error) {
           console.error("Error fetching tasks:", error);
@@ -328,17 +318,17 @@ export default function HomePage() {
         }
 
         console.log("✅ Loaded tasks:", tasks);
-        setTaskAlerts(tasks || []); // Keep the same state variable name for now
+        setTaskAlerts(tasks || []);
       } catch (error) {
         console.error("Error fetching task alerts:", error);
         setTaskAlerts([]);
       } finally {
-        setIsFetching(false);
+        setIsTasksFetching(false); // ✅ Use isTasksFetching
       }
     }
 
     fetchTaskAlerts();
-  }, [currentProperty?.id, isFetching]);
+  }, [currentProperty?.id]); // ✅ Only depend on property ID
 
   // Fetch weather data
   useEffect(() => {
