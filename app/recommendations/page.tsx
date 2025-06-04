@@ -22,6 +22,7 @@ import RecommendationComments from "@/components/recommendations/RecommendationC
 import RecommendationFilters from "@/components/recommendations/RecommendationFilters";
 import { MultiActionPattern } from "@/components/ui/FloatingActionPresets";
 import PlaceSearch from "@/components/maps/PlaceSearch";
+import DynamicGooglePlacePhoto from "@/components/DynamicGooglePlacePhoto";
 
 interface Recommendation {
   id: string;
@@ -326,40 +327,17 @@ export default function RecommendationsPage() {
     try {
       const category = getCategoryFromTypes(place.types);
 
-      // Get photo references from Place Details API
-      let photoReferences = [];
-
-      if (place.place_id) {
-        try {
-          const response = await fetch(
-            `/api/places/details?place_id=${place.place_id}`
-          );
-          const data = await response.json();
-
-          if (data.result && data.result.photos) {
-            photoReferences = data.result.photos
-              .slice(0, 5) // Limit to 5 photos
-              .map((photo: any) => photo.photo_reference)
-              .filter(Boolean);
-          }
-        } catch (error) {
-          console.error("Error fetching place details for photos:", error);
-        }
-      }
-
       const newRecommendation = {
         name: place.name,
         category,
         address: place.formatted_address,
         coordinates: place.geometry.location,
-        description: `Found via Google Places - ${place.types
-          .slice(0, 3)
-          .join(", ")}`,
+        description: `Found via Google Places - ${place.types.slice(0, 3).join(", ")}`,
         rating: place.rating || 0,
         website: place.website || null,
         phone_number: place.formatted_phone_number || null,
-        images: photoReferences,
-        place_id: place.place_id,
+        images: [], // ← Keep this empty
+        place_id: place.place_id, // ← This is what matters
         property_id: currentProperty?.id || null,
         is_recommended: true,
       };
@@ -592,6 +570,14 @@ export default function RecommendationsPage() {
         ) : filteredRecommendations.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredRecommendations.map((rec) => {
+              // Add this debug logging
+              console.log(`🔍 Recommendation "${rec.name}":`, {
+                images: rec.images,
+                imageCount: rec.images?.length || 0,
+                firstImage: rec.images?.[0],
+                hasImages: !!(rec.images && rec.images.length > 0),
+              });
+
               const categories = [
                 { id: "all", name: "All Categories", icon: "🏪" },
                 { id: "restaurant", name: "Restaurants", icon: "🍽️" },
@@ -611,21 +597,17 @@ export default function RecommendationsPage() {
                   className="border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow relative group"
                 >
                   <div className="h-48 relative">
-                    {rec.images && rec.images.length > 0 ? (
-                      <>
-                        <GooglePlacePhoto
-                          photoReference={rec.images[0]}
-                          alt={rec.name}
-                          width={400}
-                          height={300}
-                          className="w-full h-full object-cover"
-                        />
-                      </>
+                    {rec.place_id ? (
+                      <DynamicGooglePlacePhoto
+                        placeId={rec.place_id}
+                        alt={rec.name}
+                        width={400}
+                        height={300}
+                        className="w-full h-full object-cover"
+                      />
                     ) : (
                       <div className="h-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center">
-                        <span className="text-4xl">
-                          {category?.icon || "📍"}
-                        </span>
+                        <span className="text-4xl">{category?.icon || "📍"}</span>
                       </div>
                     )}
                   </div>
