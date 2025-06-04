@@ -1,5 +1,7 @@
 "use client";
 
+export const revalidate = false;
+
 import { useState, useEffect } from "react";
 import { useAuth } from "@/components/auth";
 import { useProperty } from "@/lib/hooks/useProperty";

@@ -9,12 +9,17 @@ import StandardCard from "@/components/ui/StandardCard";
 import {
   ArrowLeft,
   ArrowRight,
+  Bike,
+  Building2,
   Camera,
-  Eye,
-  EyeOff,
+  Car,
+  ExternalLink,
+  Gamepad2,
+  MapPin,
   Plus,
   Navigation,
-  Settings,
+  Waves,
+  Wifi,
 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "react-hot-toast";

@@ -17,6 +17,8 @@ interface GearItem {
   condition: "excellent" | "good" | "fair" | "needs-repair";
 }
 
+export const revalidate = false;
+
 export default function GearPage() {
   const [gearItems, setGearItems] = useState<GearItem[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
