@@ -1,58 +1,71 @@
 // app/api/places/photo/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 
-export const dynamic = 'force-dynamic';
-
 export async function GET(request: NextRequest) {
   try {
-    // Use searchParams instead of request.url
-    const searchParams = request.nextUrl.searchParams;
-    const photoReference = searchParams.get('photo_reference');
-    const maxWidth = searchParams.get('maxwidth') || '400';
-    const maxHeight = searchParams.get('maxheight') || '300';
-
+    // Get query parameters
+    const url = new URL(request.url);
+    const photoReference = url.searchParams.get('photo_reference');
+    const maxwidth = url.searchParams.get('maxwidth') || '400';
+    const maxheight = url.searchParams.get('maxheight') || '300';
+    
     if (!photoReference) {
-      return NextResponse.json({ error: 'Photo reference is required' }, { status: 400 });
+      console.error('Missing photo_reference parameter');
+      return new NextResponse(JSON.stringify({ error: 'Photo reference is required' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' }
+      });
     }
 
+    // Important: Use the server-side key, not the public key
     const apiKey = process.env.GOOGLE_PLACES_API_KEY;
+    
     if (!apiKey) {
-      return NextResponse.json({ error: 'Google Places API key not configured' }, { status: 500 });
+      console.error('Google Places API key not configured in environment variables');
+      return new NextResponse(JSON.stringify({ error: 'API configuration error' }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' }
+      });
     }
 
-    // Google Places Photo API URL
-    const photoUrl = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=${maxWidth}&maxheight=${maxHeight}&photo_reference=${photoReference}&key=${apiKey}`;
+    // Log parameters for debugging
+    console.log(`Fetching photo with reference: ${photoReference.substring(0, 20)}...`);
+    
+    // Construct Google Places Photo API URL
+    const googlePlacesUrl = `https://maps.googleapis.com/maps/api/place/photo?photoreference=${photoReference}&maxwidth=${maxwidth}&maxheight=${maxheight}&key=${apiKey}`;
 
-    console.log('🖼️ Fetching photo from Google:', photoUrl.replace(apiKey, 'API_KEY_HIDDEN'));
-
-    // Fetch the actual image from Google
-    const response = await fetch(photoUrl);
+    // Fetch the photo from Google Places API
+    const response = await fetch(googlePlacesUrl, { cache: 'force-cache' });
     
     if (!response.ok) {
-      console.error('❌ Google Photo API error:', response.status, response.statusText);
-      throw new Error(`Failed to fetch photo: ${response.status}`);
+      console.error(`Google API Error: ${response.status} ${response.statusText}`);
+      return new NextResponse(JSON.stringify({ 
+        error: 'Failed to fetch photo from Google Places API',
+        status: response.status,
+        statusText: response.statusText
+      }), {
+        status: response.status,
+        headers: { 'Content-Type': 'application/json' }
+      });
     }
 
-    // Get the image data
-    const imageBuffer = await response.arrayBuffer();
+    // Return the photo as binary data with appropriate content type
+    const imageData = await response.arrayBuffer();
     const contentType = response.headers.get('content-type') || 'image/jpeg';
 
-    console.log('✅ Photo fetched successfully, type:', contentType, 'size:', imageBuffer.byteLength);
-
-    // Return the image with proper headers
-    return new NextResponse(imageBuffer, {
+    return new NextResponse(imageData, {
       status: 200,
       headers: {
         'Content-Type': contentType,
-        'Cache-Control': 'public, max-age=86400', // Cache for 24 hours
-      },
+        'Cache-Control': 'public, max-age=86400' // Cache for 24 hours
+      }
     });
 
   } catch (error) {
-    console.error('❌ Places Photo API error:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch photo' },
-      { status: 500 }
-    );
+    console.error('Error processing Places photo request:', error);
+    return new NextResponse(JSON.stringify({ error: 'Internal server error', details: error }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' }
+    });
   }
 }
