@@ -1,3 +1,5 @@
-export const revalidate = false;
+"use client";
 
-// ...existing code...
+export default function SupsPage() {
+  // ...existing code...
+}
