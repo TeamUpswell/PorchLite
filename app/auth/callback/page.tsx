@@ -1,6 +1,6 @@
 "use client";
 
-// Replace any existing revalidate or dynamic exports with these
+// REMOVE ANY EXISTING revalidate CONFIGS
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 export const runtime = "nodejs";

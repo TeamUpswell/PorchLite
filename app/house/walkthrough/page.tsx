@@ -356,7 +356,7 @@ export default function WalkthroughPage() {
 
           <StandardCard>
             <div className="text-center py-8">
-              <Route className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+              <Navigation className="h-12 w-12 text-gray-300 mx-auto mb-3" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">
                 No Walkthrough Content
               </h3>
