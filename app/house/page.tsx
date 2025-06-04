@@ -13,6 +13,7 @@ import {
   Building2,
   Camera,
   Car,
+  Compass, // Add this import
   ExternalLink,
   Gamepad2,
   MapPin,
