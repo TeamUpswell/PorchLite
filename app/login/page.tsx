@@ -25,104 +25,99 @@ export default function LoginPage() {
     setLoading(true);
     setError("");
 
-    console.log("🔐 Login attempt:", { email, password: "***" });
-
     try {
-      console.log("🔐 Calling signIn...");
       const result = await signIn(email, password);
-      console.log("🔐 SignIn result:", result);
-
-      console.log("🔐 Login successful, redirecting...");
       router.push("/");
     } catch (error) {
-      console.error("🔴 Login error:", error);
       setError(error instanceof Error ? error.message : "An error occurred");
     } finally {
       setLoading(false);
     }
   };
 
-  // Add this temporary function to your login page:
   const handleQuickSignup = async () => {
     try {
-      console.log("🔐 Creating test account...");
       await signUp("test@example.com", "password123");
-      console.log("✅ Account created");
     } catch (error) {
-      console.error("🔴 Signup error:", error);
+      console.error("Signup error:", error);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-      <div className="container mx-auto px-4 py-8">
-        <div className="max-w-md mx-auto">
-          <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">
-              Welcome back to PorchLite
-            </h1>
-            <p className="text-gray-600">Sign in to your account</p>
-          </div>
-
-          {error && (
-            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-              {error}
-            </div>
-          )}
-
-          <form onSubmit={handleLogin} className="space-y-6">
-            <div>
-              <label className="block text-sm font-medium">Email</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium">Password</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
-              />
-            </div>
-
-            <div>
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 disabled:opacity-50"
-              >
-                {loading ? "Signing in..." : "Sign In"}
-              </button>
-            </div>
-
-            {/* Add this button temporarily in your JSX */}
-            <button
-              type="button"
-              onClick={handleQuickSignup}
-              className="w-full py-2 px-4 bg-green-600 text-white rounded-md hover:bg-green-700 mb-4"
-            >
-              Create Test Account
-            </button>
-
-            <div className="text-center mt-4">
-              <p className="text-sm text-gray-600">
-                Don&apos;t have an account?{" "}
-                <a href="/signup" className="text-blue-600 hover:underline">
-                  Sign up and add your first property
-                </a>
-              </p>
-            </div>
-          </form>
-        </div>
+    <>
+      <div className="text-center mb-8">
+        <h2 className="text-3xl font-bold text-gray-900 mb-2">
+          Sign in to your account
+        </h2>
+        <p className="text-gray-600">Enter your credentials below</p>
       </div>
-    </div>
+
+      {error && (
+        <div className="mb-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+          {error}
+        </div>
+      )}
+
+      <form onSubmit={handleLogin} className="space-y-6">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Email
+          </label>
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
+            placeholder="Enter your email"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Password
+          </label>
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
+            placeholder="Enter your password"
+          />
+        </div>
+
+        <div className="space-y-3">
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-blue-600 text-white py-2.5 px-4 rounded-md hover:bg-blue-700 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors font-medium"
+          >
+            {loading ? "Signing in..." : "Sign In"}
+          </button>
+
+          <button
+            type="button"
+            onClick={handleQuickSignup}
+            disabled={loading}
+            className="w-full py-2.5 px-4 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 transition-colors font-medium"
+          >
+            Create Test Account
+          </button>
+        </div>
+
+        <div className="text-center mt-6">
+          <p className="text-sm text-gray-600">
+            Don&apos;t have an account?{" "}
+            <a
+              href="/signup"
+              className="text-blue-600 hover:text-blue-700 font-medium"
+            >
+              Sign up and add your first property
+            </a>
+          </p>
+        </div>
+      </form>
+    </>
   );
 }

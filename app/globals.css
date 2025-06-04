@@ -147,3 +147,38 @@ select:disabled {
 .content-card p {
   @apply text-gray-900;
 }
+
+.bg-gradient-radial {
+  background: radial-gradient(circle, var(--tw-gradient-stops));
+}
+
+/* Common button styles */
+.btn {
+  @apply font-medium py-2.5 px-4 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-md;
+}
+
+.btn-primary {
+  @apply bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50;
+}
+
+.btn-secondary {
+  @apply bg-white text-gray-900 border border-gray-300 hover:bg-gray-50 disabled:opacity-50;
+}
+
+.btn-success {
+  @apply bg-green-600 text-white hover:bg-green-700 disabled:opacity-50;
+}
+
+.btn-danger {
+  @apply bg-red-600 text-white hover:bg-red-700 disabled:opacity-50;
+}
+
+/* Full width button variant */
+.btn-full {
+  @apply w-full;
+}
+
+/* Space between buttons */
+.space-y-3 > * {
+  @apply mb-3;
+}
