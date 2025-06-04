@@ -3,10 +3,9 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/components/auth";
 import { supabase } from "@/lib/supabase";
-import ProtectedPageWrapper from "@/components/layout/ProtectedPageWrapper";
-import ProfileForm from "@/components/features/settings/ProfileForm";
-import PasswordForm from "@/components/features/settings/PasswordForm";
-import { UserIcon, KeyIcon } from "@heroicons/react/24/outline";
+import StandardPageLayout from "@/components/layout/StandardPageLayout";
+import StandardCard from "@/components/ui/StandardCard";
+import { Settings, UserIcon, KeyIcon } from "lucide-react";
 
 interface User {
   id: string;
@@ -61,58 +60,16 @@ export default function SettingsPage() {
   }, [user, fetchUserProfile]);
 
   return (
-    <ProtectedPageWrapper>
-      <div className="py-8 px-4">
-        <div className="max-w-3xl mx-auto">
-          <h1 className="text-2xl font-bold mb-6">User Settings</h1>
-
-          {/* Tabs */}
-          <div className="mb-6 border-b border-gray-200">
-            <div className="flex -mb-px">
-              <button
-                onClick={() => setActiveTab("profile")}
-                className={`mr-8 py-4 px-1 border-b-2 font-medium text-sm ${
-                  activeTab === "profile"
-                    ? "border-blue-600 text-blue-600"
-                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                }`}
-              >
-                <div className="flex items-center">
-                  <UserIcon className="h-5 w-5 mr-2" />
-                  Profile Information
-                </div>
-              </button>
-
-              <button
-                onClick={() => setActiveTab("password")}
-                className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                  activeTab === "password"
-                    ? "border-blue-600 text-blue-600"
-                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                }`}
-              >
-                <div className="flex items-center">
-                  <KeyIcon className="h-5 w-5 mr-2" />
-                  Password
-                </div>
-              </button>
-            </div>
-          </div>
-
-          {/* Content */}
-          <div className="bg-white rounded-lg shadow">
-            {activeTab === "profile" && (
-              <ProfileForm
-                profile={profile}
-                loading={loading}
-                onUpdate={fetchUserProfile}
-              />
-            )}
-
-            {activeTab === "password" && <PasswordForm />}
-          </div>
+    <StandardPageLayout
+      title="Settings"
+      subtitle="Application settings"
+      headerIcon={<Settings className="h-6 w-6 text-blue-600" />}
+    >
+      <StandardCard title="Settings">
+        <div className="text-center py-8">
+          <p className="text-gray-500">Settings page coming soon</p>
         </div>
-      </div>
-    </ProtectedPageWrapper>
+      </StandardCard>
+    </StandardPageLayout>
   );
 }

@@ -1,8 +1,4 @@
-import { supabase } from './supabase';
-import { useAuth as useSupabaseAuth } from "@/components/AuthProvider";
-
-// Re-export the hook from AuthProvider
-export { useAuth } from '@/components/AuthProvider';
+import { supabase } from "@/lib/supabase";
 
 // Additional auth utilities
 export async function signOut() {
@@ -32,20 +28,22 @@ export const useAuthWithPermissions = () => {
   const hasPermission = (requiredRole?: string) => {
     if (!requiredRole) return true;
     if (!auth.user) return false;
-    
+
     const userRole = auth.user.user_metadata?.role;
-    
+
     // Define role hierarchy
     const roleHierarchy = {
-      'owner': 4,
-      'manager': 3,
-      'family': 2,
-      'friend': 1
+      owner: 4,
+      manager: 3,
+      family: 2,
+      friend: 1,
     };
-    
-    const userLevel = roleHierarchy[userRole as keyof typeof roleHierarchy] || 0;
-    const requiredLevel = roleHierarchy[requiredRole as keyof typeof roleHierarchy] || 0;
-    
+
+    const userLevel =
+      roleHierarchy[userRole as keyof typeof roleHierarchy] || 0;
+    const requiredLevel =
+      roleHierarchy[requiredRole as keyof typeof roleHierarchy] || 0;
+
     return userLevel >= requiredLevel;
   };
 
@@ -59,18 +57,26 @@ export const useAuthWithPermissions = () => {
 export const checkPermission = (user: any, requiredRole?: string) => {
   if (!requiredRole) return true;
   if (!user) return false;
-  
+
   const userRole = user.user_metadata?.role;
-  
+
   const roleHierarchy = {
-    'owner': 4,
-    'manager': 3,
-    'family': 2,
-    'friend': 1
+    owner: 4,
+    manager: 3,
+    family: 2,
+    friend: 1,
   };
-  
+
   const userLevel = roleHierarchy[userRole as keyof typeof roleHierarchy] || 0;
-  const requiredLevel = roleHierarchy[requiredRole as keyof typeof roleHierarchy] || 0;
-  
+  const requiredLevel =
+    roleHierarchy[requiredRole as keyof typeof roleHierarchy] || 0;
+
   return userLevel >= requiredLevel;
 };
+
+export async function getCurrentUser() {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  return user;
+}
