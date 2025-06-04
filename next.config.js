@@ -39,6 +39,15 @@ const nextConfig = {
 
     return config;
   },
+
+  // Add this section
+  serverRuntimeConfig: {
+    // Will only be available on the server side
+  },
+  publicRuntimeConfig: {
+    // Will be available on both server and client
+    staticFolder: '/static',
+  },
 };
 
 module.exports = nextConfig;

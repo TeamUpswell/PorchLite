@@ -1,7 +1,9 @@
 "use client";
 
-export const revalidate = 0; // Using 0 instead of false
+// Replace any existing revalidate or dynamic exports with these
 export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
+export const runtime = "nodejs";
 
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";

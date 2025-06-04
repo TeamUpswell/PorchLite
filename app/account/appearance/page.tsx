@@ -1,7 +1,8 @@
 "use client";
 
-export const revalidate = 0; // Using 0 instead of false
 export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
+export const runtime = "nodejs";
 
 import React, { useState } from "react";
 import { useAuth } from "@/components/auth";
