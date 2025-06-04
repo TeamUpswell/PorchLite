@@ -492,11 +492,12 @@ export default function RecommendationsPage() {
             onPlaceSelect={(place) => {
               setSelectedPlace(place);
               setPlacesLoading(false);
-              console.log("🖼️ Place selected:", place);
-              console.log("📸 Photos data:", place.photos);
-              if (place.photos && place.photos.length > 0) {
-                console.log("📸 First photo URL:", place.photos[0].getUrl());
-              }
+              // Remove these debug logs for production:
+              // console.log("🖼️ Place selected:", place);
+              // console.log("📸 Photos data:", place.photos);
+              // if (place.photos && place.photos.length > 0) {
+              //   console.log("📸 First photo URL:", place.photos[0].getUrl());
+              // }
             }}
             defaultLocation={currentProperty?.coordinates}
             placeholder="Search for places (e.g., 'Starbucks near me', 'Italian restaurant')..."
