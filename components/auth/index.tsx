@@ -2,56 +2,33 @@
 
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { useRouter } from "next/navigation";
+import type { User } from "@supabase/supabase-js";
 
 interface AuthContextType {
-  user: any | null;
+  user: User | null;
   isLoading: boolean;
-  signIn: (email: string, password: string) => Promise<any>;
-  signUp: (email: string, password: string) => Promise<any>;
-  signOut: () => Promise<any>;
+  signIn: (email: string, password: string) => Promise<{ error: any }>;
+  signUp: (email: string, password: string) => Promise<{ error: any }>;
+  signOut: () => Promise<void>;
 }
 
-const AuthContext = createContext<AuthContextType>({
-  user: null,
-  isLoading: true,
-  signIn: async () => ({}),
-  signUp: async () => ({}),
-  signOut: async () => ({}),
-});
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  const [user, setUser] = useState<any | null>(null);
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const router = useRouter();
 
   useEffect(() => {
-    // Check for existing session in localStorage first for faster loading
-    const storedUser = localStorage.getItem("authUser");
-    if (storedUser) {
-      try {
-        setUser(JSON.parse(storedUser));
-      } catch (e) {
-        localStorage.removeItem("authUser");
-      }
-    }
-
     // Get initial session
     const getInitialSession = async () => {
       try {
-        const { data } = await supabase.auth.getSession();
-        const sessionUser = data?.session?.user || null;
-
-        setUser(sessionUser);
-
-        // Store in localStorage for faster loading next time
-        if (sessionUser) {
-          localStorage.setItem("authUser", JSON.stringify(sessionUser));
-        } else {
-          localStorage.removeItem("authUser");
-        }
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        setUser(session?.user ?? null);
       } catch (error) {
-        console.error("Auth session error:", error);
+        console.error("Error getting initial session:", error);
+        setUser(null);
       } finally {
         setIsLoading(false);
       }
@@ -59,57 +36,68 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     getInitialSession();
 
-    // Set up auth state change listener
-    const { data } = supabase.auth.onAuthStateChange((event, session) => {
-      const sessionUser = session?.user || null;
-      setUser(sessionUser);
-
-      // Update localStorage when auth state changes
-      if (sessionUser) {
-        localStorage.setItem("authUser", JSON.stringify(sessionUser));
-      } else {
-        localStorage.removeItem("authUser");
-      }
-
+    // Listen for auth changes
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      setUser(session?.user ?? null);
       setIsLoading(false);
     });
 
-    return () => {
-      data?.subscription?.unsubscribe();
-    };
+    return () => subscription.unsubscribe();
   }, []);
 
-  // Auth methods
   const signIn = async (email: string, password: string) => {
-    setIsLoading(true);
-    const result = await supabase.auth.signInWithPassword({ email, password });
-    setIsLoading(false);
-    return result;
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      return { error };
+    } catch (error) {
+      return { error };
+    }
   };
 
   const signUp = async (email: string, password: string) => {
-    setIsLoading(true);
-    const result = await supabase.auth.signUp({ email, password });
-    setIsLoading(false);
-    return result;
+    try {
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+      });
+      return { error };
+    } catch (error) {
+      return { error };
+    }
   };
 
   const signOut = async () => {
-    setIsLoading(true);
-    localStorage.removeItem("authUser");
-    const result = await supabase.auth.signOut();
-    setIsLoading(false);
-    return result;
+    try {
+      await supabase.auth.signOut();
+      // Redirect to login or home page after sign out
+      window.location.href = "/auth/login";
+    } catch (error) {
+      console.error("Error signing out:", error);
+    }
   };
 
-  // Always provide the context with current values and render children
-  return (
-    <AuthContext.Provider value={{ user, isLoading, signIn, signUp, signOut }}>
-      {children}
-    </AuthContext.Provider>
-  );
-};
+  const value = {
+    user,
+    isLoading,
+    signIn,
+    signUp,
+    signOut,
+  };
 
-export const useAuth = () => {
-  return useContext(AuthContext);
-};
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}
+
+export function useAuth() {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error("useAuth must be used within an AuthProvider");
+  }
+  return context;
+}
+
+export default AuthProvider;

@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/components/auth";
 import { useProperty } from "@/lib/hooks/useProperty";
+import { usePermissions } from "@/lib/hooks/usePermissions";
+import { supabase } from "@/lib/supabase";
 import StandardPageLayout from "@/components/layout/StandardPageLayout";
 import StandardCard from "@/components/ui/StandardCard";
 import {
@@ -16,6 +18,8 @@ import {
   Car,
   Route,
   ExternalLink,
+  Plus,
+  ArrowRight,
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
@@ -35,8 +39,12 @@ interface GearItem {
 export default function HousePage() {
   const { user } = useAuth();
   const { currentProperty } = useProperty();
+  const { canManageProperty } = usePermissions();
   const [gearItems, setGearItems] = useState<GearItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [walkthroughExists, setWalkthroughExists] = useState<boolean | null>(
+    null
+  );
 
   // Mock data for now - you can replace with actual database calls
   useEffect(() => {
@@ -84,6 +92,32 @@ export default function HousePage() {
     setGearItems(mockGearData);
     setLoading(false);
   }, []);
+
+  // Check if walkthrough exists
+  useEffect(() => {
+    const checkWalkthroughExists = async () => {
+      if (!currentProperty?.id) {
+        setWalkthroughExists(null);
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from("walkthrough_sections")
+          .select("id")
+          .eq("property_id", currentProperty.id)
+          .limit(1);
+
+        if (error) throw error;
+        setWalkthroughExists(data && data.length > 0);
+      } catch (error) {
+        console.error("Error checking walkthrough:", error);
+        setWalkthroughExists(false);
+      }
+    };
+
+    checkWalkthroughExists();
+  }, [currentProperty]);
 
   const getCategoryIcon = (category: string) => {
     switch (category) {
@@ -172,46 +206,50 @@ export default function HousePage() {
             </StandardCard>
           )}
 
-        {/* House Overview Card */}
-        <StandardCard title="House Overview">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <div>
-              <div className="aspect-video bg-gray-100 rounded-lg flex items-center justify-center mb-4">
-                <div className="text-center">
-                  <Building2 className="h-16 w-16 text-gray-400 mx-auto mb-2" />
-                  <p className="text-gray-500">House photo coming soon</p>
+        {/* House Overview Card - Only show if walkthrough exists OR user can't manage */}
+        {(walkthroughExists || !canManageProperty()) && (
+          <StandardCard title="House Overview">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <div>
+                <div className="aspect-video bg-gray-100 rounded-lg flex items-center justify-center mb-4">
+                  <div className="text-center">
+                    <Building2 className="h-16 w-16 text-gray-400 mx-auto mb-2" />
+                    <p className="text-gray-500">House photo coming soon</p>
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-4">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                    Welcome to Your Vacation Home
+                  </h3>
+                  <p className="text-gray-700">
+                    Everything you need for a perfect getaway. Take a virtual
+                    walkthrough or browse our available gear and amenities.
+                  </p>
+                </div>
+                <div className="flex space-x-4">
+                  {walkthroughExists && (
+                    <Link
+                      href="/house/walkthrough"
+                      className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      <Route className="h-4 w-4 mr-2" />
+                      Take Walkthrough
+                    </Link>
+                  )}
+                  <Link
+                    href="/house/gear"
+                    className="flex items-center px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    <ExternalLink className="h-4 w-4 mr-2" />
+                    View All Gear
+                  </Link>
                 </div>
               </div>
             </div>
-            <div className="space-y-4">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  Welcome to Your Vacation Home
-                </h3>
-                <p className="text-gray-700">
-                  Everything you need for a perfect getaway. Take a virtual
-                  walkthrough or browse our available gear and amenities.
-                </p>
-              </div>
-              <div className="flex space-x-4">
-                <Link
-                  href="/house/walkthrough"
-                  className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  <Route className="h-4 w-4 mr-2" />
-                  Take Walkthrough
-                </Link>
-                <Link
-                  href="/house/gear"
-                  className="flex items-center px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  <ExternalLink className="h-4 w-4 mr-2" />
-                  View All Gear
-                </Link>
-              </div>
-            </div>
-          </div>
-        </StandardCard>
+          </StandardCard>
+        )}
 
         {/* Quick Access Gear Grid */}
         <StandardCard title="Available Gear & Amenities">
@@ -302,6 +340,66 @@ export default function HousePage() {
             </div>
           </div>
         </StandardCard>
+
+        {/* House Tour Section */}
+        {currentProperty?.house_tour_enabled !== false && (
+          <>
+            {walkthroughExists ? (
+              // Existing full walkthrough card for guests
+              <StandardCard
+                title="House Walkthrough"
+                description="Get familiar with your vacation home"
+                icon={<Route className="h-6 w-6 text-blue-600" />}
+              >
+                <div className="space-y-4">
+                  <p className="text-gray-600">
+                    Take a guided tour through the house to learn about all the
+                    amenities, appliances, and important information for your
+                    stay.
+                  </p>
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm text-gray-500">
+                      Interactive step-by-step guide
+                    </div>
+                    <Link
+                      href="/house/walkthrough"
+                      className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      Start Walkthrough
+                      <ArrowRight className="h-4 w-4 ml-2" />
+                    </Link>
+                  </div>
+                </div>
+              </StandardCard>
+            ) : canManageProperty() ? (
+              // Compact setup section for owners/managers
+              <StandardCard>
+                <div className="flex items-center justify-between p-4">
+                  <div className="flex items-center space-x-3">
+                    <div className="p-2 bg-blue-100 rounded-lg">
+                      <Route className="h-5 w-5 text-blue-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-medium text-gray-900">
+                        Create House Tour
+                      </h3>
+                      <p className="text-sm text-gray-600">
+                        Help guests get familiar with your home
+                      </p>
+                    </div>
+                  </div>
+                  <Link
+                    href="/house/walkthrough/manage"
+                    className="inline-flex items-center px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    Setup Tour
+                  </Link>
+                </div>
+              </StandardCard>
+            ) : null}
+          </>
+        )}
       </div>
     </StandardPageLayout>
   );

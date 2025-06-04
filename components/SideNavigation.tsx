@@ -25,11 +25,10 @@ import {
   AlertTriangle,
   CheckSquare as CheckSquareIcon,
   LogOut,
-  Building2 as HouseIcon, // Add this import for The House icon
+  Building2 as HouseIcon,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import Image from "next/image";
-import logo from "@/lib/images/logo-dark.png";
 
 // Define interfaces for navigation items
 interface NavigationItem {
@@ -104,7 +103,7 @@ export default function SideNavigation({
   user: propUser,
 }: SideNavigationProps) {
   const pathname = usePathname();
-  const { user: authUser } = useAuth();
+  const { user: authUser, signOut } = useAuth();
   const { theme } = useTheme();
   // ✅ UPDATE: Add Account to expanded categories state
   const [expandedCategories, setExpandedCategories] = useState<
@@ -245,32 +244,31 @@ export default function SideNavigation({
           }`}
         >
           {/* Logo content with dark theme styles */}
-          <div
-            className={`rounded-lg p-3 ${
-              isDarkMode
-                ? "bg-gradient-to-r from-blue-800 to-purple-800"
-                : "bg-gradient-to-r from-blue-500 to-purple-500"
-            }`}
-          >
+          {/* Classic lantern aesthetic */}
+          <div className="rounded-lg p-4 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 relative overflow-hidden">
+            {/* Subtle glow background */}
+            <div className="absolute inset-0 bg-gradient-radial from-amber-500/20 via-transparent to-transparent"></div>
+
             <Link
               href="/"
-              onClick={() => isMobile && setIsMobileMenuOpen(false)}
-              className="flex items-center space-x-3 hover:opacity-80 transition-opacity"
+              className="flex items-center space-x-3 relative z-10"
             >
-              <Image
-                src={logo}
-                alt="PorchLite Logo"
-                width={32}
-                height={32}
-                className="w-8 h-8 rounded-lg"
-              />
+              {/* Logo with glow effect */}
+              <div className="relative">
+                <div className="absolute inset-0 bg-amber-400 rounded-full blur-md opacity-30"></div>
+                <Image
+                  src="/images/logo-dark.png" // Updated to PNG
+                  alt="PorchLite"
+                  width={40}
+                  height={40}
+                  className="w-12 h-12 relative z-10"
+                  priority
+                />
+              </div>
+
               <div>
-                <h1 className="text-lg font-bold text-white drop-shadow-lg">
-                  PorchLite
-                </h1>
-                <p className="text-xs text-gray-200 drop-shadow">
-                  For Shared Spaces
-                </p>
+                <h1 className="text-lg font-bold text-white">PorchLite</h1>
+                <p className="text-xs text-amber-200">Always Welcome</p>
               </div>
             </Link>
           </div>
@@ -400,10 +398,13 @@ export default function SideNavigation({
 
                 {/* ✅ Sign Out Button - inside the expanded section */}
                 <button
-                  onClick={() => {
-                    // Add your sign out logic here
-                    console.log("Sign out clicked");
-                    if (isMobile) setIsMobileMenuOpen(false);
+                  onClick={async () => {
+                    try {
+                      await signOut();
+                      if (isMobile) setIsMobileMenuOpen(false);
+                    } catch (error) {
+                      console.error("Error signing out:", error);
+                    }
                   }}
                   className={`w-full flex items-center px-4 py-2 text-sm rounded-md ${
                     isDarkMode
@@ -419,6 +420,21 @@ export default function SideNavigation({
           </div>
         </div>
       </div>
+
+      <style jsx global>{`
+        @keyframes flicker {
+          0%,
+          100% {
+            opacity: 1;
+          }
+          50% {
+            opacity: 0.95;
+          }
+          51% {
+            opacity: 1;
+          }
+        }
+      `}</style>
     </>
   );
 }
