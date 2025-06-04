@@ -8,6 +8,7 @@ import React, {
   ReactNode,
   useCallback,
   useRef,
+  useMemo,
 } from "react";
 import { useAuth } from "@/components/auth";
 import { supabase } from "../supabase";
@@ -38,13 +39,16 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
   const [userTenants, setUserTenants] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isLoadingTenants, setIsLoadingTenants] = useState(false);
+  const [isLoadingProperties, setIsLoadingProperties] = useState(false);
 
-  const loadUserTenants = async () => {
-    if (!user?.id) {
-      console.log("🔍 No user, skipping tenant load");
+  const loadUserTenants = useCallback(async () => {
+    if (!user?.id || isLoadingTenants) {
+      console.log("🔍 No user or already loading, skipping tenant load");
       return [];
     }
 
+    setIsLoadingTenants(true);
     try {
       console.log("🔍 Loading tenants for user:", user.id);
 
@@ -96,21 +100,20 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
       console.error("❌ Failed to load tenants:", err);
       setError(err.message);
       return null;
+    } finally {
+      setIsLoadingTenants(false);
     }
-  };
+  }, [user?.id, isLoadingTenants, currentTenant]);
 
-  const loadProperties = async (tenant = null) => {
+  const loadProperties = useCallback(async (tenant = null) => {
     const activeTenant = tenant || currentTenant;
 
-    console.log("🔍 loadProperties called");
-    console.log("🔍 currentTenant:", activeTenant);
-
-    if (!activeTenant?.id) {
-      console.log("❌ No current tenant, skipping property load");
-      setLoading(false);
+    if (!activeTenant?.id || isLoadingProperties) {
+      console.log("❌ No current tenant or already loading, skipping property load");
       return;
     }
 
+    setIsLoadingProperties(true);
     try {
       console.log("🔍 Loading properties for tenant:", activeTenant.id);
       setLoading(true);
@@ -140,8 +143,9 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
       setError(err.message);
     } finally {
       setLoading(false);
+      setIsLoadingProperties(false);
     }
-  };
+  }, [currentTenant, isLoadingProperties, currentProperty]);
 
   const switchProperty = async (propertyId: string) => {
     const property = userProperties.find((p) => p.id === propertyId);
@@ -153,14 +157,12 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
   };
 
   const updateProperty = async (propertyId: string, updates: any) => {
-    // Update logic here
     const { error } = await supabase
       .from("properties")
       .update(updates)
       .eq("id", propertyId);
 
     if (!error) {
-      // Update local state
       setCurrentProperty((prev) => (prev ? { ...prev, ...updates } : null));
     }
 
@@ -169,7 +171,6 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
 
   const refreshProperty = async () => {
     if (currentProperty?.id) {
-      // Reload property data from database
       const { data } = await supabase
         .from("properties")
         .select("*")
@@ -182,15 +183,16 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // Load tenants and properties when user changes
+  // SINGLE useEffect for loading data when user changes
   useEffect(() => {
-    if (user) {
+    if (user?.id) {
       const loadData = async () => {
         setLoading(true);
         const tenant = await loadUserTenants();
         if (tenant) {
           await loadProperties(tenant);
         }
+        setLoading(false);
       };
       loadData();
     } else {
@@ -200,14 +202,14 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
       setCurrentProperty(null);
       setLoading(false);
     }
-  }, [user]);
+  }, [user?.id]);
 
-  // Load properties when tenant changes
+  // SINGLE useEffect for loading properties when tenant changes
   useEffect(() => {
-    if (currentTenant) {
+    if (currentTenant?.id && !isLoadingProperties) {
       loadProperties();
     }
-  }, [currentTenant]);
+  }, [currentTenant?.id]);
 
   const value = {
     currentProperty,

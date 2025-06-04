@@ -110,8 +110,6 @@ export default function HomePage() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [showAddReservationModal, setShowAddReservationModal] = useState(false);
   const [showBannerModal, setShowBannerModal] = useState(false);
-
-  // Only fetch when banner modal opens:
   const [userUploadedBanners, setUserUploadedBanners] = useState<
     Array<{
       id: string;
@@ -121,19 +119,53 @@ export default function HomePage() {
     }>
   >([]);
   const [bannersLoaded, setBannersLoaded] = useState(false);
+  const [isFetching, setIsFetching] = useState(false);
+  const [totalInventoryCount, setTotalInventoryCount] = useState(0);
 
-  // REMOVE THE REDIRECT - This was causing the loop!
+  // Add this state for predefined images:
+  const [predefinedImages] = useState([
+    {
+      id: "beach-house",
+      name: "Beach House",
+      url: "/images/headers/presets/beach-house.jpg",
+      thumbnail: "/images/headers/presets/thumbs/beach-house-thumb.jpg",
+      category: "Beach",
+    },
+    {
+      id: "city-apartment",
+      name: "City Apartment",
+      url: "/images/headers/presets/city-apartment.jpg",
+      thumbnail: "/images/headers/presets/thumbs/city-apartment-thumb.jpg",
+      category: "Urban",
+    },
+    {
+      id: "modern-house",
+      name: "Modern House",
+      url: "/images/headers/presets/modern-house.jpg",
+      thumbnail: "/images/headers/presets/thumbs/modern-house-thumb.jpg",
+      category: "Modern",
+    },
+    {
+      id: "cozy-cabin",
+      name: "Cozy Cabin",
+      url: "/images/headers/presets/cozy-cabin.jpg",
+      thumbnail: "/images/headers/presets/thumbs/cozy-cabin-thumb.jpg",
+      category: "Rustic",
+    },
+  ]);
+
+  // ALL YOUR useEffect HOOKS GO HERE - DON'T MOVE THESE
+  // Handle redirect after early return
   useEffect(() => {
-    if (!loading && !user) {
-      router.push("/login"); // Only redirect to login if not authenticated
+    if (!user) {
+      router.push("/login");
     }
-    // REMOVED: router.push("/dashboard") - this was the problem!
-  }, [user, loading, router]);
+  }, [user, router]);
 
-  // Fetch upcoming visits/reservations
+  // Fetch upcoming visits/reservations - with proper guard
   useEffect(() => {
     async function fetchUpcomingVisits() {
-      if (!currentProperty) return;
+      if (!currentProperty?.id) return;
 
       try {
         const today = new Date().toISOString();
@@ -214,19 +246,20 @@ export default function HomePage() {
       } catch (error) {
         console.error("Error fetching upcoming visits:", error);
         setUpcomingVisits([]);
+      } finally {
+        setIsFetching(false);
       }
     }
 
     fetchUpcomingVisits();
-  }, [currentProperty]);
+  }, [currentProperty?.id]);
 
-  // Fetch inventory alerts
-  const [totalInventoryCount, setTotalInventoryCount] = useState(0);
-
+  // Fetch inventory alerts - ADD PROPER DEPENDENCIES
   useEffect(() => {
     const fetchInventoryAlerts = async () => {
-      if (!currentProperty?.id) return;
+      if (!currentProperty?.id || isFetching) return;
 
+      setIsFetching(true);
       try {
         console.log(
           "🔍 Fetching inventory alerts for property:",
@@ -262,35 +295,40 @@ export default function HomePage() {
         setInventoryAlerts(alerts);
       } catch (error) {
         console.error("Error fetching inventory:", error);
+      } finally {
+        setIsFetching(false);
       }
     };
 
     fetchInventoryAlerts();
-  }, [currentProperty]);
+  }, [currentProperty?.id]);
 
-  // Fetch maintenance alerts
+  // Fetch maintenance alerts - ADD PROPER DEPENDENCIES
   useEffect(() => {
     async function fetchMaintenanceAlerts() {
-      if (!currentProperty) return;
+      if (!currentProperty?.id || isFetching) return;
 
+      setIsFetching(true);
       try {
         const { data: issues, error } = await supabase
-          .from("cleaning_issues") // ✅ Fixed: was "property_issues"
+          .from("cleaning_issues")
           .select("*")
           .eq("property_id", currentProperty.id)
           .eq("status", "open")
-          .eq("category", "maintenance") // Add this filter if needed
+          .eq("category", "maintenance")
           .order("severity", { ascending: false });
 
         if (error) throw error;
         setMaintenanceAlerts(issues || []);
       } catch (error) {
         console.error("Error fetching maintenance alerts:", error);
+      } finally {
+        setIsFetching(false);
       }
     }
 
     fetchMaintenanceAlerts();
-  }, [currentProperty]);
+  }, [currentProperty?.id]);
 
   // Fetch weather data
   useEffect(() => {
@@ -373,7 +411,7 @@ export default function HomePage() {
     fetchWeather();
   }, [currentProperty]);
 
-  // Image upload handler
+  // ALL YOUR FUNCTIONS GO HERE
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !currentProperty) {
@@ -532,38 +570,6 @@ export default function HomePage() {
       toast.error("Failed to remove banner image. Please try again.");
     }
   };
-
-  // Add this state for predefined images:
-  const [predefinedImages] = useState([
-    {
-      id: "beach-house",
-      name: "Beach House",
-      url: "/images/headers/presets/beach-house.jpg",
-      thumbnail: "/images/headers/presets/thumbs/beach-house-thumb.jpg",
-      category: "Beach",
-    },
-    {
-      id: "city-apartment",
-      name: "City Apartment",
-      url: "/images/headers/presets/city-apartment.jpg",
-      thumbnail: "/images/headers/presets/thumbs/city-apartment-thumb.jpg",
-      category: "Urban",
-    },
-    {
-      id: "modern-house",
-      name: "Modern House",
-      url: "/images/headers/presets/modern-house.jpg",
-      thumbnail: "/images/headers/presets/thumbs/modern-house-thumb.jpg",
-      category: "Modern",
-    },
-    {
-      id: "cozy-cabin",
-      name: "Cozy Cabin",
-      url: "/images/headers/presets/cozy-cabin.jpg",
-      thumbnail: "/images/headers/presets/thumbs/cozy-cabin-thumb.jpg",
-      category: "Rustic",
-    },
-  ]);
 
   // Handle predefined banner selection
   const handlePredefinedBannerSelect = async (imageUrl: string) => {
@@ -751,18 +757,13 @@ export default function HomePage() {
     );
   };
 
-  // Loading state
-  if (loading) {
+  // NOW PUT THE EARLY RETURNS AT THE END - AFTER ALL HOOKS
+  if (loading || !user) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
       </div>
     );
-  }
-
-  // Not authenticated
-  if (!user) {
-    return null; // Will redirect to login
   }
 
   // No property selected
@@ -789,7 +790,7 @@ export default function HomePage() {
         </div>
       </ProtectedPageWrapper>
     );
-  } // ✅ Make sure this closing brace exists
+  }
 
   // Main dashboard
   return (
@@ -963,7 +964,8 @@ export default function HomePage() {
                         const startDate = new Date(visit.start_date);
                         const endDate = new Date(visit.end_date);
                         const isToday =
-                          startDate.toDateString() === new Date().toDateString();
+                          startDate.toDateString() ===
+                          new Date().toDateString();
                         const isThisWeek =
                           Math.ceil(
                             (startDate.getTime() - new Date().getTime()) /
@@ -1165,8 +1167,9 @@ export default function HomePage() {
                       <div className="flex justify-between items-center text-sm text-gray-600">
                         <span>
                           {
-                            upcomingVisits.filter((v) => v.status === "confirmed")
-                              .length
+                            upcomingVisits.filter(
+                              (v) => v.status === "confirmed"
+                            ).length
                           }{" "}
                           confirmed,{" "}
                           {
@@ -1273,8 +1276,9 @@ export default function HomePage() {
                       <div className="text-2xl font-bold text-yellow-700">
                         {/* ✅ Only explicit "low" status */}
                         {
-                          inventoryAlerts.filter((item) => item.status === "low")
-                            .length
+                          inventoryAlerts.filter(
+                            (item) => item.status === "low"
+                          ).length
                         }
                       </div>
                       <div className="text-xs font-medium text-yellow-600">
@@ -1286,8 +1290,9 @@ export default function HomePage() {
                       <div className="text-2xl font-bold text-red-700">
                         {/* ✅ Only explicit "out" status */}
                         {
-                          inventoryAlerts.filter((item) => item.status === "out")
-                            .length
+                          inventoryAlerts.filter(
+                            (item) => item.status === "out"
+                          ).length
                         }
                       </div>
                       <div className="text-xs font-medium text-red-600">
@@ -1643,13 +1648,16 @@ export default function HomePage() {
                             </div>
                             <div>
                               <span className="text-lg font-medium text-gray-900">
-                                {isUploading ? "Uploading..." : "Click to upload"}
+                                {isUploading
+                                  ? "Uploading..."
+                                  : "Click to upload"}
                               </span>
                               <p className="text-sm text-gray-500">
                                 PNG, JPG, WebP up to 5MB
                               </p>
                               <p className="text-xs text-gray-400 mt-1">
-                                Recommended: 1920x600px or larger for best results
+                                Recommended: 1920x600px or larger for best
+                                results
                               </p>
                             </div>
                           </div>

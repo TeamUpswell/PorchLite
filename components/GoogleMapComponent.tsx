@@ -22,14 +22,14 @@ export default function GoogleMapComponent({
   useEffect(() => {
     // This check doesn't guarantee mapRef.current is non-null inside the async function
     if (!mapRef.current) return;
-    
+
     const initMap = async () => {
       try {
         // Add a check inside the async function too
         if (!mapRef.current) return;
 
         await loadMapsApi();
-        
+
         const mapOptions = {
           center: { lat: latitude, lng: longitude },
           zoom: zoom,
@@ -37,22 +37,22 @@ export default function GoogleMapComponent({
           streetViewControl: false,
           fullscreenControl: false,
         };
-        
+
         // Now TypeScript knows mapRef.current is definitely non-null here
         const map = new google.maps.Map(mapRef.current, mapOptions);
-        
+
         new google.maps.Marker({
           position: { lat: latitude, lng: longitude },
           map: map,
           title: address,
         });
-        
+
         setMapLoaded(true);
       } catch (error) {
         console.error("Error initializing map:", error);
       }
     };
-    
+
     initMap();
   }, [latitude, longitude, address, zoom]);
 
