@@ -1,6 +1,9 @@
 // app/api/places/photo/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 
+// Add this line to make the route dynamic
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
     // Get query parameters

@@ -2,7 +2,14 @@
 
 import StandardPageLayout from "@/components/layout/StandardPageLayout";
 import StandardCard from "@/components/ui/StandardCard";
-import { Package, Bike, Waves, Camera, MapPin, ExternalLink } from "lucide-react";
+import {
+  Package,
+  Bike,
+  Waves,
+  Camera,
+  MapPin,
+  ExternalLink,
+} from "lucide-react";
 import Link from "next/link";
 import { useState, useEffect } from "react";
 
@@ -40,8 +47,8 @@ export default function GearPage() {
       {
         id: "2",
         name: "Kids Bikes (2)",
-        category: "bikes", 
-        description: "20\" and 24\" kids bikes with training wheels available",
+        category: "bikes",
+        description: '20" and 24" kids bikes with training wheels available',
         location: "Garage - right side",
         available: true,
         condition: "good",
@@ -117,17 +124,23 @@ export default function GearPage() {
     { id: "beach", name: "Beach Gear", icon: Camera },
   ];
 
-  const filteredGear = selectedCategory === "all" 
-    ? gearItems 
-    : gearItems.filter(item => item.category === selectedCategory);
+  const filteredGear =
+    selectedCategory === "all"
+      ? gearItems
+      : gearItems.filter((item) => item.category === selectedCategory);
 
   const getConditionColor = (condition: string) => {
     switch (condition) {
-      case "excellent": return "text-green-600 bg-green-100";
-      case "good": return "text-blue-600 bg-blue-100";
-      case "fair": return "text-yellow-600 bg-yellow-100";
-      case "needs-repair": return "text-red-600 bg-red-100";
-      default: return "text-gray-600 bg-gray-100";
+      case "excellent":
+        return "text-green-600 bg-green-100";
+      case "good":
+        return "text-blue-600 bg-blue-100";
+      case "fair":
+        return "text-yellow-600 bg-yellow-100";
+      case "needs-repair":
+        return "text-red-600 bg-red-100";
+      default:
+        return "text-gray-600 bg-gray-100";
     }
   };
 
@@ -152,10 +165,7 @@ export default function GearPage() {
       title="House Gear & Equipment"
       subtitle="Everything available for your stay"
       headerIcon={<Package className="h-6 w-6 text-blue-600" />}
-      breadcrumb={[
-        { label: "The House", href: "/house" },
-        { label: "Gear" },
-      ]}
+      breadcrumb={[{ label: "The House", href: "/house" }, { label: "Gear" }]}
     >
       <div className="space-y-6">
         {/* Category Filter */}
@@ -164,7 +174,7 @@ export default function GearPage() {
             {categories.map((category) => {
               const IconComponent = category.icon;
               const isSelected = selectedCategory === category.id;
-              
+
               return (
                 <button
                   key={category.id}
@@ -201,7 +211,11 @@ export default function GearPage() {
                     >
                       {item.available ? "Available" : "Unavailable"}
                     </span>
-                    <span className={`px-2 py-1 text-xs rounded-full ${getConditionColor(item.condition)}`}>
+                    <span
+                      className={`px-2 py-1 text-xs rounded-full ${getConditionColor(
+                        item.condition
+                      )}`}
+                    >
                       {item.condition.replace("-", " ")}
                     </span>
                   </div>

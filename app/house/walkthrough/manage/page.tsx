@@ -7,19 +7,15 @@ import { supabase } from "@/lib/supabase";
 import StandardPageLayout from "@/components/layout/StandardPageLayout";
 import StandardCard from "@/components/ui/StandardCard";
 import {
-  ArrowLeft,
-  ArrowRight,
-  Bike,
-  Building2,
-  Camera,
-  Car,
-  ExternalLink,
-  Gamepad2,
-  MapPin,
+  ChevronDown,
+  ChevronUp,
+  Edit,
+  Eye,
   Plus,
-  Navigation,
-  Waves,
-  Wifi,
+  Navigation, // Changed from Route
+  Settings, // Add this
+  TestTube,
+  Trash2
 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "react-hot-toast";
