@@ -7,6 +7,7 @@ import { useAuth } from "@/components/auth";
 import { useRouter } from "next/navigation";
 import { useProperty } from "@/lib/hooks/useProperty";
 import ProtectedPageWrapper from "@/components/layout/ProtectedPageWrapper";
+import PageContainer from "@/components/layout/PageContainer";
 import "@/styles/dashboard.css";
 import {
   Calendar,
@@ -796,20 +797,18 @@ export default function HomePage() {
   return (
     <ProtectedRoute>
       <ProtectedPageWrapper>
-        <div className="flex-1 overflow-y-auto bg-gray-900 text-white">
-          <div className="p-6">
-            <DashboardLayout
-              stats={{
-                upcomingVisits,
-                inventoryAlerts,
-                maintenanceAlerts: taskAlerts, // Map to the expected prop name
-                totalInventoryCount,
-              }}
-              onAddReservation={() => setShowAddReservationModal(true)}
-              enabledComponents={["stats", "visits", "inventory", "tasks"]} // Changed "maintenance" to "tasks"
-            />
-          </div>
-        </div>
+        <PageContainer className="max-w-none"> {/* Add max-w-none to allow full width */}
+          <DashboardLayout
+            stats={{
+              upcomingVisits,
+              inventoryAlerts,
+              maintenanceAlerts: taskAlerts,
+              totalInventoryCount,
+            }}
+            onAddReservation={() => setShowAddReservationModal(true)}
+            enabledComponents={["stats", "visits", "inventory", "tasks"]}
+          />
+        </PageContainer>
       </ProtectedPageWrapper>
     </ProtectedRoute>
   );

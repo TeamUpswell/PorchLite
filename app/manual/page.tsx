@@ -12,7 +12,8 @@ import {
   Sparkles,
 } from "lucide-react"; // ✅ ADD Sparkles
 import { toast } from "react-hot-toast";
-import StandardPageLayout from "@/components/layout/StandardPageLayout";
+import ProtectedPageWrapper from "@/components/layout/ProtectedPageWrapper";
+import PageContainer from "@/components/layout/PageContainer";
 import StandardCard from "@/components/ui/StandardCard";
 import { useAuth } from "@/components/auth";
 import { useProperty } from "@/lib/hooks/useProperty";
@@ -32,7 +33,7 @@ interface ManualSection {
   };
 }
 
-export default function ManualHomePage() {
+export default function ManualPage() {
   const { user } = useAuth();
   const { currentProperty } = useProperty();
   const [sections, setSections] = useState<ManualSection[]>([]);
@@ -210,17 +211,13 @@ export default function ManualHomePage() {
 
   if (loading) {
     return (
-      <StandardPageLayout title="Instructions">
-        {" "}
-        {/* ✅ CHANGED: From "Manual" */}
-        <StandardCard>
-          <div className="flex items-center justify-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            <span className="ml-2">Loading instructions...</span>{" "}
-            {/* ✅ CHANGED: From "Loading sections..." */}
-          </div>
-        </StandardCard>
-      </StandardPageLayout>
+      <StandardCard>
+        <div className="flex items-center justify-center py-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <span className="ml-2">Loading instructions...</span>{" "}
+          {/* ✅ CHANGED: From "Loading sections..." */}
+        </div>
+      </StandardCard>
     );
   }
 
@@ -246,74 +243,72 @@ export default function ManualHomePage() {
   };
 
   return (
-    <StandardPageLayout
-      title="House Manual & Instructions"
-      subtitle="Operating procedures and helpful information"
-      headerIcon={<BookOpen className="h-6 w-6 text-blue-600" />}
-    >
-      <div className="space-y-8">
-        {/* ✅ Priority Sections - with cleaning first */}
-        {sections.filter((section) => section.is_priority).length > 0 && (
-          <div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {sections
-                .filter((section) => section.is_priority)
-                .sort((a, b) => {
-                  // ✅ CLEANING SECTION ALWAYS FIRST
-                  if (a.title === "Cleaning Procedures") return -1;
-                  if (b.title === "Cleaning Procedures") return 1;
-                  // Other priority sections sorted by creation date
-                  return (
-                    new Date(a.created_at).getTime() -
-                    new Date(b.created_at).getTime()
-                  );
-                })
-                .map((section) => (
-                  <PrioritySectionCard
-                    key={section.id}
-                    section={section}
-                    onTogglePin={handleTogglePin}
-                  />
-                ))}
+    <ProtectedPageWrapper>
+      <PageContainer className="space-y-6">
+        <div className="space-y-8">
+          {/* ✅ Priority Sections - with cleaning first */}
+          {sections.filter((section) => section.is_priority).length > 0 && (
+            <div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {sections
+                  .filter((section) => section.is_priority)
+                  .sort((a, b) => {
+                    // ✅ CLEANING SECTION ALWAYS FIRST
+                    if (a.title === "Cleaning Procedures") return -1;
+                    if (b.title === "Cleaning Procedures") return 1;
+                    // Other priority sections sorted by creation date
+                    return (
+                      new Date(a.created_at).getTime() -
+                      new Date(b.created_at).getTime()
+                    );
+                  })
+                  .map((section) => (
+                    <PrioritySectionCard
+                      key={section.id}
+                      section={section}
+                      onTogglePin={handleTogglePin}
+                    />
+                  ))}
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* ✅ IMPROVED: Regular Sections (non-priority) */}
-        {sections.filter((section) => !section.is_priority).length > 0 && (
-          <div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {sections
-                .filter((section) => !section.is_priority)
-                .map((section) => (
-                  <SectionCard key={section.id} section={section} />
-                ))}
+          {/* ✅ IMPROVED: Regular Sections (non-priority) */}
+          {sections.filter((section) => !section.is_priority).length > 0 && (
+            <div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {sections
+                  .filter((section) => !section.is_priority)
+                  .map((section) => (
+                    <SectionCard key={section.id} section={section} />
+                  ))}
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* ✅ IMPROVED: Empty state - only show if NO sections at all */}
-        {sections.length === 0 && (
-          <div className="text-center py-12">
-            <BookOpen className="mx-auto h-12 w-12 text-gray-400" />
-            <h3 className="mt-2 text-sm font-medium text-gray-900">
-              No instruction sections yet{" "}
-              {/* ✅ CHANGED: From "No sections yet" */}
-            </h3>
-            <p className="mt-1 text-sm text-gray-500">
-              Get started by creating your first instruction section.{" "}
-              {/* ✅ CHANGED: From "manual section" */}
-            </p>
-          </div>
-        )}
-      </div>
-      {/* ✅ KEEP this floating action button */}
-      <CreatePattern
-        href="/manual/sections/new"
-        label="Add Instructions"
-      />{" "}
-      {/* ✅ CHANGED: From "Add Section" */}
-    </StandardPageLayout>
+          {/* ✅ IMPROVED: Empty state - only show if NO sections at all */}
+          {sections.length === 0 && (
+            <div className="text-center py-12">
+              <BookOpen className="mx-auto h-12 w-12 text-gray-400" />
+              <h3 className="mt-2 text-sm font-medium text-gray-900">
+                No instruction sections yet{" "}
+                {/* ✅ CHANGED: From "No sections yet" */}
+              </h3>
+              <p className="mt-1 text-sm text-gray-500">
+                Get started by creating your first instruction section.{" "}
+                {/* ✅ CHANGED: From "manual section" */}
+              </p>
+            </div>
+          )}
+        </div>
+        {/* ✅ KEEP this floating action button */}
+        <CreatePattern
+          href="/manual/sections/new"
+          label="Add Instructions"
+        />{" "}
+        {/* ✅ CHANGED: From "Add Section" */}
+      </PageContainer>
+    </ProtectedPageWrapper>
   );
 }
 

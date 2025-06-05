@@ -5,7 +5,8 @@ import { useAuth } from "@/components/auth";
 import { useProperty } from "@/lib/hooks/useProperty";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { supabase } from "@/lib/supabase";
-import StandardPageLayout from "@/components/layout/StandardPageLayout";
+import ProtectedPageWrapper from "@/components/layout/ProtectedPageWrapper";
+import PageContainer from "@/components/layout/PageContainer";
 import StandardCard from "@/components/ui/StandardCard";
 import {
   ArrowRight,
@@ -135,27 +136,18 @@ export default function HousePage() {
 
   if (loading) {
     return (
-      <StandardPageLayout
-        title="The House"
-        headerIcon={<Building2 className="h-6 w-6 text-blue-600" />}
-      >
-        <StandardCard>
-          <div className="flex items-center justify-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            <span className="ml-2">Loading house information...</span>
-          </div>
-        </StandardCard>
-      </StandardPageLayout>
+      <StandardCard>
+        <div className="flex items-center justify-center py-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <span className="ml-2">Loading house information...</span>
+        </div>
+      </StandardCard>
     );
   }
 
   return (
-    <StandardPageLayout
-      title="The House"
-      subtitle={currentProperty?.name || "Property Overview"}
-      headerIcon={<Building2 className="h-6 w-6 text-blue-600" />}
-    >
-      <div className="space-y-6">
+    <ProtectedPageWrapper>
+      <PageContainer className="space-y-6">
         {/* Location Map - Moved to Top & Simplified */}
         {currentProperty &&
           currentProperty.latitude &&
@@ -401,7 +393,7 @@ export default function HousePage() {
             ) : null}
           </>
         )}
-      </div>
-    </StandardPageLayout>
+      </PageContainer>
+    </ProtectedPageWrapper>
   );
 }

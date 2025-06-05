@@ -2,8 +2,9 @@
 
 import { useAuth } from "@/components/auth";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import SideNavigation from "@/components/SideNavigation";
+import Header from "./Header";
 
 interface ProtectedPageWrapperProps {
   children: React.ReactNode;
@@ -16,6 +17,8 @@ export default function ProtectedPageWrapper({
 }: ProtectedPageWrapperProps) {
   const { user, loading, hasPermission } = useAuth();
   const router = useRouter();
+  
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -52,12 +55,35 @@ export default function ProtectedPageWrapper({
   }
 
   return (
-    <div className="flex h-screen bg-gray-100 overflow-hidden">
-      {/* Side Navigation - Fixed positioning */}
-      <SideNavigation user={user} />
-
-      {/* Main Content Area - Account for sidebar */}
-      <div className="flex-1 flex flex-col overflow-hidden ml-0 md:ml-64">
+    <div
+      className="grid min-h-screen transition-all duration-300 ease-in-out"
+      style={{
+        gridTemplateColumns: sidebarCollapsed ? "64px 1fr" : "256px 1fr",
+        gridTemplateRows: "auto 1fr",
+        gridTemplateAreas: `
+          "sidebar header"
+          "sidebar content"
+        `,
+      }}
+    >
+      <div 
+        style={{ gridArea: "sidebar" }} 
+        className="bg-gray-900 dark:bg-gray-900 relative overflow-hidden row-span-2"
+      >
+        <div className="h-full w-full">
+          <SideNavigation
+            user={user}
+            onCollapseChange={setSidebarCollapsed}
+            useGridLayout={true}
+          />
+        </div>
+      </div>
+      
+      <div style={{ gridArea: "header" }}>
+        <Header />
+      </div>
+      
+      <div style={{ gridArea: "content" }} className="overflow-auto">
         {children}
       </div>
     </div>

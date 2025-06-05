@@ -16,6 +16,7 @@ import {
   Users as UserGroupIcon,
   Settings as CogIcon,
   ChevronRight,
+  ChevronLeft, // Add this import
   FileText as DocumentTextIcon,
   User as UserIcon,
   Plus,
@@ -60,7 +61,9 @@ interface User {
 }
 
 interface SideNavigationProps {
-  user?: User | null;
+  user?: any;
+  onCollapseChange?: (collapsed: boolean) => void;
+  useGridLayout?: boolean; // Add this prop
 }
 
 // ✅ UPDATE: Navigation structure - add The House section
@@ -103,16 +106,24 @@ const accountSection: NavigationSection = {
 
 export default function SideNavigation({
   user: propUser,
+  onCollapseChange,
+  useGridLayout = false, // Default to false for backward compatibility
 }: SideNavigationProps) {
   const pathname = usePathname();
   const { user: authUser, signOut } = useAuth();
   const { theme } = useTheme();
-  // ✅ UPDATE: Add Account to expanded categories state
+
+  // Add collapsed state
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false); // Add this line
+
+  // ✅ UPDATE: Simplified expanded categories - only for non-collapsed state
   const [expandedCategories, setExpandedCategories] = useState<
     Record<string, boolean>
   >({
     General: true,
-    Account: false, // Account starts collapsed
+    Account: false,
   });
 
   // Use either the passed user or the auth user
@@ -142,7 +153,29 @@ export default function SideNavigation({
     return userLevel >= requiredLevel;
   };
 
+  const toggleSidebar = () => {
+    const newCollapsedState = !isCollapsed;
+    setIsCollapsed(newCollapsedState);
+
+    // Notify parent component of the state change
+    onCollapseChange?.(newCollapsedState);
+
+    // Close all expanded categories when collapsing
+    if (!newCollapsedState) {
+      setExpandedCategories({
+        General: false,
+        Account: false,
+      });
+    } else {
+      setExpandedCategories({
+        General: true,
+        Account: false,
+      });
+    }
+  };
+
   const toggleCategory = (category: string) => {
+    if (isCollapsed) return; // Don't allow category expansion when collapsed
     setExpandedCategories({
       ...expandedCategories,
       [category]: !expandedCategories[category],
@@ -156,10 +189,6 @@ export default function SideNavigation({
     (theme === "system" &&
       typeof window !== "undefined" &&
       window.matchMedia("(prefers-color-scheme: dark)").matches);
-
-  // Add mobile state
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
 
   // Check if we're on mobile
   useEffect(() => {
@@ -192,8 +221,8 @@ export default function SideNavigation({
 
   return (
     <>
-      {/* Mobile Menu Button - Back at top but with better positioning */}
-      {isMobile && (
+      {/* Mobile Menu Button - Only show when not in grid layout */}
+      {!useGridLayout && isMobile && (
         <button
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           className={`fixed top-4 left-4 z-50 p-2 rounded-md ${
@@ -210,33 +239,64 @@ export default function SideNavigation({
         </button>
       )}
 
-      {/* Backdrop for mobile */}
-      {isMobile && isMobileMenuOpen && (
-        <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden"
-          onClick={() => setIsMobileMenuOpen(false)}
-        />
+      {/* Desktop Collapse Toggle - Show in both modes */}
+      {!isMobile && (
+        <button
+          onClick={toggleSidebar}
+          className={`${
+            useGridLayout ? 'absolute' : 'fixed'
+          } top-4 ${
+            isCollapsed ? "right-4" : "right-4"
+          } z-40 p-2 rounded-md ${
+            isDarkMode ? "bg-gray-800 text-white" : "bg-white text-gray-900"
+          } shadow-lg hidden md:block border ${
+            isDarkMode ? "border-gray-700" : "border-gray-200"
+          } transition-all duration-300 ease-in-out hover:scale-105`}
+          title={isCollapsed ? "Open sidebar" : "Close sidebar"}
+        >
+          {isCollapsed ? (
+            <ChevronRight className="h-5 w-5" />
+          ) : (
+            <ChevronLeft className="h-5 w-5" />
+          )}
+        </button>
       )}
 
       {/* Side Navigation */}
       <div
         className={`
           side-navigation
-          fixed inset-y-0 left-0 z-50 
-          w-64
+          ${useGridLayout ? 'h-full w-full' : 'fixed inset-y-0 left-0 z-50'}
+          ${isCollapsed && !isMobile ? "w-16" : "w-64"}
           ${isDarkMode ? "bg-gray-900" : "bg-white"}
           border-r 
           ${isDarkMode ? "border-gray-800" : "border-gray-200"}
-          transition-transform duration-300 ease-in-out
+          transition-all duration-300 ease-in-out
           ${
-            isMobile && !isMobileMenuOpen
+            !useGridLayout && isMobile && !isMobileMenuOpen
               ? "-translate-x-full"
               : "translate-x-0"
           }
-          md:translate-x-0
+          ${!useGridLayout ? 'md:translate-x-0' : ''}
           flex flex-col
+          relative
         `}
       >
+        {/* Expand tab when collapsed */}
+        {isCollapsed && !isMobile && (
+          <button
+            onClick={() => setIsCollapsed(false)}
+            className={`absolute -right-3 top-1/2 transform -translate-y-1/2 z-60 w-6 h-12 rounded-r-md ${
+              isDarkMode ? "bg-gray-800 hover:bg-gray-700" : "bg-white hover:bg-gray-50"
+            } border border-l-0 ${
+              isDarkMode ? "border-gray-700" : "border-gray-200"
+            } shadow-md flex items-center justify-center transition-all duration-200 hover:shadow-lg`}
+            title="Open sidebar"
+          >
+            <ChevronRight className="h-4 w-4 text-gray-500" />
+          </button>
+        )}
+
         {/* Header with logo */}
         <div
           className={`p-4 border-b ${
@@ -245,62 +305,79 @@ export default function SideNavigation({
               : "border-gray-200 bg-white"
           }`}
         >
-          {/* Logo content with dark theme styles */}
-          {/* Classic lantern aesthetic */}
+          {/* Logo content - adaptive to collapsed state */}
           <div className="rounded-lg p-4 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 relative overflow-hidden">
-            {/* Subtle glow background */}
             <div className="absolute inset-0 bg-gradient-radial from-amber-500/20 via-transparent to-transparent"></div>
 
             <Link
               href="/"
-              className="flex items-center space-x-3 relative z-10"
+              className={`flex items-center ${
+                isCollapsed ? "justify-center" : "space-x-3"
+              } relative z-10`}
             >
               {/* Logo with glow effect */}
               <div className="relative">
                 <div className="absolute inset-0 bg-amber-400 rounded-full blur-md opacity-30"></div>
                 <Image
-                  src="/images/logo-dark.png" // Updated to PNG
+                  src="/images/logo-dark.png"
                   alt="PorchLite"
                   width={40}
                   height={40}
-                  className="w-12 h-12 relative z-10"
+                  className="w-10 h-10 relative z-10"
                   priority
                 />
               </div>
 
-              <div>
-                <h1 className="text-lg font-bold text-white">PorchLite</h1>
-                <p className="text-xs text-amber-200">Always Welcome</p>
-              </div>
+              {/* Hide text when collapsed */}
+              {!isCollapsed && (
+                <div>
+                  <h1 className="text-lg font-bold text-white">PorchLite</h1>
+                  <p className="text-xs text-amber-200">Always Welcome</p>
+                </div>
+              )}
             </Link>
           </div>
         </div>
 
-        {/* ✅ UPDATE: Main Navigation - now includes account section */}
+        {/* Main Navigation */}
         <div className="flex-1 px-3 py-4 space-y-6 overflow-y-auto">
           {navigationStructure.map((section) => {
-            const isExpanded = expandedCategories[section.category] ?? true;
+            // Always show General section expanded, only allow Account to collapse
+            const isExpanded = section.category === "General" ? true : (expandedCategories[section.category] ?? true);
 
             return (
               <div key={section.category} className="space-y-1.5">
-                <button
-                  onClick={() => toggleCategory(section.category)}
-                  className={`w-full flex items-center justify-between text-left text-sm font-medium px-4 py-2 ${
-                    isDarkMode
-                      ? "text-gray-300 hover:text-white"
-                      : "text-gray-600 hover:text-gray-900"
-                  } mb-1 transition-colors duration-200`}
-                >
-                  <span>{section.category}</span>
-                  <ChevronRight
-                    className={`h-4 w-4 transition-transform ${
-                      isExpanded ? "rotate-90" : ""
-                    }`}
-                  />
-                </button>
+                {/* Category header - hide when collapsed, and don't show toggle for General */}
+                {!isCollapsed && section.category !== "General" && (
+                  <button
+                    onClick={() => toggleCategory(section.category)}
+                    className={`w-full flex items-center justify-between text-left text-sm font-medium px-4 py-2 ${
+                      isDarkMode
+                        ? "text-gray-300 hover:text-white"
+                        : "text-gray-600 hover:text-gray-900"
+                    } mb-1 transition-colors duration-200`}
+                  >
+                    <span>{section.category}</span>
+                    <ChevronRight
+                      className={`h-4 w-4 transition-transform ${
+                        isExpanded ? "rotate-90" : ""
+                      }`}
+                    />
+                  </button>
+                )}
 
-                {isExpanded && (
-                  <div className="space-y-1 pl-1">
+                {/* Show General category label when not collapsed */}
+                {!isCollapsed && section.category === "General" && (
+                  <div className={`text-sm font-medium px-4 py-2 ${
+                    isDarkMode ? "text-gray-300" : "text-gray-600"
+                  } mb-1`}>
+                    <span>{section.category}</span>
+                  </div>
+                )}
+
+                {/* Navigation items */}
+                {(isExpanded || isCollapsed) && (
+                  <div className={`space-y-1 ${!isCollapsed ? "pl-1" : ""}`}>
                     {section.items.map((item) => {
                       if (
                         item.requiredRole &&
@@ -316,20 +393,32 @@ export default function SideNavigation({
                           key={item.name}
                           href={item.href}
                           onClick={() => isMobile && setIsMobileMenuOpen(false)}
-                          className={`flex items-center px-4 py-2 text-sm rounded-md ${
+                          className={`flex items-center ${
+                            isCollapsed ? "justify-center px-2" : "px-4"
+                          } py-2 text-sm rounded-md group relative ${
                             isActive(item.href)
                               ? "bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
                               : "text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"
                           }`}
+                          title={isCollapsed ? item.name : undefined}
                         >
                           <IconComponent
-                            className={`mr-3 flex-shrink-0 h-5 w-5 ${
+                            className={`${
+                              isCollapsed ? "" : "mr-3"
+                            } flex-shrink-0 h-5 w-5 ${
                               isActive(item.href)
                                 ? "text-gray-500"
                                 : "text-gray-400 group-hover:text-gray-500"
                             }`}
                           />
-                          {item.name}
+                          {!isCollapsed && item.name}
+
+                          {/* Tooltip for collapsed state */}
+                          {isCollapsed && (
+                            <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-sm rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
+                              {item.name}
+                            </div>
+                          )}
                         </Link>
                       );
                     })}
@@ -340,86 +429,17 @@ export default function SideNavigation({
           })}
         </div>
 
-        {/* ✅ UPDATE: Account Section at Bottom - now expandable */}
-        <div
-          className={`border-t ${
-            isDarkMode ? "border-gray-800" : "border-gray-200"
-          } px-3 py-4`}
-        >
-          <div className="space-y-1.5">
-            {/* Account Header - now clickable to expand */}
-            <button
-              onClick={() => toggleCategory("Account")}
-              className={`w-full flex items-center justify-between text-left text-sm font-medium px-4 py-2 ${
-                isDarkMode
-                  ? "text-gray-300 hover:text-white"
-                  : "text-gray-600 hover:text-gray-900"
-              } mb-1 transition-colors duration-200`}
-            >
-              <span>Account</span>
-              <ChevronRight
-                className={`h-4 w-4 transition-transform ${
-                  expandedCategories.Account ? "rotate-90" : ""
-                }`}
-              />
-            </button>
-
-            {/* Account Navigation Items - only show when expanded */}
-            {expandedCategories.Account && (
-              <div className="space-y-1 pl-1">
-                {accountSection.items.map((item) => {
-                  // Check permissions
-                  if (item.requiredRole && !hasPermission(item.requiredRole)) {
-                    return null;
-                  }
-
-                  const IconComponent = item.icon || DocumentTextIcon;
-
-                  return (
-                    <Link
-                      key={item.name}
-                      href={item.href}
-                      onClick={() => isMobile && setIsMobileMenuOpen(false)}
-                      className={`flex items-center px-4 py-2 text-sm rounded-md ${
-                        isActive(item.href)
-                          ? "bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
-                          : "text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"
-                      }`}
-                    >
-                      <IconComponent
-                        className={`mr-3 flex-shrink-0 h-5 w-5 ${
-                          isActive(item.href)
-                            ? "text-gray-500"
-                            : "text-gray-400 group-hover:text-gray-500"
-                        }`}
-                      />
-                      {item.name}
-                    </Link>
-                  );
-                })}
-
-                {/* ✅ Sign Out Button - inside the expanded section */}
-                <button
-                  onClick={async () => {
-                    try {
-                      await signOut();
-                      if (isMobile) setIsMobileMenuOpen(false);
-                    } catch (error) {
-                      console.error("Error signing out:", error);
-                    }
-                  }}
-                  className={`w-full flex items-center px-4 py-2 text-sm rounded-md ${
-                    isDarkMode
-                      ? "text-gray-200 hover:bg-gray-800"
-                      : "text-gray-700 hover:bg-gray-100"
-                  }`}
-                >
-                  <LogOut className="mr-3 flex-shrink-0 h-5 w-5 text-gray-400" />
-                  Sign Out
-                </button>
-              </div>
-            )}
-          </div>
+        {/* Simple footer/version info (optional) */}
+        <div className={`border-t ${
+          isDarkMode ? "border-gray-800" : "border-gray-200"
+        } px-3 py-2 text-center`}>
+          {!isCollapsed && (
+            <p className={`text-xs ${
+              isDarkMode ? "text-gray-500" : "text-gray-400"
+            }`}>
+              PorchLite v1.0
+            </p>
+          )}
         </div>
       </div>
 

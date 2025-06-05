@@ -4,7 +4,8 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { useAuth } from "@/components/auth";
 import { useProperty } from "@/lib/hooks/useProperty";
 import { supabase } from "@/lib/supabase";
-import StandardPageLayout from "@/components/layout/StandardPageLayout";
+import ProtectedPageWrapper from "@/components/layout/ProtectedPageWrapper";
+import PageContainer from "@/components/layout/PageContainer";
 import StandardCard from "@/components/ui/StandardCard";
 import TaskCard from "@/components/tasks/TaskCard";
 import CreateTaskModal from "@/components/tasks/CreateTaskModal";
@@ -455,238 +456,235 @@ export default function TasksPage() {
   // Loading state
   if (loading) {
     return (
-      <StandardPageLayout
-        title="Task Management"
-        headerIcon={<CheckSquareIcon className="h-6 w-6 text-blue-600" />}
-      >
-        <StandardCard>
-          <div className="flex items-center justify-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            <span className="ml-2">Loading tasks...</span>
-          </div>
-        </StandardCard>
-      </StandardPageLayout>
+      <ProtectedPageWrapper>
+        <PageContainer>
+          <StandardCard>
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              <span className="ml-2">Loading tasks...</span>
+            </div>
+          </StandardCard>
+        </PageContainer>
+      </ProtectedPageWrapper>
     );
   }
 
   // No property selected
   if (!currentProperty) {
     return (
-      <StandardPageLayout
-        title="Task Management"
-        headerIcon={<CheckSquareIcon className="h-6 w-6 text-blue-600" />}
-      >
-        <StandardCard>
-          <div className="text-center py-8">
-            <CheckSquareIcon className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
-              No Property Selected
-            </h3>
-            <p className="text-gray-500">
-              Please select a property to view its tasks.
-            </p>
-          </div>
-        </StandardCard>
-      </StandardPageLayout>
+      <ProtectedPageWrapper>
+        <PageContainer>
+          <StandardCard>
+            <div className="text-center py-8">
+              <CheckSquareIcon className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                No Property Selected
+              </h3>
+              <p className="text-gray-500">
+                Please select a property to view its tasks.
+              </p>
+            </div>
+          </StandardCard>
+        </PageContainer>
+      </ProtectedPageWrapper>
     );
   }
 
   return (
-    <StandardPageLayout
-      title="Tasks"
-      headerIcon={<CheckSquareIcon className="h-6 w-6 text-blue-600" />}
-    >
-      {/* Filter dropdown */}
-      <div className="mb-6">
-        <label
-          htmlFor="task-filter"
-          className="block text-sm font-medium text-gray-400 mb-2" // Changed from gray-500 to gray-400
-        >
-          Filter Tasks
-        </label>
-        <select
-          id="task-filter"
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-          className="w-full sm:w-auto border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-        >
-          <option value="open">Open Tasks</option>
-          <option value="all">All Tasks</option>
-          <option value="pending">Pending</option>
-          <option value="in-progress">In Progress</option>
-          <option value="completed">Completed</option>
-          <option value="mine">My Open Tasks</option>
-          <option value="created-by-me">Created by Me (Open)</option>
-        </select>
-      </div>
-
-      {/* Task cards */}
-      {tasks.length === 0 && filter === "open" ? (
-        // ✅ NEW: Beautiful "All Clear" empty state
-        <StandardCard>
-          <div className="text-center py-16">
-            <div className="relative mb-6">
-              <div className="w-24 h-24 bg-green-100 rounded-full mx-auto flex items-center justify-center">
-                <CheckSquareIcon className="h-12 w-12 text-green-600" />
-              </div>
-              <div className="absolute -top-2 -right-2 w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
-                <span className="text-white text-lg">✨</span>
-              </div>
-            </div>
-            <h3 className="text-2xl font-semibold text-gray-900 mb-3">
-              All Clear! 🎉
-            </h3>
-            <p className="text-gray-500 mb-2 max-w-md mx-auto">
-              No open tasks for <strong>{currentProperty.name}</strong>.
-              Everything is running smoothly!
-            </p>
-            <p className="text-sm text-gray-400 mb-8">
-              Check back later or create a new task if something needs
-              attention.
-            </p>
-
-            {/* Quick Actions */}
-            <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
-              <button
-                onClick={() => setIsCreateModalOpen(true)}
-                className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                <PlusIcon className="h-5 w-5 mr-2" />
-                Create New Task
-              </button>
-              <button
-                onClick={() => setFilter("completed")}
-                className="inline-flex items-center px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                View Completed Tasks
-              </button>
-            </div>
-          </div>
-        </StandardCard>
-      ) : tasks.length === 0 ? (
-        // Existing empty state for other filters
-        <StandardCard>
-          <div className="text-center py-12">
-            <CheckSquareIcon className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-xl font-medium text-gray-900 mb-2">
-              No Tasks Found
-            </h3>
-            <p className="text-gray-500 mb-6">
-              {filter === "completed"
-                ? "No completed tasks found"
-                : filter === "pending"
-                ? "No pending tasks found"
-                : filter === "in-progress"
-                ? "No tasks in progress"
-                : filter === "mine"
-                ? "No tasks assigned to you"
-                : filter === "created-by-me"
-                ? "You haven't created any tasks yet"
-                : `No tasks match the "${filter}" filter`}
-            </p>
-            <div className="flex gap-3 justify-center">
-              <button
-                onClick={() => setFilter("all")}
-                className="inline-flex items-center px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
-              >
-                View All Tasks
-              </button>
-              <button
-                onClick={() => setIsCreateModalOpen(true)}
-                className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-              >
-                <PlusIcon className="h-5 w-5 mr-2" />
-                Create Task
-              </button>
-            </div>
-          </div>
-        </StandardCard>
-      ) : (
-        // Task list - full width cards
-        <div className="space-y-4">
-          {tasks.map((task) => (
-            <TaskCard
-              key={task.id}
-              task={task}
-              userId={userId || ""}
-              onClaim={claimTask}
-              onComplete={completeTask}
-              onEdit={editTask}
-              onDelete={deleteTask}
-              onViewPhotos={setViewingPhotos}
-              layout="wide" // Add this prop if TaskCard supports it
-            />
-          ))}
-
-          {/* "That's it!" message when there are few tasks */}
-          {tasks.length > 0 && tasks.length <= 5 && (
-            <div className="text-center py-8 border-t border-gray-200 mt-8">
-              <div className="flex items-center justify-center mb-3">
-                <div className="h-px bg-gray-200 flex-1 max-w-20"></div>
-                <span className="px-4 text-sm text-gray-400">That's it!</span>
-                <div className="h-px bg-gray-200 flex-1 max-w-20"></div>
-              </div>
-              <p className="text-sm text-gray-500">
-                {tasks.length === 1
-                  ? "Just one task to focus on."
-                  : `Only ${tasks.length} tasks to manage right now.`}
-              </p>
-              <button
-                onClick={() => setIsCreateModalOpen(true)}
-                className="mt-4 inline-flex items-center px-4 py-2 text-sm text-blue-600 hover:text-blue-700 font-medium"
-              >
-                <PlusIcon className="h-4 w-4 mr-1" />
-                Add another task
-              </button>
-            </div>
-          )}
+    <ProtectedPageWrapper>
+      <PageContainer>
+        {/* Filter dropdown */}
+        <div className="mb-6">
+          <label
+            htmlFor="task-filter"
+            className="block text-sm font-medium text-gray-400 mb-2" // Changed from gray-500 to gray-400
+          >
+            Filter Tasks
+          </label>
+          <select
+            id="task-filter"
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            className="w-full sm:w-auto border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          >
+            <option value="open">Open Tasks</option>
+            <option value="all">All Tasks</option>
+            <option value="pending">Pending</option>
+            <option value="in-progress">In Progress</option>
+            <option value="completed">Completed</option>
+            <option value="mine">My Open Tasks</option>
+            <option value="created-by-me">Created by Me (Open)</option>
+          </select>
         </div>
-      )}
 
-      {/* Modals */}
-      <CreateTaskModal
-        isOpen={isCreateModalOpen}
-        onClose={() => setIsCreateModalOpen(false)}
-        onTaskCreated={loadTasks}
-        users={users}
-        currentProperty={currentProperty}
-        currentUser={user}
-      />
+        {/* Task cards */}
+        {tasks.length === 0 && filter === "open" ? (
+          // ✅ NEW: Beautiful "All Clear" empty state
+          <StandardCard>
+            <div className="text-center py-16">
+              <div className="relative mb-6">
+                <div className="w-24 h-24 bg-green-100 rounded-full mx-auto flex items-center justify-center">
+                  <CheckSquareIcon className="h-12 w-12 text-green-600" />
+                </div>
+                <div className="absolute -top-2 -right-2 w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
+                  <span className="text-white text-lg">✨</span>
+                </div>
+              </div>
+              <h3 className="text-2xl font-semibold text-gray-900 mb-3">
+                All Clear! 🎉
+              </h3>
+              <p className="text-gray-500 mb-2 max-w-md mx-auto">
+                No open tasks for <strong>{currentProperty.name}</strong>.
+                Everything is running smoothly!
+              </p>
+              <p className="text-sm text-gray-400 mb-8">
+                Check back later or create a new task if something needs
+                attention.
+              </p>
 
-      <EditTaskModal
-        isOpen={isEditModalOpen}
-        onClose={() => {
-          setIsEditModalOpen(false);
-          setEditingTask(null);
-        }}
-        onTaskUpdated={loadTasks}
-        users={users}
-        currentProperty={currentProperty}
-        currentUser={user}
-        task={editingTask}
-      />
+              {/* Quick Actions */}
+              <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
+                <button
+                  onClick={() => setIsCreateModalOpen(true)}
+                  className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  <PlusIcon className="h-5 w-5 mr-2" />
+                  Create New Task
+                </button>
+                <button
+                  onClick={() => setFilter("completed")}
+                  className="inline-flex items-center px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  View Completed Tasks
+                </button>
+              </div>
+            </div>
+          </StandardCard>
+        ) : tasks.length === 0 ? (
+          // Existing empty state for other filters
+          <StandardCard>
+            <div className="text-center py-12">
+              <CheckSquareIcon className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+              <h3 className="text-xl font-medium text-gray-900 mb-2">
+                No Tasks Found
+              </h3>
+              <p className="text-gray-500 mb-6">
+                {filter === "completed"
+                  ? "No completed tasks found"
+                  : filter === "pending"
+                  ? "No pending tasks found"
+                  : filter === "in-progress"
+                  ? "No tasks in progress"
+                  : filter === "mine"
+                  ? "No tasks assigned to you"
+                  : filter === "created-by-me"
+                  ? "You haven't created any tasks yet"
+                  : `No tasks match the "${filter}" filter`}
+              </p>
+              <div className="flex gap-3 justify-center">
+                <button
+                  onClick={() => setFilter("all")}
+                  className="inline-flex items-center px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                >
+                  View All Tasks
+                </button>
+                <button
+                  onClick={() => setIsCreateModalOpen(true)}
+                  className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                >
+                  <PlusIcon className="h-5 w-5 mr-2" />
+                  Create Task
+                </button>
+              </div>
+            </div>
+          </StandardCard>
+        ) : (
+          // Task list - full width cards
+          <div className="space-y-4">
+            {tasks.map((task) => (
+              <TaskCard
+                key={task.id}
+                task={task}
+                userId={userId || ""}
+                onClaim={claimTask}
+                onComplete={completeTask}
+                onEdit={editTask}
+                onDelete={deleteTask}
+                onViewPhotos={setViewingPhotos}
+                layout="wide" // Add this prop if TaskCard supports it
+              />
+            ))}
 
-      <PhotoViewer
-        photos={viewingPhotos || []}
-        isOpen={!!viewingPhotos}
-        onClose={() => setViewingPhotos(null)}
-      />
+            {/* "That's it!" message when there are few tasks */}
+            {tasks.length > 0 && tasks.length <= 5 && (
+              <div className="text-center py-8 border-t border-gray-200 mt-8">
+                <div className="flex items-center justify-center mb-3">
+                  <div className="h-px bg-gray-200 flex-1 max-w-20"></div>
+                  <span className="px-4 text-sm text-gray-400">That's it!</span>
+                  <div className="h-px bg-gray-200 flex-1 max-w-20"></div>
+                </div>
+                <p className="text-sm text-gray-500">
+                  {tasks.length === 1
+                    ? "Just one task to focus on."
+                    : `Only ${tasks.length} tasks to manage right now.`}
+                </p>
+                <button
+                  onClick={() => setIsCreateModalOpen(true)}
+                  className="mt-4 inline-flex items-center px-4 py-2 text-sm text-blue-600 hover:text-blue-700 font-medium"
+                >
+                  <PlusIcon className="h-4 w-4 mr-1" />
+                  Add another task
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
-      <DeleteTaskModal
-        isOpen={isDeleteModalOpen}
-        onClose={() => {
-          setIsDeleteModalOpen(false);
-          setTaskToDelete(null);
-        }}
-        onConfirm={confirmDeleteTask}
-        taskTitle={taskToDelete?.title || ""}
-        isDeleting={isDeleting}
-      />
+        {/* Modals */}
+        <CreateTaskModal
+          isOpen={isCreateModalOpen}
+          onClose={() => setIsCreateModalOpen(false)}
+          onTaskCreated={loadTasks}
+          users={users}
+          currentProperty={currentProperty}
+          currentUser={user}
+        />
 
-      <CreatePattern
-        onClick={() => setIsCreateModalOpen(true)}
-        label="Create Task"
-      />
-    </StandardPageLayout>
+        <EditTaskModal
+          isOpen={isEditModalOpen}
+          onClose={() => {
+            setIsEditModalOpen(false);
+            setEditingTask(null);
+          }}
+          onTaskUpdated={loadTasks}
+          users={users}
+          currentProperty={currentProperty}
+          currentUser={user}
+          task={editingTask}
+        />
+
+        <PhotoViewer
+          photos={viewingPhotos || []}
+          isOpen={!!viewingPhotos}
+          onClose={() => setViewingPhotos(null)}
+        />
+
+        <DeleteTaskModal
+          isOpen={isDeleteModalOpen}
+          onClose={() => {
+            setIsDeleteModalOpen(false);
+            setTaskToDelete(null);
+          }}
+          onConfirm={confirmDeleteTask}
+          taskTitle={taskToDelete?.title || ""}
+          isDeleting={isDeleting}
+        />
+
+        <CreatePattern
+          onClick={() => setIsCreateModalOpen(true)}
+          label="Create Task"
+        />
+      </PageContainer>
+    </ProtectedPageWrapper>
   );
 }
