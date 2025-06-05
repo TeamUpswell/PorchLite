@@ -16,8 +16,6 @@ import "@/styles/dashboard.css";
 import {
   Calendar,
   Users,
-  DollarSign,
-  TrendingUp,
   Package,
   AlertTriangle,
   CheckCircle,
@@ -39,10 +37,11 @@ import {
   Pencil,
   X,
   Camera,
-  Upload, // ✅ Add this missing import
+  Upload,
   ChevronRight,
 } from "lucide-react";
 import PhotoUpload from "@/components/ui/PhotoUpload";
+import { useViewMode } from "@/lib/hooks/useViewMode";
 
 // Define interfaces for our new dashboard data
 interface Issue {
@@ -101,6 +100,13 @@ export default function HomePage() {
   const router = useRouter();
   const { currentProperty, properties, switchProperty } = useProperty();
   const { updateCurrentProperty } = useProperty();
+  const {
+    viewMode,
+    isManagerView,
+    isFamilyView,
+    isGuestView,
+    isViewingAsLowerRole,
+  } = useViewMode();
 
   // State for dashboard content
   const [upcomingVisits, setUpcomingVisits] = useState<UpcomingVisit[]>([]);
@@ -757,6 +763,15 @@ export default function HomePage() {
     <ProtectedRoute>
       <ProtectedPageWrapper>
         <PageContainer className="max-w-none">
+          {/* Show view mode indicator when viewing as lower role */}
+          {isViewingAsLowerRole && (
+            <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+              <p className="text-sm text-amber-800">
+                👁️ Currently viewing as: <strong>{viewMode}</strong>
+              </p>
+            </div>
+          )}
+
           {/* Banner Section with Weather Widget EMBEDDED ON the image */}
           <div className="relative h-64 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg overflow-hidden mb-8">
             {/* Property Image as Background Layer (z-0) */}
@@ -853,6 +868,7 @@ export default function HomePage() {
               inventoryAlerts,
               maintenanceAlerts: taskAlerts,
               totalInventoryCount,
+              // ✅ NO financial data here at all
             }}
             loading={{
               visits: isVisitsFetching,
@@ -860,8 +876,16 @@ export default function HomePage() {
               tasks: isTasksFetching,
             }}
             onAddReservation={() => setShowAddReservationModal(true)}
-            enabledComponents={["stats", "visits", "inventory", "tasks"]}
-            showBanner={false}
+            enabledComponents={[
+              "stats",
+              "visits",
+              // Conditional components based on view mode
+              ...(isManagerView || isFamilyView ? ["inventory"] : []),
+              ...(isManagerView || isFamilyView ? ["tasks"] : []),
+              // ✅ NO financial components here
+            ]}
+            showBanner={isManagerView} // Only managers can edit banner
+            readOnly={isGuestView} // Guests get read-only mode
           />
 
           {/* Banner Selection Modal */}

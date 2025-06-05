@@ -1,7 +1,6 @@
 "use client";
 
-export const dynamic = "force-dynamic";
-
+import { useViewMode } from "@/lib/hooks/useViewMode";
 import { useState, useEffect } from "react";
 import { Users, Plus, Phone, Mail, MapPin, Edit } from "lucide-react";
 import Link from "next/link";
@@ -25,8 +24,12 @@ interface Contact {
 
 export default function ContactsPage() {
   const { user } = useAuth();
+  const {
+    isManagerView,
+    isFamilyView,
+    isGuestView,
+  } = useViewMode();
   const [contacts, setContacts] = useState<Contact[]>([]);
-  const [filteredContacts, setFilteredContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
 
   const categories = [
@@ -49,7 +52,6 @@ export default function ContactsPage() {
 
         if (error) throw error;
         setContacts(data as Contact[]);
-        setFilteredContacts(data as Contact[]);
       } catch (error) {
         console.error("Error fetching contacts:", error);
         // Demo data for testing
@@ -83,7 +85,6 @@ export default function ContactsPage() {
           },
         ];
         setContacts(demoContacts);
-        setFilteredContacts(demoContacts);
       } finally {
         setLoading(false);
       }
@@ -103,124 +104,387 @@ export default function ContactsPage() {
     );
   };
 
+  // Filter contacts based on view mode
+  const filteredContacts = contacts.filter((contact) => {
+    if (isGuestView) {
+      return contact.category === "emergency" || contact.is_public;
+    }
+    if (isFamilyView) {
+      return contact.category !== "vendor" && contact.category !== "financial";
+    }
+    return true; // Managers see all contacts
+  });
+
   return (
     <ProtectedPageWrapper>
-      <PageContainer className="space-y-6">
-        {/* Remove header and start with content */}
-        {/* Your existing contacts content */}
-        <StandardCard
-          title={`${filteredContacts.length} Contact${
-            filteredContacts.length !== 1 ? "s" : ""
-          }`}
-          subtitle="Browse your property contacts and vendors"
-        >
-          {loading ? (
-            <div className="flex justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            </div>
-          ) : filteredContacts.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredContacts.map((contact) => {
-                const categoryInfo = getCategoryInfo(contact.category);
+      <PageContainer>
+        <div className="space-y-6">
+          <div className="flex justify-between items-center">
+            <h1 className="text-2xl font-bold">Contacts</h1>
 
-                return (
-                  <div
-                    key={contact.id}
-                    className="border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow relative group"
-                  >
-                    <div className="p-4">
-                      <div className="flex items-start justify-between mb-3">
-                        <h3 className="font-semibold text-gray-900 text-lg pr-2">
-                          {contact.name}
-                        </h3>
-                        <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded flex-shrink-0">
-                          {categoryInfo.icon} {categoryInfo.name}
-                        </span>
-                      </div>
-
-                      <div className="space-y-2 text-sm">
-                        {contact.email && (
-                          <div className="flex items-center text-gray-600">
-                            <Mail className="h-4 w-4 mr-2 flex-shrink-0" />
-                            <a
-                              href={`mailto:${contact.email}`}
-                              className="hover:text-blue-600 truncate"
-                            >
-                              {contact.email}
-                            </a>
-                          </div>
-                        )}
-
-                        {contact.phone && (
-                          <div className="flex items-center text-gray-600">
-                            <Phone className="h-4 w-4 mr-2 flex-shrink-0" />
-                            <a
-                              href={`tel:${contact.phone}`}
-                              className="hover:text-blue-600"
-                            >
-                              {contact.phone}
-                            </a>
-                          </div>
-                        )}
-
-                        {contact.address && (
-                          <div className="flex items-center text-gray-600">
-                            <MapPin className="h-4 w-4 mr-2 flex-shrink-0" />
-                            <span className="truncate">{contact.address}</span>
-                          </div>
-                        )}
-                      </div>
-
-                      {contact.notes && (
-                        <div className="mt-3 p-2 bg-gray-50 rounded-lg">
-                          <p className="text-sm text-gray-600 line-clamp-2">
-                            {contact.notes}
-                          </p>
-                        </div>
-                      )}
-
-                      <div className="mt-4 pt-3 border-t border-gray-100 flex justify-between items-center">
-                        <span className="text-xs text-gray-500">
-                          Added{" "}
-                          {new Date(contact.created_at).toLocaleDateString(
-                            "en-US",
-                            {
-                              year: "numeric",
-                              month: "short",
-                              day: "numeric",
-                            }
-                          )}
-                        </span>
-                        <Link
-                          href={`/contacts/edit/${contact.id}`}
-                          className="flex items-center text-blue-600 hover:text-blue-800 text-sm font-medium"
-                        >
-                          <Edit className="h-3 w-3 mr-1" />
-                          Edit
-                        </Link>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="text-center py-8 text-gray-500">
-              <Users className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-              <p>No contacts found</p>
-              <p className="text-sm mt-1 mb-4">
-                Try adjusting your filters or add new contacts
-              </p>
+            {(isManagerView || isFamilyView) && (
               <Link
                 href="/contacts/add"
                 className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               >
                 <Plus className="h-4 w-4 mr-2" />
-                Add First Contact
+                Add Contact
               </Link>
-            </div>
+            )}
+          </div>
+
+          {/* Emergency contacts always visible */}
+          <StandardCard
+            title="Emergency Contacts"
+            subtitle="Always know who to call in case of an emergency"
+          >
+            {loading ? (
+              <div className="flex justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              </div>
+            ) : filteredContacts.filter((c) => c.category === "emergency")
+                .length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredContacts
+                  .filter((c) => c.category === "emergency")
+                  .map((contact) => {
+                    const categoryInfo = getCategoryInfo(contact.category);
+
+                    return (
+                      <div
+                        key={contact.id}
+                        className="border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow relative group"
+                      >
+                        <div className="p-4">
+                          <div className="flex items-start justify-between mb-3">
+                            <h3 className="font-semibold text-gray-900 text-lg pr-2">
+                              {contact.name}
+                            </h3>
+                            <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded flex-shrink-0">
+                              {categoryInfo.icon} {categoryInfo.name}
+                            </span>
+                          </div>
+
+                          <div className="space-y-2 text-sm">
+                            {contact.email && (
+                              <div className="flex items-center text-gray-600">
+                                <Mail className="h-4 w-4 mr-2 flex-shrink-0" />
+                                <a
+                                  href={`mailto:${contact.email}`}
+                                  className="hover:text-blue-600 truncate"
+                                >
+                                  {contact.email}
+                                </a>
+                              </div>
+                            )}
+
+                            {contact.phone && (
+                              <div className="flex items-center text-gray-600">
+                                <Phone className="h-4 w-4 mr-2 flex-shrink-0" />
+                                <a
+                                  href={`tel:${contact.phone}`}
+                                  className="hover:text-blue-600"
+                                >
+                                  {contact.phone}
+                                </a>
+                              </div>
+                            )}
+
+                            {contact.address && (
+                              <div className="flex items-center text-gray-600">
+                                <MapPin className="h-4 w-4 mr-2 flex-shrink-0" />
+                                <span className="truncate">{contact.address}</span>
+                              </div>
+                            )}
+                          </div>
+
+                          {contact.notes && (
+                            <div className="mt-3 p-2 bg-gray-50 rounded-lg">
+                              <p className="text-sm text-gray-600 line-clamp-2">
+                                {contact.notes}
+                              </p>
+                            </div>
+                          )}
+
+                          <div className="mt-4 pt-3 border-t border-gray-100 flex justify-between items-center">
+                            <span className="text-xs text-gray-500">
+                              Added{" "}
+                              {new Date(contact.created_at).toLocaleDateString(
+                                "en-US",
+                                {
+                                  year: "numeric",
+                                  month: "short",
+                                  day: "numeric",
+                                }
+                              )}
+                            </span>
+                            <Link
+                              href={`/contacts/edit/${contact.id}`}
+                              className="flex items-center text-blue-600 hover:text-blue-800 text-sm font-medium"
+                            >
+                              <Edit className="h-3 w-3 mr-1" />
+                              Edit
+                            </Link>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                <Users className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                <p>No emergency contacts found</p>
+                <p className="text-sm mt-1 mb-4">
+                  Try adjusting your filters or add new contacts
+                </p>
+                <Link
+                  href="/contacts/add"
+                  className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Emergency Contact
+                </Link>
+              </div>
+            )}
+          </StandardCard>
+
+          {/* Property contacts for family+ */}
+          {!isGuestView && (
+            <StandardCard
+              title="Property Contacts"
+              subtitle="Contacts related to your property"
+            >
+              {loading ? (
+                <div className="flex justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                </div>
+              ) : filteredContacts.filter((c) => c.category === "property")
+                  .length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {filteredContacts
+                    .filter((c) => c.category === "property")
+                    .map((contact) => {
+                      const categoryInfo = getCategoryInfo(contact.category);
+
+                      return (
+                        <div
+                          key={contact.id}
+                          className="border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow relative group"
+                        >
+                          <div className="p-4">
+                            <div className="flex items-start justify-between mb-3">
+                              <h3 className="font-semibold text-gray-900 text-lg pr-2">
+                                {contact.name}
+                              </h3>
+                              <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded flex-shrink-0">
+                                {categoryInfo.icon} {categoryInfo.name}
+                              </span>
+                            </div>
+
+                            <div className="space-y-2 text-sm">
+                              {contact.email && (
+                                <div className="flex items-center text-gray-600">
+                                  <Mail className="h-4 w-4 mr-2 flex-shrink-0" />
+                                  <a
+                                    href={`mailto:${contact.email}`}
+                                    className="hover:text-blue-600 truncate"
+                                  >
+                                    {contact.email}
+                                  </a>
+                                </div>
+                              )}
+
+                              {contact.phone && (
+                                <div className="flex items-center text-gray-600">
+                                  <Phone className="h-4 w-4 mr-2 flex-shrink-0" />
+                                  <a
+                                    href={`tel:${contact.phone}`}
+                                    className="hover:text-blue-600"
+                                  >
+                                    {contact.phone}
+                                  </a>
+                                </div>
+                              )}
+
+                              {contact.address && (
+                                <div className="flex items-center text-gray-600">
+                                  <MapPin className="h-4 w-4 mr-2 flex-shrink-0" />
+                                  <span className="truncate">{contact.address}</span>
+                                </div>
+                              )}
+                            </div>
+
+                            {contact.notes && (
+                              <div className="mt-3 p-2 bg-gray-50 rounded-lg">
+                                <p className="text-sm text-gray-600 line-clamp-2">
+                                  {contact.notes}
+                                </p>
+                              </div>
+                            )}
+
+                            <div className="mt-4 pt-3 border-t border-gray-100 flex justify-between items-center">
+                              <span className="text-xs text-gray-500">
+                                Added{" "}
+                                {new Date(contact.created_at).toLocaleDateString(
+                                  "en-US",
+                                  {
+                                    year: "numeric",
+                                    month: "short",
+                                    day: "numeric",
+                                  }
+                                )}
+                              </span>
+                              <Link
+                                href={`/contacts/edit/${contact.id}`}
+                                className="flex items-center text-blue-600 hover:text-blue-800 text-sm font-medium"
+                              >
+                                <Edit className="h-3 w-3 mr-1" />
+                                Edit
+                              </Link>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  <Users className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                  <p>No property contacts found</p>
+                  <p className="text-sm mt-1 mb-4">
+                    Try adjusting your filters or add new contacts
+                  </p>
+                  <Link
+                    href="/contacts/add"
+                    className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Property Contact
+                  </Link>
+                </div>
+              )}
+            </StandardCard>
           )}
-        </StandardCard>
+
+          {/* Vendor contacts for managers only */}
+          {isManagerView && (
+            <StandardCard
+              title="Vendors & Services"
+              subtitle="Contacts for vendors and services"
+            >
+              {loading ? (
+                <div className="flex justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                </div>
+              ) : filteredContacts.filter((c) => c.category === "vendor")
+                  .length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {filteredContacts
+                    .filter((c) => c.category === "vendor")
+                    .map((contact) => {
+                      const categoryInfo = getCategoryInfo(contact.category);
+
+                      return (
+                        <div
+                          key={contact.id}
+                          className="border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow relative group"
+                        >
+                          <div className="p-4">
+                            <div className="flex items-start justify-between mb-3">
+                              <h3 className="font-semibold text-gray-900 text-lg pr-2">
+                                {contact.name}
+                              </h3>
+                              <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded flex-shrink-0">
+                                {categoryInfo.icon} {categoryInfo.name}
+                              </span>
+                            </div>
+
+                            <div className="space-y-2 text-sm">
+                              {contact.email && (
+                                <div className="flex items-center text-gray-600">
+                                  <Mail className="h-4 w-4 mr-2 flex-shrink-0" />
+                                  <a
+                                    href={`mailto:${contact.email}`}
+                                    className="hover:text-blue-600 truncate"
+                                  >
+                                    {contact.email}
+                                  </a>
+                                </div>
+                              )}
+
+                              {contact.phone && (
+                                <div className="flex items-center text-gray-600">
+                                  <Phone className="h-4 w-4 mr-2 flex-shrink-0" />
+                                  <a
+                                    href={`tel:${contact.phone}`}
+                                    className="hover:text-blue-600"
+                                  >
+                                    {contact.phone}
+                                  </a>
+                                </div>
+                              )}
+
+                              {contact.address && (
+                                <div className="flex items-center text-gray-600">
+                                  <MapPin className="h-4 w-4 mr-2 flex-shrink-0" />
+                                  <span className="truncate">{contact.address}</span>
+                                </div>
+                              )}
+                            </div>
+
+                            {contact.notes && (
+                              <div className="mt-3 p-2 bg-gray-50 rounded-lg">
+                                <p className="text-sm text-gray-600 line-clamp-2">
+                                  {contact.notes}
+                                </p>
+                              </div>
+                            )}
+
+                            <div className="mt-4 pt-3 border-t border-gray-100 flex justify-between items-center">
+                              <span className="text-xs text-gray-500">
+                                Added{" "}
+                                {new Date(contact.created_at).toLocaleDateString(
+                                  "en-US",
+                                  {
+                                    year: "numeric",
+                                    month: "short",
+                                    day: "numeric",
+                                  }
+                                )}
+                              </span>
+                              <Link
+                                href={`/contacts/edit/${contact.id}`}
+                                className="flex items-center text-blue-600 hover:text-blue-800 text-sm font-medium"
+                              >
+                                <Edit className="h-3 w-3 mr-1" />
+                                Edit
+                              </Link>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  <Users className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                  <p>No vendor contacts found</p>
+                  <p className="text-sm mt-1 mb-4">
+                    Try adjusting your filters or add new contacts
+                  </p>
+                  <Link
+                    href="/contacts/add"
+                    className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Vendor Contact
+                  </Link>
+                </div>
+              )}
+            </StandardCard>
+          )}
+        </div>
       </PageContainer>
     </ProtectedPageWrapper>
   );

@@ -35,7 +35,7 @@ const localizer = dateFnsLocalizer({
 });
 
 interface CalendarProps {
-  newReservationTrigger?: number;
+  newReservationTrigger: number;
 }
 
 export function Calendar({ newReservationTrigger }: CalendarProps) {
@@ -164,8 +164,17 @@ export function Calendar({ newReservationTrigger }: CalendarProps) {
   }
 
   return (
-    <div className="h-full">
-      <div className={styles.calendarContainer}>
+    <div className="h-full w-full">
+      <div className="bg-white rounded-lg p-6">
+        <div className="text-center mb-6">
+          <h2 className="text-xl font-semibold">
+            {currentDate.toLocaleDateString("en-US", {
+              month: "long",
+              year: "numeric",
+            })}
+          </h2>
+        </div>
+
         {/* Status Legend */}
         <StatusLegend />
 
@@ -268,3 +277,6 @@ export function Calendar({ newReservationTrigger }: CalendarProps) {
     </div>
   );
 }
+
+// Default export
+export default Calendar;

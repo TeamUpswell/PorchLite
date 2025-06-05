@@ -1,3 +1,4 @@
+import React from "react";
 import { ReactNode, ButtonHTMLAttributes } from "react";
 import Link from "next/link";
 
@@ -22,30 +23,29 @@ export default function Button({
   className = "",
   ...props
 }: ButtonProps) {
-  // Base classes
   const baseClasses =
-    "inline-flex items-center justify-center font-medium transition-colors rounded-lg";
+    "font-medium rounded-lg transition-colors focus:outline-none focus:ring-2";
 
-  // Size classes
+  const variantClasses = {
+    primary: "bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500",
+    secondary: "bg-gray-200 text-gray-800 hover:bg-gray-300 focus:ring-gray-500",
+    outline:
+      "bg-transparent border border-gray-300 text-gray-700 hover:bg-gray-50",
+    danger: "bg-red-600 text-white hover:bg-red-700 focus:ring-red-500",
+  };
+
   const sizeClasses = {
     sm: "px-3 py-1.5 text-sm",
-    md: "px-4 py-2 text-base",
+    md: "px-4 py-2",
     lg: "px-6 py-3 text-lg",
   };
 
-  // Variant classes
-  const variantClasses = {
-    primary: "bg-blue-600 text-white hover:bg-blue-700",
-    secondary: "bg-gray-200 text-gray-800 hover:bg-gray-300",
-    outline:
-      "bg-transparent border border-gray-300 text-gray-700 hover:bg-gray-50",
-    danger: "bg-red-600 text-white hover:bg-red-700",
-  };
+  const disabledClasses = isLoading ? "opacity-70 cursor-not-allowed" : "";
 
   // Combine classes
   const buttonClasses = `${baseClasses} ${sizeClasses[size]} ${
     variantClasses[variant]
-  } ${isLoading ? "opacity-70 cursor-not-allowed" : ""} ${className}`;
+  } ${disabledClasses} ${className}`;
 
   // If href is provided, render as Link
   if (href) {

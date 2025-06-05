@@ -1,7 +1,6 @@
 "use client";
 
-export const dynamic = "force-dynamic";
-
+import { useViewMode } from '@/lib/hooks/useViewMode';
 import {
   Package,
   Plus,
@@ -22,9 +21,16 @@ import { useProperty } from "@/lib/hooks/useProperty";
 import ProtectedPageWrapper from "@/components/layout/ProtectedPageWrapper";
 import PageContainer from "@/components/layout/PageContainer";
 
+export const dynamic = "force-dynamic";
+
 export default function InventoryPage() {
   const inventoryHook = useInventory();
   const { currentProperty, currentTenant } = useProperty();
+  const { 
+    isManagerView, 
+    isFamilyView, 
+    isGuestView 
+  } = useViewMode();
   const [showManageModal, setShowManageModal] = useState(false);
   const [showShoppingListModal, setShowShoppingListModal] = useState(false);
 
@@ -138,148 +144,176 @@ export default function InventoryPage() {
 
   return (
     <ProtectedPageWrapper>
-      <PageContainer className="space-y-6">
-        {/* Remove StandardPageLayout wrapper and put content directly */}
-
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <StandardCard padding="sm">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-green-600">
-                {goodStockItems}
-              </div>
-              <div className="text-sm text-gray-600">Well Stocked</div>
-            </div>
-          </StandardCard>
-
-          <StandardCard padding="sm">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-yellow-600">
-                {lowStockItems}
-              </div>
-              <div className="text-sm text-gray-600">Getting Low</div>
-            </div>
-          </StandardCard>
-
-          <StandardCard padding="sm">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-red-600">
-                {outOfStockItems}
-              </div>
-              <div className="text-sm text-gray-600">Out of Stock</div>
-            </div>
-          </StandardCard>
-        </div>
-
-        {/* Filters */}
-        <StandardCard className="mb-6" padding="sm">
-          <InventoryFilters
-            items={inventoryHook.items}
-            setFilteredItems={inventoryHook.setFilteredItems}
-          />
-        </StandardCard>
-
-        {/* Main Inventory Table */}
-        <StandardCard
-          title="Inventory Items"
-          subtitle={`${totalItems} items in inventory`}
-          headerActions={
-            <div className="flex items-center space-x-2">
-              {/* Manage Button */}
-              <button
-                onClick={() => setShowManageModal(true)}
-                className="flex items-center px-3 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
-              >
-                <Settings className="h-4 w-4 mr-1" />
-                <span className="hidden sm:inline">Manage</span>
-              </button>
-
-              {/* Status indicators */}
-              {outOfStockItems > 0 && (
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                  <AlertTriangle className="h-3 w-3 mr-1" />
-                  {outOfStockItems} out of stock
-                </span>
+      <PageContainer>
+        <div className="space-y-6">
+          <div className="flex justify-between items-center">
+            <h1 className="text-2xl font-bold">Inventory</h1>
+            
+            <div className="flex gap-2">
+              {/* Add item button */}
+              {(isManagerView || isFamilyView) && (
+                <button
+                  onClick={() => inventoryHook.setIsAddingItem(true)}
+                  className="flex items-center px-3 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  <span className="hidden sm:inline">Add Item</span>
+                </button>
               )}
-              {lowStockItems > 0 && (
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                  <AlertTriangle className="h-3 w-3 mr-1" />
-                  {lowStockItems} low stock
-                </span>
+              
+              {/* Bulk import - manager only */}
+              {isManagerView && (
+                <button
+                  onClick={() => setShowImportModal(true)}
+                  className="flex items-center px-3 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                >
+                  <Package className="h-4 w-4 mr-1" />
+                  <span className="hidden sm:inline">Import Items</span>
+                </button>
               )}
             </div>
-          }
-        >
-          <InventoryTable
-            items={inventoryHook.filteredItems || []}
-            handleEdit={inventoryHook.handleEdit}
-            handleDelete={inventoryHook.handleDelete}
-            updateQuantity={inventoryHook.updateQuantity}
-            updateItemStatus={(itemId, status) => {
-              console.log("🔄 Direct call to updateItemStatus:", itemId, status);
-              return inventoryHook.updateItemStatus?.(itemId, status);
-            }}
-          />
-        </StandardCard>
+          </div>
 
-        {/* Floating Action Buttons */}
-        <div className="fixed bottom-6 right-6 flex flex-col items-end space-y-3 z-40">
-          {/* Add Item Button */}
-          <button
-            onClick={() => inventoryHook.setIsAddingItem(true)}
-            className="bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg transition-all duration-300 hover:scale-105 flex items-center group overflow-hidden"
-            aria-label="Add Item"
+          {/* Stats Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <StandardCard padding="sm">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-green-600">
+                  {goodStockItems}
+                </div>
+                <div className="text-sm text-gray-600">Well Stocked</div>
+              </div>
+            </StandardCard>
+
+            <StandardCard padding="sm">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-yellow-600">
+                  {lowStockItems}
+                </div>
+                <div className="text-sm text-gray-600">Getting Low</div>
+              </div>
+            </StandardCard>
+
+            <StandardCard padding="sm">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-red-600">
+                  {outOfStockItems}
+                </div>
+                <div className="text-sm text-gray-600">Out of Stock</div>
+              </div>
+            </StandardCard>
+          </div>
+
+          {/* Filters */}
+          <StandardCard className="mb-6" padding="sm">
+            <InventoryFilters
+              items={inventoryHook.items}
+              setFilteredItems={inventoryHook.setFilteredItems}
+            />
+          </StandardCard>
+
+          {/* Main Inventory Table */}
+          <StandardCard
+            title="Inventory Items"
+            subtitle={`${totalItems} items in inventory`}
+            headerActions={
+              <div className="flex items-center space-x-2">
+                {/* Manage Button */}
+                <button
+                  onClick={() => setShowManageModal(true)}
+                  className="flex items-center px-3 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                >
+                  <Settings className="h-4 w-4 mr-1" />
+                  <span className="hidden sm:inline">Manage</span>
+                </button>
+
+                {/* Status indicators */}
+                {outOfStockItems > 0 && (
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                    <AlertTriangle className="h-3 w-3 mr-1" />
+                    {outOfStockItems} out of stock
+                  </span>
+                )}
+                {lowStockItems > 0 && (
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                    <AlertTriangle className="h-3 w-3 mr-1" />
+                    {lowStockItems} low stock
+                  </span>
+                )}
+              </div>
+            }
           >
-            <div className="p-4 flex items-center">
-              <Plus className="h-6 w-6 flex-shrink-0" />
-            </div>
-            <div className="max-w-0 group-hover:max-w-[160px] overflow-hidden transition-all duration-500 ease-out">
-              <div className="pr-6 opacity-0 group-hover:opacity-100 transition-opacity duration-400 delay-150">
-                <span className="whitespace-nowrap font-medium">Add Item</span>
-              </div>
-            </div>
-          </button>
+            <InventoryTable
+              items={inventoryHook.filteredItems || []}
+              handleEdit={inventoryHook.handleEdit}
+              handleDelete={inventoryHook.handleDelete}
+              updateQuantity={inventoryHook.updateQuantity}
+              updateItemStatus={(itemId, status) => {
+                console.log("🔄 Direct call to updateItemStatus:", itemId, status);
+                return inventoryHook.updateItemStatus?.(itemId, status);
+              }}
+            />
+          </StandardCard>
 
-          {/* Shopping List Button */}
-          <button
-            onClick={() => setShowShoppingListModal(true)}
-            className={`${
-              shoppingListItems.length > 0
-                ? "bg-green-600 hover:bg-green-700"
-                : "bg-gray-500 hover:bg-gray-600"
-            } text-white rounded-full shadow-lg transition-all duration-300 hover:scale-105 flex items-center group overflow-hidden`}
-            aria-label="Shopping List"
-          >
-            <div className="p-4 flex items-center relative">
-              <ShoppingCart className="h-6 w-6 flex-shrink-0" />
-              {shoppingListItems.length > 0 && (
-                <span className="absolute top-1 right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-medium">
-                  {shoppingListItems.length}
-                </span>
-              )}
-            </div>
-            <div className="max-w-0 group-hover:max-w-[140px] overflow-hidden transition-all duration-300 ease-in-out">
-              <div className="pr-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300 delay-100">
-                <span className="whitespace-nowrap font-medium text-sm">
-                  Shopping List
-                </span>
+          {/* Floating Action Buttons */}
+          <div className="fixed bottom-6 right-6 flex flex-col items-end space-y-3 z-40">
+            {/* Add Item Button */}
+            <button
+              onClick={() => inventoryHook.setIsAddingItem(true)}
+              className="bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg transition-all duration-300 hover:scale-105 flex items-center group overflow-hidden"
+              aria-label="Add Item"
+            >
+              <div className="p-4 flex items-center">
+                <Plus className="h-6 w-6 flex-shrink-0" />
               </div>
-            </div>
-          </button>
+              <div className="max-w-0 group-hover:max-w-[160px] overflow-hidden transition-all duration-500 ease-out">
+                <div className="pr-6 opacity-0 group-hover:opacity-100 transition-opacity duration-400 delay-150">
+                  <span className="whitespace-nowrap font-medium">Add Item</span>
+                </div>
+              </div>
+            </button>
+
+            {/* Shopping List Button */}
+            <button
+              onClick={() => setShowShoppingListModal(true)}
+              className={`${
+                shoppingListItems.length > 0
+                  ? "bg-green-600 hover:bg-green-700"
+                  : "bg-gray-500 hover:bg-gray-600"
+              } text-white rounded-full shadow-lg transition-all duration-300 hover:scale-105 flex items-center group overflow-hidden`}
+              aria-label="Shopping List"
+            >
+              <div className="p-4 flex items-center relative">
+                <ShoppingCart className="h-6 w-6 flex-shrink-0" />
+                {shoppingListItems.length > 0 && (
+                  <span className="absolute top-1 right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-medium">
+                    {shoppingListItems.length}
+                  </span>
+                )}
+              </div>
+              <div className="max-w-0 group-hover:max-w-[140px] overflow-hidden transition-all duration-300 ease-in-out">
+                <div className="pr-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300 delay-100">
+                  <span className="whitespace-nowrap font-medium text-sm">
+                    Shopping List
+                  </span>
+                </div>
+              </div>
+            </button>
+          </div>
+
+          {/* Modals */}
+          <ItemModal {...inventoryHook} />
+          <ManageItemsModal
+            isOpen={showManageModal}
+            onClose={handleModalClose}
+            inventoryHook={inventoryHook}
+          />
+          <ShoppingListModal
+            isOpen={showShoppingListModal}
+            onClose={() => setShowShoppingListModal(false)}
+            items={shoppingListItems}
+          />
         </div>
-
-        {/* Modals */}
-        <ItemModal {...inventoryHook} />
-        <ManageItemsModal
-          isOpen={showManageModal}
-          onClose={handleModalClose}
-          inventoryHook={inventoryHook}
-        />
-        <ShoppingListModal
-          isOpen={showShoppingListModal}
-          onClose={() => setShowShoppingListModal(false)}
-          items={shoppingListItems}
-        />
       </PageContainer>
     </ProtectedPageWrapper>
   );
