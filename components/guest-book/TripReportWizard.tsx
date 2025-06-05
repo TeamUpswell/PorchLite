@@ -22,7 +22,12 @@ interface FormData {
   photoCaptions: string[];
   recommendations: any[];
   issues: any[];
-  inventoryNotes: any[];
+  inventoryNotes: {
+    itemName: string;
+    noteType: string;
+    notes: string;
+    // Removed quantityUsed field
+  }[];
   everythingWasGreat?: boolean;
   everythingWellStocked?: boolean;
 }
@@ -138,13 +143,11 @@ export default function TripReportWizard({ property, onComplete }: TripReportWiz
           guest_name: formData.guestName,
           guest_email: formData.guestEmail,
           visit_date: formData.visitDate,
-          number_of_nights: formData.numberOfNights,
           rating: formData.rating,
           title: formData.title,
           message: formData.message,
-          photos: uploadedPhotoUrls,
-          photo_captions: formData.photoCaptions,
-          status: 'pending',
+          is_public: true, // Make visible
+          is_approved: true, // Auto-approve all entries for now
           everything_was_great: formData.everythingWasGreat || false,
           everything_well_stocked: formData.everythingWellStocked || false,
         })
@@ -266,7 +269,7 @@ export default function TripReportWizard({ property, onComplete }: TripReportWiz
               item_name: note.itemName,
               note_type: note.noteType,
               notes: note.notes,
-              quantity_used: note.quantityUsed,
+              // Removed quantity_used field
               guest_name: formData.guestName,
             });
 
@@ -297,7 +300,7 @@ export default function TripReportWizard({ property, onComplete }: TripReportWiz
       // Success!
       onComplete({
         success: true,
-        message: "Thank you for your wonderful review! Your entry has been submitted and will appear after owner approval.",
+        message: "Thank you for your wonderful review! Your entry has been published successfully.", // Updated message
         entryId: guestBookEntry.id,
       });
 

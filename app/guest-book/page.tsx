@@ -16,8 +16,19 @@ interface GuestBookEntry {
   rating: number;
   title: string;
   message: string;
-  guest_photos: { id: string; photo_url: string; caption: string }[];
-  guest_recommendations: { id: string; place_name: string; rating: number }[];
+  is_public: boolean;
+  is_approved: boolean;
+  everything_was_great: boolean;
+  everything_well_stocked: boolean;
+  created_at: string;
+  photos?: string[]; // Add photos array if stored in the entry
+  photo_captions?: string[]; // Add captions if stored
+  guest_book_photos?: { // Add if photos are in separate table
+    id: string;
+    photo_url: string;
+    caption: string;
+    order_index: number;
+  }[];
 }
 
 export default function GuestBookPage() {
@@ -28,6 +39,7 @@ export default function GuestBookPage() {
   useEffect(() => {
     if (currentProperty?.id) {
       fetchGuestBookEntries();
+      debugAllEntries(); // Add this line for debugging
     }
   }, [currentProperty?.id]);
 
@@ -35,25 +47,78 @@ export default function GuestBookPage() {
     try {
       setLoading(true);
       
+      // Try to include photos if they exist in a separate table
       const { data, error } = await supabase
         .from('guest_book_entries')
         .select(`
           *,
-          guest_photos (id, photo_url, caption),
-          guest_recommendations (id, place_name, rating)
+          guest_book_photos (
+            id,
+            photo_url,
+            caption,
+            order_index
+          )
         `)
         .eq('property_id', currentProperty.id)
-        .eq('is_approved', true)
-        .eq('is_public', true)
+        .eq('is_approved', true)  // Re-enable approval filter
+        .eq('is_public', true)    // Re-enable public filter
         .order('visit_date', { ascending: false })
         .limit(20);
 
-      if (error) throw error;
-      setEntries(data || []);
+      console.log('Query result:', data);
+      console.log('Query error:', error);
+
+      if (error) {
+        // If the guest_book_photos table doesn't exist, fall back to simple query
+        if (error.message.includes('guest_book_photos')) {
+          const { data: fallbackData, error: fallbackError } = await supabase
+            .from('guest_book_entries')
+            .select('*')
+            .eq('property_id', currentProperty.id)
+            .eq('is_approved', true)
+            .eq('is_public', true)
+            .order('visit_date', { ascending: false })
+            .limit(20);
+          
+          if (fallbackError) throw fallbackError;
+          setEntries(fallbackData || []);
+        } else {
+          throw error;
+        }
+      } else {
+        setEntries(data || []);
+      }
     } catch (error) {
       console.error('Error fetching guest book entries:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const debugAllEntries = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('guest_book_entries')
+        .select('*')
+        .eq('property_id', currentProperty.id)
+        .order('created_at', { ascending: false });
+
+      console.log('ALL entries for this property:', data);
+      console.log('Debug error:', error);
+      
+      // Debug each entry's approval status
+      data?.forEach((entry, index) => {
+        console.log(`Entry ${index + 1}:`, {
+          id: entry.id,
+          guest_name: entry.guest_name,
+          is_approved: entry.is_approved,
+          is_public: entry.is_public,
+          title: entry.title,
+          created_at: entry.created_at
+        });
+      });
+    } catch (error) {
+      console.error('Debug query failed:', error);
     }
   };
 
@@ -220,48 +285,74 @@ export default function GuestBookPage() {
               <div className="p-6">
                 {/* Header */}
                 <div className="flex items-start justify-between mb-4">
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900">
-                      {entry.title || `${entry.guest_name}'s Memory`}
+                  <div className="flex-1">
+                    <h3 className="text-xl font-bold text-gray-900 mb-2">
+                      {entry.title || `A wonderful stay`}
                     </h3>
-                    <div className="flex items-center space-x-4 text-sm text-gray-500 mt-1">
+                    <div className="flex items-center space-x-4 text-sm text-gray-500">
                       <span className="flex items-center">
                         <Calendar className="h-4 w-4 mr-1" />
-                        {new Date(entry.visit_date).toLocaleDateString()}
+                        {new Date(entry.visit_date).toLocaleDateString('en-US', {
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric'
+                        })}
                       </span>
-                      <span>shared by {entry.guest_name}</span>
+                      <span className="flex items-center">
+                        <Heart className="h-4 w-4 mr-1" />
+                        {entry.guest_name}
+                      </span>
                     </div>
                   </div>
-                  <div className="flex items-center">
+                  <div className="flex items-center bg-amber-50 px-3 py-2 rounded-lg">
                     {renderStars(entry.rating)}
+                    <span className="ml-2 text-sm font-medium text-gray-700">
+                      {entry.rating}/5
+                    </span>
                   </div>
                 </div>
 
-                {/* Message */}
-                {entry.message && (
-                  <p className="text-gray-700 mb-4 leading-relaxed">
-                    {entry.message}
-                  </p>
-                )}
-
                 {/* Photos */}
-                {entry.guest_photos && entry.guest_photos.length > 0 && (
-                  <div className="mb-4">
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                      {entry.guest_photos.slice(0, 4).map((photo, index) => (
-                        <div key={photo.id} className="relative aspect-square rounded-lg overflow-hidden">
-                          <Image
-                            src={photo.photo_url}
-                            alt={photo.caption || `Memory ${index + 1}`}
-                            fill
-                            className="object-cover hover:scale-105 transition-transform duration-200"
-                          />
-                          {entry.guest_photos.length > 4 && index === 3 && (
-                            <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-                              <span className="text-white font-medium">
-                                +{entry.guest_photos.length - 4} more
-                              </span>
-                            </div>
+                {((entry.guest_book_photos && entry.guest_book_photos.length > 0) || 
+                  (entry.photos && entry.photos.length > 0)) && (
+                  <div className="mb-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {/* Handle separate photos table */}
+                      {entry.guest_book_photos?.map((photo, index) => (
+                        <div key={photo.id} className="relative group">
+                          <div className="relative overflow-hidden rounded-lg bg-gray-100 aspect-video">
+                            <Image
+                              src={photo.photo_url}
+                              alt={photo.caption || `Photo ${index + 1}`}
+                              fill
+                              className="object-cover group-hover:scale-105 transition-transform duration-200"
+                            />
+                            <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-opacity duration-200" />
+                          </div>
+                          {photo.caption && (
+                            <p className="mt-2 text-sm text-gray-600 italic">
+                              {photo.caption}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                      
+                      {/* Handle photos array in main table */}
+                      {entry.photos?.map((photoUrl, index) => (
+                        <div key={index} className="relative group">
+                          <div className="relative overflow-hidden rounded-lg bg-gray-100 aspect-video">
+                            <Image
+                              src={photoUrl}
+                              alt={entry.photo_captions?.[index] || `Photo ${index + 1}`}
+                              fill
+                              className="object-cover group-hover:scale-105 transition-transform duration-200"
+                            />
+                            <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-opacity duration-200" />
+                          </div>
+                          {entry.photo_captions?.[index] && (
+                            <p className="mt-2 text-sm text-gray-600 italic">
+                              {entry.photo_captions[index]}
+                            </p>
                           )}
                         </div>
                       ))}
@@ -269,38 +360,74 @@ export default function GuestBookPage() {
                   </div>
                 )}
 
-                {/* Recommendations Preview */}
-                {entry.guest_recommendations && entry.guest_recommendations.length > 0 && (
-                  <div className="border-t pt-4">
-                    <div className="flex items-center text-sm text-gray-600 mb-2">
-                      <MapPin className="h-4 w-4 mr-1" />
-                      Discovered {entry.guest_recommendations.length} local gems
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {entry.guest_recommendations.slice(0, 3).map((rec) => (
-                        <span
-                          key={rec.id}
-                          className="bg-blue-50 text-blue-700 px-2 py-1 rounded text-xs"
-                        >
-                          {rec.place_name}
-                          {rec.rating && (
-                            <span className="ml-1">★{rec.rating}</span>
-                          )}
-                        </span>
-                      ))}
-                      {entry.guest_recommendations.length > 3 && (
-                        <span className="text-gray-500 text-xs">
-                          +{entry.guest_recommendations.length - 3} more discoveries
-                        </span>
-                      )}
+                {/* Message */}
+                {entry.message && (
+                  <div className="mb-6">
+                    <div className="bg-gray-50 rounded-lg p-4 border-l-4 border-blue-400">
+                      <p className="text-gray-800 leading-relaxed text-lg italic">
+                        "{entry.message}"
+                      </p>
                     </div>
                   </div>
                 )}
+
+                {/* Status indicators and metadata */}
+                <div className="flex flex-wrap items-center justify-between pt-4 border-t border-gray-100">
+                  <div className="flex flex-wrap gap-2">
+                    {entry.everything_was_great && (
+                      <span className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-green-100 text-green-800 font-medium">
+                        ✨ Everything was perfect
+                      </span>
+                    )}
+                    {entry.everything_well_stocked && (
+                      <span className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-800 font-medium">
+                        📦 Well stocked
+                      </span>
+                    )}
+                    
+                    {/* Show approval status for debugging (remove in production) */}
+                    {!entry.is_approved && (
+                      <span className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-yellow-100 text-yellow-800 font-medium">
+                        ⏳ Pending Approval
+                      </span>
+                    )}
+                    {!entry.is_public && (
+                      <span className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-red-100 text-red-800 font-medium">
+                        🔒 Private
+                      </span>
+                    )}
+                  </div>
+                  
+                  <div className="text-sm text-gray-500 mt-2 md:mt-0">
+                    Shared {new Date(entry.created_at).toLocaleDateString()}
+                  </div>
+                </div>
               </div>
             </StandardCard>
           ))}
         </div>
       )}
+      
+      {/* Add this to your globals.css or create a style tag */}
+      <style jsx>{`
+        @keyframes float {
+          0%, 100% { transform: translateY(0px); }
+          50% { transform: translateY(-10px); }
+        }
+        
+        @keyframes float-delayed {
+          0%, 100% { transform: translateY(0px); }
+          50% { transform: translateY(-15px); }
+        }
+        
+        .animate-float {
+          animation: float 3s ease-in-out infinite;
+        }
+        
+        .animate-float-delayed {
+          animation: float-delayed 3s ease-in-out infinite 1.5s;
+        }
+      `}</style>
     </StandardPageLayout>
   );
 }
