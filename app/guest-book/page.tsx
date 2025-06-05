@@ -235,11 +235,9 @@ export default function GuestBookPage() {
                     🌟 Be the First to Share Your Story 🌟
                   </h3>
                   <p className="text-lg text-gray-600 mb-6 leading-relaxed">
-                    This beautiful space is waiting for its first memory to be
-                    shared! The owners would love to hear about the moments that
-                    made your stay special. Was it the morning coffee ritual? A
-                    sunset view? A cozy evening? Your story becomes part of this
-                    home's cherished legacy.
+                    This lovely pace is waiting for its first memory to be
+                    shared! We would love to hear about the moments that
+                    made your stay special.
                   </p>
 
                   {/* Features preview */}
@@ -302,8 +300,7 @@ export default function GuestBookPage() {
                   {/* Inspiring quote */}
                   <div className="mt-8 p-4 bg-white/40 rounded-lg border-l-4 border-rose-400">
                     <p className="text-gray-600 italic text-center">
-                      "A house becomes a home through the memories made within
-                      its walls. Help us celebrate yours."
+                      "A house becomes a home through the memories made while staying here. Help us celebrate yours."
                     </p>
                   </div>
                 </div>
@@ -315,8 +312,8 @@ export default function GuestBookPage() {
               <StandardCard className="bg-gradient-to-r from-blue-50 to-purple-50 border-blue-200">
                 <div className="p-4 text-center">
                   <p className="text-gray-700 mb-3">
-                    <strong>📖 Add your chapter to this home's story!</strong>{" "}
-                    The owners love reading about the memories you've made here.
+                    <strong>📖 Add your chapter to our home's story!</strong>{" "}
+                    We love reading about the memories our guests make here.
                   </p>
                   <Link
                     href="/guest-book/new"

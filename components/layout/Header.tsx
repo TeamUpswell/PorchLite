@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useState, useRef, useEffect } from "react";
+import ViewToggle from "./ViewToggle";
 
 const accountSection = {
   category: "Account",
@@ -108,6 +109,8 @@ const pageInfo: Record<
   },
 };
 
+// Alternative version with name-based colors:
+
 function UserAvatar({
   user,
   className = "w-8 h-8",
@@ -117,35 +120,65 @@ function UserAvatar({
 }) {
   const [showFallback, setShowFallback] = useState(false);
 
-  // Get avatar URL from various possible sources
+  // ✅ Updated to check more avatar sources including profile table
   const avatarUrl =
+    user?.profile?.avatar_url || // ✅ Check profile table first
     user?.user_metadata?.avatar_url ||
     user?.user_metadata?.picture ||
     user?.user_metadata?.image ||
-    user?.avatar_url;
+    user?.user_metadata?.photo ||
+    user?.avatar_url ||
+    user?.picture ||
+    user?.image;
 
   const userName =
-    user?.user_metadata?.name || user?.email?.split("@")[0] || "User";
+    user?.user_metadata?.name ||
+    user?.user_metadata?.full_name ||
+    user?.email?.split("@")[0] ||
+    "User";
 
-  // If no avatar URL or we should show fallback, show initials or icon
+  // Generate consistent colors based on name
+  const getGradientFromName = (name: string) => {
+    const colors = [
+      "from-blue-500 to-purple-600",
+      "from-green-500 to-blue-600",
+      "from-purple-500 to-pink-600",
+      "from-orange-500 to-red-600",
+      "from-teal-500 to-cyan-600",
+      "from-indigo-500 to-purple-600",
+    ];
+
+    const hash = name.split("").reduce((a, b) => {
+      a = (a << 5) - a + b.charCodeAt(0);
+      return a & a;
+    }, 0);
+
+    return colors[Math.abs(hash) % colors.length];
+  };
+
+  // If no avatar URL or we should show fallback, show initials
   if (!avatarUrl || showFallback) {
+    const gradientClass = getGradientFromName(userName);
+
     return (
       <div
-        className={`${className} rounded-full bg-gray-700 flex items-center justify-center`}
+        className={`${className} rounded-full bg-gradient-to-br ${gradientClass} flex items-center justify-center shadow-lg ring-2 ring-white/20`}
       >
         {userName ? (
-          <span className="text-sm font-medium text-gray-300">
+          <span className="text-sm font-bold text-white drop-shadow-sm">
             {userName.charAt(0).toUpperCase()}
           </span>
         ) : (
-          <UserIcon className="h-4 w-4 text-gray-300" />
+          <UserIcon className="h-4 w-4 text-white drop-shadow-sm" />
         )}
       </div>
     );
   }
 
   return (
-    <div className={`${className} rounded-full overflow-hidden bg-gray-700`}>
+    <div
+      className={`${className} rounded-full overflow-hidden bg-gray-700 shadow-lg ring-2 ring-white/20`}
+    >
       <img
         src={avatarUrl}
         alt={userName}
@@ -210,20 +243,40 @@ export default function Header() {
   const IconComponent = currentPage.icon;
 
   return (
-    <header className="bg-gray-900 border-b border-gray-800 px-6 py-4">
+    <header
+      className={`
+      border-b px-6 py-4
+      ${isDarkMode ? "bg-gray-900 border-gray-700" : "bg-white border-gray-200"}
+    `}
+    >
       <div className="flex items-center justify-between">
         {/* Left side - Page title and icon */}
         <div className="flex items-center space-x-4">
           <div className="flex items-center space-x-3">
-            <div className="p-2 bg-gray-800 rounded-lg">
+            <div
+              className={`
+              p-2 rounded-lg
+              ${isDarkMode ? "bg-gray-800" : "bg-gray-800"}
+            `}
+            >
               <IconComponent className="h-6 w-6 text-amber-400" />
             </div>
             <div>
-              <h1 className="text-xl font-semibold text-white">
+              <h1
+                className={`
+                text-xl font-semibold
+                ${isDarkMode ? "text-white" : "text-gray-900"}
+              `}
+              >
                 {currentPage.title}
               </h1>
               {currentPage.description && (
-                <p className="text-sm text-gray-400">
+                <p
+                  className={`
+                  text-sm
+                  ${isDarkMode ? "text-gray-400" : "text-gray-600"}
+                `}
+                >
                   {currentPage.description}
                 </p>
               )}
@@ -232,69 +285,135 @@ export default function Header() {
         </div>
 
         {/* Right side - User menu */}
-        <div className="relative" ref={dropdownRef}>
-          <button
-            onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-            className="flex items-center space-x-3 p-2 rounded-lg transition-colors hover:bg-gray-800 text-gray-200"
-          >
-            {/* User Avatar - Now using the UserAvatar component */}
-            <UserAvatar user={user} />
+        <div className="flex items-center gap-4">
+          {/* ViewToggle component */}
+          <ViewToggle />
 
-            {/* User Info */}
-            <div className="hidden md:block text-left">
-              <p className="text-sm font-medium text-white">{userName}</p>
-              <p className="text-xs text-gray-400">{userRole}</p>
-            </div>
-
-            {/* Dropdown Arrow */}
-            <ChevronDown
-              className={`h-4 w-4 transition-transform ${
-                isDropdownOpen ? "rotate-180" : ""
-              } text-gray-400`}
-            />
-          </button>
-
-          {/* Dropdown Menu */}
-          {isDropdownOpen && (
-            <div className="absolute right-0 top-full mt-2 w-48 bg-gray-800 rounded-lg shadow-lg border border-gray-700 py-2 z-50">
-              {accountSection.items.map((item) => {
-                if (item.requiredRole && !hasPermission(item.requiredRole)) {
-                  return null;
+          <div className="relative" ref={dropdownRef}>
+            <button
+              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+              className={`
+                flex items-center space-x-3 p-2 rounded-lg transition-colors
+                ${
+                  isDarkMode
+                    ? "hover:bg-gray-800 text-gray-200"
+                    : "hover:bg-gray-100 text-gray-700"
                 }
+              `}
+            >
+              {/* User Avatar */}
+              <UserAvatar user={user} />
 
-                const IconComponent = item.icon;
+              {/* User Info */}
+              <div className="hidden md:block text-left">
+                <p
+                  className={`
+                  text-sm font-medium
+                  ${isDarkMode ? "text-white" : "text-gray-900"}
+                `}
+                >
+                  {userName}
+                </p>
+                <p
+                  className={`
+                  text-xs
+                  ${isDarkMode ? "text-gray-400" : "text-gray-600"}
+                `}
+                >
+                  {userRole}
+                </p>
+              </div>
 
-                return (
-                  <Link
-                    key={item.name}
-                    href={item.href}
-                    onClick={() => setIsDropdownOpen(false)}
-                    className="flex items-center px-4 py-2 text-sm transition-colors text-gray-200 hover:bg-gray-700"
-                  >
-                    <IconComponent className="mr-3 h-4 w-4 text-gray-400" />
-                    {item.name}
-                  </Link>
-                );
-              })}
+              {/* Dropdown Arrow */}
+              <ChevronDown
+                className={`
+                  h-4 w-4 transition-transform
+                  ${isDropdownOpen ? "rotate-180" : ""}
+                  ${isDarkMode ? "text-gray-400" : "text-gray-500"}
+                `}
+              />
+            </button>
 
-              <hr className="my-2 border-gray-700" />
-
-              <button
-                onClick={async () => {
-                  try {
-                    await signOut();
-                    setIsDropdownOpen(false);
-                  } catch (error) {
-                    console.error("Error signing out:", error);
-                  }
-                }}
-                className="w-full flex items-center px-4 py-2 text-sm transition-colors text-gray-200 hover:bg-gray-700"
+            {/* Dropdown Menu */}
+            {isDropdownOpen && (
+              <div
+                className={`
+                absolute right-0 top-full mt-2 w-48 rounded-lg shadow-lg py-2 z-50
+                ${
+                  isDarkMode
+                    ? "bg-gray-800 border border-gray-700"
+                    : "bg-white border border-gray-200"
+                }
+              `}
               >
-                <LogOut className="mr-3 h-4 w-4 text-gray-400" />
-                Sign Out
-              </button>
-            </div>
-          )}
+                {accountSection.items.map((item) => {
+                  if (item.requiredRole && !hasPermission(item.requiredRole)) {
+                    return null;
+                  }
+
+                  const IconComponent = item.icon;
+
+                  return (
+                    <Link
+                      key={item.name}
+                      href={item.href}
+                      onClick={() => setIsDropdownOpen(false)}
+                      className={`
+                        flex items-center px-4 py-2 text-sm transition-colors
+                        ${
+                          isDarkMode
+                            ? "text-gray-200 hover:bg-gray-700"
+                            : "text-gray-700 hover:bg-gray-100"
+                        }
+                      `}
+                    >
+                      <IconComponent
+                        className={`
+                        mr-3 h-4 w-4
+                        ${isDarkMode ? "text-gray-400" : "text-gray-500"}
+                      `}
+                      />
+                      {item.name}
+                    </Link>
+                  );
+                })}
+
+                <hr
+                  className={`
+                  my-2
+                  ${isDarkMode ? "border-gray-700" : "border-gray-200"}
+                `}
+                />
+
+                <button
+                  onClick={async () => {
+                    try {
+                      await signOut();
+                      setIsDropdownOpen(false);
+                    } catch (error) {
+                      console.error("Error signing out:", error);
+                    }
+                  }}
+                  className={`
+                    w-full flex items-center px-4 py-2 text-sm transition-colors
+                    ${
+                      isDarkMode
+                        ? "text-gray-200 hover:bg-gray-700"
+                        : "text-gray-700 hover:bg-gray-100"
+                    }
+                  `}
+                >
+                  <LogOut
+                    className={`
+                    mr-3 h-4 w-4
+                    ${isDarkMode ? "text-gray-400" : "text-gray-500"}
+                  `}
+                  />
+                  Sign Out
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </header>

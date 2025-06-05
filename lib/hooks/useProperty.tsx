@@ -25,6 +25,7 @@ interface PropertyContextType {
   switchProperty: (propertyId: string) => Promise<void>;
   updateProperty: (propertyId: string, updates: any) => Promise<{ error: any }>;
   refreshProperty: () => Promise<void>;
+  updateCurrentProperty: (propertyId: string, updates: Partial<any>) => Promise<void>; // ✅ Add this
 }
 
 const PropertyContext = createContext<PropertyContextType | undefined>(
@@ -211,6 +212,16 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
     }
   }, [currentTenant?.id]);
 
+  // Add method to update current property without refetching all
+  const updateCurrentProperty = async (propertyId: string, updates: Partial<any>) => {
+    setCurrentProperty(prev => prev ? { ...prev, ...updates } : null);
+    
+    // Update in userProperties array too
+    setUserProperties(prev => prev.map(prop => 
+      prop.id === propertyId ? { ...prop, ...updates } : prop
+    ));
+  };
+
   const value = {
     currentProperty,
     currentTenant,
@@ -223,6 +234,7 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
     switchProperty,
     updateProperty,
     refreshProperty,
+    updateCurrentProperty, // ✅ Add this
   };
 
   return (

@@ -1,13 +1,17 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Link from "next/link";
-import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/components/auth";
-import { useRouter } from "next/navigation";
 import { useProperty } from "@/lib/hooks/useProperty";
+import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase";
+import { toast } from "react-hot-toast";
+import Link from "next/link";
+import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import ProtectedPageWrapper from "@/components/layout/ProtectedPageWrapper";
 import PageContainer from "@/components/layout/PageContainer";
+import DashboardLayout from "@/components/dashboard/DashboardLayout";
+import { v4 as uuidv4 } from "uuid";
 import "@/styles/dashboard.css";
 import {
   Calendar,
@@ -35,16 +39,10 @@ import {
   Pencil,
   X,
   Camera,
-  ChevronRight, // ✅ Add this missing import
+  Upload, // ✅ Add this missing import
+  ChevronRight,
 } from "lucide-react";
-import { v4 as uuidv4 } from "uuid";
-import { toast } from "react-hot-toast";
-import ResponsiveImage from "@/components/ResponsiveImage";
-import { convertToWebP, supportsWebP } from "@/lib/imageUtils";
-import PropertyDebug from "@/components/PropertyDebug";
-import ProtectedRoute from "@/components/auth/ProtectedRoute";
-import AuthenticatedLayout from "@/components/auth/AuthenticatedLayout";
-import DashboardLayout from "@/components/dashboard/DashboardLayout";
+import PhotoUpload from "@/components/ui/PhotoUpload";
 
 // Define interfaces for our new dashboard data
 interface Issue {
@@ -102,6 +100,7 @@ export default function HomePage() {
   const { user, loading } = useAuth();
   const router = useRouter();
   const { currentProperty, properties, switchProperty } = useProperty();
+  const { updateCurrentProperty } = useProperty();
 
   // State for dashboard content
   const [upcomingVisits, setUpcomingVisits] = useState<UpcomingVisit[]>([]);
@@ -121,6 +120,9 @@ export default function HomePage() {
     }>
   >([]);
   const [bannersLoaded, setBannersLoaded] = useState(false);
+
+  // ✅ NEW: Add the missing banner photos state
+  const [bannerPhotos, setBannerPhotos] = useState<string[]>([]);
 
   // ✅ SEPARATE LOADING STATES for each fetch operation
   const [isVisitsFetching, setIsVisitsFetching] = useState(false);
@@ -169,167 +171,104 @@ export default function HomePage() {
     }
   }, [user, router]);
 
-  // Fetch upcoming visits/reservations - with proper guard
+  // ✅ NEW: Add useEffect to sync bannerPhotos with current property
   useEffect(() => {
-    async function fetchUpcomingVisits() {
-      if (!currentProperty?.id || isVisitsFetching) return;
+    setBannerPhotos(
+      currentProperty?.header_image_url
+        ? [currentProperty.header_image_url]
+        : []
+    );
+  }, [currentProperty?.header_image_url]);
 
-      setIsVisitsFetching(true);
+  // Replace all separate useEffects with ONE master useEffect
+  useEffect(() => {
+    if (!currentProperty?.id) return;
+
+    // Set all loading states
+    setIsVisitsFetching(true);
+    setIsInventoryFetching(true);
+    setIsTasksFetching(true);
+
+    // Fetch all data concurrently
+    const fetchAllDashboardData = async () => {
       try {
-        const today = new Date().toISOString();
-        const nextMonth = new Date();
-        nextMonth.setMonth(nextMonth.getMonth() + 1);
-        const nextMonthStr = nextMonth.toISOString();
-
-        console.log(
-          "🔍 Fetching reservations for property:",
-          currentProperty.id
-        );
-
-        const { data: visits, error } = await supabase
-          .from("reservations")
-          .select(
-            `
-            id,
-            title,
-            description,
-            start_date,
-            end_date,
-            guests,
-            companion_count,
-            status,
-            user_id,
-            created_at,
-            reservation_companions (
-              name,
-              email,
-              phone,
-              relationship
-            )
+        const [visitsData, inventoryData, tasksData] = await Promise.all([
+          // Visits
+          supabase
+            .from("reservations")
+            .select(
+              `
+            id, title, description, start_date, end_date, guests, 
+            companion_count, status, user_id, created_at,
+            reservation_companions (name, email, phone, relationship)
           `
-          )
-          .eq("property_id", currentProperty.id)
-          .gte("start_date", today)
-          .lte("start_date", nextMonthStr)
-          .order("start_date", { ascending: true })
-          .limit(10);
+            )
+            .eq("property_id", currentProperty.id)
+            .gte("start_date", new Date().toISOString())
+            .order("start_date", { ascending: true })
+            .limit(10),
 
-        if (error) {
-          console.error("Error fetching reservations:", error);
-          setUpcomingVisits([]);
-          return;
+          // Inventory
+          supabase
+            .from("inventory")
+            .select("*")
+            .eq("property_id", currentProperty.id)
+            .eq("is_active", true)
+            .order("category", { ascending: true }),
+
+          // Tasks
+          supabase
+            .from("tasks")
+            .select("*")
+            .eq("property_id", currentProperty.id)
+            .in("status", ["pending", "in_progress"])
+            .order("priority", { ascending: false }),
+        ]);
+
+        // Process all data at once
+        if (visitsData.data) {
+          const formattedVisits = visitsData.data.map((v) => ({
+            id: v.id,
+            title:
+              v.title ||
+              `Reservation - ${new Date(v.start_date).toLocaleDateString()}`,
+            guest_name:
+              v.reservation_companions?.[0]?.name || v.title || "Guest",
+            start_date: v.start_date,
+            end_date: v.end_date,
+            guests: (v.guests || 0) + (v.companion_count || 0) || 1,
+            status: v.status || "pending",
+            contact_email: v.reservation_companions?.[0]?.email || "",
+            contact_phone: v.reservation_companions?.[0]?.phone || "",
+            notes: v.description || "",
+            type: "reservation",
+          }));
+          setUpcomingVisits(formattedVisits);
         }
 
-        const formattedVisits =
-          visits?.map((v) => {
-            const primaryCompanion = v.reservation_companions?.[0];
-            const totalGuests = (v.guests || 0) + (v.companion_count || 0);
+        if (inventoryData.data) {
+          setTotalInventoryCount(inventoryData.data.length);
+          const alerts = inventoryData.data.filter(
+            (item) => item.status === "low" || item.status === "out"
+          );
+          setInventoryAlerts(alerts);
+        }
 
-            return {
-              id: v.id,
-              title:
-                v.title ||
-                `Reservation - ${new Date(v.start_date).toLocaleDateString()}`,
-              guest_name: primaryCompanion?.name || v.title || "Guest",
-              start_date: v.start_date,
-              end_date: v.end_date,
-              guests: totalGuests || 1,
-              status: v.status || "pending",
-              contact_email: primaryCompanion?.email || "",
-              contact_phone: primaryCompanion?.phone || "",
-              notes: v.description || "",
-              type: "reservation",
-            };
-          }) || [];
-
-        setUpcomingVisits(formattedVisits);
+        if (tasksData.data) {
+          setTaskAlerts(tasksData.data);
+        }
       } catch (error) {
-        console.error("Error fetching upcoming visits:", error);
-        setUpcomingVisits([]);
+        console.error("Error fetching dashboard data:", error);
       } finally {
+        // Clear all loading states together
         setIsVisitsFetching(false);
-      }
-    }
-
-    fetchUpcomingVisits();
-  }, [currentProperty?.id]); // Only depend on property ID
-
-  // Fetch inventory alerts - ADD PROPER DEPENDENCIES
-  useEffect(() => {
-    const fetchInventoryAlerts = async () => {
-      if (!currentProperty?.id || isInventoryFetching) return;
-
-      setIsInventoryFetching(true);
-      try {
-        console.log(
-          "🔍 Fetching inventory alerts for property:",
-          currentProperty.id
-        );
-
-        const { data, error } = await supabase
-          .from("inventory")
-          .select("*")
-          .eq("property_id", currentProperty.id)
-          .eq("is_active", true)
-          .order("category", { ascending: true });
-
-        if (error) {
-          console.error("Error fetching inventory:", error);
-          return;
-        }
-
-        setTotalInventoryCount(data?.length || 0);
-
-        const alerts =
-          data?.filter((item) => {
-            return item.status === "low" || item.status === "out";
-          }) || [];
-
-        setInventoryAlerts(alerts);
-      } catch (error) {
-        console.error("Error fetching inventory:", error);
-      } finally {
         setIsInventoryFetching(false);
+        setIsTasksFetching(false);
       }
     };
 
-    fetchInventoryAlerts();
-  }, [currentProperty?.id]); // Only depend on property ID
-
-  // Fetch task alerts (replace the maintenance alerts useEffect)
-  useEffect(() => {
-    async function fetchTaskAlerts() {
-      if (!currentProperty?.id || isTasksFetching) return; // ✅ Use isTasksFetching
-
-      setIsTasksFetching(true); // ✅ Use isTasksFetching
-      try {
-        console.log("🔍 Fetching tasks for property:", currentProperty.id);
-
-        const { data: tasks, error } = await supabase
-          .from("tasks")
-          .select("*")
-          .eq("property_id", currentProperty.id)
-          .in("status", ["pending", "in_progress"])
-          .order("priority", { ascending: false })
-          .order("due_date", { ascending: true });
-
-        if (error) {
-          console.error("Error fetching tasks:", error);
-          throw error;
-        }
-
-        console.log("✅ Loaded tasks:", tasks);
-        setTaskAlerts(tasks || []);
-      } catch (error) {
-        console.error("Error fetching task alerts:", error);
-        setTaskAlerts([]);
-      } finally {
-        setIsTasksFetching(false); // ✅ Use isTasksFetching
-      }
-    }
-
-    fetchTaskAlerts();
-  }, [currentProperty?.id]); // ✅ Only depend on property ID
+    fetchAllDashboardData();
+  }, [currentProperty?.id]); // Single dependency
 
   // Fetch weather data
   useEffect(() => {
@@ -434,24 +373,13 @@ export default function HomePage() {
     setUploadProgress(0);
 
     try {
-      let fileToUpload = file;
-      let fileExt = file.name.split(".").pop()?.toLowerCase() || "jpg";
-
-      const webpSupported = await supportsWebP();
-      if (webpSupported) {
-        const optimizedBlob = await convertToWebP(file, 1920, 0.85);
-        fileToUpload = new File([optimizedBlob], `property.webp`, {
-          type: "image/webp",
-        });
-        fileExt = "webp";
-      }
-
+      const fileExt = file.name.split(".").pop()?.toLowerCase() || "jpg";
       const fileName = `property-${uuidv4()}.${fileExt}`;
       const filePath = `${fileName}`;
 
       const { error: uploadError } = await supabase.storage
         .from("properties")
-        .upload(filePath, fileToUpload, {
+        .upload(filePath, file, {
           cacheControl: "31536000",
           upsert: true,
         });
@@ -464,15 +392,13 @@ export default function HomePage() {
         .from("properties")
         .getPublicUrl(filePath);
 
-      const { error: updateError } = await supabase
-        .from("properties")
-        .update({ main_photo_url: publicUrlData.publicUrl })
-        .eq("id", currentProperty.id);
+      const publicUrl = publicUrlData.publicUrl;
 
-      if (updateError) throw updateError;
+      await updateCurrentProperty(currentProperty.id, {
+        image_url: publicUrl,
+      });
 
       toast.success("Property image updated successfully!");
-      window.location.reload();
     } catch (error) {
       console.error("Error uploading image:", error);
       toast.error("Failed to upload image. Please try again.");
@@ -503,24 +429,13 @@ export default function HomePage() {
     setUploadProgress(0);
 
     try {
-      let fileToUpload = file;
-      let fileExt = file.name.split(".").pop()?.toLowerCase() || "jpg";
-
-      const webpSupported = await supportsWebP();
-      if (webpSupported) {
-        const optimizedBlob = await convertToWebP(file, 1920, 0.85);
-        fileToUpload = new File([optimizedBlob], `banner.webp`, {
-          type: "image/webp",
-        });
-        fileExt = "webp";
-      }
-
+      const fileExt = file.name.split(".").pop()?.toLowerCase() || "jpg";
       const fileName = `banner-${uuidv4()}.${fileExt}`;
       const filePath = `${fileName}`;
 
       const { error: uploadError } = await supabase.storage
         .from("properties")
-        .upload(filePath, fileToUpload, {
+        .upload(filePath, file, {
           cacheControl: "31536000",
           upsert: true,
         });
@@ -533,19 +448,16 @@ export default function HomePage() {
         .from("properties")
         .getPublicUrl(filePath);
 
-      // ✅ FIX: Use header_image_url instead of banner_image
-      const { error: updateError } = await supabase
-        .from("properties")
-        .update({ header_image_url: publicUrlData.publicUrl })
-        .eq("id", currentProperty.id);
+      const publicUrl = publicUrlData.publicUrl;
 
-      if (updateError) throw updateError;
+      await updateCurrentProperty(currentProperty.id, {
+        header_image_url: publicUrl,
+      });
 
       toast.success("Banner image updated successfully!");
-      window.location.reload();
     } catch (error) {
-      console.error("Error uploading banner image:", error);
-      toast.error("Failed to upload banner image. Please try again.");
+      console.error("Error uploading banner:", error);
+      toast.error("Failed to upload banner. Please try again.");
     } finally {
       setIsUploading(false);
     }
@@ -556,19 +468,65 @@ export default function HomePage() {
     if (!currentProperty) return;
 
     try {
-      // ✅ FIX: Use header_image_url instead of banner_image
-      const { error } = await supabase
-        .from("properties")
-        .update({ header_image_url: null })
-        .eq("id", currentProperty.id);
-
-      if (error) throw error;
+      // ✅ Use updateCurrentProperty instead of direct supabase call and page reload
+      await updateCurrentProperty(currentProperty.id, {
+        header_image_url: null,
+      });
 
       toast.success("Banner image removed successfully!");
-      window.location.reload();
+      // ✅ Remove window.location.reload() - the updateCurrentProperty will handle the state update
     } catch (error) {
       console.error("Error removing banner image:", error);
       toast.error("Failed to remove banner image. Please try again.");
+    }
+  };
+
+  // ✅ NEW: Handle banner photo changes from PhotoUpload component
+  const handleBannerPhotosChange = async (photos: string[]) => {
+    setBannerPhotos(photos);
+
+    if (photos.length > 0 && currentProperty) {
+      try {
+        // Update the property with the new banner image
+        await updateCurrentProperty(currentProperty.id, {
+          header_image_url: photos[0], // Use the first (and only) photo
+        });
+
+        toast.success("Banner updated successfully!");
+        setShowBannerModal(false);
+      } catch (error) {
+        console.error("Error updating banner:", error);
+        toast.error("Failed to update banner");
+      }
+    } else if (photos.length === 0 && currentProperty) {
+      // Handle removal when photos array is empty
+      try {
+        await updateCurrentProperty(currentProperty.id, {
+          header_image_url: null,
+        });
+
+        toast.success("Banner removed successfully!");
+      } catch (error) {
+        console.error("Error removing banner:", error);
+        toast.error("Failed to remove banner");
+      }
+    }
+  };
+
+  // ✅ NEW: Handle removing current banner
+  const handleRemoveCurrentBanner = async () => {
+    if (!currentProperty) return;
+
+    try {
+      await updateCurrentProperty(currentProperty.id, {
+        header_image_url: null,
+      });
+
+      setBannerPhotos([]);
+      toast.success("Banner removed successfully!");
+    } catch (error) {
+      console.error("Error removing banner:", error);
+      toast.error("Failed to remove banner");
     }
   };
 
@@ -577,17 +535,13 @@ export default function HomePage() {
     if (!currentProperty) return;
 
     try {
-      // ✅ FIX: Use header_image_url instead of banner_image
-      const { error } = await supabase
-        .from("properties")
-        .update({ header_image_url: imageUrl })
-        .eq("id", currentProperty.id);
+      await updateCurrentProperty(currentProperty.id, {
+        header_image_url: imageUrl,
+      });
 
-      if (error) throw error;
-
+      setBannerPhotos([imageUrl]);
       toast.success("Banner updated successfully!");
       setShowBannerModal(false);
-      window.location.reload();
     } catch (error) {
       console.error("Error updating banner:", error);
       toast.error("Failed to update banner");
@@ -758,6 +712,11 @@ export default function HomePage() {
     );
   };
 
+  // Add skeleton components for smooth loading
+  const LoadingSkeleton = ({ className }: { className?: string }) => (
+    <div className={`animate-pulse bg-gray-200 rounded ${className}`}></div>
+  );
+
   // NOW PUT THE EARLY RETURNS AT THE END - AFTER ALL HOOKS
   if (loading || !user) {
     return (
@@ -797,7 +756,97 @@ export default function HomePage() {
   return (
     <ProtectedRoute>
       <ProtectedPageWrapper>
-        <PageContainer className="max-w-none"> {/* Add max-w-none to allow full width */}
+        <PageContainer className="max-w-none">
+          {/* Banner Section with Weather Widget EMBEDDED ON the image */}
+          <div className="relative h-64 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg overflow-hidden mb-8">
+            {/* Property Image as Background Layer (z-0) */}
+            {currentProperty?.header_image_url && (
+              <div
+                className="absolute inset-0 bg-cover bg-center z-0"
+                style={{
+                  backgroundImage: `url(${currentProperty.header_image_url})`,
+                }}
+              />
+            )}
+
+            {/* Dark overlay for text readability (z-10) */}
+            <div className="absolute inset-0 bg-black bg-opacity-60 z-10" />
+
+            {/* Content Overlaid on Property Image (z-20) */}
+            <div className="relative h-full flex items-center justify-between p-8 z-20">
+              {/* Left side - Property name & address */}
+              <div className="text-white">
+                <div className="bg-black/40 backdrop-blur-sm rounded-lg p-4 inline-block">
+                  <h1 className="text-5xl font-bold mb-2 text-white drop-shadow-lg text-shadow-lg">
+                    {currentProperty?.name || "Property Dashboard"}
+                  </h1>
+                  <p className="text-blue-100 text-xl drop-shadow-md text-shadow-md">
+                    {currentProperty?.address ||
+                      "Manage your property efficiently"}
+                  </p>
+                </div>
+              </div>
+
+              {/* Right side - Weather Widget */}
+              <div className="text-white">
+                {weather && (
+                  <div className="bg-black/40 backdrop-blur-md rounded-xl p-6 min-w-[220px] shadow-2xl border border-white/10">
+                    <div className="text-center">
+                      <div className="text-4xl font-bold mb-2 drop-shadow-lg text-shadow-lg">
+                        {weather.current.temp}°F
+                      </div>
+                      <div className="text-base opacity-90 mb-3 capitalize drop-shadow-md text-shadow-sm">
+                        {weather.current.condition}
+                      </div>
+                      <div className="flex justify-between text-sm opacity-80">
+                        <span className="flex items-center">
+                          <Droplets className="h-4 w-4 mr-1" />
+                          {weather.current.humidity}%
+                        </span>
+                        <span className="flex items-center">
+                          <Wind className="h-4 w-4 mr-1" />
+                          {weather.current.wind_speed}mph
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Camera icon for banner management (z-30) */}
+            <div className="absolute top-4 right-4 z-30">
+              <button
+                onClick={() => setShowBannerModal(true)}
+                className="bg-black/40 hover:bg-black/60 backdrop-blur-md text-white p-3 rounded-full transition-all duration-200 border border-white/20 hover:border-white/40 group"
+                title="Change banner image"
+              >
+                <Camera className="h-5 w-5 group-hover:scale-110 transition-transform" />
+              </button>
+            </div>
+
+            {/* Loading overlay when uploading (z-40) */}
+            {isUploading && (
+              <div className="absolute inset-0 bg-black/70 flex items-center justify-center z-40">
+                <div className="bg-white/95 rounded-xl p-6 text-center shadow-2xl">
+                  <div className="text-sm text-gray-700 mb-3">
+                    Uploading banner...
+                  </div>
+                  <div className="w-40 bg-gray-200 rounded-full h-3">
+                    <div
+                      className="bg-blue-600 h-3 rounded-full transition-all duration-300"
+                      style={{ width: `${uploadProgress}%` }}
+                    ></div>
+                  </div>
+                  <div className="text-xs text-gray-500 mt-2">
+                    {uploadProgress}%
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Dashboard Layout - BELOW the banner */}
           <DashboardLayout
             stats={{
               upcomingVisits,
@@ -805,9 +854,159 @@ export default function HomePage() {
               maintenanceAlerts: taskAlerts,
               totalInventoryCount,
             }}
+            loading={{
+              visits: isVisitsFetching,
+              inventory: isInventoryFetching,
+              tasks: isTasksFetching,
+            }}
             onAddReservation={() => setShowAddReservationModal(true)}
             enabledComponents={["stats", "visits", "inventory", "tasks"]}
+            showBanner={false}
           />
+
+          {/* Banner Selection Modal */}
+          {showBannerModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div className="bg-white rounded-lg p-6 max-w-4xl w-full mx-4 max-h-[80vh] overflow-y-auto">
+                <div className="flex justify-between items-center mb-6">
+                  <h3 className="text-lg font-semibold">Choose Banner Image</h3>
+                  <button
+                    onClick={() => setShowBannerModal(false)}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <X className="h-6 w-6" />
+                  </button>
+                </div>
+
+                {/* PhotoUpload Component for Custom Images */}
+                <div className="mb-8">
+                  <PhotoUpload
+                    photos={bannerPhotos}
+                    onPhotosChange={handleBannerPhotosChange}
+                    storageBucket="properties"
+                    maxPhotos={1}
+                    maxSizeMB={5}
+                    allowPreview={true}
+                    gridCols="2"
+                    label="Custom Banner Image"
+                    required={false}
+                  />
+                </div>
+
+                {/* Current Banner Preview */}
+                {currentProperty?.header_image_url && (
+                  <div className="mb-8 p-4 bg-gray-50 rounded-lg">
+                    <h4 className="font-medium mb-4 text-gray-900">
+                      Current Banner
+                    </h4>
+                    <div className="relative">
+                      <img
+                        src={currentProperty.header_image_url}
+                        alt="Current banner"
+                        className="w-full h-40 object-cover rounded-lg"
+                      />
+                      <button
+                        onClick={handleRemoveCurrentBanner}
+                        className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-2 hover:bg-red-600 transition-colors shadow-lg"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Predefined Images */}
+                <div className="mb-8">
+                  <h4 className="font-medium mb-4">Preset Images</h4>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {predefinedImages.map((image) => (
+                      <div
+                        key={image.id}
+                        className="cursor-pointer group"
+                        onClick={() => handlePredefinedBannerSelect(image.url)}
+                      >
+                        <div className="relative overflow-hidden rounded-lg bg-gray-100 aspect-video">
+                          <img
+                            src={image.thumbnail}
+                            alt={image.name}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                          />
+                          <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-opacity" />
+                          <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button className="bg-blue-500 text-white rounded-lg px-3 py-1 text-sm font-medium">
+                              Select
+                            </button>
+                          </div>
+                        </div>
+                        <p className="text-sm text-center mt-2">{image.name}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* User Uploaded Images */}
+                {userUploadedBanners.length > 0 && (
+                  <div>
+                    <h4 className="font-medium mb-4">Your Uploaded Images</h4>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      {userUploadedBanners.map((banner) => (
+                        <div
+                          key={banner.id}
+                          className="cursor-pointer group"
+                          onClick={() =>
+                            handlePredefinedBannerSelect(banner.url)
+                          }
+                        >
+                          <div className="relative overflow-hidden rounded-lg bg-gray-100 aspect-video">
+                            <img
+                              src={banner.url}
+                              alt={banner.name}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                            />
+                            <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-opacity" />
+                            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button className="bg-blue-500 text-white rounded-lg px-3 py-1 text-sm font-medium">
+                                Select
+                              </button>
+                            </div>
+                          </div>
+                          <p className="text-sm text-center mt-2">
+                            {banner.name}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Add Reservation Modal */}
+          {showAddReservationModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-semibold">Add Reservation</h3>
+                  <button
+                    onClick={() => setShowAddReservationModal(false)}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <X className="h-6 w-6" />
+                  </button>
+                </div>
+                <p className="text-gray-600 mb-4">
+                  Reservation functionality coming soon!
+                </p>
+                <button
+                  onClick={() => setShowAddReservationModal(false)}
+                  className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          )}
         </PageContainer>
       </ProtectedPageWrapper>
     </ProtectedRoute>

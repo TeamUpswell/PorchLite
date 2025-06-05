@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Camera, X, Upload, User } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/components/auth";
@@ -20,6 +20,11 @@ export default function AvatarUpload({
   const [avatar, setAvatar] = useState<string>(currentAvatar || "");
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // ✅ Add this useEffect to sync with currentAvatar changes
+  useEffect(() => {
+    setAvatar(currentAvatar || "");
+  }, [currentAvatar]);
 
   const compressImage = (
     file: File,
