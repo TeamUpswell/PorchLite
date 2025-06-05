@@ -5,8 +5,8 @@ import { useState } from "react";
 import ProtectedPageWrapper from "@/components/layout/ProtectedPageWrapper";
 import PageContainer from "@/components/layout/PageContainer";
 import StandardCard from "@/components/ui/StandardCard";
-import Button from "@/components/ui/button";
-import { Calendar } from "./components/Calendar"; // ✅ Import the actual React Big Calendar
+import Button from "@/components/ui/Button"; // ✅ Fix the import path - use the actual file name
+import { Calendar } from "./components/Calendar";
 
 const ViewModeIndicator = ({ mode }: { mode: string }) => {
   const modeInfo = {
