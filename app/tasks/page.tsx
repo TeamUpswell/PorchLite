@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useAuth } from "@/components/auth";
 import { useProperty } from "@/lib/hooks/useProperty";
 import { supabase } from "@/lib/supabase";
@@ -17,6 +17,7 @@ import { PlusIcon, CheckSquareIcon } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { CreatePattern } from "@/components/ui/FloatingActionPresets";
 import { useViewMode } from "@/lib/hooks/useViewMode";
+import { debugLog, debugError } from "@/lib/utils/debug";
 
 // Task type definition
 type Task = {
@@ -88,6 +89,9 @@ const TASK_STATUSES = [
   { value: "completed", label: "Completed", color: "green" },
 ];
 
+// ✅ ADD THIS RIGHT AFTER IMPORTS
+const isDev = process.env.NODE_ENV === "development";
+
 export default function TasksPage() {
   const { user } = useAuth();
   const { currentProperty } = useProperty();
@@ -115,6 +119,11 @@ export default function TasksPage() {
   // Add state for cleaning issues
   const [cleaningIssues, setCleaningIssues] = useState([]);
 
+  // Add this state variable with your other useState declarations:
+  const [initialTaskData, setInitialTaskData] = useState<Partial<Task> | null>(
+    null
+  );
+
   // Memoize property and user IDs to prevent unnecessary re-renders
   const propertyId = useMemo(() => currentProperty?.id, [currentProperty?.id]);
   const userId = useMemo(() => user?.id, [user?.id]);
@@ -131,7 +140,7 @@ export default function TasksPage() {
     }
 
     try {
-      console.log("🔍 Loading users for tenant:", tenantId);
+      debugLog("🔍 Loading users for tenant:", tenantId);
 
       const { data: tenantUsers, error: tenantError } = await supabase
         .from("tenant_users")
@@ -178,22 +187,15 @@ export default function TasksPage() {
 
   // Load tasks
   const loadTasks = useCallback(async () => {
-    if (!userId || !currentProperty?.id) {
-      console.log("🔍 Tasks: Missing userId or property", {
-        userId,
-        propertyId: currentProperty?.id,
-        propertyName: currentProperty?.name,
-      });
-      setTasks([]);
-      setLoading(false);
-      return;
-    }
+    if (!userId || !currentProperty?.id) return;
 
     setLoading(true);
-    console.log("🔍 Loading tasks for property:", {
+    
+    debugLog("🔍 Loading tasks:", {
+      userId,
       propertyId: currentProperty.id,
       propertyName: currentProperty.name,
-      filter,
+      filter
     });
 
     try {
@@ -233,7 +235,7 @@ export default function TasksPage() {
         throw error;
       }
 
-      console.log("✅ Found tasks:", data?.length || 0);
+      debugLog("✅ Loaded tasks successfully:", data?.length || 0);
 
       if (data) {
         // ✅ Get unique user IDs from tasks
@@ -280,10 +282,8 @@ export default function TasksPage() {
 
         setTasks(tasksWithNames);
       }
-    } catch (err) {
-      console.error("❌ Failed to load tasks:", err);
-      setTasks([]);
-      toast.error("Failed to load tasks");
+    } catch (error) {
+      debugError("❌ Error loading tasks:", error);
     } finally {
       setLoading(false);
     }
@@ -292,6 +292,8 @@ export default function TasksPage() {
   // Load unresolved cleaning issues
   const loadUnresolvedCleaningIssues = useCallback(async () => {
     if (!currentProperty?.id) return;
+
+    debugLog("🔍 Loading unresolved cleaning issues for property:", currentProperty.id);
 
     try {
       const { data } = await supabase
@@ -302,8 +304,9 @@ export default function TasksPage() {
         .order("reported_at", { ascending: false });
 
       setCleaningIssues(data || []);
+      debugLog("✅ Found unresolved cleaning issues:", data?.length || 0);
     } catch (error) {
-      console.warn("Could not load cleaning issues:", error);
+      debugError("❌ Error loading cleaning issues:", error);
     }
   }, [currentProperty?.id]);
 
@@ -817,11 +820,15 @@ export default function TasksPage() {
             {/* Modals */}
             <CreateTaskModal
               isOpen={isCreateModalOpen}
-              onClose={() => setIsCreateModalOpen(false)}
+              onClose={() => {
+                setIsCreateModalOpen(false);
+                setInitialTaskData(null); // Clear initial data when closing
+              }}
               onTaskCreated={loadTasks}
               users={users}
               currentProperty={currentProperty}
               currentUser={user}
+              initialData={initialTaskData} // Pass initial data
             />
 
             <EditTaskModal

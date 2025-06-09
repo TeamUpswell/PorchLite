@@ -33,35 +33,22 @@ export default function InventoryFilters({
 
   // Filter items based on all criteria
   useEffect(() => {
-    let filtered = items || [];
+    let filtered = items;
 
-    // Search filter
-    if (searchTerm.trim()) {
-      filtered = filtered.filter((item) =>
-        item.name.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-
-    // Category filter
+    // Filter by category
     if (selectedCategory !== "all") {
       filtered = filtered.filter((item) => item.category === selectedCategory);
     }
 
-    // Stock level filter
-    if (stockLevel !== "all") {
-      switch (stockLevel) {
-        case "in-stock":
-          filtered = filtered.filter((item) => item.quantity > item.threshold);
-          break;
-        case "low-stock":
-          filtered = filtered.filter(
-            (item) => item.quantity <= item.threshold && item.quantity > 0
-          );
-          break;
-        case "out-of-stock":
-          filtered = filtered.filter((item) => item.quantity === 0);
-          break;
-      }
+    // Filter by search term
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase();
+      filtered = filtered.filter(
+        (item) =>
+          item.name.toLowerCase().includes(term) ||
+          item.description?.toLowerCase().includes(term) ||
+          item.location?.toLowerCase().includes(term)
+      );
     }
 
     // Update filtered items

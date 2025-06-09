@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/components/auth";
 import { useProperty } from "@/lib/hooks/useProperty";
 import { useRouter } from "next/navigation";
@@ -42,6 +42,7 @@ import {
 } from "lucide-react";
 import PhotoUpload from "@/components/ui/PhotoUpload";
 import { useViewMode } from "@/lib/hooks/useViewMode";
+import { debugLog, debugError } from "@/lib/utils/debug";
 
 // Define interfaces for our new dashboard data
 interface Issue {
@@ -94,6 +95,9 @@ interface WeatherData {
     icon: string;
   }>;
 }
+
+// ✅ ADD THIS RIGHT AFTER IMPORTS
+const isDev = process.env.NODE_ENV === "development";
 
 export default function HomePage() {
   const { user, loading } = useAuth();
@@ -173,7 +177,7 @@ export default function HomePage() {
   // Handle redirect after early return
   useEffect(() => {
     if (!user) {
-      router.push("/login");
+      router.push("/auth");
     }
   }, [user, router]);
 

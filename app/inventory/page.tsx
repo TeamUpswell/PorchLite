@@ -1,8 +1,6 @@
 "use client";
 
-// ✅ Add debug log to confirm this page loads
-console.log("📦 CORRECT INVENTORY PAGE LOADED - /app/inventory/page.tsx");
-
+import React, { useState, useEffect, useMemo } from "react";
 import { useViewMode } from "@/lib/hooks/useViewMode";
 import {
   Package,
@@ -11,7 +9,6 @@ import {
   AlertTriangle,
   ShoppingCart,
 } from "lucide-react";
-import { useEffect, useState, useMemo } from "react";
 import StandardCard from "@/components/ui/StandardCard";
 import InventoryFilters from "@/components/inventory/InventoryFilters";
 import InventoryTable from "@/components/inventory/InventoryTable";
@@ -24,6 +21,9 @@ import { useInventory } from "@/components/inventory/hooks/useInventory";
 import { useProperty } from "@/lib/hooks/useProperty";
 import ProtectedPageWrapper from "@/components/layout/ProtectedPageWrapper";
 import PageContainer from "@/components/layout/PageContainer";
+import { debugLog, debugError } from "@/lib/utils/debug";
+
+const isDev = process.env.NODE_ENV === "development";
 
 export const dynamic = "force-dynamic";
 
@@ -100,47 +100,55 @@ export default function InventoryPage() {
     }
   }, []);
 
-  // ✅ Console logs AFTER hooks
-  console.log("📦 Inventory Page Debug:", {
-    propertyId: property?.id,
-    propertyName: property?.name,
-    tenantRole: currentTenant?.role,
-    isManagerView,
-    isFamilyView,
-    isGuestView,
-    inventoryItemsCount: inventoryHook.items?.length || 0,
-    filteredItemsCount: inventoryHook.filteredItems?.length || 0,
-  });
+  useEffect(() => {
+    debugLog("📦 CORRECT INVENTORY PAGE LOADED - /app/inventory/page.tsx");
+  }, []);
+
+  useEffect(() => {
+    debugLog("📦 Inventory Page Debug:", {
+      propertyId: property?.id,
+      propertyName: property?.name,
+      tenantRole: currentTenant?.role,
+      isManagerView,
+      isFamilyView,
+      isGuestView,
+    });
+  }, [property, currentTenant, isManagerView, isFamilyView, isGuestView]);
+
+  // ✅ UPDATE THRESHOLD ANALYSIS
+  const thresholdAnalysis = useMemo(() => {
+    const analysis = {
+      averageThreshold:
+        inventoryHook.filteredItems?.reduce(
+          (sum, item) => sum + (item.threshold || 0),
+          0
+        ) / (inventoryHook.filteredItems?.length || 1),
+      thresholdRange: {
+        min: Math.min(
+          ...(inventoryHook.filteredItems?.map((item) => item.threshold || 0) || [
+            0,
+          ])
+        ),
+        max: Math.max(
+          ...(inventoryHook.filteredItems?.map((item) => item.threshold || 0) || [
+            0,
+          ])
+        ),
+      },
+      itemsWithHighThreshold: inventoryHook.filteredItems?.filter(
+        (item) => (item.threshold || 0) > 10
+      ).length,
+    };
+
+    debugLog("🔍 Threshold Analysis:", analysis);
+    return analysis;
+  }, [inventoryHook.filteredItems]);
 
   // Close modal and refresh
   const handleModalClose = () => {
     setShowManageModal(false);
     inventoryHook.refreshItems();
   };
-
-  // Add this temporarily to see your threshold data
-  console.log("🔍 Threshold Analysis:", {
-    averageThreshold:
-      inventoryHook.filteredItems?.reduce(
-        (sum, item) => sum + (item.threshold || 0),
-        0
-      ) / (inventoryHook.filteredItems?.length || 1),
-    thresholdRange: {
-      min: Math.min(
-        ...(inventoryHook.filteredItems?.map((item) => item.threshold || 0) || [
-          0,
-        ])
-      ),
-      max: Math.max(
-        ...(inventoryHook.filteredItems?.map((item) => item.threshold || 0) || [
-          0,
-        ])
-      ),
-    },
-    itemsWithHighThreshold: inventoryHook.filteredItems?.filter(
-      (item) => (item.threshold || 0) > 10
-    ).length,
-  });
 
   // ✅ CONDITIONAL RENDERS LAST
   if (propertyLoading) {

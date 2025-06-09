@@ -1,6 +1,5 @@
 import { createMiddlewareClient } from "@supabase/auth-helpers-nextjs";
-import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 export async function middleware(request: NextRequest) {
   const res = NextResponse.next();
@@ -11,10 +10,12 @@ export async function middleware(request: NextRequest) {
   // Define public routes that don't need authentication
   const publicRoutes = [
     "/",
-    "/auth/login",
+    "/auth",
     "/auth/register",
     "/auth/forgot-password",
     "/auth/reset-password",
+    "/login",
+    "/signup",
     "/.well-known",
     "/images",
     "/favicon.ico",
@@ -42,9 +43,9 @@ export async function middleware(request: NextRequest) {
   console.log("🔑 Session check result:", !!session);
 
   if (!session) {
-    console.log("❌ No session, redirecting to login");
-    const redirectUrl = new URL("/auth/login", request.url);
-    redirectUrl.searchParams.set("redirectedFrom", pathname);
+    console.log("❌ No session, redirecting to auth");
+    const redirectUrl = new URL("/auth", request.url);
+    redirectUrl.searchParams.set("redirectedFrom", request.nextUrl.pathname);
     return NextResponse.redirect(redirectUrl);
   }
 
@@ -61,8 +62,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: [
-    "/((?!_next/static|_next/image|favicon.ico).*)",
-    "/properties/create",
-  ],
+  matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
 };

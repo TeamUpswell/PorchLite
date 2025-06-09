@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Calendar as BigCalendar, dateFnsLocalizer } from "react-big-calendar";
 import { format, parse, startOfWeek, getDay } from "date-fns";
 import { toast } from "react-hot-toast"; // ← Changed from react-toastify
 import { supabase } from "@/lib/supabase"; // ← Updated path to match your project structure
+import { debugLog, debugError } from "@/lib/utils/debug";
+import { useAuth } from "@/components/auth";
 
 // CSS imports
 import "react-big-calendar/lib/css/react-big-calendar.css";
@@ -35,10 +37,28 @@ const localizer = dateFnsLocalizer({
 });
 
 interface CalendarProps {
-  newReservationTrigger: number;
+  newReservationTrigger?: number;
+  isManager?: boolean; // Add this prop
 }
 
-export function Calendar({ newReservationTrigger }: CalendarProps) {
+export default function Calendar({
+  newReservationTrigger = 0,
+  isManager = false,
+}: CalendarProps) {
+  // ✅ ADD PERFORMANCE MONITORING
+  useEffect(() => {
+    const startTime = performance.now();
+    debugLog("📅 Calendar component mounted");
+
+    return () => {
+      const endTime = performance.now();
+      debugLog(
+        "📅 Calendar component unmounted, render time:",
+        `${(endTime - startTime).toFixed(2)}ms`
+      );
+    };
+  }, []);
+
   const { reservations, isLoading, fetchReservations } = useReservations();
   const { clearCompanions, fetchCompanions } = useCompanions();
 
@@ -76,8 +96,10 @@ export function Calendar({ newReservationTrigger }: CalendarProps) {
 
   // Event handlers
   const handleReservationSelect = (reservation: Reservation) => {
+    debugLog("📅 Reservation selected:", reservation.title);
     setSelectedReservation(reservation);
     setShowReservationModal(true);
+
     if (reservation.id) {
       fetchCompanions(reservation.id);
     } else {
@@ -86,6 +108,7 @@ export function Calendar({ newReservationTrigger }: CalendarProps) {
   };
 
   const handleSlotSelect = ({ start, end }: { start: Date; end: Date }) => {
+    debugLog("📅 Time slot selected:", { start, end });
     setSelectedSlot({ start, end });
     setSelectedReservation(null);
     setShowReservationModal(true);
@@ -93,6 +116,7 @@ export function Calendar({ newReservationTrigger }: CalendarProps) {
   };
 
   const handleModalClose = () => {
+    debugLog("📅 Reservation modal closed");
     setShowReservationModal(false);
     setSelectedReservation(null);
     setSelectedSlot(null);
@@ -100,6 +124,7 @@ export function Calendar({ newReservationTrigger }: CalendarProps) {
   };
 
   const handleReservationSaved = () => {
+    debugLog("📅 Reservation saved, refreshing calendar data...");
     fetchReservations();
     handleModalClose();
   };
@@ -115,7 +140,32 @@ export function Calendar({ newReservationTrigger }: CalendarProps) {
     }
   };
 
+  const handleSelectEvent = useCallback(
+    (event: any) => {
+      debugLog("📅 Event selected:", event);
+
+      if (isManager) {
+        // Managers can edit any reservation
+        setSelectedReservation(event);
+        setShowReservationModal(true);
+      } else {
+        // Regular users can only view
+        setSelectedReservation(event);
+        setShowReservationModal(true);
+      }
+    },
+    [isManager]
+  );
+
   const handleDeleteReservation = async (id: string) => {
+    if (!isManager) {
+      toast.error("You don't have permission to delete reservations");
+      return;
+    }
+
+    const startTime = performance.now();
+    debugLog("📅 Deleting reservation:", id);
+
     try {
       const { error } = await supabase
         .from("reservations")
@@ -124,10 +174,16 @@ export function Calendar({ newReservationTrigger }: CalendarProps) {
 
       if (error) throw error;
 
-      toast.success("Reservation deleted successfully"); // ← Updated message
-      fetchReservations(); // Refresh calendar
+      const endTime = performance.now();
+      debugLog("📅 Reservation deleted successfully:", {
+        id,
+        deleteTime: `${(endTime - startTime).toFixed(2)}ms`,
+      });
+
+      toast.success("Reservation deleted successfully");
+      fetchReservations();
     } catch (error) {
-      console.error("Error deleting reservation:", error);
+      debugError("📅 Error deleting reservation:", error);
       toast.error("Failed to delete reservation");
     }
   };
@@ -154,6 +210,31 @@ export function Calendar({ newReservationTrigger }: CalendarProps) {
     };
   };
 
+  // Day reservations highlighting
+  const dayPropGetter = useCallback(
+    (date: Date) => {
+      const dateStr = format(date, "yyyy-MM-dd");
+      const dayReservations = reservations.filter((reservation) => {
+        const start = new Date(reservation.start_date);
+        const end = new Date(reservation.end_date);
+        return date >= start && date <= end;
+      });
+
+      if (dayReservations.length > 0) {
+        return {
+          className: "rbc-day-reserved",
+          style: {
+            backgroundColor: "#fef3c7", // Light yellow for reserved days
+            border: "1px solid #f59e0b",
+          },
+        };
+      }
+
+      return {};
+    },
+    [reservations]
+  );
+
   // Loading state
   if (isLoading) {
     return (
@@ -163,120 +244,133 @@ export function Calendar({ newReservationTrigger }: CalendarProps) {
     );
   }
 
+  // Custom toolbar component without view buttons
+  const CustomToolbar = ({ label, onNavigate, onView }: any) => {
+    return (
+      <div className="flex items-center justify-between mb-4 pb-4 border-b border-gray-200">
+        {/* Navigation buttons */}
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={() => onNavigate("PREV")}
+            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            aria-label="Previous"
+          >
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M15 19l-7-7 7-7"
+              />
+            </svg>
+          </button>
+
+          <button
+            onClick={() => onNavigate("TODAY")}
+            className="px-3 py-1 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            Today
+          </button>
+
+          <button
+            onClick={() => onNavigate("NEXT")}
+            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            aria-label="Next"
+          >
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M9 5l7 7-7 7"
+              />
+            </svg>
+          </button>
+        </div>
+
+        {/* Current date/period label */}
+        <h2 className="text-lg font-semibold text-gray-900">{label}</h2>
+
+        {/* Empty div to maintain flexbox spacing */}
+        <div className="w-24"></div>
+      </div>
+    );
+  };
+
   return (
-    <div className="h-full w-full">
-      <div className="bg-white rounded-lg p-6">
-        <div className="text-center mb-6">
-          <h2 className="text-xl font-semibold">
-            {currentDate.toLocaleDateString("en-US", {
-              month: "long",
-              year: "numeric",
-            })}
-          </h2>
-        </div>
+    <div className="h-full">
+      {/* Status Legend */}
+      <StatusLegend />
 
-        {/* Status Legend */}
-        <StatusLegend />
+      {/* Big Calendar */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 h-[calc(100vh-140px)]">
+        <BigCalendar
+          localizer={localizer}
+          events={reservations}
+          startAccessor="start"
+          endAccessor="end"
+          style={{ height: "100%" }}
+          onSelectEvent={handleSelectEvent}
+          onSelectSlot={isManager ? handleSlotSelect : undefined}
+          selectable={isManager}
+          views={["month"]} // Lock to month view only
+          defaultView="month"
+          view="month" // Force month view
+          date={currentDate}
+          onNavigate={setCurrentDate}
+          eventPropGetter={eventStyleGetter}
+          className={styles.calendar}
+          components={{
+            toolbar: CustomToolbar, // Use custom toolbar
+            event: ({ event }) => (
+              <div
+                onContextMenu={(e) => handleEventRightClick(event, e)}
+                className="cursor-pointer"
+                title={isManager ? "Right-click to delete" : "View details"}
+              >
+                {event.title}
+              </div>
+            ),
+          }}
+          dayPropGetter={dayPropGetter}
+          step={60}
+          showMultiDayTimes
+          popup
+        />
+      </div>
 
-        {/* Calendar View */}
-        <div className={styles.calendarView}>
-          <div className={styles.calendarWrapper}>
-            <BigCalendar
-              localizer={localizer}
-              events={reservations}
-              startAccessor="start"
-              endAccessor="end"
-              style={{ height: "calc(100vh - 200px)" }}
-              onSelectEvent={handleReservationSelect}
-              onSelectSlot={handleSlotSelect}
-              selectable
-              views={["month"]} // Only allow month view
-              view="month" // Force month view
-              date={currentDate}
-              onNavigate={setCurrentDate}
-              defaultView="month"
-              toolbar={true}
-              components={{
-                toolbar: ({ label, onNavigate }) => (
-                  <div className="rbc-toolbar">
-                    <span className="rbc-btn-group">
-                      <button
-                        type="button"
-                        onClick={() => onNavigate("PREV")}
-                        className="rbc-btn"
-                      >
-                        ‹
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => onNavigate("TODAY")}
-                        className="rbc-btn"
-                      >
-                        Today
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => onNavigate("NEXT")}
-                        className="rbc-btn"
-                      >
-                        ›
-                      </button>
-                    </span>
-                    <span className="rbc-toolbar-label">{label}</span>
-                  </div>
-                ),
-                event: ({ event }) => (
-                  <div
-                    onContextMenu={(e) => handleEventRightClick(event, e)}
-                    className="cursor-pointer"
-                    title="Right-click to delete"
-                  >
-                    {event.title}
-                  </div>
-                ),
-              }}
-              eventPropGetter={eventStyleGetter}
-              onDoubleClickEvent={handleReservationSelect}
-              formats={{
-                monthHeaderFormat: (date: Date) =>
-                  isMobile
-                    ? format(date, "MMM yyyy")
-                    : format(date, "MMMM yyyy"),
-                dayHeaderFormat: (date: Date) =>
-                  isMobile
-                    ? format(date, "EEE M/d")
-                    : format(date, "EEEE, MMMM do"),
-              }}
-              showMultiDayTimes
-              step={60}
-              timeslots={1}
-              dayLayoutAlgorithm="no-overlap"
-            />
-          </div>
-        </div>
+      {/* Reservation Modal */}
+      {showReservationModal && (
+        <ReservationModal
+          isOpen={showReservationModal}
+          onClose={handleModalClose}
+          reservation={selectedReservation}
+          selectedSlot={selectedSlot}
+          onSave={handleReservationSaved}
+          onDelete={isManager ? handleDeleteReservation : undefined}
+          isManager={isManager}
+        />
+      )}
 
-        {/* Floating Action Button */}
+      {/* Floating Action Button */}
+      {isManager && (
         <CreatePattern
           onClick={() =>
             handleSlotSelect({ start: new Date(), end: new Date() })
           }
           label="Add Booking"
         />
-
-        {/* Reservation Modal */}
-        {showReservationModal && (
-          <ReservationModal
-            selectedReservation={selectedReservation} // ← Change from "reservation" to "selectedReservation"
-            selectedSlot={selectedSlot}
-            onClose={handleModalClose}
-            onSaved={handleReservationSaved}
-            onDelete={handleDeleteReservation}
-          />
-        )}
-      </div>
+      )}
     </div>
   );
 }
-
-// Default export
-export default Calendar;

@@ -15,7 +15,6 @@ import Link from "next/link";
 import StandardPageLayout from "@/components/layout/StandardPageLayout";
 import StandardCard from "@/components/ui/StandardCard";
 import { useAuth } from "@/components/auth";
-import { useProperty } from "@/lib/hooks/useProperty";
 import { supabase } from "@/lib/supabase";
 import GooglePlacePhoto from "@/components/GooglePlacePhoto";
 import RecommendationComments from "@/components/recommendations/RecommendationComments";
@@ -26,6 +25,8 @@ import DynamicGooglePlacePhoto from "@/components/DynamicGooglePlacePhoto";
 import GooglePlacesSearch from "@/components/ui/GooglePlacesSearch";
 import ProtectedPageWrapper from "@/components/layout/ProtectedPageWrapper";
 import PageContainer from "@/components/layout/PageContainer";
+import { debugLog, debugError } from "@/lib/utils/debug";
+import { exploreTableSchema } from "@/lib/supabase";
 
 interface Recommendation {
   id: string;
@@ -81,23 +82,60 @@ interface AutocompletePrediction {
 }
 
 export default function RecommendationsPage() {
-  // 🔍 TEMPORARY DEBUG - Remove after fixing
-  useEffect(() => {
-    console.log("🔑 Environment check:", {
-      hasGoogleMapsKey: !!process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY,
-      keyLength: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY?.length || 0,
-      environment: process.env.NODE_ENV,
-      // Don't log the actual key for security
-    });
-  }, []);
-
-  const { user } = useAuth();
-  const { currentProperty } = useProperty();
-  const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
-  const [filteredRecommendations, setFilteredRecommendations] = useState<
-    Recommendation[]
-  >([]);
+  const { user, property, tenant } = useAuth();
   const [loading, setLoading] = useState(true);
+  const [recommendations, setRecommendations] = useState([]);
+  const [filteredRecommendations, setFilteredRecommendations] = useState([]);
+
+  // Debug logging - but do it properly
+  useEffect(() => {
+    debugLog("🔄 Context changed:", {
+      hasUser: !!user,
+      hasProperty: !!property,
+      propertyId: property?.id,
+      timestamp: new Date().toISOString(),
+    });
+  }, [user, property, tenant]);
+
+  // Simplified approach - just fetch when we have user
+  useEffect(() => {
+    if (user && loading) {
+      debugLog("🚀 User available, fetching recommendations...");
+
+      // Give property context 2 seconds to load, then fetch regardless
+      const timeout = setTimeout(() => {
+        fetchRecommendationsWithoutFilter();
+      }, 2000);
+
+      // If property loads quickly, fetch immediately
+      if (property?.id) {
+        clearTimeout(timeout);
+        fetchRecommendations();
+      }
+
+      return () => clearTimeout(timeout);
+    }
+  }, [user, property, loading]);
+
+  const fetchRecommendationsWithoutFilter = async () => {
+    try {
+      setLoading(true);
+      debugLog("📡 Fetching ALL recommendations (no property filter)...");
+
+      const response = await fetch("/api/recommendations");
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+      const data = await response.json();
+      debugLog("✅ Fallback fetch successful:", { count: data.length });
+
+      setRecommendations(data);
+      setFilteredRecommendations(data);
+    } catch (error) {
+      debugError("❌ Fallback fetch failed:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Places search state - DEFAULT TO SHOWING
   const [placesSearchTerm, setPlacesSearchTerm] = useState("");
@@ -145,68 +183,92 @@ export default function RecommendationsPage() {
     { id: "emergency", name: "Emergency", icon: "🚨" },
   ];
 
-  useEffect(() => {
-    async function fetchRecommendations() {
-      try {
-        setLoading(true);
+  const fetchRecommendations = async () => {
+    try {
+      setLoading(true);
+      debugLog("📡 Fetching recommendations from API...");
+      debugLog("🏠 Current property:", {
+        id: property?.id,
+        name: property?.name,
+      });
+      debugLog("👤 Current user:", { id: user?.id, email: user?.email });
 
-        const { data: recommendationsData, error } = await supabase
+      const propertyId = property?.id;
+      const apiUrl = `/api/recommendations${
+        propertyId ? `?property_id=${propertyId}` : ""
+      }`;
+      debugLog("📍 API URL:", apiUrl);
+
+      const response = await fetch(apiUrl);
+      debugLog("🌐 API Response status:", response.status);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        debugError("❌ API Error:", {
+          status: response.status,
+          error: errorText,
+        });
+        throw new Error(
+          `HTTP error! status: ${response.status} - ${errorText}`
+        );
+      }
+
+      const data = await response.json();
+      debugLog("✅ Recommendations fetched from API:", {
+        count: data.length,
+        firstItem: data[0],
+        allItems: data,
+      });
+
+      setRecommendations(data);
+      setFilteredRecommendations(data);
+
+      if (data.length === 0) {
+        debugLog("⚠️ No recommendations returned from API");
+      }
+    } catch (error) {
+      debugError("❌ Error fetching recommendations from API:", error);
+
+      // Enhanced fallback with better logging
+      try {
+        debugLog("🔄 Trying direct Supabase query as fallback...");
+
+        let query = supabase
           .from("recommendations")
           .select("*")
-          .order("rating", { ascending: false });
+          .order("created_at", { ascending: false });
 
-        if (error) throw error;
+        if (property?.id) {
+          query = query.eq("property_id", property.id);
+          debugLog("🔍 Filtering by property_id:", property.id);
+        } else {
+          debugLog("⚠️ No property ID - fetching all recommendations");
+        }
 
-        setRecommendations(recommendationsData || []);
-        setFilteredRecommendations(recommendationsData || []);
-      } catch (error) {
-        console.error("Error loading recommendations:", error);
-        // Set some sample data for demo
-        const sampleData = [
-          {
-            id: "1",
-            name: "The Local Bistro",
-            category: "restaurant",
-            address: "123 Main St, Downtown",
-            coordinates: { lat: 40.7128, lng: -74.006 },
-            description:
-              "Cozy neighborhood restaurant with farm-to-table cuisine",
-            rating: 4.5,
-            website: "https://localbistro.com",
-            phone_number: "(555) 123-4567",
-            images: [],
-            created_at: "2024-01-15T00:00:00Z",
-            updated_at: "2024-01-15T00:00:00Z",
-            is_recommended: true,
-            place_id: null,
-            property_id: currentProperty?.id || null,
-          },
-          {
-            id: "2",
-            name: "Fresh Market",
-            category: "grocery",
-            address: "456 Oak Ave",
-            coordinates: { lat: 40.7589, lng: -73.9851 },
-            description: "Full-service grocery store with organic options",
-            rating: 4.2,
-            phone_number: "(555) 987-6543",
-            images: [],
-            created_at: "2024-01-10T00:00:00Z",
-            updated_at: "2024-01-10T00:00:00Z",
-            is_recommended: true,
-            place_id: null,
-            property_id: currentProperty?.id || null,
-          },
-        ];
-        setRecommendations(sampleData);
-        setFilteredRecommendations(sampleData);
-      } finally {
-        setLoading(false);
+        const { data: directData, error: directError } = await query;
+
+        if (directError) {
+          debugError("❌ Direct Supabase query failed:", directError);
+          throw directError;
+        }
+
+        debugLog("✅ Direct Supabase query successful:", {
+          count: directData?.length || 0,
+          firstItem: directData?.[0],
+          allItems: directData,
+        });
+
+        setRecommendations(directData || []);
+        setFilteredRecommendations(directData || []);
+      } catch (directError) {
+        debugError("❌ Direct Supabase query also failed:", directError);
+        setRecommendations([]);
+        setFilteredRecommendations([]);
       }
+    } finally {
+      setLoading(false);
     }
-
-    fetchRecommendations();
-  }, []);
+  };
 
   // Autocomplete search with debouncing
   const searchAutocomplete = async (input: string) => {
@@ -217,8 +279,8 @@ export default function RecommendationsPage() {
     }
 
     try {
-      const location = currentProperty?.coordinates
-        ? `${currentProperty.coordinates.lat},${currentProperty.coordinates.lng}`
+      const location = property?.coordinates
+        ? `${property.coordinates.lat},${property.coordinates.lng}`
         : "40.7128,-74.0060";
 
       const response = await fetch(
@@ -356,7 +418,7 @@ export default function RecommendationsPage() {
         phone_number: place.formatted_phone_number || null,
         images: [], // ← Keep this empty
         place_id: place.place_id, // ← This is what matters
-        property_id: currentProperty?.id || null,
+        property_id: property?.id || null,
         is_recommended: true,
       };
 
@@ -434,12 +496,12 @@ export default function RecommendationsPage() {
     try {
       const newRecommendation = {
         ...manualForm,
-        coordinates: currentProperty?.coordinates || {
+        coordinates: property?.coordinates || {
           lat: 40.7128,
           lng: -74.006,
         },
         images: [],
-        property_id: currentProperty?.id || null,
+        property_id: property?.id || null,
         is_recommended: true,
       };
 
@@ -474,6 +536,165 @@ export default function RecommendationsPage() {
     setSelectedPlace(place);
     setPlacesLoading(false);
   };
+
+  // Add this useEffect to test database connection:
+  useEffect(() => {
+    const testConnection = async () => {
+      try {
+        debugLog("🔍 Testing database connection...");
+
+        // Fix the count query syntax - use proper Supabase count
+        const { count, error } = await supabase
+          .from("recommendations")
+          .select("*", { count: "exact", head: true });
+
+        if (error) {
+          debugError("❌ Database connection failed:", error);
+        } else {
+          debugLog("✅ Database connection successful, count:", count);
+        }
+      } catch (error) {
+        debugError("❌ Database test error:", error);
+      }
+    };
+
+    testConnection();
+  }, []);
+
+  // Test direct database access
+  const testDirectAccess = async () => {
+    try {
+      // Test 1: Check if we can access any data with proper count syntax
+      const { count, error: testError } = await supabase
+        .from("recommendations")
+        .select("*", { count: "exact", head: true });
+
+      debugLog("Direct count test:", { count, testError });
+
+      // Test 2: Try to fetch actual records
+      const { data: fetchData, error: fetchError } = await supabase
+        .from("recommendations")
+        .select("*")
+        .limit(5);
+
+      debugLog("Fetch test:", {
+        recordCount: fetchData?.length || 0,
+        fetchError,
+        sampleData: fetchData?.[0],
+      });
+
+      // Only try to insert if we have property context
+      if (property?.id) {
+        // Test 3: Try to insert a simple record
+        const { data: insertData, error: insertError } = await supabase
+          .from("recommendations")
+          .insert({
+            name: "Test Recommendation",
+            category: "services",
+            address: "Test Address",
+            description: "Test description",
+            rating: 5,
+            property_id: property.id,
+            is_recommended: true,
+          })
+          .select()
+          .single();
+
+        debugLog("Insert test:", { insertData, insertError });
+
+        // Clean up test data if insert was successful
+        if (insertData?.id) {
+          await supabase
+            .from("recommendations")
+            .delete()
+            .eq("id", insertData.id);
+          debugLog("✅ Cleaned up test data");
+        }
+      } else {
+        debugLog("⚠️ Skipping insert test - no property context");
+      }
+    } catch (error) {
+      debugError("Direct access test failed:", error);
+    }
+  };
+
+  // Add this useEffect to run all checks:
+  useEffect(() => {
+    const runComprehensiveChecks = async () => {
+      if (!user) return;
+
+      debugLog("🔍 Running database checks...");
+
+      try {
+        // 1. Check table structure
+        const columns = await exploreTableSchema("recommendations");
+        if (columns) {
+          debugLog("✅ Recommendations table exists with columns:", columns);
+        } else {
+          debugLog("❌ Recommendations table not found");
+        }
+
+        // 2. Test database connection
+        const { count, error } = await supabase
+          .from("recommendations")
+          .select("*", { count: "exact", head: true });
+
+        if (error) {
+          debugError("❌ Database connection failed:", error);
+        } else {
+          debugLog("✅ Database connection successful, count:", count);
+        }
+
+        // 3. Log context
+        debugLog("User context:", { id: user?.id, email: user?.email });
+        debugLog("Property context:", {
+          hasProperty: !!property,
+          propertyId: property?.id,
+        });
+      } catch (error) {
+        debugError("❌ Database checks failed:", error);
+      }
+    };
+
+    runComprehensiveChecks();
+  }, [user, property]);
+
+  // Add this useEffect to test basic database access:
+  useEffect(() => {
+    const testBasicQuery = async () => {
+      if (!user) return;
+
+      try {
+        debugLog("🧪 Testing basic database query...");
+
+        // Test 1: Count all recommendations
+        const { count, error: countError } = await supabase
+          .from("recommendations")
+          .select("*", { count: "exact", head: true });
+
+        debugLog("📊 Total recommendations in database:", {
+          count,
+          countError,
+        });
+
+        // Test 2: Fetch first 3 recommendations
+        const { data: sampleData, error: sampleError } = await supabase
+          .from("recommendations")
+          .select("*")
+          .limit(3);
+
+        debugLog("📝 Sample recommendations:", {
+          count: sampleData?.length || 0,
+          data: sampleData,
+          error: sampleError,
+        });
+      } catch (error) {
+        debugError("❌ Basic query test failed:", error);
+      }
+    };
+
+    testBasicQuery();
+  }, [user]);
 
   return (
     <ProtectedPageWrapper>
@@ -960,7 +1181,7 @@ export default function RecommendationsPage() {
                   <GooglePlacesSearch
                     onPlaceSelect={handlePlaceSelect}
                     placeholder="Search for restaurants, stores, services..."
-                    propertyLocation={currentProperty?.coordinates}
+                    propertyLocation={property?.coordinates}
                     showDetails={true}
                     className="w-full"
                   />

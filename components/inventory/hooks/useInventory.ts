@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import { useProperty } from "@/lib/hooks/useProperty";
+import { debugLog, debugError } from "@/lib/utils/debug";
 
 interface InventoryItem {
   id: string;
@@ -21,18 +22,15 @@ export function useInventory() {
 
   // Fetch items from the inventory table
   const refreshItems = useCallback(async () => {
-    console.log(
-      "🔍 refreshItems called, currentProperty:",
-      currentProperty?.id
-    );
+    debugLog("🔍 refreshItems called, currentProperty:", currentProperty?.id);
 
     if (!currentProperty?.id) {
-      console.log("❌ No currentProperty.id, returning early");
+      debugLog("❌ No currentProperty.id, returning early");
       return;
     }
 
     try {
-      console.log("🔍 Fetching inventory for property:", currentProperty.id);
+      debugLog("🔍 Fetching inventory for property:", currentProperty.id);
 
       const { data, error } = await supabase
         .from("inventory")
@@ -42,23 +40,23 @@ export function useInventory() {
         .order("display_order", { ascending: true });
 
       if (error) {
-        console.error("❌ Supabase error:", error);
+        debugError("❌ Supabase error:", error);
         throw error;
       }
 
-      console.log("✅ Fetched inventory data:", data?.length || 0, "items");
+      debugLog("✅ Fetched inventory data:", data?.length || 0, "items");
       setItems(data || []);
       setFilteredItems(data || []);
     } catch (error) {
-      console.error("Error fetching inventory:", error);
+      debugError("Error fetching inventory:", error);
     }
   }, [currentProperty?.id]);
 
-  // ✅ ADD THIS UPDATE ITEM STATUS FUNCTION
+  // ✅ UPDATE ITEM STATUS FUNCTION
   const updateItemStatus = useCallback(
     async (itemId: string, status: "good" | "low" | "out") => {
       try {
-        console.log(`🔄 Updating item ${itemId} status to:`, status);
+        debugLog(`🔄 Updating item ${itemId} status to:`, status);
 
         const { error } = await supabase
           .from("inventory")
@@ -69,20 +67,21 @@ export function useInventory() {
           .eq("id", itemId);
 
         if (error) {
-          console.error("❌ Error updating item status:", error);
+          debugError("❌ Error updating item status:", error);
           throw error;
         }
 
-        console.log("✅ Status updated successfully");
+        debugLog("✅ Status updated successfully");
         await refreshItems();
       } catch (error) {
-        console.error("❌ Error updating item status:", error);
+        debugError("❌ Error updating item status:", error);
       }
     },
     [refreshItems]
   );
 
   const handleEdit = useCallback((item: InventoryItem) => {
+    debugLog("🔄 Editing item:", item.name);
     setEditingItem(item);
     setIsAddingItem(true);
   }, []);
@@ -90,15 +89,19 @@ export function useInventory() {
   const handleDelete = useCallback(
     async (itemId: string) => {
       try {
+        debugLog("🔄 Deleting item:", itemId);
+
         const { error } = await supabase
           .from("inventory")
           .update({ is_active: false })
           .eq("id", itemId);
 
         if (error) throw error;
+        
+        debugLog("✅ Item deleted successfully");
         await refreshItems();
       } catch (error) {
-        console.error("Error deleting item:", error);
+        debugError("Error deleting item:", error);
       }
     },
     [refreshItems]
@@ -107,6 +110,8 @@ export function useInventory() {
   const updateQuantity = useCallback(
     async (itemId: string, newQuantity: number) => {
       try {
+        debugLog("🔄 Updating quantity for item:", itemId, "to:", newQuantity);
+
         const { error } = await supabase
           .from("inventory")
           .update({
@@ -116,9 +121,11 @@ export function useInventory() {
           .eq("id", itemId);
 
         if (error) throw error;
+        
+        debugLog("✅ Quantity updated successfully");
         await refreshItems();
       } catch (error) {
-        console.error("Error updating quantity:", error);
+        debugError("Error updating quantity:", error);
       }
     },
     [refreshItems]

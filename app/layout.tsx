@@ -43,7 +43,11 @@ export default function RootLayout({
       <body className={inter.className}>
         <ThemeProvider>
           <AuthProvider>
+            {" "}
+            {/* ← Auth must be FIRST */}
             <PropertyProvider>
+              {" "}
+              {/* ← Property depends on Auth */}
               {children}
               <Toaster />
             </PropertyProvider>

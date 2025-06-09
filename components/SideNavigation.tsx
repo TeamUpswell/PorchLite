@@ -243,9 +243,7 @@ export default function SideNavigation({
       {!isMobile && (
         <button
           onClick={toggleSidebar}
-          className={`${
-            useGridLayout ? 'absolute' : 'fixed'
-          } top-4 ${
+          className={`${useGridLayout ? "absolute" : "fixed"} top-4 ${
             isCollapsed ? "right-4" : "right-4"
           } z-40 p-2 rounded-md ${
             isDarkMode ? "bg-gray-800 text-white" : "bg-white text-gray-900"
@@ -266,7 +264,7 @@ export default function SideNavigation({
       <div
         className={`
           side-navigation
-          ${useGridLayout ? 'h-full w-full' : 'fixed inset-y-0 left-0 z-50'}
+          ${useGridLayout ? "h-full w-full" : "fixed inset-y-0 left-0 z-50"}
           ${isCollapsed && !isMobile ? "w-16" : "w-64"}
           ${isDarkMode ? "bg-gray-900" : "bg-white"}
           border-r 
@@ -277,7 +275,7 @@ export default function SideNavigation({
               ? "-translate-x-full"
               : "translate-x-0"
           }
-          ${!useGridLayout ? 'md:translate-x-0' : ''}
+          ${!useGridLayout ? "md:translate-x-0" : ""}
           flex flex-col
           relative
         `}
@@ -287,7 +285,9 @@ export default function SideNavigation({
           <button
             onClick={() => setIsCollapsed(false)}
             className={`absolute -right-3 top-1/2 transform -translate-y-1/2 z-60 w-6 h-12 rounded-r-md ${
-              isDarkMode ? "bg-gray-800 hover:bg-gray-700" : "bg-white hover:bg-gray-50"
+              isDarkMode
+                ? "bg-gray-800 hover:bg-gray-700"
+                : "bg-white hover:bg-gray-50"
             } border border-l-0 ${
               isDarkMode ? "border-gray-700" : "border-gray-200"
             } shadow-md flex items-center justify-center transition-all duration-200 hover:shadow-lg`}
@@ -343,7 +343,10 @@ export default function SideNavigation({
         <div className="flex-1 px-3 py-4 space-y-6 overflow-y-auto">
           {navigationStructure.map((section) => {
             // Always show General section expanded, only allow Account to collapse
-            const isExpanded = section.category === "General" ? true : (expandedCategories[section.category] ?? true);
+            const isExpanded =
+              section.category === "General"
+                ? true
+                : expandedCategories[section.category] ?? true;
 
             return (
               <div key={section.category} className="space-y-1.5">
@@ -368,9 +371,11 @@ export default function SideNavigation({
 
                 {/* Show General category label when not collapsed */}
                 {!isCollapsed && section.category === "General" && (
-                  <div className={`text-sm font-medium px-4 py-2 ${
-                    isDarkMode ? "text-gray-300" : "text-gray-600"
-                  } mb-1`}>
+                  <div
+                    className={`text-sm font-medium px-4 py-2 ${
+                      isDarkMode ? "text-gray-300" : "text-gray-600"
+                    } mb-1`}
+                  >
                     <span>{section.category}</span>
                   </div>
                 )}
@@ -430,13 +435,17 @@ export default function SideNavigation({
         </div>
 
         {/* Simple footer/version info (optional) */}
-        <div className={`border-t ${
-          isDarkMode ? "border-gray-800" : "border-gray-200"
-        } px-3 py-2 text-center`}>
+        <div
+          className={`border-t ${
+            isDarkMode ? "border-gray-800" : "border-gray-200"
+          } px-3 py-2 text-center`}
+        >
           {!isCollapsed && (
-            <p className={`text-xs ${
-              isDarkMode ? "text-gray-500" : "text-gray-400"
-            }`}>
+            <p
+              className={`text-xs ${
+                isDarkMode ? "text-gray-500" : "text-gray-400"
+              }`}
+            >
               PorchLite v1.0
             </p>
           )}

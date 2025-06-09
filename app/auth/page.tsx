@@ -1,161 +1,134 @@
 "use client";
 
-import { useState, FormEvent } from "react";
-import { useAuth } from "@/components/auth";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/components/auth";
+import { debugLog } from "@/lib/utils/debug";
 
-export default function ResetPasswordPage() {
-  const { user, signIn, signUp } = useAuth();
+export default function AuthPage() {
   const router = useRouter();
-
-  // ✅ ADD THE DEBUG CODE HERE:
-  console.log("🔐 Login page - useAuth result:", {
-    user: !!user,
-    signIn: typeof signIn,
-    signInExists: !!signIn,
-  });
-
+  const { user, signIn, signUp } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [isSignUp, setIsSignUp] = useState(false);
 
-  const handleLogin = async (e: FormEvent) => {
+  // Redirect if already logged in
+  useEffect(() => {
+    debugLog("🔍 Auth page loaded");
+
+    if (user) {
+      const urlParams = new URLSearchParams(window.location.search);
+      const redirectTo = urlParams.get('redirectedFrom') || '/';
+      
+      debugLog("🔄 User already authenticated, redirecting to:", redirectTo);
+      router.push(redirectTo);
+    }
+  }, [user, router]);
+
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError("");
 
-    console.log("🔐 Login attempt:", { email, password: "***" });
-
     try {
-      // ✅ Correct way - signIn throws on error, returns data on success
       const result = await signIn(email, password);
-      console.log("🔐 SignIn result:", result);
-
-      // If we get here, login was successful
-      console.log("🔐 Login successful, redirecting...");
-      router.push("/dashboard");
-    } catch (err: any) {
-      // ✅ Catch block handles errors
-      console.error("🔴 Login error:", err);
-      setError(err.message || "An error occurred during login");
+      if (result.error) {
+        throw new Error(result.error.message);
+      }
+      router.push("/");
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "An error occurred");
     } finally {
       setLoading(false);
     }
   };
 
-  // Add this signup handler:
-  const handleSignup = async (e: FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError("");
-
-    console.log("🔐 Signup attempt:", { email, password: "***" });
-
+  const handleQuickSignup = async () => {
     try {
-      const result = await signUp(email, password);
-      console.log("🔐 SignUp result:", result);
-
-      // Check if email confirmation is required
-      if (result.user && !result.session) {
-        setError(
-          "Please check your email to confirm your account before signing in."
-        );
-      } else {
-        console.log("🔐 Signup successful, redirecting...");
-        router.push("/dashboard");
-      }
-    } catch (err: any) {
-      console.error("🔴 Signup error:", err);
-      setError(err.message || "An error occurred during signup");
-    } finally {
-      setLoading(false);
+      await signUp("test@example.com", "password123");
+    } catch (error) {
+      console.error("Signup error:", error);
     }
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center">
-      <div className="max-w-md w-full space-y-8">
-        <div className="text-center">
-          <h2 className="mt-6 text-3xl font-extrabold text-gray-900">
-            Reset Your Password
-          </h2>
-          <p className="mt-2 text-sm text-gray-600">
-            Enter your email to reset your PorchLite password
+    <>
+      <div className="text-center mb-8">
+        <h2 className="text-3xl font-bold text-gray-900 mb-2">
+          Sign in to your account
+        </h2>
+        <p className="text-gray-600">Enter your credentials below</p>
+      </div>
+
+      {error && (
+        <div className="mb-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+          {error}
+        </div>
+      )}
+
+      <form onSubmit={handleLogin} className="space-y-6">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Email
+          </label>
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            autoComplete="email"
+            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
+            placeholder="Enter your email"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Password
+          </label>
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            autoComplete="current-password"
+            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
+            placeholder="Enter your password"
+          />
+        </div>
+
+        <div className="space-y-3">
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-blue-600 text-white py-2.5 px-4 rounded-md hover:bg-blue-700 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors font-medium"
+          >
+            {loading ? "Signing in..." : "Sign In"}
+          </button>
+
+          <button
+            type="button"
+            onClick={handleQuickSignup}
+            disabled={loading}
+            className="w-full py-2.5 px-4 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 transition-colors font-medium"
+          >
+            Create Test Account
+          </button>
+        </div>
+
+        <div className="text-center mt-6">
+          <p className="text-sm text-gray-600">
+            Don&apos;t have an account?{" "}
+            <a
+              href="/auth/admin"
+              className="text-blue-600 hover:text-blue-700 font-medium"
+            >
+              Contact your property manager
+            </a>
           </p>
         </div>
-
-        <div className="max-w-md mx-auto p-6 bg-white rounded-lg shadow-md mt-10">
-          <h1 className="text-2xl font-bold mb-6">Reset Password</h1>
-
-          {error && (
-            <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
-              {error}
-            </div>
-          )}
-
-          <form onSubmit={isSignUp ? handleSignup : handleLogin}>
-            <div className="mb-4">
-              <label htmlFor="email" className="block mb-1 font-medium">
-                Email
-              </label>
-              <input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full p-2 border rounded"
-                required
-              />
-            </div>
-
-            <div className="mb-6">
-              <label htmlFor="password" className="block mb-1 font-medium">
-                Password
-              </label>
-              <input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full p-2 border rounded"
-                required
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded"
-            >
-              {loading
-                ? isSignUp
-                  ? "Creating Account..."
-                  : "Signing In..."
-                : isSignUp
-                ? "Create Account"
-                : "Sign In"}
-            </button>
-          </form>
-
-          <div className="text-center mt-4">
-            <p className="text-sm text-gray-600">
-              {isSignUp ? "Already have an account?" : "Don't have an account?"}{" "}
-              <button
-                type="button"
-                onClick={() => {
-                  setIsSignUp(!isSignUp);
-                  setError("");
-                }}
-                className="text-blue-600 hover:underline"
-              >
-                {isSignUp ? "Sign in" : "Create account"}
-              </button>
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
+      </form>
+    </>
   );
 }

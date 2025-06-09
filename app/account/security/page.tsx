@@ -193,7 +193,7 @@ export default function SecurityPage() {
           onClick={async () => {
             try {
               await supabase.auth.signOut({ scope: "global" });
-              window.location.href = "/login";
+              window.location.href = "/auth";
             } catch (error) {
               console.error("Error signing out:", error);
             }

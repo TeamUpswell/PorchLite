@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import GooglePlacePhoto from "./GooglePlacePhoto";
+import { debugLog, debugError } from "@/lib/utils/debug";
 
 interface DynamicGooglePlacePhotoProps {
   placeId: string;
@@ -23,53 +24,48 @@ export default function DynamicGooglePlacePhoto({
   const [error, setError] = useState(false);
 
   useEffect(() => {
-    const fetchPhoto = async () => {
-      if (!placeId) {
-        console.log("❌ No placeId provided");
-        setError(true);
-        setLoading(false);
-        return;
-      }
+    const fetchPhotoReference = async () => {
+      debugLog("🔍 Fetching photo reference for place_id:", placeId);
 
       try {
-        console.log(`🔍 Fetching photo reference for place_id: ${placeId}`);
+        const response = await fetch(`/api/google-places?placeId=${placeId}`);
 
-        // Step 1: Get photo reference from place ID
-        const response = await fetch(`/api/places/details?place_id=${placeId}`);
-        console.log(`📡 API response status: ${response.status}`);
+        debugLog("📡 API response status:", response.status);
 
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error(`❌ API error: ${response.status} - ${errorText}`);
-          throw new Error(
-            `API responded with ${response.status}: ${errorText}`
-          );
-        }
+        if (response.ok) {
+          const data = await response.json();
+          debugLog("📸 Place details response:", {
+            photo_reference: data.photo_reference ? "Found" : "None",
+            total_photos: data.total_photos,
+            status: data.status,
+          });
 
-        const data = await response.json();
-        console.log("📸 Place details response:", data);
-
-        if (data.photo_reference) {
-          console.log(
-            `✅ Got photo reference: ${data.photo_reference.substring(
-              0,
-              20
-            )}...`
-          );
-          setPhotoReference(data.photo_reference);
+          if (data.photo_reference) {
+            debugLog("✅ Got photo reference");
+            setPhotoReference(data.photo_reference);
+          } else {
+            debugLog("❌ No photo reference found");
+            setError(true);
+          }
         } else {
-          console.log("⚠️ No photo reference found");
+          const errorData = await response.json();
+          debugError("❌ API error:", errorData);
           setError(true);
         }
       } catch (error) {
-        console.error("❌ Error fetching photo reference:", error);
+        debugError("❌ Error fetching photo reference:", error);
         setError(true);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchPhoto();
+    if (placeId) {
+      fetchPhotoReference();
+    } else {
+      setError(true);
+      setLoading(false);
+    }
   }, [placeId]);
 
   if (loading) {
@@ -77,7 +73,7 @@ export default function DynamicGooglePlacePhoto({
       <div
         className={`${className} bg-gray-200 animate-pulse flex items-center justify-center`}
       >
-        <span className="text-gray-400 text-sm">Loading...</span>
+        <span className="text-gray-400 text-sm">Loading photo...</span>
       </div>
     );
   }

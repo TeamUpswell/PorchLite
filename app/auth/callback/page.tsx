@@ -18,16 +18,16 @@ export default function AuthCallback() {
       try {
         const { data, error } = await supabase.auth.getSession();
         if (error) {
-          router.push("/login?error=auth_callback_failed");
+          router.push("/auth?error=auth_callback_failed");
           return;
         }
         if (data.session) {
           router.push("/");
         } else {
-          router.push("/login");
+          router.push("/auth");
         }
       } catch (error) {
-        router.push("/login?error=callback_failed");
+        router.push("/auth?error=callback_failed");
       } finally {
         setLoading(false);
       }

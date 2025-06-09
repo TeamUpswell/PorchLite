@@ -1,24 +1,23 @@
 import { createClient } from "@supabase/supabase-js";
 
-// Create singleton client
-let supabaseClient: any = null;
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-
-console.log("Supabase config:", {
-  url: supabaseUrl ? "Set" : "Missing",
-  key: supabaseAnonKey ? "Set" : "Missing",
-});
-
-export function getSupabaseClient() {
-  if (!supabaseClient) {
-    supabaseClient = createClient(supabaseUrl, supabaseAnonKey);
-  }
-  return supabaseClient;
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error("Missing Supabase environment variables");
 }
 
-export const supabase = getSupabaseClient();
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+  },
+});
+
+// Add this export for server-side operations
+export function getSupabaseClient() {
+  return supabase;
+}
 
 // Error handling helper function
 export const logSupabaseError = (error: any, context: string) => {
