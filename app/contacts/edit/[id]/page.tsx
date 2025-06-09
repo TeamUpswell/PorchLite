@@ -4,11 +4,12 @@ import { useState, useEffect, FormEvent, ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/auth";
 import { supabase } from "@/lib/supabase";
-import SideNavigation from "@/components/SideNavigation";
 import { ArrowLeft, Save, Trash2 } from "lucide-react";
 import Link from "next/link";
+import ProtectedPageWrapper from "@/components/layout/ProtectedPageWrapper";
+import PageContainer from "@/components/layout/PageContainer";
+import StandardCard from "@/components/ui/StandardCard";
 
-// Define proper type for page params
 interface PageParams {
   params: {
     id: string;
@@ -23,7 +24,7 @@ export default function EditContactPage({ params }: PageParams) {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
-    role: "contractor",
+    role: "general",
     phone: "",
     email: "",
     address: "",
@@ -33,6 +34,17 @@ export default function EditContactPage({ params }: PageParams) {
   });
 
   const contactId = params.id;
+
+  // ✅ Role options matching the main page categories
+  const roleOptions = [
+    { value: "owner", label: "👑 Owner" },
+    { value: "emergency", label: "🚨 Emergency" },
+    { value: "maintenance", label: "🔧 Maintenance" },
+    { value: "management", label: "🏢 Management" },
+    { value: "utility", label: "⚡ Utility" },
+    { value: "neighbor", label: "🏠 Neighbor" },
+    { value: "general", label: "📋 General" },
+  ];
 
   useEffect(() => {
     async function fetchContact() {
@@ -48,12 +60,11 @@ export default function EditContactPage({ params }: PageParams) {
         if (error) throw error;
 
         if (data) {
-          // Convert priority to number if it exists
           const priority = data.priority !== null ? parseInt(data.priority) : 0;
 
           setFormData({
             name: data.name || "",
-            role: data.role || "contractor",
+            role: data.role || "general",
             phone: data.phone || "",
             email: data.email || "",
             address: data.address || "",
@@ -75,7 +86,6 @@ export default function EditContactPage({ params }: PageParams) {
     fetchContact();
   }, [contactId]);
 
-  // Update the handleChange function with proper typing
   const handleChange = (
     e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
   ) => {
@@ -86,19 +96,16 @@ export default function EditContactPage({ params }: PageParams) {
     }));
   };
 
-  // Update the handleSubmit function with proper typing
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
     setError("");
 
     try {
-      // Verify user is authenticated
       if (!user) {
         throw new Error("You must be logged in to update contacts");
       }
 
-      // Add updated timestamp
       const contactData = {
         ...formData,
         updated_at: new Date().toISOString(),
@@ -111,7 +118,6 @@ export default function EditContactPage({ params }: PageParams) {
 
       if (error) throw error;
 
-      // Redirect back to contacts page on success
       router.push("/contacts");
       router.refresh();
     } catch (error: unknown) {
@@ -124,7 +130,6 @@ export default function EditContactPage({ params }: PageParams) {
     }
   };
 
-  // Update the handleDeleteContact function with proper error handling
   const handleDeleteContact = async () => {
     try {
       setLoading(true);
@@ -135,7 +140,6 @@ export default function EditContactPage({ params }: PageParams) {
 
       if (error) throw error;
 
-      // Redirect back to contacts page on success
       router.push("/contacts");
       router.refresh();
     } catch (error: unknown) {
@@ -150,296 +154,252 @@ export default function EditContactPage({ params }: PageParams) {
 
   if (loading && !formData.name) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-        <SideNavigation user={user} />
-        <div className="lg:pl-64 flex flex-col flex-1">
-          <main className="flex-1 p-6">
-            <div className="flex justify-center items-center h-64">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <ProtectedPageWrapper>
+        <PageContainer>
+          <div className="flex items-center justify-center min-h-64">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+              <p className="mt-2 text-gray-600">Loading contact...</p>
             </div>
-          </main>
-        </div>
-      </div>
+          </div>
+        </PageContainer>
+      </ProtectedPageWrapper>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <SideNavigation user={user} />
-      <div className="lg:pl-64 flex flex-col flex-1">
-        <main className="flex-1">
-          <div className="container mx-auto px-4 py-8">
-            <div className="flex items-center mb-6">
-              <Link
-                href="/contacts"
-                className="mr-4 p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"
-              >
-                <ArrowLeft className="h-5 w-5 text-gray-600 dark:text-gray-300" />
-              </Link>
-              <h1 className="text-2xl font-semibold">Edit Contact</h1>
+    <ProtectedPageWrapper>
+      <PageContainer>
+        <div className="space-y-6">
+          {/* ✅ Header with back button */}
+          <div className="flex items-center gap-4">
+            <Link
+              href="/contacts"
+              className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+            >
+              <ArrowLeft className="h-5 w-5 text-gray-600" />
+            </Link>
+            <h1 className="text-2xl font-bold text-gray-900">Edit Contact</h1>
+          </div>
+
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+              <p>{error}</p>
             </div>
+          )}
 
-            {error && (
-              <div className="mb-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-                <p>{error}</p>
-              </div>
-            )}
-
-            <form onSubmit={handleSubmit} className="max-w-2xl">
-              <div className="bg-white shadow rounded-lg p-6">
-                <div className="space-y-6">
-                  {/* Name */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">
-                      Name *
-                    </label>
-                    <input
-                      type="text"
-                      name="name"
-                      value={formData.name}
-                      onChange={handleChange}
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
-                      required
-                      placeholder="Enter contact name"
-                      aria-label="Contact name"
-                    />
-                  </div>
-
-                  {/* Role */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">
-                      Role
-                    </label>
-                    <select
-                      name="role"
-                      value={formData.role}
-                      onChange={handleChange}
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
-                      aria-label="Contact role"
-                    >
-                      <option value="contractor">Contractor</option>
-                      <option value="plumber">Plumber</option>
-                      <option value="electrician">Electrician</option>
-                      <option value="handyman">Handyman</option>
-                      <option value="landscaping">Landscaping</option>
-                      <option value="cleaning">Cleaning</option>
-                      <option value="other">Other</option>
-                    </select>
-                  </div>
-
-                  {/* Phone */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Phone
-                    </label>
-                    <input
-                      type="tel"
-                      name="phone"
-                      value={formData.phone}
-                      onChange={handleChange}
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                      placeholder="Enter phone number"
-                      aria-label="Contact phone number"
-                    />
-                  </div>
-
-                  {/* Email */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Email
-                    </label>
-                    <input
-                      type="email"
-                      name="email"
-                      value={formData.email}
-                      onChange={handleChange}
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                      placeholder="Enter email address"
-                      aria-label="Contact email address"
-                    />
-                  </div>
-
-                  {/* Website */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Website
-                    </label>
-                    <input
-                      type="url"
-                      name="website"
-                      value={formData.website}
-                      onChange={handleChange}
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                      placeholder="Enter website URL"
-                      aria-label="Contact website"
-                    />
-                  </div>
-
-                  {/* Address */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Address
-                    </label>
-                    <textarea
-                      name="address"
-                      value={formData.address}
-                      onChange={handleChange}
-                      rows={2}
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                      placeholder="Enter physical address"
-                      aria-label="Contact address"
-                    />
-                  </div>
-
-                  {/* Priority */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Priority (0-10)
-                    </label>
-                    <input
-                      type="number"
-                      name="priority"
-                      min="0"
-                      max="10"
-                      value={formData.priority}
-                      onChange={handleChange}
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                      placeholder="Set priority level (0-10)"
-                      aria-label="Contact priority level"
-                    />
-                  </div>
-
-                  {/* Description */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Description
-                    </label>
-                    <textarea
-                      name="description"
-                      value={formData.description}
-                      onChange={handleChange}
-                      rows={3}
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                      placeholder="Enter description or notes"
-                      aria-label="Contact description"
-                    />
-                  </div>
+          <StandardCard className="p-6">
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {/* ✅ Form fields with modern styling */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Name */}
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Name *
+                  </label>
+                  <input
+                    type="text"
+                    name="name"
+                    value={formData.name}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    required
+                    placeholder="Enter contact name"
+                  />
                 </div>
 
-                <div className="mt-6 flex justify-between">
-                  {/* Left side - Delete button */}
-                  <button
-                    type="button"
-                    onClick={() => setShowDeleteModal(true)}
-                    className="inline-flex items-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                {/* Role */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Category
+                  </label>
+                  <select
+                    name="role"
+                    value={formData.role}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Delete Contact
-                  </button>
+                    {roleOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-                  {/* Right side - Cancel and Update buttons */}
-                  <div className="flex space-x-3">
-                    <Link
-                      href="/contacts"
-                      className="bg-white dark:bg-gray-700 py-2 px-4 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                    >
-                      Cancel
-                    </Link>
-                    <button
-                      type="submit"
-                      disabled={loading}
-                      className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                    >
-                      {loading ? (
-                        <span className="inline-flex items-center">
-                          <svg
-                            className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                          >
-                            <circle
-                              className="opacity-25"
-                              cx="12"
-                              cy="12"
-                              r="10"
-                              stroke="currentColor"
-                              strokeWidth="4"
-                            ></circle>
-                            <path
-                              className="opacity-75"
-                              fill="currentColor"
-                              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                            ></path>
-                          </svg>
-                          Saving...
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center">
-                          <Save className="h-4 w-4 mr-2" />
-                          Update Contact
-                        </span>
-                      )}
-                    </button>
-                  </div>
+                {/* Priority */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Priority (1-10)
+                  </label>
+                  <input
+                    type="number"
+                    name="priority"
+                    min="1"
+                    max="10"
+                    value={formData.priority}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="1 = highest priority"
+                  />
+                </div>
+
+                {/* Phone */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Phone
+                  </label>
+                  <input
+                    type="tel"
+                    name="phone"
+                    value={formData.phone}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="(555) 123-4567"
+                  />
+                </div>
+
+                {/* Email */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Email
+                  </label>
+                  <input
+                    type="email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="contact@example.com"
+                  />
+                </div>
+
+                {/* Website */}
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Website
+                  </label>
+                  <input
+                    type="url"
+                    name="website"
+                    value={formData.website}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="https://example.com"
+                  />
+                </div>
+
+                {/* Address */}
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Address
+                  </label>
+                  <textarea
+                    name="address"
+                    value={formData.address}
+                    onChange={handleChange}
+                    rows={2}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="123 Main Street, City, State ZIP"
+                  />
+                </div>
+
+                {/* Description */}
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Description
+                  </label>
+                  <textarea
+                    name="description"
+                    value={formData.description}
+                    onChange={handleChange}
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Additional notes or description..."
+                  />
+                </div>
+              </div>
+
+              {/* ✅ Action buttons */}
+              <div className="flex items-center justify-between pt-6 border-t border-gray-200">
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteModal(true)}
+                  className="flex items-center gap-2 px-4 py-2 text-red-600 border border-red-600 rounded-lg hover:bg-red-50 transition-colors"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Delete Contact
+                </button>
+
+                <div className="flex gap-3">
+                  <Link
+                    href="/contacts"
+                    className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    Cancel
+                  </Link>
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                  >
+                    {loading ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="h-4 w-4" />
+                        Save Changes
+                      </>
+                    )}
+                  </button>
                 </div>
               </div>
             </form>
-          </div>
-        </main>
-      </div>
-      {showDeleteModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg max-w-md w-full p-6">
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
-              Delete Contact
-            </h3>
-            <p className="text-gray-500 dark:text-gray-400 mb-6">
-              Are you sure you want to delete {formData.name}? This action
-              cannot be undone.
-            </p>
-            <div className="flex justify-end space-x-4">
-              <button
-                onClick={() => setShowDeleteModal(false)}
-                className="px-4 py-2 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleDeleteContact}
-                disabled={loading}
-                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 flex items-center"
-              >
-                {loading ? (
-                  <span className="inline-flex items-center">
-                    <svg
-                      className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                    >
-                      <circle
-                        className="opacity-25"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                      ></circle>
-                      <path
-                        className="opacity-75"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                      ></path>
-                    </svg>
-                    Deleting...
-                  </span>
-                ) : (
-                  <>Delete</>
-                )}
-              </button>
+          </StandardCard>
+        </div>
+
+        {/* ✅ Delete confirmation modal */}
+        {showDeleteModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">
+                Delete Contact
+              </h3>
+              <p className="text-gray-600 mb-6">
+                Are you sure you want to delete <strong>{formData.name}</strong>? This action cannot be undone.
+              </p>
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={() => setShowDeleteModal(false)}
+                  className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDeleteContact}
+                  disabled={loading}
+                  className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50"
+                >
+                  {loading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      Deleting...
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="h-4 w-4" />
+                      Delete
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
-    </div>
+        )}
+      </PageContainer>
+    </ProtectedPageWrapper>
   );
 }

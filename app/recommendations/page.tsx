@@ -127,6 +127,9 @@ export default function RecommendationsPage() {
     phone_number: "",
   });
 
+  // Add this state variable with your other useState declarations (around line 95):
+  const [showGoogleSearchModal, setShowGoogleSearchModal] = useState(false);
+
   const autocompleteRef = useRef<HTMLDivElement>(null);
   const searchTimeoutRef = useRef<NodeJS.Timeout>();
 
@@ -475,91 +478,6 @@ export default function RecommendationsPage() {
   return (
     <ProtectedPageWrapper>
       <PageContainer className="space-y-6">
-        {/* Google Places Search */}
-        <StandardCard
-          title="Find Places"
-          subtitle="Discover local places and add them to your recommendations"
-          className="mb-6"
-        >
-          <div className="space-y-4">
-            <GooglePlacesSearch
-              onPlaceSelect={handlePlaceSelect}
-              placeholder="Search for places to recommend..."
-              propertyLocation={currentProperty?.coordinates}
-              showDetails={true}
-              className="mb-4"
-            />
-
-            {placesLoading && (
-              <div className="flex items-center justify-center py-4">
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-                <span className="ml-2 text-gray-600">
-                  Loading place details...
-                </span>
-              </div>
-            )}
-
-            {selectedPlace && !placesLoading && (
-              <div className="border-t pt-4">
-                <h4 className="font-medium text-gray-900 mb-3">
-                  Selected Place:
-                </h4>
-                <div className="p-4 border border-gray-200 rounded-lg bg-gray-50">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <h5 className="font-medium text-gray-900 text-lg">
-                        {selectedPlace.name}
-                      </h5>
-                      <p className="text-sm text-gray-600 mb-2">
-                        {selectedPlace.formatted_address}
-                      </p>
-
-                      <div className="flex items-center space-x-4 text-sm text-gray-500 mb-2">
-                        {selectedPlace.rating && (
-                          <div className="flex items-center">
-                            <Star className="h-4 w-4 text-yellow-400 fill-current mr-1" />
-                            {selectedPlace.rating} stars
-                          </div>
-                        )}
-                        {selectedPlace.price_level && (
-                          <span>
-                            {"$".repeat(selectedPlace.price_level)} price level
-                          </span>
-                        )}
-                        {selectedPlace.opening_hours?.open_now !==
-                          undefined && (
-                          <span
-                            className={
-                              selectedPlace.opening_hours.open_now
-                                ? "text-green-600"
-                                : "text-red-600"
-                            }
-                          >
-                            {selectedPlace.opening_hours.open_now
-                              ? "Open now"
-                              : "Currently closed"}
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="text-sm text-gray-500">
-                        Categories: {selectedPlace.types.slice(0, 5).join(", ")}
-                      </div>
-                    </div>
-
-                    <button
-                      onClick={() => addPlaceAsRecommendation(selectedPlace)}
-                      className="ml-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
-                    >
-                      Add as Recommendation
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        </StandardCard>
-
         {/* Replace the old category filter with the new filter component */}
         <RecommendationFilters
           recommendations={recommendations}
@@ -737,13 +655,22 @@ export default function RecommendationsPage() {
               <p className="text-sm mt-1 mb-4">
                 Try adjusting your filters or add new recommendations
               </p>
-              <button
-                onClick={() => setShowManualModal(true)}
-                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Add First Recommendation
-              </button>
+              <div className="flex gap-3 justify-center">
+                <button
+                  onClick={() => setShowGoogleSearchModal(true)}
+                  className="inline-flex items-center px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  <Search className="h-4 w-4 mr-2" />
+                  Find with Google
+                </button>
+                <button
+                  onClick={() => setShowManualModal(true)}
+                  className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Manually
+                </button>
+              </div>
             </div>
           )}
         </StandardCard>
@@ -754,18 +681,7 @@ export default function RecommendationsPage() {
             {
               icon: Search,
               label: "Find with Google",
-              onClick: () => {
-                const searchInput = document.querySelector(
-                  'input[placeholder*="Search for places"]'
-                ) as HTMLInputElement;
-                if (searchInput) {
-                  searchInput.focus();
-                  searchInput.scrollIntoView({
-                    behavior: "smooth",
-                    block: "center",
-                  });
-                }
-              },
+              onClick: () => setShowGoogleSearchModal(true), // ✅ Open modal instead
               variant: "secondary",
             },
             {
@@ -1004,6 +920,187 @@ export default function RecommendationsPage() {
                     </>
                   )}
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Google Places Search Modal */}
+        {showGoogleSearchModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    Find Places with Google
+                  </h3>
+                  <p className="text-sm text-gray-600 mt-1">
+                    Search for local businesses and add them to your
+                    recommendations
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowGoogleSearchModal(false);
+                    setSelectedPlace(null);
+                    setPlacesSearchTerm("");
+                  }}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <span className="text-xl">✕</span>
+                </button>
+              </div>
+
+              <div className="space-y-6">
+                {/* Google Places Search */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Search for places
+                  </label>
+                  <GooglePlacesSearch
+                    onPlaceSelect={handlePlaceSelect}
+                    placeholder="Search for restaurants, stores, services..."
+                    propertyLocation={currentProperty?.coordinates}
+                    showDetails={true}
+                    className="w-full"
+                  />
+                </div>
+
+                {/* Loading State */}
+                {placesLoading && (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                    <span className="ml-3 text-gray-600">
+                      Loading place details...
+                    </span>
+                  </div>
+                )}
+
+                {/* Selected Place Preview */}
+                {selectedPlace && !placesLoading && (
+                  <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                    <h4 className="font-medium text-gray-900 mb-3 flex items-center">
+                      <MapPin className="h-4 w-4 mr-2 text-gray-600" />
+                      Selected Place
+                    </h4>
+
+                    <div className="space-y-3">
+                      <div>
+                        <h5 className="font-medium text-gray-900 text-lg">
+                          {selectedPlace.name}
+                        </h5>
+                        <p className="text-sm text-gray-600">
+                          {selectedPlace.formatted_address}
+                        </p>
+                      </div>
+
+                      {/* Place Details */}
+                      <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600">
+                        {selectedPlace.rating && (
+                          <div className="flex items-center">
+                            <Star className="h-4 w-4 text-yellow-400 fill-current mr-1" />
+                            <span>{selectedPlace.rating} stars</span>
+                          </div>
+                        )}
+
+                        {selectedPlace.price_level && (
+                          <div className="flex items-center">
+                            <span className="text-green-600 font-medium">
+                              {"$".repeat(selectedPlace.price_level)}
+                            </span>
+                            <span className="ml-1">price level</span>
+                          </div>
+                        )}
+
+                        {selectedPlace.opening_hours?.open_now !==
+                          undefined && (
+                          <div
+                            className={`flex items-center ${
+                              selectedPlace.opening_hours.open_now
+                                ? "text-green-600"
+                                : "text-red-600"
+                            }`}
+                          >
+                            <div
+                              className={`w-2 h-2 rounded-full mr-2 ${
+                                selectedPlace.opening_hours.open_now
+                                  ? "bg-green-500"
+                                  : "bg-red-500"
+                              }`}
+                            ></div>
+                            {selectedPlace.opening_hours.open_now
+                              ? "Open now"
+                              : "Currently closed"}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Categories */}
+                      <div className="text-sm text-gray-600">
+                        <span className="font-medium">Categories:</span>{" "}
+                        {selectedPlace.types.slice(0, 4).join(", ")}
+                      </div>
+
+                      {/* Contact Info */}
+                      <div className="space-y-1">
+                        {selectedPlace.formatted_phone_number && (
+                          <div className="flex items-center text-sm text-gray-600">
+                            <Phone className="h-4 w-4 mr-2" />
+                            <a
+                              href={`tel:${selectedPlace.formatted_phone_number}`}
+                              className="hover:text-blue-600"
+                            >
+                              {selectedPlace.formatted_phone_number}
+                            </a>
+                          </div>
+                        )}
+
+                        {selectedPlace.website && (
+                          <div className="flex items-center text-sm text-gray-600">
+                            <Globe className="h-4 w-4 mr-2" />
+                            <a
+                              href={selectedPlace.website}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="hover:text-blue-600 truncate"
+                            >
+                              Visit Website
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Modal Actions */}
+              <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200 mt-6">
+                <button
+                  onClick={() => {
+                    setShowGoogleSearchModal(false);
+                    setSelectedPlace(null);
+                    setPlacesSearchTerm("");
+                  }}
+                  className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                >
+                  Cancel
+                </button>
+
+                {selectedPlace && (
+                  <button
+                    onClick={() => {
+                      addPlaceAsRecommendation(selectedPlace);
+                      setShowGoogleSearchModal(false);
+                      setSelectedPlace(null);
+                      setPlacesSearchTerm("");
+                    }}
+                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add as Recommendation
+                  </button>
+                )}
               </div>
             </div>
           </div>

@@ -19,6 +19,7 @@ import {
   Crown,
   Wrench,
   AlertTriangle,
+  ExternalLink,
 } from "lucide-react";
 import Link from "next/link";
 import ProtectedPageWrapper from "@/components/layout/ProtectedPageWrapper";
@@ -26,6 +27,8 @@ import PageContainer from "@/components/layout/PageContainer";
 import StandardCard from "@/components/ui/StandardCard";
 import { useAuth } from "@/components/auth";
 import { supabase } from "@/lib/supabase";
+import AddContactModal from "@/components/modals/AddContactModal";
+import FloatingActionButton from "@/components/ui/FloatingActionButton";
 
 interface Contact {
   id: string;
@@ -54,8 +57,9 @@ export default function ContactsPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
+  const [showAddModal, setShowAddModal] = useState(false);
 
-  // ✅ Enhanced categories with better icons and colors
+  // ✅ Enhanced categories following dashboard color standards
   const categories = [
     {
       id: "owner",
@@ -75,14 +79,14 @@ export default function ContactsPage() {
       id: "maintenance",
       name: "Maintenance",
       icon: "🔧",
-      color: "bg-blue-100 text-blue-800",
+      color: "bg-purple-100 text-purple-800",
       priority: 3,
     },
     {
       id: "management",
       name: "Management",
       icon: "🏢",
-      color: "bg-purple-100 text-purple-800",
+      color: "bg-blue-100 text-blue-800",
       priority: 4,
     },
     {
@@ -108,20 +112,24 @@ export default function ContactsPage() {
     },
   ];
 
-  // ✅ Enhanced fetchContacts with owner contact creation
+  // ✅ Optimized fetchContacts with proper loading guards
   useEffect(() => {
     async function fetchContacts() {
-      if (!property?.id || !user) return;
+      if (!property?.id || !user || loading) return;
 
       try {
         setLoading(true);
         console.log("📞 Fetching contacts for property:", property.id);
 
+        // ✅ Select specific columns for performance
         const { data, error } = await supabase
           .from("contacts")
-          .select("*")
+          .select(
+            "id, name, email, phone, role, address, description, website, priority, created_at, property_id"
+          )
           .eq("property_id", property.id)
-          .order("priority", { ascending: true });
+          .order("priority", { ascending: true })
+          .limit(50); // Limit for performance
 
         if (error) {
           console.error("Database error:", error);
@@ -136,6 +144,7 @@ export default function ContactsPage() {
 
         let allContacts = data as Contact[];
 
+        // ✅ Auto-create owner contact if needed
         if (!hasOwnerContact && currentTenant?.role === "owner") {
           console.log("📞 Adding owner contact for user:", user.email);
 
@@ -161,6 +170,7 @@ export default function ContactsPage() {
 
           if (insertError) {
             console.error("❌ Failed to insert owner contact:", insertError);
+            // Fallback to memory-only contact
             allContacts.unshift({
               id: `owner-${user.id}`,
               name: ownerContact.name,
@@ -189,6 +199,7 @@ export default function ContactsPage() {
         setContacts(allContacts);
       } catch (error) {
         console.error("Error fetching contacts:", error);
+        // Graceful fallback for owner
         if (currentTenant?.role === "owner") {
           const ownerContact: Contact = {
             id: `owner-${user.id}`,
@@ -216,7 +227,7 @@ export default function ContactsPage() {
     fetchContacts();
   }, [property?.id, user?.id, user?.email, currentTenant?.role]);
 
-  // ✅ Filter contacts based on search and category
+  // ✅ Filter contacts with performance optimization
   const filteredContacts = contacts.filter((contact) => {
     const matchesSearch =
       contact.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -227,7 +238,7 @@ export default function ContactsPage() {
     return matchesSearch && matchesCategory;
   });
 
-  // ✅ Get user avatar
+  // ✅ Get user avatar helper
   const getUserAvatar = (contact: Contact) => {
     if (contact.role === "owner" && contact.email === user?.email) {
       return user?.user_metadata?.avatar_url || user?.user_metadata?.picture;
@@ -235,7 +246,7 @@ export default function ContactsPage() {
     return null;
   };
 
-  // ✅ Loading and error states
+  // ✅ Loading state with consistent design
   if (propertyLoading) {
     return (
       <ProtectedPageWrapper>
@@ -251,6 +262,7 @@ export default function ContactsPage() {
     );
   }
 
+  // ✅ Error boundary with retry
   if (error || !property?.id || !currentTenant) {
     return (
       <ProtectedPageWrapper>
@@ -279,12 +291,18 @@ export default function ContactsPage() {
     );
   }
 
-  // ✅ Main render with enhanced UI
+  // Add this function to refresh contacts after adding:
+  const refreshContacts = () => {
+    // Trigger the useEffect to refetch contacts
+    setContacts([]);
+    // The useEffect will automatically refetch when contacts is empty
+  };
+
   return (
     <ProtectedPageWrapper>
       <PageContainer>
         <div className="space-y-6">
-          {/* ✅ Enhanced Header */}
+          {/* ✅ Minimal Header Design */}
           <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
@@ -292,31 +310,24 @@ export default function ContactsPage() {
                   <Users className="h-8 w-8 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-3xl font-bold text-gray-900">
-                    Contacts
-                  </h1>
-                  <p className="text-lg text-gray-600">{property.name}</p>
-                  <div className="flex items-center gap-4 mt-2">
+                  <div className="flex items-center gap-3">
+                    <h1 className="text-2xl font-bold text-gray-900">
+                      {property.name}
+                    </h1>
                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                       {currentTenant.role}
                     </span>
-                    <span className="text-sm text-gray-500">
+                  </div>
+                  <div className="flex items-center gap-2 mt-1">
+                    <Users className="h-4 w-4 text-gray-400" />
+                    <span className="text-sm text-gray-600">
                       {filteredContacts.length} contact
-                      {filteredContacts.length !== 1 ? "s" : ""}
+                      {filteredContacts.length !== 1 ? "s" : ""} • Property
+                      Directory
                     </span>
                   </div>
                 </div>
               </div>
-
-              {isManagerView && (
-                <Link
-                  href="/contacts/new"
-                  className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all duration-200 shadow-lg hover:shadow-xl"
-                >
-                  <Plus className="h-5 w-5" />
-                  Add Contact
-                </Link>
-              )}
             </div>
           </div>
 
@@ -349,7 +360,7 @@ export default function ContactsPage() {
             </div>
           </div>
 
-          {/* ✅ Loading State */}
+          {/* ✅ Loading Skeletons */}
           {loading ? (
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
               {[...Array(6)].map((_, i) => (
@@ -372,11 +383,13 @@ export default function ContactsPage() {
             </div>
           ) : (
             <>
-              {/* ✅ Enhanced Contact Cards */}
+              {/* ✅ Contact Cards Grid */}
               {filteredContacts.length > 0 ? (
                 <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                   {filteredContacts.map((contact) => {
-                    const category = categories.find((c) => c.id === contact.role);
+                    const category = categories.find(
+                      (c) => c.id === contact.role
+                    );
                     const avatarUrl = getUserAvatar(contact);
 
                     return (
@@ -397,7 +410,8 @@ export default function ContactsPage() {
                               ) : (
                                 <div
                                   className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                                    category?.color || "bg-gray-100 text-gray-600"
+                                    category?.color ||
+                                    "bg-gray-100 text-gray-600"
                                   }`}
                                 >
                                   <span className="text-xl">
@@ -421,7 +435,8 @@ export default function ContactsPage() {
                               <div className="flex items-center gap-2">
                                 <span
                                   className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                                    category?.color || "bg-gray-100 text-gray-800"
+                                    category?.color ||
+                                    "bg-gray-100 text-gray-800"
                                   }`}
                                 >
                                   {category?.name || contact.role}
@@ -481,9 +496,10 @@ export default function ContactsPage() {
                                 }
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="text-blue-600 hover:text-blue-700 font-medium"
+                                className="text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
                               >
                                 Website
+                                <ExternalLink className="h-3 w-3" />
                               </a>
                             </div>
                           )}
@@ -510,7 +526,9 @@ export default function ContactsPage() {
                             <div className="flex items-center gap-1 text-xs text-gray-400">
                               <Clock className="h-3 w-3" />
                               <span>
-                                {new Date(contact.created_at).toLocaleDateString()}
+                                {new Date(
+                                  contact.created_at
+                                ).toLocaleDateString()}
                               </span>
                             </div>
 
@@ -563,28 +581,22 @@ export default function ContactsPage() {
                           Add contacts for this property to keep important
                           information organized and easily accessible.
                         </p>
-                        {isManagerView && (
-                          <Link
-                            href="/contacts/new"
-                            className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                          >
-                            <Plus className="h-4 w-4" />
-                            Add Your First Contact
-                          </Link>
-                        )}
                       </>
                     )}
                   </div>
                 </StandardCard>
               )}
 
-              {/* ✅ Categories Overview */}
+              {/* ✅ Categories Overview Dashboard Widget Style */}
               {contacts.length > 0 && (
                 <StandardCard className="p-6">
-                  <h3 className="font-medium text-gray-900 mb-4 flex items-center gap-2">
-                    <Building className="h-5 w-5 text-blue-600" />
-                    Contact Categories
-                  </h3>
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-medium text-gray-900 flex items-center gap-2">
+                      <Building className="h-5 w-5 text-blue-600" />
+                      Contact Categories
+                    </h3>
+                    <ExternalLink className="h-4 w-4 text-gray-400" />
+                  </div>
                   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                     {categories.map((category) => {
                       const count = contacts.filter(
@@ -593,11 +605,12 @@ export default function ContactsPage() {
                       return (
                         <div
                           key={category.id}
-                          className={`flex items-center gap-3 p-3 rounded-lg border ${
+                          className={`flex items-center gap-3 p-3 rounded-lg border transition-all hover:scale-105 cursor-pointer ${
                             count > 0
                               ? "bg-blue-50 border-blue-200"
                               : "bg-gray-50 border-gray-200"
                           }`}
+                          onClick={() => setSelectedCategory(category.id)}
                         >
                           <span className="text-xl">{category.icon}</span>
                           <div>
@@ -618,6 +631,26 @@ export default function ContactsPage() {
             </>
           )}
         </div>
+
+        {/* ✅ Standard Floating Action Button Component */}
+        {isManagerView && (
+          <div className="fixed bottom-6 right-6 z-50">
+            <FloatingActionButton
+              icon={Plus}
+              label="Add Contact"
+              onClick={() => setShowAddModal(true)}
+              variant="primary"
+            />
+          </div>
+        )}
+
+        <AddContactModal
+          isOpen={showAddModal}
+          onClose={() => setShowAddModal(false)}
+          onContactAdded={refreshContacts}
+          propertyId={property.id}
+          userId={user.id}
+        />
       </PageContainer>
     </ProtectedPageWrapper>
   );

@@ -18,6 +18,7 @@ import InventoryTable from "@/components/inventory/InventoryTable";
 import ItemModal from "@/components/inventory/ItemModal";
 import ManageItemsModal from "@/components/ManageItemsModal";
 import ShoppingListModal from "@/components/ShoppingListModal";
+import FloatingActionButton from "@/components/ui/FloatingActionButton";
 
 import { useInventory } from "@/components/inventory/hooks/useInventory";
 import { useProperty } from "@/lib/hooks/useProperty";
@@ -286,16 +287,16 @@ export default function InventoryPage() {
             subtitle={`${totalItems} items in inventory`}
             headerActions={
               <div className="flex items-center space-x-2">
-                {/* ✅ Keep the Manage Button - this is in the card header */}
+                {/* ✅ Keep only essential header button */}
                 <button
                   onClick={() => setShowManageModal(true)}
-                  className="flex items-center px-3 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                  className="flex items-center gap-2 px-3 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
                 >
-                  <Settings className="h-4 w-4 mr-1" />
+                  <Settings className="h-4 w-4" />
                   <span className="hidden sm:inline">Manage</span>
                 </button>
 
-                {/* ✅ Keep status indicators */}
+                {/* ✅ Status indicators */}
                 {outOfStockItems > 0 && (
                   <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
                     <AlertTriangle className="h-3 w-3 mr-1" />
@@ -328,52 +329,36 @@ export default function InventoryPage() {
             />
           </StandardCard>
 
-          {/* ✅ Keep your beautiful floating action buttons */}
-          <div className="fixed bottom-6 right-6 flex flex-col items-end space-y-3 z-40">
+          {/* ✅ Consistent Floating Action Buttons */}
+          <div className="fixed bottom-6 right-6 flex flex-col items-end space-y-3 z-50">
             {/* Add Item Button */}
-            <button
+            <FloatingActionButton
+              icon={Plus}
+              label="Add Item"
               onClick={() => inventoryHook.setIsAddingItem(true)}
-              className="bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg transition-all duration-300 hover:scale-105 flex items-center group overflow-hidden"
-              aria-label="Add Item"
-            >
-              <div className="p-4 flex items-center">
-                <Plus className="h-6 w-6 flex-shrink-0" />
-              </div>
-              <div className="max-w-0 group-hover:max-w-[160px] overflow-hidden transition-all duration-500 ease-out">
-                <div className="pr-6 opacity-0 group-hover:opacity-100 transition-opacity duration-400 delay-150">
-                  <span className="whitespace-nowrap font-medium">
-                    Add Item
-                  </span>
-                </div>
-              </div>
-            </button>
+              variant="primary"
+            />
 
-            {/* Shopping List Button */}
-            <button
-              onClick={() => setShowShoppingListModal(true)}
-              className={`${
-                shoppingListItems.length > 0
-                  ? "bg-green-600 hover:bg-green-700"
-                  : "bg-gray-500 hover:bg-gray-600"
-              } text-white rounded-full shadow-lg transition-all duration-300 hover:scale-105 flex items-center group overflow-hidden`}
-              aria-label="Shopping List"
-            >
-              <div className="p-4 flex items-center relative">
-                <ShoppingCart className="h-6 w-6 flex-shrink-0" />
-                {shoppingListItems.length > 0 && (
-                  <span className="absolute top-1 right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-medium">
-                    {shoppingListItems.length}
-                  </span>
-                )}
-              </div>
-              <div className="max-w-0 group-hover:max-w-[140px] overflow-hidden transition-all duration-300 ease-in-out">
-                <div className="pr-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300 delay-100">
-                  <span className="whitespace-nowrap font-medium text-sm">
-                    Shopping List
-                  </span>
-                </div>
-              </div>
-            </button>
+            {/* Shopping List Button with Badge */}
+            <div className="relative">
+              <FloatingActionButton
+                icon={ShoppingCart}
+                label="Shopping List"
+                onClick={() => setShowShoppingListModal(true)}
+                variant={
+                  shoppingListItems.length > 0 ? "success" : "secondary"
+                }
+              />
+
+              {/* Badge for item count */}
+              {shoppingListItems.length > 0 && (
+                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-6 w-6 flex items-center justify-center font-bold shadow-lg ring-2 ring-white">
+                  {shoppingListItems.length > 99
+                    ? "99+"
+                    : shoppingListItems.length}
+                </span>
+              )}
+            </div>
           </div>
 
           {/* ✅ Keep the modals */}

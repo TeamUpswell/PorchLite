@@ -58,12 +58,18 @@ export default function GuestBookPage() {
   const fetchGuestBookEntries = async () => {
     try {
       setLoading(true);
+      console.log("🔍 Fetching guest book entries for property:", currentProperty?.id);
 
-      // Try to include photos if they exist in a separate table
-      const { data, error } = await supabase
+      if (!currentProperty?.id) {
+        console.warn("❌ No property ID available");
+        setEntries([]);
+        return;
+      }
+
+      // ✅ Try with photos first
+      let { data, error } = await supabase
         .from("guest_book_entries")
-        .select(
-          `
+        .select(`
           *,
           guest_book_photos (
             id,
@@ -71,39 +77,46 @@ export default function GuestBookPage() {
             caption,
             order_index
           )
-        `
-        )
+        `)
         .eq("property_id", currentProperty.id)
-        .eq("is_approved", true) // Re-enable approval filter
-        .eq("is_public", true) // Re-enable public filter
+        .eq("is_approved", true)
+        .eq("is_public", true)
         .order("visit_date", { ascending: false })
         .limit(20);
 
-      console.log("Query result:", data);
-      console.log("Query error:", error);
+      // ✅ If photos query fails, try without photos
+      if (error && error.message.includes("guest_book_photos")) {
+        console.log("📸 Photos table not found, trying without photos...");
+        
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from("guest_book_entries")
+          .select("*")
+          .eq("property_id", currentProperty.id)
+          .eq("is_approved", true)
+          .eq("is_public", true)
+          .order("visit_date", { ascending: false })
+          .limit(20);
+
+        if (fallbackError) {
+          throw fallbackError;
+        }
+        
+        data = fallbackData;
+        error = null;
+      }
 
       if (error) {
-        // If the guest_book_photos table doesn't exist, fall back to simple query
-        if (error.message.includes("guest_book_photos")) {
-          const { data: fallbackData, error: fallbackError } = await supabase
-            .from("guest_book_entries")
-            .select("*")
-            .eq("property_id", currentProperty.id)
-            .eq("is_approved", true)
-            .eq("is_public", true)
-            .order("visit_date", { ascending: false })
-            .limit(20);
-
-          if (fallbackError) throw fallbackError;
-          setEntries(fallbackData || []);
-        } else {
-          throw error;
-        }
-      } else {
-        setEntries(data || []);
+        throw error;
       }
+
+      console.log("✅ Found guest book entries:", data?.length || 0);
+
+      setEntries(data || []);
+
     } catch (error) {
-      console.error("Error fetching guest book entries:", error);
+      console.error("❌ Error fetching guest book entries:", error);
+      // ✅ Still set empty array so page renders
+      setEntries([]);
     } finally {
       setLoading(false);
     }
@@ -111,28 +124,59 @@ export default function GuestBookPage() {
 
   const debugAllEntries = async () => {
     try {
-      const { data, error } = await supabase
+      console.log("🔍 Debug: Current property:", {
+        id: currentProperty?.id,
+        name: currentProperty?.name
+      });
+
+      if (!currentProperty?.id) {
+        console.warn("❌ No property ID for debugging");
+        return;
+      }
+
+      // ✅ Check all entries regardless of filters
+      const { data: allData, error: allError } = await supabase
         .from("guest_book_entries")
         .select("*")
         .eq("property_id", currentProperty.id)
         .order("created_at", { ascending: false });
 
-      console.log("ALL entries for this property:", data);
-      console.log("Debug error:", error);
+      console.log("📊 ALL entries for this property:", allData?.length || 0);
+      console.log("🗃️ Raw data:", allData);
 
-      // Debug each entry's approval status
-      data?.forEach((entry, index) => {
+      if (allError) {
+        console.error("❌ Debug query error:", allError);
+        return;
+      }
+
+      // ✅ Check filters
+      const approvedEntries = allData?.filter(entry => entry.is_approved) || [];
+      const publicEntries = allData?.filter(entry => entry.is_public) || [];
+      const visibleEntries = allData?.filter(entry => entry.is_approved && entry.is_public) || [];
+
+      console.log("📋 Filter analysis:", {
+        total: allData?.length || 0,
+        approved: approvedEntries.length,
+        public: publicEntries.length,
+        visible: visibleEntries.length
+      });
+
+      // ✅ Log each entry's status
+      allData?.forEach((entry, index) => {
         console.log(`Entry ${index + 1}:`, {
           id: entry.id,
           guest_name: entry.guest_name,
+          title: entry.title,
           is_approved: entry.is_approved,
           is_public: entry.is_public,
-          title: entry.title,
-          created_at: entry.created_at,
+          will_show: entry.is_approved && entry.is_public,
+          visit_date: entry.visit_date,
+          created_at: entry.created_at
         });
       });
+
     } catch (error) {
-      console.error("Debug query failed:", error);
+      console.error("❌ Debug query failed:", error);
     }
   };
 
@@ -146,6 +190,22 @@ export default function GuestBookPage() {
       />
     ));
   };
+
+  // ✅ Show loading if property is still loading
+  if (!currentProperty) {
+    return (
+      <ProtectedPageWrapper>
+        <PageContainer>
+          <div className="flex items-center justify-center min-h-64">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+              <p className="mt-2 text-gray-600">Loading property...</p>
+            </div>
+          </div>
+        </PageContainer>
+      </ProtectedPageWrapper>
+    );
+  }
 
   return (
     <ProtectedPageWrapper>
@@ -374,6 +434,7 @@ export default function GuestBookPage() {
                                   src={photo.photo_url}
                                   alt={photo.caption || `Photo ${index + 1}`}
                                   fill
+                                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                                   className="object-cover group-hover:scale-105 transition-transform duration-200"
                                 />
                                 <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-opacity duration-200" />
@@ -397,6 +458,7 @@ export default function GuestBookPage() {
                                     `Photo ${index + 1}`
                                   }
                                   fill
+                                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                                   className="object-cover group-hover:scale-105 transition-transform duration-200"
                                 />
                                 <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-opacity duration-200" />
@@ -460,6 +522,22 @@ export default function GuestBookPage() {
             </div>
           )}
         </div>
+
+        {/* ✅ Remove this debug button since guest book is working */}
+        {/* 
+        <div className="fixed bottom-4 left-4 z-50">
+          <button
+            onClick={() => {
+              console.log("🧪 Manual test clicked");
+              fetchGuestBookEntries();
+              debugAllEntries();
+            }}
+            className="bg-red-500 text-white px-3 py-1 rounded text-xs"
+          >
+            🧪 Test DB
+          </button>
+        </div>
+        */}
       </PageContainer>
 
       <style jsx>{`
