@@ -10,13 +10,32 @@ import React, {
 import { supabase } from "@/lib/supabase";
 import type { User } from "@supabase/supabase-js";
 import { useRouter } from "next/navigation";
-import { debugLog } from "@/lib/utils/debug";
+import { debugLog, debugError } from "@/lib/utils/debug";
 
 // Add role and permission types at the top:
 type UserRole = "manager" | "family" | "guest";
 
+interface Property {
+  id: string;
+  name: string;
+  address?: string;
+  owner_id: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+interface Tenant {
+  id: string;
+  user_id: string;
+  property_id: string;
+  role: "owner" | "tenant" | "manager" | "family" | "guest";
+  tenant_id: string;
+}
+
 interface AuthContextType {
   user: User | null;
+  property: Property | null;
+  tenant: Tenant | null;
   isLoading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signUp: (email: string, password: string) => Promise<{ error: any }>;
@@ -24,6 +43,7 @@ interface AuthContextType {
   userRole: UserRole | null;
   hasPermission: (requiredRole: UserRole) => boolean;
   canAccess: (feature: string) => boolean;
+  contextVersion: number;
 }
 
 // ✅ Add permission hierarchy
@@ -92,9 +112,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             session.user.profile = profile;
             setUser(session.user);
             setUserRole(profile?.role || "guest");
+
+            // 🔥 ADD THIS - Load property data on initial session:
+            debugLog("🔍 Loading data for user:", session.user.id);
+            await loadPropertyData(session.user.id);
           } else {
             setUser(null);
             setUserRole(null);
+            // Clear property data when no user
+            setProperty(null);
+            setTenant(null);
           }
 
           debugLog(
@@ -108,6 +135,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (mounted) {
           setUser(null);
           setUserRole(null);
+          setProperty(null);
+          setTenant(null);
           setIsLoading(false);
         }
       }
@@ -133,6 +162,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(session.user);
         setUserRole(profile?.role || "guest");
 
+        // 🔥 ADD THIS - Actually load property data for the user:
+        debugLog("🔍 Loading data for user:", session.user.id);
+        await loadPropertyData(session.user.id);
+
         // Auto-redirect after sign in
         if (window.location.pathname === "/auth") {
           const urlParams = new URLSearchParams(window.location.search);
@@ -144,6 +177,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else if (event === "SIGNED_OUT") {
         setUser(null);
         setUserRole(null);
+        // Clear property data on sign out
+        setProperty(null);
+        setTenant(null);
       }
     });
 
@@ -247,32 +283,101 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
   }, [user, property, tenant]);
 
-  // Make sure your AuthProvider is setting the property state:
+  // Replace your incomplete loadPropertyData function:
   const loadPropertyData = async (userId: string) => {
     try {
-      // ... your existing property loading logic ...
+      debugLog("🔍 Starting property lookup for user:", userId);
 
-      // Make sure you're actually calling setProperty:
-      if (finalProperties.length > 0) {
-        const selectedProperty = finalProperties[0];
+      // Get current session first
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session) {
+        debugLog("❌ No session available");
+        return;
+      }
+
+      debugLog("🔍 Current session:", session.user?.id);
+
+      // Get user's tenant IDs
+      const { data: userTenants, error: tenantError } = await supabase
+        .from("tenants")
+        .select("tenant_id")
+        .eq("user_id", userId);
+
+      if (tenantError) {
+        debugLog("❌ Error fetching tenants:", tenantError);
+        return;
+      }
+
+      const tenantIds = userTenants?.map((t) => t.tenant_id) || [];
+      debugLog("🔍 User tenant IDs:", tenantIds);
+
+      // Get owned properties
+      const { data: ownedProperties, error: ownedError } = await supabase
+        .from("properties")
+        .select("*")
+        .eq("owner_id", userId);
+
+      debugLog("🔍 Owned properties query result:", {
+        ownedProperties,
+        ownedError,
+      });
+
+      // Get tenant properties
+      const { data: tenantProperties, error: tenantPropsError } = await supabase
+        .from("properties")
+        .select("*")
+        .in("id", tenantIds);
+
+      debugLog("🔍 Tenant properties query result:", {
+        props: tenantProperties,
+        tenantError: tenantPropsError,
+      });
+
+      // Combine and deduplicate properties
+      const allProperties = [
+        ...(ownedProperties || []),
+        ...(tenantProperties || []),
+      ];
+      const uniqueProperties = allProperties.filter(
+        (prop, index, self) => index === self.findIndex((p) => p.id === prop.id)
+      );
+
+      debugLog("🔍 All properties before deduplication:", allProperties);
+      debugLog("✅ Final properties after processing:", uniqueProperties);
+
+      if (uniqueProperties.length > 0) {
+        const selectedProperty = uniqueProperties[0];
 
         debugLog("🏠 Setting property in AuthProvider:", selectedProperty);
-        setProperty(selectedProperty); // ← Make sure this is being called
+        setProperty(selectedProperty);
 
-        // Set tenant
+        // Determine tenant role
+        const isOwner = ownedProperties?.some(
+          (p) => p.id === selectedProperty.id
+        );
+        const tenantId = tenantIds[0] || `owner-${userId}`;
+
         const enhancedTenant = {
-          id: `owner-${userId}`,
+          id: isOwner ? `owner-${userId}` : tenantId,
           user_id: userId,
           property_id: selectedProperty.id,
-          role: "owner" as const,
-          tenant_id: tenantIds[0],
+          role: isOwner ? ("owner" as const) : ("tenant" as const),
+          tenant_id: tenantId,
         };
 
+        debugLog("✅ Set up as property owner:", {
+          tenant: enhancedTenant,
+          property: selectedProperty,
+        });
         debugLog("👤 Setting tenant in AuthProvider:", enhancedTenant);
-        setTenant(enhancedTenant); // ← Make sure this is being called
+        setTenant(enhancedTenant);
+      } else {
+        debugLog("⚠️ No properties found for user");
       }
     } catch (error) {
-      debugError("❌ Error loading property data:", error);
+      debugLog("❌ Error loading property data:", error);
     }
   };
 

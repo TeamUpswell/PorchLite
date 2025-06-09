@@ -70,9 +70,11 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
 
       try {
         // Add session check
-        const { data: { session } } = await supabase.auth.getSession();
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
         debugLog("🔍 Current session:", session?.user?.id);
-        
+
         // Replace the problematic query with this approach:
 
         // Get user's tenant IDs first
@@ -87,43 +89,53 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
         }
 
         const tenantIds = userTenants?.map((t) => t.tenant_id) || [];
-        
+
         debugLog("🔍 User tenant IDs:", tenantIds);
         debugLog("🔍 User ID:", user.id);
 
         // Get properties created by user
         const { data: ownedProperties, error: ownedError } = await supabase
           .from("properties")
-          .select(`
+          .select(
+            `
             *,
             tenants (
               id,
               name
             )
-          `)
-          .eq('created_by', user.id);
+          `
+          )
+          .eq("created_by", user.id);
 
-        debugLog("🔍 Owned properties query result:", { ownedProperties, ownedError });
+        debugLog("🔍 Owned properties query result:", {
+          ownedProperties,
+          ownedError,
+        });
 
         if (ownedError) throw ownedError;
 
         let tenantProperties = [];
-        
+
         // Get properties from user's tenants (if any)
         if (tenantIds.length > 0) {
           const { data: props, error: tenantError } = await supabase
             .from("properties")
-            .select(`
+            .select(
+              `
               *,
               tenants (
                 id,
                 name
               )
-            `)
-            .in('tenant_id', tenantIds)
-            .neq('created_by', user.id);
+            `
+            )
+            .in("tenant_id", tenantIds)
+            .neq("created_by", user.id);
 
-          debugLog("🔍 Tenant properties query result:", { props, tenantError });
+          debugLog("🔍 Tenant properties query result:", {
+            props,
+            tenantError,
+          });
 
           if (tenantError) throw tenantError;
           tenantProperties = props || [];
@@ -132,12 +144,15 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
         // Combine and deduplicate properties
         const allProperties = [...(ownedProperties || []), ...tenantProperties];
         debugLog("🔍 All properties before deduplication:", allProperties);
-        
-        const uniqueProperties = allProperties.filter((prop, index, self) => 
-          index === self.findIndex(p => p.id === prop.id)
+
+        const uniqueProperties = allProperties.filter(
+          (prop, index, self) =>
+            index === self.findIndex((p) => p.id === prop.id)
         );
 
-        const properties = uniqueProperties.sort((a, b) => a.name.localeCompare(b.name));
+        const properties = uniqueProperties.sort((a, b) =>
+          a.name.localeCompare(b.name)
+        );
 
         debugLog("✅ Final properties after processing:", properties);
 
