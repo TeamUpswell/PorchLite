@@ -1,6 +1,9 @@
 "use client";
 
-import { useViewMode } from '@/lib/hooks/useViewMode';
+// ✅ Add debug log to confirm this page loads
+console.log("📦 CORRECT INVENTORY PAGE LOADED - /app/inventory/page.tsx");
+
+import { useViewMode } from "@/lib/hooks/useViewMode";
 import {
   Package,
   Plus,
@@ -24,33 +27,27 @@ import PageContainer from "@/components/layout/PageContainer";
 export const dynamic = "force-dynamic";
 
 export default function InventoryPage() {
+  // ✅ ALL HOOKS FIRST
   const inventoryHook = useInventory();
-  const { currentProperty, currentTenant } = useProperty();
-  const { 
-    isManagerView, 
-    isFamilyView, 
-    isGuestView 
-  } = useViewMode();
+  const {
+    currentProperty: property,
+    currentTenant,
+    loading: propertyLoading,
+    error,
+  } = useProperty();
+  const { isManagerView, isFamilyView, isGuestView } = useViewMode();
   const [showManageModal, setShowManageModal] = useState(false);
   const [showShoppingListModal, setShowShoppingListModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
 
-  // Close modal and refresh
-  const handleModalClose = () => {
-    setShowManageModal(false);
-    inventoryHook.refreshItems();
-  };
-
-  // ✅ Simpler shopping list calculation - catches more items
+  // ✅ useMemo and useEffect AFTER basic hooks
   const shoppingListItems = useMemo(() => {
     if (!inventoryHook.filteredItems) return [];
-
     return inventoryHook.filteredItems.filter((item) => {
-      // Only check explicit status - no automatic threshold logic
       return item.status === "low" || item.status === "out";
     });
   }, [inventoryHook.filteredItems]);
 
-  // ✅ Memoize stats with corrected logic
   const stats = useMemo(() => {
     const items = inventoryHook.filteredItems || [];
 
@@ -102,21 +99,23 @@ export default function InventoryPage() {
     }
   }, []);
 
-  // Add this to handle loading state for property
-  if (!currentProperty?.id) {
-    return (
-      <ProtectedPageWrapper>
-        <PageContainer>
-          <div className="flex items-center justify-center min-h-64">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-              <p className="mt-2 text-gray-600">Loading property...</p>
-            </div>
-          </div>
-        </PageContainer>
-      </ProtectedPageWrapper>
-    );
-  }
+  // ✅ Console logs AFTER hooks
+  console.log("📦 Inventory Page Debug:", {
+    propertyId: property?.id,
+    propertyName: property?.name,
+    tenantRole: currentTenant?.role,
+    isManagerView,
+    isFamilyView,
+    isGuestView,
+    inventoryItemsCount: inventoryHook.items?.length || 0,
+    filteredItemsCount: inventoryHook.filteredItems?.length || 0,
+  });
+
+  // Close modal and refresh
+  const handleModalClose = () => {
+    setShowManageModal(false);
+    inventoryHook.refreshItems();
+  };
 
   // Add this temporarily to see your threshold data
   console.log("🔍 Threshold Analysis:", {
@@ -142,15 +141,84 @@ export default function InventoryPage() {
     ).length,
   });
 
+  // ✅ CONDITIONAL RENDERS LAST
+  if (propertyLoading) {
+    return (
+      <ProtectedPageWrapper>
+        <PageContainer>
+          <div className="flex items-center justify-center min-h-64">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+              <p className="mt-2 text-gray-600">Loading property...</p>
+            </div>
+          </div>
+        </PageContainer>
+      </ProtectedPageWrapper>
+    );
+  }
+
+  if (error) {
+    return (
+      <ProtectedPageWrapper>
+        <PageContainer>
+          <div className="text-center py-8">
+            <p className="text-red-600">
+              Error loading property: {error.message}
+            </p>
+            <button
+              onClick={() => window.location.reload()}
+              className="mt-4 px-4 py-2 bg-blue-600 text-white rounded"
+            >
+              Retry
+            </button>
+          </div>
+        </PageContainer>
+      </ProtectedPageWrapper>
+    );
+  }
+
+  if (!property?.id) {
+    console.log("❌ No property found:", { property, currentTenant });
+    return (
+      <ProtectedPageWrapper>
+        <PageContainer>
+          <div className="text-center py-8">
+            <p className="text-gray-600">No property selected</p>
+            <p className="text-sm text-gray-500 mt-2">
+              Please select a property from your dashboard
+            </p>
+          </div>
+        </PageContainer>
+      </ProtectedPageWrapper>
+    );
+  }
+
+  if (!currentTenant) {
+    console.log("❌ No tenant found:", { property, currentTenant });
+    return (
+      <ProtectedPageWrapper>
+        <PageContainer>
+          <div className="text-center py-8">
+            <p className="text-red-600">Access denied</p>
+            <p className="text-sm text-gray-500 mt-2">
+              You don't have access to this property
+            </p>
+          </div>
+        </PageContainer>
+      </ProtectedPageWrapper>
+    );
+  }
+
   return (
     <ProtectedPageWrapper>
       <PageContainer>
         <div className="space-y-6">
+          {/* ❌ REMOVE this entire header section (lines ~225-250) */}
+          {/* 
           <div className="flex justify-between items-center">
             <h1 className="text-2xl font-bold">Inventory</h1>
             
             <div className="flex gap-2">
-              {/* Add item button */}
               {(isManagerView || isFamilyView) && (
                 <button
                   onClick={() => inventoryHook.setIsAddingItem(true)}
@@ -161,7 +229,6 @@ export default function InventoryPage() {
                 </button>
               )}
               
-              {/* Bulk import - manager only */}
               {isManagerView && (
                 <button
                   onClick={() => setShowImportModal(true)}
@@ -173,8 +240,9 @@ export default function InventoryPage() {
               )}
             </div>
           </div>
+          */}
 
-          {/* Stats Cards */}
+          {/* ✅ Keep the Stats Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <StandardCard padding="sm">
               <div className="text-center">
@@ -204,7 +272,7 @@ export default function InventoryPage() {
             </StandardCard>
           </div>
 
-          {/* Filters */}
+          {/* ✅ Keep the rest of your component as-is */}
           <StandardCard className="mb-6" padding="sm">
             <InventoryFilters
               items={inventoryHook.items}
@@ -212,13 +280,13 @@ export default function InventoryPage() {
             />
           </StandardCard>
 
-          {/* Main Inventory Table */}
+          {/* ✅ Keep the Main Inventory Table */}
           <StandardCard
             title="Inventory Items"
             subtitle={`${totalItems} items in inventory`}
             headerActions={
               <div className="flex items-center space-x-2">
-                {/* Manage Button */}
+                {/* ✅ Keep the Manage Button - this is in the card header */}
                 <button
                   onClick={() => setShowManageModal(true)}
                   className="flex items-center px-3 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
@@ -227,7 +295,7 @@ export default function InventoryPage() {
                   <span className="hidden sm:inline">Manage</span>
                 </button>
 
-                {/* Status indicators */}
+                {/* ✅ Keep status indicators */}
                 {outOfStockItems > 0 && (
                   <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
                     <AlertTriangle className="h-3 w-3 mr-1" />
@@ -243,19 +311,24 @@ export default function InventoryPage() {
               </div>
             }
           >
+            {/* ✅ Keep the inventory table */}
             <InventoryTable
               items={inventoryHook.filteredItems || []}
               handleEdit={inventoryHook.handleEdit}
               handleDelete={inventoryHook.handleDelete}
               updateQuantity={inventoryHook.updateQuantity}
               updateItemStatus={(itemId, status) => {
-                console.log("🔄 Direct call to updateItemStatus:", itemId, status);
+                console.log(
+                  "🔄 Direct call to updateItemStatus:",
+                  itemId,
+                  status
+                );
                 return inventoryHook.updateItemStatus?.(itemId, status);
               }}
             />
           </StandardCard>
 
-          {/* Floating Action Buttons */}
+          {/* ✅ Keep your beautiful floating action buttons */}
           <div className="fixed bottom-6 right-6 flex flex-col items-end space-y-3 z-40">
             {/* Add Item Button */}
             <button
@@ -268,7 +341,9 @@ export default function InventoryPage() {
               </div>
               <div className="max-w-0 group-hover:max-w-[160px] overflow-hidden transition-all duration-500 ease-out">
                 <div className="pr-6 opacity-0 group-hover:opacity-100 transition-opacity duration-400 delay-150">
-                  <span className="whitespace-nowrap font-medium">Add Item</span>
+                  <span className="whitespace-nowrap font-medium">
+                    Add Item
+                  </span>
                 </div>
               </div>
             </button>
@@ -301,7 +376,7 @@ export default function InventoryPage() {
             </button>
           </div>
 
-          {/* Modals */}
+          {/* ✅ Keep the modals */}
           <ItemModal {...inventoryHook} />
           <ManageItemsModal
             isOpen={showManageModal}

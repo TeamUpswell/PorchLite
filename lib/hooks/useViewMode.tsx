@@ -2,12 +2,16 @@
 
 import { useState, useEffect } from "react";
 import { useAuth } from "@/components/auth";
+import { useProperty } from "@/lib/hooks/useProperty";
 
 type ViewMode = "manager" | "family" | "guest";
 
 export function useViewMode() {
   const { user } = useAuth();
-  const userRole = user?.user_metadata?.role || "family";
+  const { currentTenant } = useProperty();
+
+  // ✅ Handle missing tenant gracefully
+  const role = currentTenant?.role || "guest";
 
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
     if (typeof window !== "undefined") {
@@ -16,9 +20,9 @@ export function useViewMode() {
         return savedMode;
       }
     }
-    return userRole === "owner" || userRole === "manager"
+    return role === "owner" || role === "manager"
       ? "manager"
-      : (userRole as ViewMode);
+      : (role as ViewMode);
   });
 
   useEffect(() => {
@@ -47,25 +51,28 @@ export function useViewMode() {
   useEffect(() => {
     const savedMode = localStorage.getItem("viewMode");
     if (!savedMode) {
-      const defaultMode = (userRole === "owner" || userRole === "manager") ? "manager" : userRole as ViewMode;
+      const defaultMode =
+        role === "owner" || role === "manager" ? "manager" : (role as ViewMode);
       setViewMode(defaultMode);
       localStorage.setItem("viewMode", defaultMode);
     }
-  }, [userRole]);
+  }, [role]);
 
   const setGlobalViewMode = (mode: ViewMode) => {
     setViewMode(mode);
     localStorage.setItem("viewMode", mode);
-    
-    window.dispatchEvent(new CustomEvent("viewModeChanged", { 
-      detail: { mode } 
-    }));
+
+    window.dispatchEvent(
+      new CustomEvent("viewModeChanged", {
+        detail: { mode },
+      })
+    );
   };
 
   const isManagerView = viewMode === "manager";
   const isFamilyView = viewMode === "family";
   const isGuestView = viewMode === "guest";
-  const isViewingAsLowerRole = viewMode !== userRole;
+  const isViewingAsLowerRole = viewMode !== role;
 
   return {
     viewMode,
@@ -74,6 +81,6 @@ export function useViewMode() {
     isFamilyView,
     isGuestView,
     isViewingAsLowerRole,
-    actualUserRole: userRole,
+    actualUserRole: role,
   };
 }
