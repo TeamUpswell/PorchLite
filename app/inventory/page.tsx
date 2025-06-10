@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
+import { useAuth } from "@/components/auth";
 import { useViewMode } from "@/lib/hooks/useViewMode";
 import {
   Package,
@@ -28,18 +29,27 @@ const isDev = process.env.NODE_ENV === "development";
 export const dynamic = "force-dynamic";
 
 export default function InventoryPage() {
-  // ✅ ALL HOOKS FIRST
+  // ✅ CRITICAL FIX: ALL HOOKS FIRST
+  const { user, loading: authLoading } = useAuth();
+  const { currentProperty, loading: propertyLoading } = useProperty();
+
   const inventoryHook = useInventory();
   const {
     currentProperty: property,
     currentTenant,
-    loading: propertyLoading,
+    loading: propertyLoadingInventory,
     error,
   } = useProperty();
   const { isManagerView, isFamilyView, isGuestView } = useViewMode();
   const [showManageModal, setShowManageModal] = useState(false);
   const [showShoppingListModal, setShowShoppingListModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
+
+  // Local state for inventory
+  const [inventory, setInventory] = useState<InventoryItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [hasInitialized, setHasInitialized] = useState(false);
+  const [filter, setFilter] = useState("all");
 
   // ✅ useMemo and useEffect AFTER basic hooks
   const shoppingListItems = useMemo(() => {
@@ -150,8 +160,79 @@ export default function InventoryPage() {
     inventoryHook.refreshItems();
   };
 
+  // Load inventory data
+  const propertyId = useMemo(() => currentProperty?.id, [currentProperty?.id]);
+  const userId = useMemo(() => user?.id, [user?.id]);
+
+  const loadInventory = async () => {
+    if (!propertyId) {
+      console.log("❌ No property ID, skipping inventory fetch");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from("inventory")
+        .select("*")
+        .eq("property_id", propertyId)
+        .eq("is_active", true)
+        .order("name");
+
+      if (error) {
+        console.error("❌ Error loading inventory:", error);
+        if (hasInitialized) {
+          toast.error("Failed to load inventory");
+        }
+      } else {
+        setInventory(data || []);
+      }
+    } catch (error) {
+      console.error("❌ Unexpected error:", error);
+      if (hasInitialized) {
+        toast.error("Failed to load inventory");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (authLoading || propertyLoading) {
+      return;
+    }
+
+    if (!userId || !propertyId) {
+      console.log("⏳ Waiting for user and property to load...");
+      setLoading(false);
+      setHasInitialized(true);
+      return;
+    }
+
+    console.log("🏠 Loading inventory for:", currentProperty?.name);
+    setHasInitialized(true);
+    loadInventory();
+  }, [userId, propertyId, authLoading, propertyLoading]);
+
+  // ✅ Early returns AFTER all hooks
+  if (authLoading || propertyLoading) {
+    return <LoadingComponent />;
+  }
+
+  if (!user) {
+    return null;
+  }
+
+  if (!currentProperty) {
+    return <NoPropertyComponent />;
+  }
+
+  if (loading) {
+    return <LoadingInventoryComponent />;
+  }
+
   // ✅ CONDITIONAL RENDERS LAST
-  if (propertyLoading) {
+  if (propertyLoadingInventory) {
     return (
       <ProtectedPageWrapper>
         <PageContainer>

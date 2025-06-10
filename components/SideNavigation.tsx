@@ -4,6 +4,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/components/auth";
+import { useProperty } from "@/lib/hooks/useProperty";
 import { useTheme } from "@/components/ThemeProvider";
 import {
   Home as HomeIcon,
@@ -117,6 +118,7 @@ export default function SideNavigation({
 }) {
   const pathname = usePathname();
   const { user: authUser, signOut } = useAuth();
+  const { currentProperty, loading: propertyLoading } = useProperty();
   const { theme } = useTheme();
 
   // Add collapsed state
@@ -193,6 +195,11 @@ export default function SideNavigation({
     (theme === "system" &&
       typeof window !== "undefined" &&
       window.matchMedia("(prefers-color-scheme: dark)").matches);
+
+  // ✅ FIXED: Don't render navigation until auth is ready
+  if (!user) {
+    return null;
+  }
 
   return (
     <div
@@ -359,4 +366,59 @@ export default function SideNavigation({
       </div>
     </div>
   );
+}
+
+// Standard fix pattern for any page:
+export function PageName() {
+  const { user, loading: authLoading } = useAuth();
+  const { currentProperty, loading: propertyLoading } = useProperty();
+  const [dataLoading, setDataLoading] = useState(true);
+
+  // Early return for loading states
+  if (authLoading || propertyLoading) {
+    return (
+      <ProtectedPageWrapper>
+        <PageContainer>
+          <div className="flex items-center justify-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <span className="ml-2">Loading...</span>
+          </div>
+        </PageContainer>
+      </ProtectedPageWrapper>
+    );
+  }
+
+  // Early return for no user
+  if (!user) {
+    return null;
+  }
+
+  // Early return for no property (if property is required)
+  if (!currentProperty) {
+    return (
+      <ProtectedPageWrapper>
+        <PageContainer>
+          <div className="text-center py-8">
+            <h3 className="text-lg font-medium text-gray-900">
+              No Property Selected
+            </h3>
+            <p className="text-gray-500">
+              Please select a property to continue.
+            </p>
+          </div>
+        </PageContainer>
+      </ProtectedPageWrapper>
+    );
+  }
+
+  // Data fetching useEffect
+  useEffect(() => {
+    if (authLoading || propertyLoading || !user?.id || !currentProperty?.id) {
+      return;
+    }
+
+    fetchData();
+  }, [user?.id, currentProperty?.id, authLoading, propertyLoading]);
+
+  // Rest of component...
 }

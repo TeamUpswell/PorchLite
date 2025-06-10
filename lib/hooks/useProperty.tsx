@@ -11,7 +11,6 @@ import React, {
 } from "react";
 import { useAuth } from "@/components/auth";
 import { supabase } from "../supabase";
-
 import { debugLog, debugError } from "@/lib/utils/debug";
 
 const isDev = process.env.NODE_ENV === "development";
@@ -23,6 +22,7 @@ interface PropertyContextType {
   userTenants: any[];
   loading: boolean;
   error: string | null;
+  hasInitialized: boolean; // ✅ ONLY ADD THIS
   setCurrentProperty: (property: any) => void;
   setCurrentTenant: (tenant: any) => void;
   switchProperty: (propertyId: string) => Promise<void>;
@@ -46,6 +46,11 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
   const [userTenants, setUserTenants] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [hasInitialized, setHasInitialized] = useState(false); // ✅ ONLY ADD THIS
+
+  // Add loading guards to prevent duplicate calls
+  const [isLoadingProperties, setIsLoadingProperties] = useState(false);
+  const [isLoadingTenants, setIsLoadingTenants] = useState(false);
 
   // ✅ SIMPLIFIED APPROACH - PROPERTY OWNERSHIP MODEL
   useEffect(() => {
@@ -58,6 +63,7 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
         setUserProperties([]);
         setLoading(false);
         setError(null);
+        setHasInitialized(true); // ✅ ONLY ADD THIS
         return;
       }
 
@@ -74,8 +80,6 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
           data: { session },
         } = await supabase.auth.getSession();
         debugLog("🔍 Current session:", session?.user?.id);
-
-        // Replace the problematic query with this approach:
 
         // Get user's tenant IDs first
         const { data: userTenants, error: tenantError } = await supabase
@@ -157,69 +161,91 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
         debugLog("✅ Final properties after processing:", properties);
 
         if (properties && properties.length > 0) {
-          // Set the first property as the current property
-          setCurrentProperty(properties[0]);
+          const firstProperty = properties[0];
+
+          // Set properties array first
           setUserProperties(properties);
 
-          // Try to infer the tenant - this is a best effort, may not always be accurate
+          // Create tenant object
+          let tenantObj;
           const inferredTenant = properties.find(
             (p) => p.created_by !== user.id
           );
 
           if (inferredTenant) {
-            const tenantEntry = {
+            tenantObj = {
               id: inferredTenant.tenant_id,
               user_id: user.id,
-              role: "member", // Default to member role
+              role: "member",
               tenant_id: inferredTenant.tenant_id,
               tenant: {
                 id: inferredTenant.tenant_id,
-                name: "Inferred Tenant", // Temporary name, can be updated later
+                name: "Inferred Tenant",
               },
             };
-
-            setCurrentTenant(tenantEntry);
-            setUserTenants([tenantEntry]);
-
-            debugLog("✅ Inferred tenant from property:", tenantEntry);
+            debugLog("✅ Inferred tenant from property:", tenantObj);
           } else {
-            // If no inferred tenant, fall back to owner setup
-            const ownerTenant = {
+            tenantObj = {
               id: `owner-${user.id}`,
               user_id: user.id,
               role: "owner",
-              tenant_id: properties[0].tenant_id,
-              tenant: { id: properties[0].tenant_id, name: "Property Owner" },
+              tenant_id: firstProperty.tenant_id,
+              tenant: {
+                id: firstProperty.tenant_id,
+                name: "Property Owner",
+              },
             };
-
-            setUserTenants([ownerTenant]);
-            setCurrentTenant(ownerTenant);
-
-            debugLog("✅ Set up as property owner:", {
-              tenant: ownerTenant,
-              property: properties[0],
-            });
+            debugLog("✅ Set up as property owner:", tenantObj);
           }
+
+          // Set tenant first, then property to ensure both are available
+          setCurrentTenant(tenantObj);
+          setUserTenants([tenantObj]);
+
+          // Use setTimeout to ensure state updates are processed
+          setTimeout(() => {
+            setCurrentProperty(firstProperty);
+            debugLog("✅ Property and tenant both set:", {
+              property: firstProperty.name,
+              tenant: tenantObj.tenant.name,
+            });
+          }, 0);
         } else {
-          throw new Error("No properties found");
+          // ✅ ONLY CHANGE THIS - DON'T THROW ERROR ON FIRST LOAD
+          if (hasInitialized) {
+            throw new Error("No properties found");
+          } else {
+            debugLog("🔍 No properties found for user");
+          }
         }
       } catch (error: any) {
         debugError("❌ Error loading user data:", error);
-        setError(error?.message || "Failed to load user data");
+        // ✅ ONLY CHANGE THIS - DON'T SHOW ERROR ON FIRST LOAD
+        if (hasInitialized) {
+          setError(error?.message || "Failed to load user data");
+        }
         setUserTenants([]);
         setUserProperties([]);
         setCurrentTenant(null);
         setCurrentProperty(null);
       } finally {
         setLoading(false);
+        setHasInitialized(true); // ✅ ONLY ADD THIS
       }
     }
 
     loadUserData();
-  }, [user?.id]);
+  }, [user?.id, hasInitialized]); // ✅ ONLY ADD hasInitialized TO DEPENDENCY
 
-  // ✅ Enhanced currentTenant with proper structure
+  // ✅ Enhanced currentTenant with proper structure and better logging
   const enhancedCurrentTenant = useMemo(() => {
+    debugLog("🔍 Enhanced tenant calculation:", {
+      hasProperty: !!currentProperty,
+      hasTenant: !!currentTenant,
+      propertyId: currentProperty?.id,
+      tenantId: currentTenant?.id,
+    });
+
     if (!currentProperty || !currentTenant) {
       debugLog("🔍 No enhanced tenant: missing property or tenant", {
         hasProperty: !!currentProperty,
@@ -236,7 +262,7 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
       tenant_id: currentTenant.tenant_id,
     };
 
-    debugLog("✅ Enhanced tenant:", enhanced);
+    debugLog("✅ Enhanced tenant created:", enhanced);
     return enhanced;
   }, [currentProperty, currentTenant]);
 
@@ -304,6 +330,17 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
     []
   );
 
+  const loadUserTenants = useCallback(async () => {
+    if (!user?.id || isLoadingTenants || isLoadingProperties) return;
+
+    setIsLoadingTenants(true);
+    try {
+      // Your existing logic
+    } finally {
+      setIsLoadingTenants(false);
+    }
+  }, [user?.id, isLoadingTenants, isLoadingProperties]);
+
   const value = useMemo(
     () => ({
       currentProperty,
@@ -312,6 +349,7 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
       userTenants,
       loading,
       error,
+      hasInitialized, // ✅ ONLY ADD THIS
       setCurrentProperty,
       setCurrentTenant,
       switchProperty,
@@ -326,6 +364,7 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
       userTenants,
       loading,
       error,
+      hasInitialized, // ✅ ONLY ADD THIS
       switchProperty,
       updateProperty,
       refreshProperty,

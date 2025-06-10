@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useMemo } from "react";
 import ProtectedPageWrapper from "@/components/layout/ProtectedPageWrapper";
 import PermissionGate from "@/components/PermissionGate";
 import { useAuth } from "@/components/auth";
+import { useProperty } from "@/lib/hooks/useProperty";
 import { PlusIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import { supabase } from "@/lib/supabase";
 import { CreatePattern } from "@/components/ui/FloatingActionPresets";
@@ -20,54 +21,53 @@ interface Reservation {
 }
 
 export default function ReservationsPage() {
-  const { user, hasPermission } = useAuth();
+  // ✅ ALL HOOKS FIRST
+  const { user, loading: authLoading } = useAuth();
+  const { currentProperty, loading: propertyLoading } = useProperty();
+
   const [reservations, setReservations] = useState<Reservation[]>([]);
-  const [showReservationForm, setShowReservationForm] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [formData, setFormData] = useState({
-    title: "",
-    start_date: "",
-    nights: 1, // ✅ Changed from end_date to nights
-    notes: "",
-  });
+  const [hasInitialized, setHasInitialized] = useState(false);
+  const [filter, setFilter] = useState("upcoming");
+  const [showReservationForm, setShowReservationForm] = useState(false);
+  // ... other state hooks
 
-  // New states for editing reservations
-  const [editingReservation, setEditingReservation] =
-    useState<Reservation | null>(null);
-  const [showEditForm, setShowEditForm] = useState(false);
-  const [editFormData, setEditFormData] = useState({
-    title: "",
-    start_date: "",
-    nights: 1,
-    notes: "",
-  });
+  const propertyId = useMemo(() => currentProperty?.id, [currentProperty?.id]);
+  const userId = useMemo(() => user?.id, [user?.id]);
 
-  // Memoize the fetchReservations function with useCallback
-  const fetchReservations = useCallback(async () => {
-    if (!user) return;
+  const loadReservations = async () => {
+    if (!propertyId) return;
 
     setLoading(true);
     try {
       const { data, error } = await supabase
         .from("reservations")
         .select("*")
+        .eq("property_id", propertyId)
         .order("start_date", { ascending: true });
 
       if (error) throw error;
       setReservations(data || []);
     } catch (error) {
-      console.error("Error fetching reservations:", error);
+      if (hasInitialized) {
+        toast.error("Failed to load reservations");
+      }
     } finally {
       setLoading(false);
     }
-  }, [user, setLoading, setReservations]);
+  };
 
-  // Now update the dependency array to include fetchReservations
   useEffect(() => {
-    if (user) {
-      fetchReservations();
+    if (authLoading || propertyLoading) return;
+    if (!userId || !propertyId) {
+      setLoading(false);
+      setHasInitialized(true);
+      return;
     }
-  }, [user, fetchReservations]);
+
+    setHasInitialized(true);
+    loadReservations();
+  }, [userId, propertyId, authLoading, propertyLoading, filter]);
 
   // Handle creating a reservation
   const handleCreateReservation = async (e: React.FormEvent) => {
@@ -89,6 +89,7 @@ export default function ReservationsPage() {
           notes: formData.notes,
           user_id: user.id,
           status: "pending",
+          property_id: propertyId, // Associate with property
         },
       ]);
 
@@ -101,7 +102,7 @@ export default function ReservationsPage() {
         nights: 1, // ✅ Reset to default
         notes: "",
       });
-      fetchReservations();
+      loadReservations();
     } catch (error) {
       console.error("Error creating reservation:", error);
     }
@@ -119,7 +120,7 @@ export default function ReservationsPage() {
         .eq("id", id);
 
       if (error) throw error;
-      fetchReservations();
+      loadReservations();
     } catch (error) {
       console.error("Error updating reservation:", error);
     }
@@ -135,7 +136,7 @@ export default function ReservationsPage() {
         .eq("user_id", user?.id || "");
 
       if (error) throw error;
-      fetchReservations();
+      loadReservations();
     } catch (error) {
       console.error("Error cancelling reservation:", error);
     }
@@ -237,12 +238,33 @@ export default function ReservationsPage() {
         nights: 1,
         notes: "",
       });
-      fetchReservations();
+      loadReservations();
     } catch (error) {
       console.error("Error updating reservation:", error);
     }
   };
 
+  // Standard fix pattern for any page:
+  if (authLoading || propertyLoading) {
+    return (
+      <ProtectedPageWrapper>
+        <div className="flex items-center justify-center py-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <span className="ml-2">Loading...</span>
+        </div>
+      </ProtectedPageWrapper>
+    );
+  }
+
+  // Early return for no user
+  if (!user) {
+    return null;
+  }
+  if (!currentProperty) {
+    return <div>No property selected</div>;
+  }
+
+  // Rest of component...
   return (
     <ProtectedPageWrapper>
       <PermissionGate

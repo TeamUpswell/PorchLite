@@ -10,7 +10,7 @@ import {
   Trash2,
   MapPin,
   Sparkles,
-} from "lucide-react"; // ✅ ADD Sparkles
+} from "lucide-react";
 import { toast } from "react-hot-toast";
 import ProtectedPageWrapper from "@/components/layout/ProtectedPageWrapper";
 import PageContainer from "@/components/layout/PageContainer";
@@ -19,7 +19,6 @@ import { useAuth } from "@/components/auth";
 import { useProperty } from "@/lib/hooks/useProperty";
 import { supabase } from "@/lib/supabase";
 import { CreatePattern } from "@/components/ui/FloatingActionPresets";
-import PropertyMap from "@/components/PropertyMap";
 
 interface ManualSection {
   id: string;
@@ -34,17 +33,17 @@ interface ManualSection {
 }
 
 export default function ManualPage() {
-  const { user } = useAuth();
-  const { currentProperty } = useProperty();
+  // ✅ CRITICAL FIX: ALL HOOKS FIRST - No early returns before hooks
+  const { user, loading: authLoading } = useAuth();
+  const { currentProperty, loading: propertyLoading } = useProperty();
   const [sections, setSections] = useState<ManualSection[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hasInitialized, setHasInitialized] = useState(false);
 
-  // ✅ ADD: Function to create default cleaning section
+  // ✅ FIXED: Function to create default cleaning section with proper timing
   const createDefaultCleaningSection = async () => {
     if (!currentProperty?.id || !user?.id) {
-      console.log(
-        "❌ Cannot create cleaning section - missing property or user"
-      );
+      console.log("❌ Cannot create cleaning section - missing property or user");
       return null;
     }
 
@@ -58,10 +57,7 @@ export default function ManualPage() {
         .single();
 
       if (checkError && checkError.code !== "PGRST116") {
-        console.error(
-          "Error checking for existing cleaning section:",
-          checkError
-        );
+        console.error("Error checking for existing cleaning section:", checkError);
         return null;
       }
 
@@ -70,7 +66,7 @@ export default function ManualPage() {
         return existingSection;
       }
 
-      // ✅ IMPROVED: Get the next order_index
+      // Get the next order_index
       const { data: maxOrderData } = await supabase
         .from("manual_sections")
         .select("order_index")
@@ -79,23 +75,17 @@ export default function ManualPage() {
         .limit(1)
         .single();
 
-      const nextOrderIndex = maxOrderData?.order_index
-        ? maxOrderData.order_index + 1
-        : 1;
+      const nextOrderIndex = maxOrderData?.order_index ? maxOrderData.order_index + 1 : 1;
 
-      console.log(
-        "🚀 Creating new cleaning section for property:",
-        currentProperty.id
-      );
+      console.log("🚀 Creating new cleaning section for property:", currentProperty.id);
 
       const insertData = {
         title: "Cleaning Procedures",
-        description:
-          "Cleaning tasks, checklists, and maintenance procedures for your property",
+        description: "Cleaning tasks, checklists, and maintenance procedures for your property",
         icon: "✨",
         is_priority: true,
         property_id: currentProperty.id,
-        order_index: nextOrderIndex, // ✅ DYNAMIC: Use next available order
+        order_index: nextOrderIndex,
       };
 
       console.log("📝 Insert data:", insertData);
@@ -115,111 +105,97 @@ export default function ManualPage() {
           insertData: insertData,
         });
 
-        toast.error(`Database error: ${createError.message}`);
+        // ✅ FIXED: Don't show toast error immediately
+        console.error(`Database error: ${createError.message}`);
         return null;
       }
 
       console.log("✅ Successfully created cleaning section:", newSection);
-      toast.success("Cleaning section created!");
       return newSection;
     } catch (error) {
       console.error("❌ Unexpected error creating cleaning section:", error);
-      toast.error(`Unexpected error: ${error}`);
       return null;
     }
   };
 
   const fetchSections = async () => {
     if (!currentProperty?.id) {
-      console.log("❌ No current property, skipping instruction fetch"); // ✅ CHANGED
+      console.log("❌ No current property, skipping instruction fetch");
       return;
     }
 
-    console.log(
-      "🔍 Fetching instruction sections for property:",
-      currentProperty.id
-    ); // ✅ CHANGED
+    console.log("🔍 Fetching instruction sections for property:", currentProperty.id);
     setLoading(true);
 
     try {
-      // ✅ ALWAYS create cleaning section first
+      // Always create cleaning section first
       await createDefaultCleaningSection();
 
       const { data, error } = await supabase
         .from("manual_sections")
-        .select(
-          `
+        .select(`
           *,
           manual_items(count)
-        `
-        )
+        `)
         .eq("property_id", currentProperty.id)
         .order("is_priority", { ascending: false })
         .order("created_at", { ascending: true });
 
       if (error) {
-        console.error("❌ Error fetching instruction sections:", error); // ✅ CHANGED
-        toast.error("Failed to load instruction sections"); // ✅ CHANGED
+        console.error("❌ Error fetching instruction sections:", error);
+        // ✅ FIXED: Only show toast error after component is mounted
+        if (hasInitialized) {
+          toast.error("Failed to load instruction sections");
+        }
       } else {
-        console.log("✅ Fetched instruction sections:", data); // ✅ CHANGED
+        console.log("✅ Fetched instruction sections:", data);
 
-        // ✅ IMPROVED: Sort to put cleaning section first in priority sections
+        // Sort to put cleaning section first in priority sections
         const sortedData = data?.sort((a, b) => {
-          // First, group by priority
           if (a.is_priority !== b.is_priority) {
             return b.is_priority ? 1 : -1;
           }
 
-          // Within priority sections, put cleaning first
           if (a.is_priority && b.is_priority) {
             if (a.title === "Cleaning Procedures") return -1;
             if (b.title === "Cleaning Procedures") return 1;
           }
 
-          // For everything else, sort by creation date
-          return (
-            new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-          );
+          return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
         });
 
         setSections(sortedData || []);
       }
     } catch (error) {
       console.error("❌ Unexpected error in fetchSections:", error);
-      toast.error("Failed to load instruction sections"); // ✅ CHANGED
+      // ✅ FIXED: Only show toast error after component is mounted
+      if (hasInitialized) {
+        toast.error("Failed to load instruction sections");
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  // ✅ ADD: Effect to watch for property changes
+  // ✅ FIXED: Effect with proper timing and dependency array
   useEffect(() => {
-    if (currentProperty?.id && user?.id) {
-      console.log(
-        "🏠 Property loaded, fetching sections:",
-        currentProperty.name
-      );
-      fetchSections();
-    } else {
-      console.log("⏳ Waiting for property and user to load...");
+    // Don't fetch if still loading auth/property
+    if (authLoading || propertyLoading) {
+      return;
     }
-  }, [currentProperty?.id, user?.id]);
 
-  // Split sections into priority and non-priority
-  const prioritySections = sections.filter((section) => section.is_priority); // ← Changed to is_priority
-  const regularSections = sections.filter((section) => !section.is_priority); // ← Changed to !is_priority
+    // Don't fetch if no user or property
+    if (!user?.id || !currentProperty?.id) {
+      console.log("⏳ Waiting for user and property to load...");
+      setLoading(false);
+      setHasInitialized(true);
+      return;
+    }
 
-  if (loading) {
-    return (
-      <StandardCard>
-        <div className="flex items-center justify-center py-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          <span className="ml-2">Loading instructions...</span>{" "}
-          {/* ✅ CHANGED: From "Loading sections..." */}
-        </div>
-      </StandardCard>
-    );
-  }
+    console.log("🏠 Property and user loaded, fetching sections:", currentProperty.name);
+    setHasInitialized(true);
+    fetchSections();
+  }, [currentProperty?.id, user?.id, authLoading, propertyLoading]);
 
   // Add toggle pin function
   const handleTogglePin = async (sectionId: string, isPriority: boolean) => {
@@ -242,18 +218,73 @@ export default function ManualPage() {
     }
   };
 
+  // ✅ CRITICAL FIX: Early returns AFTER all hooks
+  if (authLoading || propertyLoading) {
+    return (
+      <ProtectedPageWrapper>
+        <PageContainer>
+          <StandardCard>
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              <span className="ml-2">Loading...</span>
+            </div>
+          </StandardCard>
+        </PageContainer>
+      </ProtectedPageWrapper>
+    );
+  }
+
+  if (!user) {
+    return null;
+  }
+
+  if (!currentProperty) {
+    return (
+      <ProtectedPageWrapper>
+        <PageContainer>
+          <StandardCard>
+            <div className="text-center py-8">
+              <BookOpen className="mx-auto h-12 w-12 text-gray-400" />
+              <h3 className="mt-2 text-sm font-medium text-gray-900">
+                No Property Selected
+              </h3>
+              <p className="mt-1 text-sm text-gray-500">
+                Please select a property to view instructions.
+              </p>
+            </div>
+          </StandardCard>
+        </PageContainer>
+      </ProtectedPageWrapper>
+    );
+  }
+
+  if (loading) {
+    return (
+      <ProtectedPageWrapper>
+        <PageContainer>
+          <StandardCard>
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              <span className="ml-2">Loading instructions...</span>
+            </div>
+          </StandardCard>
+        </PageContainer>
+      </ProtectedPageWrapper>
+    );
+  }
+
   return (
     <ProtectedPageWrapper>
       <PageContainer className="space-y-6">
         <div className="space-y-8">
-          {/* ✅ Priority Sections - with cleaning first */}
+          {/* Priority Sections - with cleaning first */}
           {sections.filter((section) => section.is_priority).length > 0 && (
             <div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {sections
                   .filter((section) => section.is_priority)
                   .sort((a, b) => {
-                    // ✅ CLEANING SECTION ALWAYS FIRST
+                    // Cleaning section always first
                     if (a.title === "Cleaning Procedures") return -1;
                     if (b.title === "Cleaning Procedures") return 1;
                     // Other priority sections sorted by creation date
@@ -273,7 +304,7 @@ export default function ManualPage() {
             </div>
           )}
 
-          {/* ✅ IMPROVED: Regular Sections (non-priority) */}
+          {/* Regular Sections (non-priority) */}
           {sections.filter((section) => !section.is_priority).length > 0 && (
             <div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -286,27 +317,24 @@ export default function ManualPage() {
             </div>
           )}
 
-          {/* ✅ IMPROVED: Empty state - only show if NO sections at all */}
+          {/* Empty state - only show if NO sections at all */}
           {sections.length === 0 && (
             <div className="text-center py-12">
               <BookOpen className="mx-auto h-12 w-12 text-gray-400" />
               <h3 className="mt-2 text-sm font-medium text-gray-900">
-                No instruction sections yet{" "}
-                {/* ✅ CHANGED: From "No sections yet" */}
+                No instruction sections yet
               </h3>
               <p className="mt-1 text-sm text-gray-500">
-                Get started by creating your first instruction section.{" "}
-                {/* ✅ CHANGED: From "manual section" */}
+                Get started by creating your first instruction section.
               </p>
             </div>
           )}
         </div>
-        {/* ✅ KEEP this floating action button */}
+        
         <CreatePattern
           href="/manual/sections/new"
           label="Add Instructions"
-        />{" "}
-        {/* ✅ CHANGED: From "Add Section" */}
+        />
       </PageContainer>
     </ProtectedPageWrapper>
   );
