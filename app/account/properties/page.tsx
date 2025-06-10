@@ -1,16 +1,14 @@
 "use client";
+import ProtectedPageWrapper from "@/components/layout/ProtectedPageWrapper";
 
 import { useState, useEffect } from "react";
 import { useAuth } from "@/components/auth";
 import { useProperty } from "@/lib/hooks/useProperty";
 import { supabase } from "@/lib/supabase";
-import StandardPageLayout from "@/components/layout/StandardPageLayout";
 import StandardCard from "@/components/ui/StandardCard";
 import { Building, Settings, MapPin, Edit, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { CreatePattern } from "@/components/ui/FloatingActionPresets";
-import ProtectedPageWrapper from "@/components/layout/ProtectedPageWrapper";
-import PageContainer from "@/components/layout/PageContainer";
 
 interface Property {
   id: string;
@@ -58,26 +56,36 @@ export default function PropertiesPage() {
 
   if (!hasAccess) {
     return (
-      <StandardPageLayout
-        title="Property Settings"
-        headerIcon={<Building className="h-6 w-6 text-blue-600" />}
-      >
-        <StandardCard>
-          <div className="p-8 text-center">
-            <Building className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
-              Access Restricted
-            </h3>
-            <p className="text-gray-500 mb-4">
-              You don't have permission to manage property settings.
-            </p>
-            <div className="text-xs text-gray-400 mt-4 p-2 bg-gray-50 rounded">
-              <p>Debug: Role = {user?.user_metadata?.role || "undefined"}</p>
-              <p>User ID = {user?.id || "undefined"}</p>
+      <ProtectedPageWrapper>
+        <div className="space-y-6">
+          {/* Page Header */}
+          <div className="flex items-center space-x-3">
+            <Building className="h-6 w-6 text-blue-600" />
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">
+                Property Settings
+              </h1>
+              <p className="text-gray-600">Access restricted</p>
             </div>
           </div>
-        </StandardCard>
-      </StandardPageLayout>
+
+          <StandardCard>
+            <div className="p-8 text-center">
+              <Building className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                Access Restricted
+              </h3>
+              <p className="text-gray-500 mb-4">
+                You don't have permission to manage property settings.
+              </p>
+              <div className="text-xs text-gray-400 mt-4 p-2 bg-gray-50 rounded">
+                <p>Debug: Role = {user?.user_metadata?.role || "undefined"}</p>
+                <p>User ID = {user?.id || "undefined"}</p>
+              </div>
+            </div>
+          </StandardCard>
+        </div>
+      </ProtectedPageWrapper>
     );
   }
 
@@ -91,8 +99,21 @@ export default function PropertiesPage() {
 
   return (
     <ProtectedPageWrapper requiredRole="manager">
-      <PageContainer className="space-y-6">
-        {/* Remove header section and start with content */}
+      <div className="space-y-6">
+        {/* Page Header */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <Building className="h-6 w-6 text-blue-600" />
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">
+                Property Settings
+              </h1>
+              <p className="text-gray-600">
+                Manage your property configurations
+              </p>
+            </div>
+          </div>
+        </div>
 
         {/* Loading State */}
         {isLoading ? (
@@ -208,10 +229,7 @@ export default function PropertiesPage() {
             </div>
           </StandardCard>
         )}
-      </PageContainer>
-
-      {/* Floating Action Button */}
-      <CreatePattern onClick={handleAddProperty} label="Add Property" />
+      </div>
     </ProtectedPageWrapper>
   );
 }

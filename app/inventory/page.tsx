@@ -125,14 +125,14 @@ export default function InventoryPage() {
         ) / (inventoryHook.filteredItems?.length || 1),
       thresholdRange: {
         min: Math.min(
-          ...(inventoryHook.filteredItems?.map((item) => item.threshold || 0) || [
-            0,
-          ])
+          ...(inventoryHook.filteredItems?.map(
+            (item) => item.threshold || 0
+          ) || [0])
         ),
         max: Math.max(
-          ...(inventoryHook.filteredItems?.map((item) => item.threshold || 0) || [
-            0,
-          ])
+          ...(inventoryHook.filteredItems?.map(
+            (item) => item.threshold || 0
+          ) || [0])
         ),
       },
       itemsWithHighThreshold: inventoryHook.filteredItems?.filter(
@@ -353,9 +353,7 @@ export default function InventoryPage() {
                 icon={ShoppingCart}
                 label="Shopping List"
                 onClick={() => setShowShoppingListModal(true)}
-                variant={
-                  shoppingListItems.length > 0 ? "success" : "secondary"
-                }
+                variant={shoppingListItems.length > 0 ? "success" : "secondary"}
               />
 
               {/* Badge for item count */}

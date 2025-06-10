@@ -317,7 +317,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { data: ownedProperties, error: ownedError } = await supabase
         .from("properties")
         .select("*")
-        .eq("owner_id", userId);
+        .eq("created_by", userId);
 
       debugLog("🔍 Owned properties query result:", {
         ownedProperties,

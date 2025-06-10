@@ -11,8 +11,8 @@ import {
   Image as ImageIcon,
 } from "lucide-react";
 import Link from "next/link";
-import StandardPageLayout from "@/components/layout/StandardPageLayout";
 import StandardCard from "@/components/ui/StandardCard";
+import ProtectedPageWrapper from "@/components/layout/ProtectedPageWrapper";
 import { useAuth } from "@/components/auth";
 import { supabase } from "@/lib/supabase";
 import { v4 as uuidv4 } from "uuid";
@@ -199,20 +199,20 @@ export default function NewItemPage() {
 
   if (loading) {
     return (
-      <StandardPageLayout title="Loading...">
+      <ProtectedPageWrapper title="Loading...">
         <StandardCard>
           <div className="flex items-center justify-center py-8">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
             <span className="ml-2">Loading...</span>
           </div>
         </StandardCard>
-      </StandardPageLayout>
+      </ProtectedPageWrapper>
     );
   }
 
   if (!section) {
     return (
-      <StandardPageLayout title="Section Not Found">
+      <ProtectedPageWrapper title="Section Not Found">
         <StandardCard>
           <div className="text-center py-8">
             <p className="text-red-600">Section not found</p>
@@ -221,12 +221,12 @@ export default function NewItemPage() {
             </Link>
           </div>
         </StandardCard>
-      </StandardPageLayout>
+      </ProtectedPageWrapper>
     );
   }
 
   return (
-    <StandardPageLayout
+    <ProtectedPageWrapper
       title="Add New Item"
       breadcrumb={[
         { label: "Manual", href: "/manual" },
@@ -389,6 +389,6 @@ Each new line will be preserved when displayed."
         saving={saving}
         disabled={!title.trim()}
       />
-    </StandardPageLayout>
+    </ProtectedPageWrapper>
   );
 }

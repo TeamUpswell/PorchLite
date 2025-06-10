@@ -1,9 +1,10 @@
 // app/account/page.tsx
 "use client";
+import ProtectedPageWrapper from "@/components/layout/ProtectedPageWrapper";
 
 import { useState, useEffect } from "react";
 import { useAuth } from "@/components/auth";
-import StandardPageLayout from "@/components/layout/StandardPageLayout";
+
 import StandardCard from "@/components/ui/StandardCard";
 import { User } from "lucide-react";
 import { supabase } from "@/lib/supabase";
@@ -45,50 +46,66 @@ export default function AccountPage() {
 
   if (loading) {
     return (
-      <StandardPageLayout
-        title="Account"
-        subtitle="Loading..."
-        headerIcon={<User className="h-6 w-6 text-blue-600" />}
-      >
-        <StandardCard>
-          <div className="text-center py-8">Loading account information...</div>
-        </StandardCard>
-      </StandardPageLayout>
+      <ProtectedPageWrapper>
+        <div className="space-y-6">
+          {/* Page Header */}
+          <div className="flex items-center space-x-3">
+            <User className="h-6 w-6 text-blue-600" />
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Account</h1>
+              <p className="text-gray-600">Loading...</p>
+            </div>
+          </div>
+
+          <StandardCard>
+            <div className="text-center py-8">
+              Loading account information...
+            </div>
+          </StandardCard>
+        </div>
+      </ProtectedPageWrapper>
     );
   }
 
   return (
-    <StandardPageLayout
-      title="Account"
-      subtitle="Manage your account settings"
-      headerIcon={<User className="h-6 w-6 text-blue-600" />}
-    >
-      <StandardCard title="Profile Information">
-        <div className="space-y-4">
+    <ProtectedPageWrapper>
+      <div className="space-y-6">
+        {/* Page Header */}
+        <div className="flex items-center space-x-3">
+          <User className="h-6 w-6 text-blue-600" />
           <div>
-            <label className="block text-sm font-medium text-gray-700">
-              Email
-            </label>
-            <div className="mt-1 text-sm text-gray-900">{user?.email}</div>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700">
-              Name
-            </label>
-            <div className="mt-1 text-sm text-gray-900">
-              {profile?.name || "Not set"}
-            </div>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700">
-              Role
-            </label>
-            <div className="mt-1 text-sm text-gray-900">
-              {profile?.role || "family"}
-            </div>
+            <h1 className="text-2xl font-bold text-gray-900">Account</h1>
+            <p className="text-gray-600">Manage your account settings</p>
           </div>
         </div>
-      </StandardCard>
-    </StandardPageLayout>
+
+        <StandardCard title="Profile Information">
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Email
+              </label>
+              <div className="mt-1 text-sm text-gray-900">{user?.email}</div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Name
+              </label>
+              <div className="mt-1 text-sm text-gray-900">
+                {profile?.name || "Not set"}
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Role
+              </label>
+              <div className="mt-1 text-sm text-gray-900">
+                {profile?.role || "family"}
+              </div>
+            </div>
+          </div>
+        </StandardCard>
+      </div>
+    </ProtectedPageWrapper>
   );
 }

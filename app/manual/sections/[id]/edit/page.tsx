@@ -6,8 +6,8 @@ import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { ArrowLeft, Save } from "lucide-react";
 import Link from "next/link";
-import StandardPageLayout from "@/components/layout/StandardPageLayout";
 import StandardCard from "@/components/ui/StandardCard";
+import ProtectedPageWrapper from "@/components/layout/ProtectedPageWrapper";
 import { useAuth } from "@/components/auth";
 import { useProperty } from "@/lib/hooks/useProperty";
 import { supabase } from "@/lib/supabase";
@@ -103,20 +103,20 @@ export default function EditSectionPage() {
 
   if (loading) {
     return (
-      <StandardPageLayout title="Loading...">
+      <ProtectedPageWrapper title="Loading...">
         <StandardCard>
           <div className="flex items-center justify-center py-8">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
             <span className="ml-2">Loading section...</span>
           </div>
         </StandardCard>
-      </StandardPageLayout>
+      </ProtectedPageWrapper>
     );
   }
 
   if (!section) {
     return (
-      <StandardPageLayout title="Section Not Found">
+      <ProtectedPageWrapper title="Section Not Found">
         <StandardCard>
           <div className="text-center py-8">
             <p className="text-red-600">Section not found</p>
@@ -125,12 +125,12 @@ export default function EditSectionPage() {
             </Link>
           </div>
         </StandardCard>
-      </StandardPageLayout>
+      </ProtectedPageWrapper>
     );
   }
 
   return (
-    <StandardPageLayout
+    <ProtectedPageWrapper
       title="Edit Section"
       breadcrumb={[
         { label: "Manual", href: "/manual" },
@@ -252,6 +252,6 @@ export default function EditSectionPage() {
           </span>
         </Link>
       </div>
-    </StandardPageLayout>
+    </ProtectedPageWrapper>
   );
 }

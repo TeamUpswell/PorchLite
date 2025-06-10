@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import { useProperty } from "@/lib/hooks/useProperty";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { supabase } from "@/lib/supabase";
-import StandardPageLayout from "@/components/layout/StandardPageLayout";
 import StandardCard from "@/components/ui/StandardCard";
 import {
   Navigation,
@@ -21,6 +20,7 @@ import {
 import Link from "next/link";
 import { toast } from "react-hot-toast";
 import PermissionsDebug from "@/components/debug/PermissionsDebug";
+import ProtectedPageWrapper from "@/components/layout/ProtectedPageWrapper";
 
 interface WalkthroughSection {
   id: string;
@@ -160,106 +160,98 @@ export default function WalkthroughPage() {
   // Show property selection if no property
   if (!currentProperty) {
     return (
-      <StandardPageLayout
-        title="House Walkthrough"
-        subtitle="Get familiar with your vacation home"
-        headerIcon={<Navigation className="h-6 w-6 text-blue-600" />}
-        breadcrumb={[
-          { label: "The House", href: "/house" },
-          { label: "Walkthrough" },
-        ]}
-      >
-        <StandardCard>
-          <div className="text-center py-8">
-            <Navigation className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
-              No Property Selected
-            </h3>
-            <p className="text-gray-500 mb-4">
-              Please select a property to view its walkthrough.
-            </p>
-            <Link
-              href="/account/properties"
-              className="inline-block px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-            >
-              Select Property
-            </Link>
+      <ProtectedPageWrapper>
+        <div className="space-y-6">
+          {/* Breadcrumb */}
+          <nav className="flex text-sm text-gray-500">
+            <Link href="/house" className="hover:text-gray-700">The House</Link>
+            <span className="mx-2">/</span>
+            <span className="text-gray-900">Walkthrough</span>
+          </nav>
+
+          {/* Page Header */}
+          <div className="flex items-center space-x-3">
+            <Navigation className="h-6 w-6 text-blue-600" />
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">House Walkthrough</h1>
+              <p className="text-gray-600">Get familiar with your vacation home</p>
+            </div>
           </div>
-        </StandardCard>
-      </StandardPageLayout>
+
+          <StandardCard>
+            <div className="text-center py-8">
+              <Navigation className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                No Property Selected
+              </h3>
+              <p className="text-gray-500 mb-4">
+                Please select a property to view its walkthrough.
+              </p>
+              <Link
+                href="/account/properties"
+                className="inline-block px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                Select Property
+              </Link>
+            </div>
+          </StandardCard>
+        </div>
+      </ProtectedPageWrapper>
     );
   }
 
   // Show loading state
   if (loading) {
     return (
-      <StandardPageLayout
-        title="House Walkthrough"
-        subtitle={`Loading walkthrough for ${currentProperty.name}`}
-        headerIcon={<Navigation className="h-6 w-6 text-blue-600" />}
-        breadcrumb={[
-          { label: "The House", href: "/house" },
-          { label: "Walkthrough" },
-        ]}
-      >
-        <StandardCard>
-          <div className="text-center py-8">
-            <div className="animate-spin h-8 w-8 border-4 border-blue-600 rounded-full border-t-transparent mx-auto mb-3"></div>
-            <p className="text-gray-500">Loading walkthrough...</p>
+      <ProtectedPageWrapper>
+        <div className="space-y-6">
+          {/* Breadcrumb */}
+          <nav className="flex text-sm text-gray-500">
+            <Link href="/house" className="hover:text-gray-700">The House</Link>
+            <span className="mx-2">/</span>
+            <span className="text-gray-900">Walkthrough</span>
+          </nav>
+
+          {/* Page Header */}
+          <div className="flex items-center space-x-3">
+            <Navigation className="h-6 w-6 text-blue-600" />
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">House Walkthrough</h1>
+              <p className="text-gray-600">Loading walkthrough for {currentProperty.name}</p>
+            </div>
           </div>
-        </StandardCard>
-      </StandardPageLayout>
+
+          <StandardCard>
+            <div className="text-center py-8">
+              <div className="animate-spin h-8 w-8 border-4 border-blue-600 rounded-full border-t-transparent mx-auto mb-3"></div>
+              <p className="text-gray-500">Loading walkthrough...</p>
+            </div>
+          </StandardCard>
+        </div>
+      </ProtectedPageWrapper>
     );
   }
 
   // Show disabled state
   if (!tourEnabled) {
     return (
-      <StandardPageLayout
-        title="House Walkthrough"
-        subtitle={`Walkthrough for ${currentProperty.name}`}
-        headerIcon={<Navigation className="h-6 w-6 text-gray-600" />}
-        breadcrumb={[
-          { label: "The House", href: "/house" },
-          { label: "Walkthrough" },
-        ]}
-      >
+      <ProtectedPageWrapper>
         <div className="space-y-6">
-          {/* Tour Toggle for Managers */}
-          {canManageProperty() && (
-            <StandardCard>
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-lg font-medium text-gray-900">
-                    House Tour Status
-                  </h3>
-                  <p className="text-sm text-gray-600">
-                    Control whether guests can access the house walkthrough
-                  </p>
-                </div>
-                <button
-                  onClick={toggleTourEnabled}
-                  disabled={updatingTourStatus}
-                  className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
-                    updatingTourStatus
-                      ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                      : tourEnabled
-                      ? "bg-green-100 text-green-700 hover:bg-green-200"
-                      : "bg-red-100 text-red-700 hover:bg-red-200"
-                  }`}
-                >
-                  {updatingTourStatus ? (
-                    <div className="h-4 w-4 border-2 border-gray-400 rounded-full animate-spin border-t-transparent" />
-                  ) : tourEnabled ? (
-                    <Eye className="h-4 w-4" />
-                  ) : (
-                    <EyeOff className="h-4 w-4" />
-                  )}
-                  <span>{tourEnabled ? "Enabled" : "Disabled"}</span>
-                </button>
-              </div>
-            </StandardCard>
-          )}
+          {/* Breadcrumb */}
+          <nav className="flex text-sm text-gray-500">
+            <Link href="/house" className="hover:text-gray-700">The House</Link>
+            <span className="mx-2">/</span>
+            <span className="text-gray-900">Walkthrough</span>
+          </nav>
+
+          {/* Page Header */}
+          <div className="flex items-center space-x-3">
+            <Navigation className="h-6 w-6 text-gray-600" />
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">House Walkthrough</h1>
+              <p className="text-gray-600">Walkthrough for {currentProperty.name}</p>
+            </div>
+          </div>
 
           {/* Disabled State */}
           <StandardCard>
@@ -305,23 +297,31 @@ export default function WalkthroughPage() {
             </div>
           </StandardCard>
         </div>
-      </StandardPageLayout>
+      </ProtectedPageWrapper>
     );
   }
 
   // Show empty state with management options for authorized users
   if (sections.length === 0 || allSteps.length === 0) {
     return (
-      <StandardPageLayout
-        title="House Walkthrough"
-        subtitle={`Walkthrough for ${currentProperty.name}`}
-        headerIcon={<Navigation className="h-6 w-6 text-blue-600" />}
-        breadcrumb={[
-          { label: "The House", href: "/house" },
-          { label: "Walkthrough" },
-        ]}
-      >
+      <ProtectedPageWrapper>
         <div className="space-y-6">
+          {/* Breadcrumb */}
+          <nav className="flex text-sm text-gray-500">
+            <Link href="/house" className="hover:text-gray-700">The House</Link>
+            <span className="mx-2">/</span>
+            <span className="text-gray-900">Walkthrough</span>
+          </nav>
+
+          {/* Page Header */}
+          <div className="flex items-center space-x-3">
+            <Navigation className="h-6 w-6 text-blue-600" />
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">House Walkthrough</h1>
+              <p className="text-gray-600">Walkthrough for {currentProperty.name}</p>
+            </div>
+          </div>
+
           {/* Tour Toggle for Managers */}
           {canManageProperty() && (
             <StandardCard>
@@ -395,272 +395,283 @@ export default function WalkthroughPage() {
             </div>
           </StandardCard>
         </div>
-      </StandardPageLayout>
+      </ProtectedPageWrapper>
     );
   }
 
   return (
-    <StandardPageLayout
-      title="House Walkthrough"
-      subtitle="Get familiar with your vacation home"
-      headerIcon={<Navigation className="h-6 w-6 text-blue-600" />}
-      breadcrumb={[
-        { label: "The House", href: "/house" },
-        { label: "Walkthrough" },
-      ]}
-    >
+    <ProtectedPageWrapper>
       <div className="space-y-6">
-        {/* Tour Toggle and Management Link for Authorized Users */}
-        {canManageProperty() && (
-          <StandardCard>
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-medium text-gray-900">
-                  House Tour Controls
-                </h3>
-                <p className="text-sm text-gray-600">
-                  Manage tour visibility and content
-                </p>
-              </div>
-              <div className="flex items-center space-x-3">
-                <Link
-                  href="/house/walkthrough/manage"
-                  className="inline-flex items-center text-sm text-blue-600 hover:text-blue-700"
-                >
-                  <Settings className="h-4 w-4 mr-1" />
-                  Manage
-                </Link>
-                <button
-                  onClick={toggleTourEnabled}
-                  disabled={updatingTourStatus}
-                  className={`flex items-center space-x-2 px-3 py-1 rounded-lg transition-colors ${
-                    updatingTourStatus
-                      ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                      : "bg-green-100 text-green-700 hover:bg-green-200"
-                  }`}
-                >
-                  {updatingTourStatus ? (
-                    <div className="h-4 w-4 border-2 border-gray-400 rounded-full animate-spin border-t-transparent" />
-                  ) : (
-                    <Eye className="h-4 w-4" />
-                  )}
-                  <span className="text-sm">Enabled</span>
-                </button>
-              </div>
-            </div>
-          </StandardCard>
-        )}
+        {/* Breadcrumb */}
+        <nav className="flex text-sm text-gray-500">
+          <Link href="/house" className="hover:text-gray-700">The House</Link>
+          <span className="mx-2">/</span>
+          <span className="text-gray-900">Walkthrough</span>
+        </nav>
 
-        {/* Progress Bar */}
-        <StandardCard>
-          <div className="mb-4">
-            <div className="flex justify-between text-sm text-gray-600 mb-2">
-              <span>
-                Step {currentStepIndex + 1} of {allSteps.length}
-              </span>
-              <span>
-                {Math.round(((currentStepIndex + 1) / allSteps.length) * 100)}%
-                Complete
-              </span>
-            </div>
-            <div className="w-full bg-gray-200 rounded-full h-2">
-              <div
-                className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                style={{
-                  width: `${((currentStepIndex + 1) / allSteps.length) * 100}%`,
-                }}
-              ></div>
-            </div>
+        {/* Page Header */}
+        <div className="flex items-center space-x-3">
+          <Navigation className="h-6 w-6 text-gray-600" />
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">House Walkthrough</h1>
+            <p className="text-gray-600">Walkthrough for {currentProperty.name}</p>
           </div>
+        </div>
 
-          {/* Section Info */}
-          {currentStep && (
-            <div className="text-sm text-gray-500">
-              Section: {currentStep.sectionTitle}
-            </div>
-          )}
-        </StandardCard>
-
-        {/* Current Step */}
-        {currentStep && (
-          <StandardCard title={currentStep.title}>
-            <div className="space-y-6">
-              {/* Step Images */}
-              {currentStep.photo_urls && currentStep.photo_urls.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {currentStep.photo_urls.map((photoUrl, index) => (
-                    <div key={index} className="aspect-video relative">
-                      <img
-                        src={photoUrl}
-                        alt={`${currentStep.title} - Photo ${index + 1}`}
-                        className="w-full h-full object-cover rounded-lg border border-gray-200 shadow-sm"
-                      />
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="aspect-video bg-gray-100 rounded-lg flex items-center justify-center">
-                  <div className="text-center">
-                    <Camera className="h-16 w-16 text-gray-400 mx-auto mb-2" />
-                    <p className="text-gray-500">
-                      Photo of {currentStep.title}
+        <StandardCard>
+          <div className="space-y-6">
+            {/* Tour Toggle and Management Link for Authorized Users */}
+            {canManageProperty() && (
+              <StandardCard>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-lg font-medium text-gray-900">
+                      House Tour Controls
+                    </h3>
+                    <p className="text-sm text-gray-600">
+                      Manage tour visibility and content
                     </p>
-                    {canManageProperty() && (
-                      <p className="text-xs text-gray-400 mt-1">
-                        Add photos in walkthrough management
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <Link
+                      href="/house/walkthrough/manage"
+                      className="inline-flex items-center text-sm text-blue-600 hover:text-blue-700"
+                    >
+                      <Settings className="h-4 w-4 mr-1" />
+                      Manage
+                    </Link>
+                    <button
+                      onClick={toggleTourEnabled}
+                      disabled={updatingTourStatus}
+                      className={`flex items-center space-x-2 px-3 py-1 rounded-lg transition-colors ${
+                        updatingTourStatus
+                          ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                          : "bg-green-100 text-green-700 hover:bg-green-200"
+                      }`}
+                    >
+                      {updatingTourStatus ? (
+                        <div className="h-4 w-4 border-2 border-gray-400 rounded-full animate-spin border-t-transparent" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                      <span className="text-sm">Enabled</span>
+                    </button>
+                  </div>
+                </div>
+              </StandardCard>
+            )}
+
+            {/* Progress Bar */}
+            <StandardCard>
+              <div className="mb-4">
+                <div className="flex justify-between text-sm text-gray-600 mb-2">
+                  <span>
+                    Step {currentStepIndex + 1} of {allSteps.length}
+                  </span>
+                  <span>
+                    {Math.round(((currentStepIndex + 1) / allSteps.length) * 100)}%
+                    Complete
+                  </span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div
+                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                    style={{
+                      width: `${((currentStepIndex + 1) / allSteps.length) * 100}%`,
+                    }}
+                  ></div>
+                </div>
+              </div>
+
+              {/* Section Info */}
+              {currentStep && (
+                <div className="text-sm text-gray-500">
+                  Section: {currentStep.sectionTitle}
+                </div>
+              )}
+            </StandardCard>
+
+            {/* Current Step */}
+            {currentStep && (
+              <StandardCard title={currentStep.title}>
+                <div className="space-y-6">
+                  {/* Step Images */}
+                  {currentStep.photo_urls && currentStep.photo_urls.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {currentStep.photo_urls.map((photoUrl, index) => (
+                        <div key={index} className="aspect-video relative">
+                          <img
+                            src={photoUrl}
+                            alt={`${currentStep.title} - Photo ${index + 1}`}
+                            className="w-full h-full object-cover rounded-lg border border-gray-200 shadow-sm"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="aspect-video bg-gray-100 rounded-lg flex items-center justify-center">
+                      <div className="text-center">
+                        <Camera className="h-16 w-16 text-gray-400 mx-auto mb-2" />
+                        <p className="text-gray-500">
+                          Photo of {currentStep.title}
+                        </p>
+                        {canManageProperty() && (
+                          <p className="text-xs text-gray-400 mt-1">
+                            Add photos in walkthrough management
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Step Content */}
+                  <div>
+                    <div className="prose prose-gray max-w-none">
+                      <p className="text-gray-700 text-lg leading-relaxed">
+                        {currentStep.content}
                       </p>
+                    </div>
+                  </div>
+
+                  {/* Navigation */}
+                  <div className="flex justify-between items-center pt-6 border-t border-gray-200">
+                    <button
+                      onClick={prevStep}
+                      disabled={currentStepIndex === 0}
+                      className={`flex items-center px-4 py-2 rounded-lg transition-colors ${
+                        currentStepIndex === 0
+                          ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                          : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                      }`}
+                    >
+                      <ArrowLeft className="h-4 w-4 mr-2" />
+                      Previous
+                    </button>
+
+                    {/* Step Dots */}
+                    <div className="flex space-x-2 max-w-xs overflow-x-auto">
+                      {allSteps.map((_, index) => (
+                        <button
+                          key={index}
+                          onClick={() => setCurrentStepIndex(index)}
+                          className={`w-3 h-3 rounded-full transition-colors flex-shrink-0 ${
+                            index === currentStepIndex
+                              ? "bg-blue-600"
+                              : index < currentStepIndex
+                              ? "bg-green-500"
+                              : "bg-gray-300"
+                          }`}
+                        />
+                      ))}
+                    </div>
+
+                    {currentStepIndex === allSteps.length - 1 ? (
+                      <Link
+                        href="/house"
+                        className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                      >
+                        Complete Tour
+                        <ArrowRight className="h-4 w-4 ml-2" />
+                      </Link>
+                    ) : (
+                      <button
+                        onClick={nextStep}
+                        className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                      >
+                        Next
+                        <ArrowRight className="h-4 w-4 ml-2" />
+                      </button>
                     )}
                   </div>
                 </div>
-              )}
+              </StandardCard>
+            )}
 
-              {/* Step Content */}
-              <div>
-                <div className="prose prose-gray max-w-none">
-                  <p className="text-gray-700 text-lg leading-relaxed">
-                    {currentStep.content}
-                  </p>
+            {/* Section Overview */}
+            {sections.length > 1 && (
+              <StandardCard title="Walkthrough Sections">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {sections.map((section, sectionIndex) => {
+                    const sectionStartIndex = sections
+                      .slice(0, sectionIndex)
+                      .reduce((acc, s) => acc + s.walkthrough_steps.length, 0);
+
+                    const isCurrentSection =
+                      currentStepIndex >= sectionStartIndex &&
+                      currentStepIndex <
+                        sectionStartIndex + section.walkthrough_steps.length;
+
+                    return (
+                      <button
+                        key={section.id}
+                        onClick={() => setCurrentStepIndex(sectionStartIndex)}
+                        className={`text-left p-4 rounded-lg border transition-colors ${
+                          isCurrentSection
+                            ? "border-blue-500 bg-blue-50"
+                            : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
+                        }`}
+                      >
+                        <h4 className="font-medium text-gray-900">
+                          {section.title}
+                        </h4>
+                        <p className="text-sm text-gray-600 mt-1">
+                          {section.description}
+                        </p>
+                        <p className="text-xs text-gray-500 mt-2">
+                          {section.walkthrough_steps.length} steps
+                        </p>
+                      </button>
+                    );
+                  })}
                 </div>
-              </div>
-
-              {/* Navigation */}
-              <div className="flex justify-between items-center pt-6 border-t border-gray-200">
-                <button
-                  onClick={prevStep}
-                  disabled={currentStepIndex === 0}
-                  className={`flex items-center px-4 py-2 rounded-lg transition-colors ${
-                    currentStepIndex === 0
-                      ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                      : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                  }`}
-                >
-                  <ArrowLeft className="h-4 w-4 mr-2" />
-                  Previous
-                </button>
-
-                {/* Step Dots */}
-                <div className="flex space-x-2 max-w-xs overflow-x-auto">
-                  {allSteps.map((_, index) => (
-                    <button
-                      key={index}
-                      onClick={() => setCurrentStepIndex(index)}
-                      className={`w-3 h-3 rounded-full transition-colors flex-shrink-0 ${
-                        index === currentStepIndex
-                          ? "bg-blue-600"
-                          : index < currentStepIndex
-                          ? "bg-green-500"
-                          : "bg-gray-300"
-                      }`}
-                    />
-                  ))}
+              </StandardCard>
+            )}
+          </div>
+          {process.env.NODE_ENV === "development" && (
+            <StandardCard title="Ownership Check">
+              <div className="text-sm space-y-2">
+                <div>
+                  My User ID:{" "}
+                  <code className="bg-yellow-100 px-2 py-1 rounded">
+                    491e99c0-e470-43e9-af67-66eaa67bbeae
+                  </code>
                 </div>
-
-                {currentStepIndex === allSteps.length - 1 ? (
-                  <Link
-                    href="/house"
-                    className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-                  >
-                    Complete Tour
-                    <ArrowRight className="h-4 w-4 ml-2" />
-                  </Link>
-                ) : (
-                  <button
-                    onClick={nextStep}
-                    className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    Next
-                    <ArrowRight className="h-4 w-4 ml-2" />
-                  </button>
-                )}
-              </div>
-            </div>
-          </StandardCard>
-        )}
-
-        {/* Section Overview */}
-        {sections.length > 1 && (
-          <StandardCard title="Walkthrough Sections">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {sections.map((section, sectionIndex) => {
-                const sectionStartIndex = sections
-                  .slice(0, sectionIndex)
-                  .reduce((acc, s) => acc + s.walkthrough_steps.length, 0);
-
-                const isCurrentSection =
-                  currentStepIndex >= sectionStartIndex &&
-                  currentStepIndex <
-                    sectionStartIndex + section.walkthrough_steps.length;
-
-                return (
-                  <button
-                    key={section.id}
-                    onClick={() => setCurrentStepIndex(sectionStartIndex)}
-                    className={`text-left p-4 rounded-lg border transition-colors ${
-                      isCurrentSection
-                        ? "border-blue-500 bg-blue-50"
-                        : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
+                <div>
+                  Property Owner:{" "}
+                  <code className="bg-blue-100 px-2 py-1 rounded">
+                    {currentProperty?.created_by || "null"}
+                  </code>
+                </div>
+                <div>
+                  Match:{" "}
+                  <span
+                    className={`font-bold ${
+                      currentProperty?.created_by ===
+                      "491e99c0-e470-43e9-af67-66eaa67bbeae"
+                        ? "text-green-600"
+                        : "text-red-600"
                     }`}
                   >
-                    <h4 className="font-medium text-gray-900">
-                      {section.title}
-                    </h4>
-                    <p className="text-sm text-gray-600 mt-1">
-                      {section.description}
-                    </p>
-                    <p className="text-xs text-gray-500 mt-2">
-                      {section.walkthrough_steps.length} steps
-                    </p>
-                  </button>
-                );
-              })}
-            </div>
-          </StandardCard>
-        )}
-      </div>
-      {process.env.NODE_ENV === "development" && (
-        <StandardCard title="Ownership Check">
-          <div className="text-sm space-y-2">
-            <div>
-              My User ID:{" "}
-              <code className="bg-yellow-100 px-2 py-1 rounded">
-                491e99c0-e470-43e9-af67-66eaa67bbeae
-              </code>
-            </div>
-            <div>
-              Property Owner:{" "}
-              <code className="bg-blue-100 px-2 py-1 rounded">
-                {currentProperty?.created_by || "null"}
-              </code>
-            </div>
-            <div>
-              Match:{" "}
-              <span
-                className={`font-bold ${
-                  currentProperty?.created_by ===
-                  "491e99c0-e470-43e9-af67-66eaa67bbeae"
-                    ? "text-green-600"
-                    : "text-red-600"
-                }`}
-              >
-                {currentProperty?.created_by ===
-                "491e99c0-e470-43e9-af67-66eaa67bbeae"
-                  ? "✅ YES"
-                  : "❌ NO"}
-              </span>
-            </div>
-            <div>
-              Can Manage:{" "}
-              <span
-                className={`font-bold ${
-                  canManageProperty() ? "text-green-600" : "text-red-600"
-                }`}
-              >
-                {canManageProperty() ? "✅ YES" : "❌ NO"}
-              </span>
-            </div>
-          </div>
-        </StandardCard>
-      )}
-    </StandardPageLayout>
+                    {currentProperty?.created_by ===
+                    "491e99c0-e470-43e9-af67-66eaa67bbeae"
+                      ? "✅ YES"
+                      : "❌ NO"}
+                  </span>
+                </div>
+                <div>
+                  Can Manage:{" "}
+                  <span
+                    className={`font-bold ${
+                      canManageProperty() ? "text-green-600" : "text-red-600"
+                    }`}
+                  >
+                    {canManageProperty() ? "✅ YES" : "❌ NO"}
+                  </span>
+                </div>
+              </div>
+            </StandardCard>
+          )}
+     </div>
+      </ProtectedPageWrapper> 
   );
 }

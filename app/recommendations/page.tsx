@@ -12,10 +12,12 @@ import {
   Search,
 } from "lucide-react";
 import Link from "next/link";
-import StandardPageLayout from "@/components/layout/StandardPageLayout";
+// ❌ REMOVE THESE LINES:
+// import PageContainer from "@/components/layout/PageContainer";
+
 import StandardCard from "@/components/ui/StandardCard";
 import { useAuth } from "@/components/auth";
-import { useProperty } from "@/lib/hooks/useProperty"; // ← RESTORE THIS
+import { useProperty } from "@/lib/hooks/useProperty";
 import { supabase } from "@/lib/supabase";
 import GooglePlacePhoto from "@/components/GooglePlacePhoto";
 import RecommendationComments from "@/components/recommendations/RecommendationComments";
@@ -24,8 +26,7 @@ import { MultiActionPattern } from "@/components/ui/FloatingActionPresets";
 import PlaceSearch from "@/components/maps/PlaceSearch";
 import DynamicGooglePlacePhoto from "@/components/DynamicGooglePlacePhoto";
 import GooglePlacesSearch from "@/components/ui/GooglePlacesSearch";
-import ProtectedPageWrapper from "@/components/layout/ProtectedPageWrapper";
-import PageContainer from "@/components/layout/PageContainer";
+import ProtectedPageWrapper from "@/components/layout/ProtectedPageWrapper"; // ✅ KEEP ONLY THIS
 import { debugLog, debugError } from "@/lib/utils/debug";
 
 interface Recommendation {
@@ -82,9 +83,9 @@ interface AutocompletePrediction {
 }
 
 export default function RecommendationsPage() {
-  // 🔥 RESTORE THE WORKING PATTERN:
-  const { user } = useAuth(); // ← Only get user from useAuth
-  const { currentProperty } = useProperty(); // ← Get property from useProperty
+  // Keep ALL your existing state and functions exactly the same...
+  const { user } = useAuth();
+  const { currentProperty } = useProperty();
 
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [filteredRecommendations, setFilteredRecommendations] = useState<
@@ -438,14 +439,12 @@ export default function RecommendationsPage() {
 
   return (
     <ProtectedPageWrapper>
-      <PageContainer className="space-y-6">
-        {/* Replace the old category filter with the new filter component */}
+      <div className="space-y-6">
         <RecommendationFilters
           recommendations={recommendations}
           setFilteredRecommendations={setFilteredRecommendations}
         />
 
-        {/* Recommendations Grid - keep existing */}
         <StandardCard
           title={`${filteredRecommendations.length} Recommendation${
             filteredRecommendations.length !== 1 ? "s" : ""
@@ -1066,7 +1065,7 @@ export default function RecommendationsPage() {
             </div>
           </div>
         )}
-      </PageContainer>
+      </div>
     </ProtectedPageWrapper>
   );
 }

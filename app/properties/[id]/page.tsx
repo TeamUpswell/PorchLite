@@ -5,23 +5,30 @@ import { useParams } from "next/navigation";
 import { useAuth } from "@/components/auth";
 import { useProperty } from "@/lib/hooks/useProperty";
 import { supabase } from "@/lib/supabase";
-import StandardPageLayout from "@/components/layout/StandardPageLayout";
-import StandardCard from "@/components/ui/StandardCard";
 import {
+  User as UserIcon,
+  Settings as CogIcon,
+  Users as UserGroupIcon,
+  LogOut,
+  ChevronDown,
+  Home as HomeIcon,
+  Calendar as CalendarIcon,
   Building,
   MapPin,
-  Edit,
+  Phone,
   Calendar,
-  Users,
   CheckSquare,
   BookOpen,
   Package,
-  Settings,
-  Phone,
+  Users,
   ExternalLink,
+  Edit,
+  Settings,
 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "react-hot-toast";
+import ProtectedPageWrapper from "@/components/layout/ProtectedPageWrapper";
+import StandardCard from "@/components/ui/StandardCard";
 
 interface Property {
   id: string;
@@ -127,80 +134,117 @@ export default function PropertyDetailsPage() {
 
   if (loading) {
     return (
-      <StandardPageLayout
-        title="Loading Property..."
-        headerIcon={<Building className="h-6 w-6 text-blue-600" />}
-      >
-        <StandardCard>
-          <div className="flex items-center justify-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            <span className="ml-2">Loading property details...</span>
+      <ProtectedPageWrapper>
+        <div className="space-y-6">
+          <div className="flex items-center space-x-3">
+            <Building className="h-6 w-6 text-blue-600" />
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">
+                Loading Property...
+              </h1>
+              <p className="text-gray-600">
+                Please wait while we load the property details
+              </p>
+            </div>
           </div>
-        </StandardCard>
-      </StandardPageLayout>
+
+          <StandardCard>
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              <span className="ml-2">Loading property details...</span>
+            </div>
+          </StandardCard>
+        </div>
+      </ProtectedPageWrapper>
     );
   }
 
   if (error || !property) {
     return (
-      <StandardPageLayout
-        title="Property Not Found"
-        headerIcon={<Building className="h-6 w-6 text-red-600" />}
-      >
-        <StandardCard>
-          <div className="text-center py-8">
-            <Building className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
-              Property Not Found
-            </h3>
-            <p className="text-gray-500 mb-4">
-              {error || "The requested property could not be found."}
-            </p>
-            <Link
-              href="/account/properties"
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-            >
-              Back to Properties
-            </Link>
+      <ProtectedPageWrapper>
+        <div className="space-y-6">
+          <div className="flex items-center space-x-3">
+            <Building className="h-6 w-6 text-red-600" />
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">
+                Property Not Found
+              </h1>
+              <p className="text-gray-600">
+                The requested property could not be found
+              </p>
+            </div>
           </div>
-        </StandardCard>
-      </StandardPageLayout>
+
+          <StandardCard>
+            <div className="text-center py-8">
+              <Building className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                Property Not Found
+              </h3>
+              <p className="text-gray-500 mb-4">
+                {error || "The requested property could not be found."}
+              </p>
+              <Link
+                href="/account/properties"
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                Back to Properties
+              </Link>
+            </div>
+          </StandardCard>
+        </div>
+      </ProtectedPageWrapper>
     );
   }
 
   const isCurrentProperty = currentProperty?.id === property.id;
 
   return (
-    <StandardPageLayout
-      title={property.name}
-      subtitle="Property Details"
-      headerIcon={<Building className="h-6 w-6 text-blue-600" />}
-      breadcrumb={[
-        { label: "Account", href: "/account" },
-        { label: "Properties", href: "/account/properties" },
-        { label: property.name },
-      ]}
-      headerActions={
-        <div className="flex items-center space-x-3">
-          {!isCurrentProperty && (
-            <button
-              onClick={handleSetAsCurrent}
-              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm"
-            >
-              Set as Current
-            </button>
-          )}
-          <Link
-            href={`/properties/${property.id}/edit`}
-            className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-          >
-            <Edit className="h-4 w-4 mr-2" />
-            Edit
-          </Link>
-        </div>
-      }
-    >
+    <ProtectedPageWrapper>
       <div className="space-y-6">
+        {/* Breadcrumb */}
+        <nav className="flex text-sm text-gray-500">
+          <Link href="/account" className="hover:text-gray-700">
+            Account
+          </Link>
+          <span className="mx-2">/</span>
+          <Link href="/account/properties" className="hover:text-gray-700">
+            Properties
+          </Link>
+          <span className="mx-2">/</span>
+          <span className="text-gray-900">{property.name}</span>
+        </nav>
+
+        {/* Page Header */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <Building className="h-6 w-6 text-blue-600" />
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">
+                {property.name}
+              </h1>
+              <p className="text-gray-600">Property Details</p>
+            </div>
+          </div>
+          <div className="flex items-center space-x-3">
+            {!isCurrentProperty && (
+              <button
+                onClick={handleSetAsCurrent}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm"
+              >
+                Set as Current
+              </button>
+            )}
+            <Link
+              href={`/properties/${property.id}/edit`}
+              className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              <Edit className="h-4 w-4 mr-2" />
+              Edit
+            </Link>
+          </div>
+        </div>
+
         {/* Current Property Badge */}
         {isCurrentProperty && (
           <div className="bg-green-50 border border-green-200 rounded-lg p-4">
@@ -428,6 +472,6 @@ export default function PropertyDetailsPage() {
           </div>
         </StandardCard>
       </div>
-    </StandardPageLayout>
+    </ProtectedPageWrapper>
   );
 }

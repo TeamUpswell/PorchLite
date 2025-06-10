@@ -4,8 +4,8 @@ import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { ArrowLeft, Edit, ExternalLink } from "lucide-react";
 import Link from "next/link";
-import StandardPageLayout from "@/components/layout/StandardPageLayout";
 import StandardCard from "@/components/ui/StandardCard";
+import ProtectedPageWrapper from "@/components/layout/ProtectedPageWrapper";
 import { useAuth } from "@/components/auth";
 import { supabase } from "@/lib/supabase";
 import Image from "next/image";
@@ -84,20 +84,20 @@ export default function ItemDetailPage() {
 
   if (loading) {
     return (
-      <StandardPageLayout title="Loading...">
+      <ProtectedPageWrapper title="Loading...">
         <StandardCard>
           <div className="flex items-center justify-center py-8">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
             <span className="ml-2">Loading...</span>
           </div>
         </StandardCard>
-      </StandardPageLayout>
+      </ProtectedPageWrapper>
     );
   }
 
   if (!item || !section) {
     return (
-      <StandardPageLayout title="Not Found">
+      <ProtectedPageWrapper title="Not Found">
         <StandardCard>
           <div className="text-center py-8">
             <p className="text-red-600">Item not found</p>
@@ -106,12 +106,12 @@ export default function ItemDetailPage() {
             </Link>
           </div>
         </StandardCard>
-      </StandardPageLayout>
+      </ProtectedPageWrapper>
     );
   }
 
   return (
-    <StandardPageLayout
+    <ProtectedPageWrapper
       title={item?.title || "Loading..."}
       breadcrumb={[
         { label: "Manual", href: "/manual" },
@@ -228,6 +228,6 @@ export default function ItemDetailPage() {
           </span>
         </Link>
       </div>
-    </StandardPageLayout>
+    </ProtectedPageWrapper>
   );
 }

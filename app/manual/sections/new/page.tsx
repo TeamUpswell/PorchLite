@@ -6,8 +6,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Save } from "lucide-react";
 import Link from "next/link";
-import StandardPageLayout from "@/components/layout/StandardPageLayout";
 import StandardCard from "@/components/ui/StandardCard";
+import ProtectedPageWrapper from "@/components/layout/ProtectedPageWrapper";
 import { useAuth } from "@/components/auth";
 import { useProperty } from "@/lib/hooks/useProperty";
 import { supabase } from "@/lib/supabase";
@@ -65,7 +65,7 @@ export default function NewSectionPage() {
   };
 
   return (
-    <StandardPageLayout
+    <ProtectedPageWrapper
       title="Create Section"
       breadcrumb={[
         { label: "Manual", href: "/manual" },
@@ -156,6 +156,6 @@ export default function NewSectionPage() {
         saving={saving}
         disabled={!formData.title.trim()}
       />
-    </StandardPageLayout>
+    </ProtectedPageWrapper>
   );
 }

@@ -1,0 +1,18 @@
+#!/bin/bash
+# Quick fix for AuthenticatedLayout only (simple cases)
+for file in $(find app/ -name "*.tsx" -exec grep -l "AuthenticatedLayout" {} \;); do
+  echo "Updating $file"
+  # Replace import
+  sed -i '' 's/import AuthenticatedLayout from.*;//g' "$file"
+  # Replace opening tag
+  sed -i '' 's/<AuthenticatedLayout[^>]*>/<ProtectedPageWrapper>/g' "$file"
+  # Replace closing tag
+  sed -i '' 's/<\/AuthenticatedLayout>/<\/ProtectedPageWrapper>/g' "$file"
+  # Add import if not present
+  if ! grep -q "ProtectedPageWrapper" "$file"; then
+    sed -i '' '1i\
+import ProtectedPageWrapper from "@/components/layout/ProtectedPageWrapper";
+' "$file"
+  fi
+done
+

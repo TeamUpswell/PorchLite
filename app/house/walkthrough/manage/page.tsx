@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import { useProperty } from "@/lib/hooks/useProperty";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { supabase } from "@/lib/supabase";
-import StandardPageLayout from "@/components/layout/StandardPageLayout";
 import StandardCard from "@/components/ui/StandardCard";
 import {
   ChevronDown,
@@ -19,6 +18,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "react-hot-toast";
+import ProtectedPageWrapper from "@/components/layout/ProtectedPageWrapper";
 
 interface WalkthroughSection {
   id: string;
@@ -338,65 +338,95 @@ export default function WalkthroughManagePage() {
   // Check permissions
   if (!canManageProperty()) {
     return (
-      <StandardPageLayout
-        title="Walkthrough Management"
-        subtitle="Access denied"
-        headerIcon={<Settings className="h-6 w-6 text-red-600" />}
-        breadcrumb={[
-          { label: "The House", href: "/house" },
-          { label: "Walkthrough", href: "/house/walkthrough" },
-          { label: "Management" },
-        ]}
-      >
-        <StandardCard>
-          <div className="text-center py-8">
-            <Settings className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
-              Access Denied
-            </h3>
-            <p className="text-gray-500">
-              You don't have permission to manage walkthrough content.
-            </p>
+      <ProtectedPageWrapper>
+        <div className="space-y-6">
+          {/* Breadcrumb */}
+          <nav className="flex text-sm text-gray-500">
+            <Link href="/house" className="hover:text-gray-700">The House</Link>
+            <span className="mx-2">/</span>
+            <Link href="/house/walkthrough" className="hover:text-gray-700">Walkthrough</Link>
+        <span className="mx-2">/</span>
+        <span className="text-gray-900">Management</span>
+          </nav>
+
+          {/* Page Header */}
+          <div className="flex items-center space-x-3">
+            <Settings className="h-6 w-6 text-blue-600" />
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Walkthrough Management</h1>
+              <p className="text-gray-600">Manage walkthrough content for {currentProperty?.name}</p>
+            </div>
           </div>
-        </StandardCard>
-      </StandardPageLayout>
+
+          <StandardCard>
+            <div className="text-center py-8">
+              <Settings className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                Access Denied
+              </h3>
+              <p className="text-gray-500">
+                You don't have permission to manage walkthrough content.
+              </p>
+            </div>
+          </StandardCard>
+        </div>
+      </ProtectedPageWrapper>
     );
   }
 
   if (loading) {
     return (
-      <StandardPageLayout
-        title="Walkthrough Management"
-        subtitle="Loading..."
-        headerIcon={<Settings className="h-6 w-6 text-blue-600" />}
-        breadcrumb={[
-          { label: "The House", href: "/house" },
-          { label: "Walkthrough", href: "/house/walkthrough" },
-          { label: "Management" },
-        ]}
-      >
-        <StandardCard>
-          <div className="text-center py-8">
-            <div className="animate-spin h-8 w-8 border-4 border-blue-600 rounded-full border-t-transparent mx-auto mb-3"></div>
-            <p className="text-gray-500">Loading walkthrough management...</p>
+      <ProtectedPageWrapper>
+        <div className="space-y-6">
+          {/* Breadcrumb */}
+          <nav className="flex text-sm text-gray-500">
+            <Link href="/house" className="hover:text-gray-700">The House</Link>
+            <span className="mx-2">/</span>
+            <Link href="/house/walkthrough" className="hover:text-gray-700">Walkthrough</Link>
+        <span className="mx-2">/</span>
+        <span className="text-gray-900">Management</span>
+          </nav>
+
+          {/* Page Header */}
+          <div className="flex items-center space-x-3">
+            <Settings className="h-6 w-6 text-blue-600" />
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Walkthrough Management</h1>
+              <p className="text-gray-600">Loading...</p>
+            </div>
           </div>
-        </StandardCard>
-      </StandardPageLayout>
+
+          <StandardCard>
+            <div className="text-center py-8">
+              <div className="animate-spin h-8 w-8 border-4 border-blue-600 rounded-full border-t-transparent mx-auto mb-3"></div>
+              <p className="text-gray-500">Loading walkthrough management...</p>
+            </div>
+          </StandardCard>
+        </div>
+      </ProtectedPageWrapper>
     );
   }
 
   return (
-    <StandardPageLayout
-      title="Walkthrough Management"
-      subtitle={`Manage walkthrough content for ${currentProperty?.name}`}
-      headerIcon={<Settings className="h-6 w-6 text-blue-600" />}
-      breadcrumb={[
-        { label: "The House", href: "/house" },
-        { label: "Walkthrough", href: "/house/walkthrough" },
-        { label: "Management" },
-      ]}
-    >
+    <ProtectedPageWrapper>
       <div className="space-y-6">
+        {/* Breadcrumb */}
+        <nav className="flex text-sm text-gray-500">
+          <Link href="/house" className="hover:text-gray-700">The House</Link>
+          <span className="mx-2">/</span>
+          <Link href="/house/walkthrough" className="hover:text-gray-700">Walkthrough</Link>
+        <span className="mx-2">/</span>
+        <span className="text-gray-900">Management</span>
+        </nav>
+
+        {/* Page Header */}
+        <div className="flex items-center space-x-3">
+          <Settings className="h-6 w-6 text-blue-600" />
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Walkthrough Management</h1>
+            <p className="text-gray-600">Manage walkthrough content for {currentProperty?.name}</p>
+          </div>
+        </div>
         {/* Quick Actions */}
         <StandardCard>
           <div className="flex items-center justify-between">
@@ -790,6 +820,6 @@ export default function WalkthroughManagePage() {
           </div>
         )}
       </div>
-    </StandardPageLayout>
+    </ProtectedPageWrapper>
   );
 }

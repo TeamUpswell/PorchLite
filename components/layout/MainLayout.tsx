@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Menu, X } from "lucide-react";
 import SideNavigation from "@/components/SideNavigation";
+import Header from "@/components/layout/Header"; // Add this
 import { useAuth } from "@/components/auth";
 import { useTheme } from "@/components/ThemeProvider";
 
@@ -110,15 +111,18 @@ export default function MainLayout({ children }: MainLayoutProps) {
         />
       </div>
 
-      {/* Main Content */}
+      {/* Main Content with Header */}
       <main
         className={`
-        flex-1 overflow-auto
+        flex-1 flex flex-col overflow-hidden
         ${isDarkMode ? "bg-gray-900" : "bg-gray-50"}
-        transition-all duration-300 ease-in-out
       `}
       >
-        {children}
+        {/* Add Header */}
+        <Header />
+
+        {/* Page Content */}
+        <div className="flex-1 overflow-auto p-6">{children}</div>
       </main>
     </div>
   );

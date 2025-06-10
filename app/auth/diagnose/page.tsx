@@ -10,7 +10,7 @@ import {
   User,
   Shield,
 } from "lucide-react";
-import AuthenticatedLayout from "@/components/auth/AuthenticatedLayout";
+
 
 export default function DiagnoseDatabase() {
   const [dbInfo, setDbInfo] = useState<any>({});
@@ -113,7 +113,7 @@ export default function DiagnoseDatabase() {
   );
 
   return (
-    <AuthenticatedLayout>
+    <ProtectedPageWrapper>
       <div className="p-6 max-w-6xl mx-auto">
         <div className="mb-6">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
@@ -227,6 +227,6 @@ export default function DiagnoseDatabase() {
           </div>
         )}
       </div>
-    </AuthenticatedLayout>
+    </ProtectedPageWrapper>
   );
 }

@@ -3,7 +3,6 @@
 import { useAuth } from "@/components/auth";
 import { usePathname } from "next/navigation";
 import { useTheme } from "@/components/ThemeProvider";
-import { useViewMode } from "@/lib/hooks/useViewMode"; // ✅ Fix import path
 import {
   User as UserIcon,
   Settings as CogIcon,
@@ -12,7 +11,7 @@ import {
   ChevronDown,
   Home as HomeIcon,
   Calendar as CalendarIcon,
-  Building2 as HouseIcon,
+  Building as HouseIcon,
   BookOpen as BookOpenIcon,
   CheckSquare as CheckSquareIcon,
   Heart as HeartIcon,
@@ -22,7 +21,6 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useState, useRef, useEffect } from "react";
-import ViewToggle from "./ViewToggle";
 
 const accountSection = {
   category: "Account",
@@ -189,12 +187,12 @@ function UserAvatar({
 
 export default function Header() {
   const { user, signOut } = useAuth();
-  const { actualTheme } = useTheme(); // ✅ Use actualTheme instead of theme
+  const { actualTheme } = useTheme();
   const pathname = usePathname();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const isDarkMode = actualTheme === "dark"; // ✅ Use actualTheme
+  const isDarkMode = actualTheme === "dark";
 
   // Simple permission checker
   const hasPermission = (requiredRole: string) => {
@@ -248,9 +246,10 @@ export default function Header() {
     <header
       className={`
         border-b px-6 py-4 transition-colors duration-200
-        ${isDarkMode
-          ? "bg-gray-900 border-gray-700"
-          : "bg-white border-gray-200"
+        ${
+          isDarkMode
+            ? "bg-gray-900 border-gray-700"
+            : "bg-white border-gray-200"
         }
       `}
     >
@@ -262,17 +261,21 @@ export default function Header() {
               <IconComponent className="h-6 w-6 text-amber-400" />
             </div>
             <div>
-              <h1 className={`
+              <h1
+                className={`
                 text-xl font-semibold transition-colors duration-200
-                ${isDarkMode ? 'text-white' : 'text-gray-900'}
-              `}>
+                ${isDarkMode ? "text-white" : "text-gray-900"}
+              `}
+              >
                 {currentPage.title}
               </h1>
               {currentPage.description && (
-                <p className={`
+                <p
+                  className={`
                   text-sm transition-colors duration-200
-                  ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}
-                `}>
+                  ${isDarkMode ? "text-gray-400" : "text-gray-600"}
+                `}
+                >
                   {currentPage.description}
                 </p>
               )}
@@ -280,19 +283,17 @@ export default function Header() {
           </div>
         </div>
 
-        {/* Right side - ViewToggle and User menu */}
+        {/* Right side - User menu */}
         <div className="flex items-center gap-4">
-          {/* ViewToggle component */}
-          <ViewToggle />
-
           <div className="relative" ref={dropdownRef}>
             <button
               onClick={() => setIsDropdownOpen(!isDropdownOpen)}
               className={`
                 flex items-center space-x-3 p-2 rounded-lg transition-colors duration-200
-                ${isDarkMode
-                  ? 'hover:bg-gray-800 text-gray-200'
-                  : 'hover:bg-gray-100 text-gray-700'
+                ${
+                  isDarkMode
+                    ? "hover:bg-gray-800 text-gray-200"
+                    : "hover:bg-gray-100 text-gray-700"
                 }
               `}
             >
@@ -301,16 +302,20 @@ export default function Header() {
 
               {/* User Info */}
               <div className="hidden md:block text-left">
-                <p className={`
+                <p
+                  className={`
                   text-sm font-medium transition-colors duration-200
-                  ${isDarkMode ? 'text-white' : 'text-gray-900'}
-                `}>
+                  ${isDarkMode ? "text-white" : "text-gray-900"}
+                `}
+                >
                   {userName}
                 </p>
-                <p className={`
+                <p
+                  className={`
                   text-xs transition-colors duration-200
-                  ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}
-                `}>
+                  ${isDarkMode ? "text-gray-400" : "text-gray-600"}
+                `}
+                >
                   {userRole}
                 </p>
               </div>
@@ -320,21 +325,24 @@ export default function Header() {
                 className={`
                   h-4 w-4 transition-all duration-200
                   ${isDropdownOpen ? "rotate-180" : ""}
-                  ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}
+                  ${isDarkMode ? "text-gray-400" : "text-gray-500"}
                 `}
               />
             </button>
 
             {/* Dropdown Menu */}
             {isDropdownOpen && (
-              <div className={`
+              <div
+                className={`
                 absolute right-0 top-full mt-2 w-48 rounded-lg shadow-lg py-2 z-50
                 border transition-colors duration-200
-                ${isDarkMode
-                  ? 'bg-gray-800 border-gray-700'
-                  : 'bg-white border-gray-200'
+                ${
+                  isDarkMode
+                    ? "bg-gray-800 border-gray-700"
+                    : "bg-white border-gray-200"
                 }
-              `}>
+              `}
+              >
                 {accountSection.items.map((item) => {
                   if (item.requiredRole && !hasPermission(item.requiredRole)) {
                     return null;
@@ -349,25 +357,30 @@ export default function Header() {
                       onClick={() => setIsDropdownOpen(false)}
                       className={`
                         flex items-center px-4 py-2 text-sm transition-colors duration-200
-                        ${isDarkMode
-                          ? 'text-gray-200 hover:bg-gray-700'
-                          : 'text-gray-700 hover:bg-gray-100'
+                        ${
+                          isDarkMode
+                            ? "text-gray-200 hover:bg-gray-700"
+                            : "text-gray-700 hover:bg-gray-100"
                         }
                       `}
                     >
-                      <IconComponent className={`
+                      <IconComponent
+                        className={`
                         mr-3 h-4 w-4
-                        ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}
-                      `} />
+                        ${isDarkMode ? "text-gray-400" : "text-gray-500"}
+                      `}
+                      />
                       {item.name}
                     </Link>
                   );
                 })}
 
-                <hr className={`
+                <hr
+                  className={`
                   my-2 transition-colors duration-200
-                  ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}
-                `} />
+                  ${isDarkMode ? "border-gray-700" : "border-gray-200"}
+                `}
+                />
 
                 <button
                   onClick={async () => {
@@ -380,16 +393,19 @@ export default function Header() {
                   }}
                   className={`
                     w-full flex items-center px-4 py-2 text-sm transition-colors duration-200
-                    ${isDarkMode
-                      ? 'text-gray-200 hover:bg-gray-700'
-                      : 'text-gray-700 hover:bg-gray-100'
+                    ${
+                      isDarkMode
+                        ? "text-gray-200 hover:bg-gray-700"
+                        : "text-gray-700 hover:bg-gray-100"
                     }
                   `}
                 >
-                  <LogOut className={`
+                  <LogOut
+                    className={`
                     mr-3 h-4 w-4
-                    ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}
-                  `} />
+                    ${isDarkMode ? "text-gray-400" : "text-gray-500"}
+                  `}
+                  />
                   Sign Out
                 </button>
               </div>

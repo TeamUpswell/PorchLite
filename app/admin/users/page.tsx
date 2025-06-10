@@ -15,7 +15,9 @@ import {
   Filter,
 } from "lucide-react";
 import Link from "next/link";
-import StandardPageLayout from "@/components/layout/StandardPageLayout";
+import ProtectedPageWrapper from "@/components/layout/ProtectedPageWrapper";
+// ❌ REMOVE THIS LINE:
+// import ProtectedPageWrapper from "@/components/layout/ProtectedPageWrapper";
 import StandardCard from "@/components/ui/StandardCard";
 import { useAuth } from "@/components/auth";
 import { supabase } from "@/lib/supabase";
@@ -192,221 +194,234 @@ export default function AdminUsersPage() {
   ).length;
 
   return (
-    <StandardPageLayout
-      title="User Management"
-      subtitle="Manage user accounts and permissions"
-      headerIcon={<Users className="h-6 w-6 text-blue-600" />}
-      headerActions={
-        <Link
-          href="/admin/users/invite"
-          className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Invite User
-        </Link>
-      }
-    >
-      {/* User Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <StandardCard className="text-center" hover>
-          <div className="text-2xl font-bold text-blue-600 mb-1">
-            {totalUsers}
+    <ProtectedPageWrapper requiredRole="admin">
+      <div className="space-y-6">
+        {/* Page Header - Replace ProtectedPageWrapper header */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <Users className="h-6 w-6 text-blue-600" />
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">
+                User Management
+              </h1>
+              <p className="text-gray-600">
+                Manage user accounts and permissions
+              </p>
+            </div>
           </div>
-          <p className="text-gray-600 text-sm">Total Users</p>
-        </StandardCard>
+          <Link
+            href="/admin/users/invite"
+            className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Invite User
+          </Link>
+        </div>
 
-        <StandardCard className="text-center" hover>
-          <div className="text-2xl font-bold text-red-600 mb-1">
-            {adminCount}
-          </div>
-          <p className="text-gray-600 text-sm">Admins</p>
-        </StandardCard>
+        {/* User Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <StandardCard className="text-center" hover>
+            <div className="text-2xl font-bold text-blue-600 mb-1">
+              {totalUsers}
+            </div>
+            <p className="text-gray-600 text-sm">Total Users</p>
+          </StandardCard>
 
-        <StandardCard className="text-center" hover>
-          <div className="text-2xl font-bold text-blue-600 mb-1">
-            {managerCount}
-          </div>
-          <p className="text-gray-600 text-sm">Managers</p>
-        </StandardCard>
+          <StandardCard className="text-center" hover>
+            <div className="text-2xl font-bold text-red-600 mb-1">
+              {adminCount}
+            </div>
+            <p className="text-gray-600 text-sm">Admins</p>
+          </StandardCard>
 
-        <StandardCard className="text-center" hover>
-          <div className="text-2xl font-bold text-green-600 mb-1">
-            {staffCount}
-          </div>
-          <p className="text-gray-600 text-sm">Staff</p>
-        </StandardCard>
-      </div>
+          <StandardCard className="text-center" hover>
+            <div className="text-2xl font-bold text-blue-600 mb-1">
+              {managerCount}
+            </div>
+            <p className="text-gray-600 text-sm">Managers</p>
+          </StandardCard>
 
-      {/* Search and Filters */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        <StandardCard>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search users..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
-        </StandardCard>
+          <StandardCard className="text-center" hover>
+            <div className="text-2xl font-bold text-green-600 mb-1">
+              {staffCount}
+            </div>
+            <p className="text-gray-600 text-sm">Staff</p>
+          </StandardCard>
+        </div>
 
-        <StandardCard>
-          <div className="flex flex-wrap gap-2">
-            {roles.map((role) => (
-              <button
-                key={role.id}
-                onClick={() => setSelectedRole(role.id)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  selectedRole === role.id
-                    ? "bg-blue-600 text-white"
-                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                }`}
-              >
-                {role.name}
-              </button>
-            ))}
-          </div>
-        </StandardCard>
-      </div>
+        {/* Search and Filters */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <StandardCard>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search users..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+          </StandardCard>
 
-      {/* Users List */}
-      <StandardCard
-        title="Users"
-        subtitle={`${filteredUsers.length} user${
-          filteredUsers.length !== 1 ? "s" : ""
-        } found`}
-      >
-        {loading ? (
-          <div className="flex justify-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          </div>
-        ) : filteredUsers.length > 0 ? (
-          <div className="space-y-4">
-            {filteredUsers.map((user) => {
-              const userRole = userRoles[user.id];
-              const isCurrentUser = user.id === currentUser?.id;
-
-              return (
-                <div
-                  key={user.id}
-                  className={`border rounded-lg p-4 transition-all ${
-                    isCurrentUser
-                      ? "border-blue-200 bg-blue-50"
-                      : "border-gray-200 hover:shadow-md"
+          <StandardCard>
+            <div className="flex flex-wrap gap-2">
+              {roles.map((role) => (
+                <button
+                  key={role.id}
+                  onClick={() => setSelectedRole(role.id)}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    selectedRole === role.id
+                      ? "bg-blue-600 text-white"
+                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                   }`}
                 >
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-start space-x-4">
-                      <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center">
-                        {user.avatar_url ? (
-                          <img
-                            src={user.avatar_url}
-                            alt={user.full_name || user.email}
-                            className="w-12 h-12 rounded-full object-cover"
-                          />
-                        ) : (
-                          <Users className="h-6 w-6 text-gray-400" />
-                        )}
-                      </div>
+                  {role.name}
+                </button>
+              ))}
+            </div>
+          </StandardCard>
+        </div>
 
-                      <div>
-                        <div className="flex items-center space-x-2 mb-1">
-                          <h3 className="font-medium text-gray-900">
-                            {user.full_name || "Unnamed User"}
-                          </h3>
-                          {isCurrentUser && (
-                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
-                              You
-                            </span>
-                          )}
-                          {userRole && (
-                            <span
-                              className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getRoleColor(
-                                userRole
-                              )}`}
-                            >
-                              <Shield className="h-3 w-3 mr-1" />
-                              {userRole}
-                            </span>
+        {/* Users List */}
+        <StandardCard
+          title="Users"
+          subtitle={`${filteredUsers.length} user${
+            filteredUsers.length !== 1 ? "s" : ""
+          } found`}
+        >
+          {/* Keep ALL your existing users list JSX exactly the same */}
+          {loading ? (
+            <div className="flex justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            </div>
+          ) : filteredUsers.length > 0 ? (
+            <div className="space-y-4">
+              {filteredUsers.map((user) => {
+                const userRole = userRoles[user.id];
+                const isCurrentUser = user.id === currentUser?.id;
+
+                return (
+                  <div
+                    key={user.id}
+                    className={`border rounded-lg p-4 transition-all ${
+                      isCurrentUser
+                        ? "border-blue-200 bg-blue-50"
+                        : "border-gray-200 hover:shadow-md"
+                    }`}
+                  >
+                    {/* Copy ALL your existing user card JSX exactly as it is */}
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-start space-x-4">
+                        <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center">
+                          {user.avatar_url ? (
+                            <img
+                              src={user.avatar_url}
+                              alt={user.full_name || user.email}
+                              className="w-12 h-12 rounded-full object-cover"
+                            />
+                          ) : (
+                            <Users className="h-6 w-6 text-gray-400" />
                           )}
                         </div>
 
-                        <div className="space-y-1 text-sm text-gray-600">
-                          <div className="flex items-center">
-                            <Mail className="h-4 w-4 mr-2" />
-                            <span>{user.email}</span>
+                        <div>
+                          <div className="flex items-center space-x-2 mb-1">
+                            <h3 className="font-medium text-gray-900">
+                              {user.full_name || "Unnamed User"}
+                            </h3>
+                            {isCurrentUser && (
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                                You
+                              </span>
+                            )}
+                            {userRole && (
+                              <span
+                                className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getRoleColor(
+                                  userRole
+                                )}`}
+                              >
+                                <Shield className="h-3 w-3 mr-1" />
+                                {userRole}
+                              </span>
+                            )}
                           </div>
 
-                          {user.phone_number && (
+                          <div className="space-y-1 text-sm text-gray-600">
                             <div className="flex items-center">
-                              <Phone className="h-4 w-4 mr-2" />
-                              <span>{user.phone_number}</span>
+                              <Mail className="h-4 w-4 mr-2" />
+                              <span>{user.email}</span>
                             </div>
-                          )}
-                        </div>
 
-                        <div className="mt-2 text-xs text-gray-500">
-                          Joined{" "}
-                          {new Date(user.created_at).toLocaleDateString()}
+                            {user.phone_number && (
+                              <div className="flex items-center">
+                                <Phone className="h-4 w-4 mr-2" />
+                                <span>{user.phone_number}</span>
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="mt-2 text-xs text-gray-500">
+                            Joined{" "}
+                            {new Date(user.created_at).toLocaleDateString()}
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    {/* Actions */}
-                    <div className="flex items-center space-x-2">
-                      {!isCurrentUser && (
-                        <>
-                          <select
-                            value={userRole || ""}
-                            onChange={(e) =>
-                              handleRoleChange(user.id, e.target.value)
-                            }
-                            className="text-xs border border-gray-300 rounded px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          >
-                            <option value="">No Role</option>
-                            <option value="admin">Admin</option>
-                            <option value="manager">Manager</option>
-                            <option value="staff">Staff</option>
-                            <option value="guest">Guest</option>
-                          </select>
+                      {/* Actions */}
+                      <div className="flex items-center space-x-2">
+                        {!isCurrentUser && (
+                          <>
+                            <select
+                              value={userRole || ""}
+                              onChange={(e) =>
+                                handleRoleChange(user.id, e.target.value)
+                              }
+                              className="text-xs border border-gray-300 rounded px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            >
+                              <option value="">No Role</option>
+                              <option value="admin">Admin</option>
+                              <option value="manager">Manager</option>
+                              <option value="staff">Staff</option>
+                              <option value="guest">Guest</option>
+                            </select>
 
-                          <Link
-                            href={`/admin/users/${user.id}/edit`}
-                            className="p-1.5 text-gray-400 hover:text-blue-600 transition-colors"
-                            title="Edit User"
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Link>
+                            <Link
+                              href={`/admin/users/${user.id}/edit`}
+                              className="p-1.5 text-gray-400 hover:text-blue-600 transition-colors"
+                              title="Edit User"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Link>
 
-                          <button
-                            onClick={() => handleDeleteUser(user.id)}
-                            className="p-1.5 text-gray-400 hover:text-red-600 transition-colors"
-                            title="Delete User"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </>
-                      )}
+                            <button
+                              onClick={() => handleDeleteUser(user.id)}
+                              className="p-1.5 text-gray-400 hover:text-red-600 transition-colors"
+                              title="Delete User"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="text-center py-8 text-gray-500">
-            <Users className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-            <p>No users found</p>
-            <p className="text-sm mt-1">
-              {searchTerm || selectedRole !== "all"
-                ? "Try adjusting your search or filters"
-                : "Invite users to get started"}
-            </p>
-          </div>
-        )}
-      </StandardCard>
-    </StandardPageLayout>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-gray-500">
+              <Users className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+              <p>No users found</p>
+              <p className="text-sm mt-1">
+                {searchTerm || selectedRole !== "all"
+                  ? "Try adjusting your search or filters"
+                  : "Invite users to get started"}
+              </p>
+            </div>
+          )}
+        </StandardCard>
+      </div>
+    </ProtectedPageWrapper>
   );
 }

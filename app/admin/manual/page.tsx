@@ -6,8 +6,9 @@ export const fetchCache = "force-no-store";
 export const runtime = "nodejs";
 
 import { useState, useEffect } from "react";
-import StandardPageLayout from "@/components/layout/StandardPageLayout";
+import ProtectedPageWrapper from "@/components/layout/ProtectedPageWrapper";
 import StandardCard from "@/components/ui/StandardCard";
+import { BookOpen } from "lucide-react";
 
 export default function AdminManualPage() {
   const [sections, setSections] = useState([]);
@@ -18,15 +19,43 @@ export default function AdminManualPage() {
   }, []);
 
   return (
-    <StandardPageLayout title="Admin Manual Management">
-      <StandardCard>
-        <div className="p-6">
-          <h2 className="text-xl font-semibold mb-4">Manual Administration</h2>
-          <p className="text-gray-600">
-            Manage all property manuals from here.
-          </p>
+    <ProtectedPageWrapper requiredRole="admin">
+      <div className="space-y-6">
+        {/* Page Header */}
+        <div className="flex items-center space-x-3">
+          <BookOpen className="h-6 w-6 text-blue-600" />
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">
+              Admin Manual Management
+            </h1>
+            <p className="text-gray-600">
+              Manage all property manuals from here
+            </p>
+          </div>
         </div>
-      </StandardCard>
-    </StandardPageLayout>
+
+        <StandardCard title="Manual Administration">
+          <div className="space-y-4">
+            <p className="text-gray-600">
+              Manage all property manuals from here.
+            </p>
+
+            {loading ? (
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                <p className="text-gray-500 mt-2">Loading manuals...</p>
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <BookOpen className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-500">
+                  Manual management features coming soon
+                </p>
+              </div>
+            )}
+          </div>
+        </StandardCard>
+      </div>
+    </ProtectedPageWrapper>
   );
 }

@@ -1,14 +1,15 @@
 "use client";
+import ProtectedPageWrapper from "@/components/layout/ProtectedPageWrapper";
 
 import { useState } from "react";
 import { CreatePattern } from "@/components/ui/FloatingActionPresets";
-import StandardPageLayout from "@/components/layout/StandardPageLayout"; // Remove the "s" in "layout"
+ // Remove the "s" in "layout"
 
 export default function GuestsPage() {
   const [showAddGuestModal, setShowAddGuestModal] = useState(false);
 
   return (
-    <StandardPageLayout>
+    <ProtectedPageWrapper><div className="space-y-6">
       {/* Your page content */}
 
       <CreatePattern
@@ -17,6 +18,6 @@ export default function GuestsPage() {
       />
 
       {/* Rest of your component */}
-    </StandardPageLayout>
+    </div></ProtectedPageWrapper>
   );
 }

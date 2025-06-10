@@ -1,11 +1,12 @@
 "use client";
+import ProtectedPageWrapper from "@/components/layout/ProtectedPageWrapper";
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import DatabaseDiagnostic from "@/components/DatabaseDiagnostic"; // ✅ Updated import
 import { useAuth } from "@/components/auth";
 import Link from "next/link";
-import AuthenticatedLayout from "@/components/auth/AuthenticatedLayout";
+
 import PermissionGate from "@/components/PermissionGate";
 import { Shield, AlertTriangle } from "lucide-react";
 
@@ -62,7 +63,7 @@ export default function DiagnosticsPage() {
   // 🔒 Early return if not development team
   if (!user) {
     return (
-      <AuthenticatedLayout>
+      <ProtectedPageWrapper>
         <div className="p-8 text-center">
           <Shield className="h-12 w-12 mx-auto text-red-600 mb-4" />
           <h3 className="text-lg font-semibold text-gray-900 mb-2">
@@ -70,13 +71,13 @@ export default function DiagnosticsPage() {
           </h3>
           <p className="text-gray-800">Please log in to continue.</p>
         </div>
-      </AuthenticatedLayout>
+      </ProtectedPageWrapper>
     );
   }
 
   if (!isDevelopmentTeam(user)) {
     return (
-      <AuthenticatedLayout>
+      <ProtectedPageWrapper>
         <div className="p-8 text-center max-w-md mx-auto">
           <div className="bg-red-100 rounded-full p-3 w-16 h-16 mx-auto mb-4 flex items-center justify-center">
             <AlertTriangle className="h-8 w-8 text-red-600" />
@@ -106,7 +107,7 @@ export default function DiagnosticsPage() {
             </Link>
           </div>
         </div>
-      </AuthenticatedLayout>
+      </ProtectedPageWrapper>
     );
   }
 
@@ -115,7 +116,7 @@ export default function DiagnosticsPage() {
   };
 
   return (
-    <AuthenticatedLayout>
+    <ProtectedPageWrapper>
       <div className="p-6 max-w-6xl mx-auto">
         {/* 🔒 DEVELOPMENT TEAM HEADER */}
         <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
@@ -264,6 +265,6 @@ export default function DiagnosticsPage() {
           </div>
         </div>
       </div>
-    </AuthenticatedLayout>
+    </ProtectedPageWrapper>
   );
 }

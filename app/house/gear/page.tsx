@@ -1,6 +1,7 @@
 "use client";
+import ProtectedPageWrapper from "@/components/layout/ProtectedPageWrapper";
 
-import StandardPageLayout from "@/components/layout/StandardPageLayout";
+
 import StandardCard from "@/components/ui/StandardCard";
 import {
   Package,
@@ -144,28 +145,46 @@ export default function GearPage() {
 
   if (loading) {
     return (
-      <StandardPageLayout
-        title="House Gear"
-        headerIcon={<Package className="h-6 w-6 text-blue-600" />}
-      >
-        <StandardCard>
-          <div className="flex items-center justify-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            <span className="ml-2">Loading gear inventory...</span>
+      <ProtectedPageWrapper>
+        <div className="space-y-6">
+          <div className="flex items-center space-x-3">
+            <Package className="h-6 w-6 text-blue-600" />
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">House Gear</h1>
+              <p className="text-gray-600">Loading gear inventory...</p>
+            </div>
           </div>
-        </StandardCard>
-      </StandardPageLayout>
+          
+          <StandardCard>
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              <span className="ml-2">Loading gear inventory...</span>
+            </div>
+          </StandardCard>
+        </div>
+      </ProtectedPageWrapper>
     );
   }
 
   return (
-    <StandardPageLayout
-      title="House Gear & Equipment"
-      subtitle="Everything available for your stay"
-      headerIcon={<Package className="h-6 w-6 text-blue-600" />}
-      breadcrumb={[{ label: "The House", href: "/house" }, { label: "Gear" }]}
-    >
+    <ProtectedPageWrapper>
       <div className="space-y-6">
+        {/* Breadcrumb */}
+        <nav className="flex text-sm text-gray-500">
+          <Link href="/house" className="hover:text-gray-700">The House</Link>
+          <span className="mx-2">/</span>
+          <span className="text-gray-900">Gear</span>
+        </nav>
+
+        {/* Page Header */}
+        <div className="flex items-center space-x-3">
+          <Package className="h-6 w-6 text-blue-600" />
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">House Gear & Equipment</h1>
+            <p className="text-gray-600">Everything available for your stay</p>
+          </div>
+        </div>
+
         {/* Category Filter */}
         <StandardCard>
           <div className="flex flex-wrap gap-2">
@@ -268,6 +287,7 @@ export default function GearPage() {
           </StandardCard>
         )}
       </div>
-    </StandardPageLayout>
+    </div>
+    </ProtectedPageWrapper>
   );
 }

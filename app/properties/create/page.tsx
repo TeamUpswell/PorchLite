@@ -7,7 +7,7 @@ import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useTenant } from "@/lib/hooks/useTenant";
 import { supabase } from "@/lib/supabase";
-import AuthenticatedLayout from "@/components/auth/AuthenticatedLayout";
+
 import { MapPin, Check, AlertCircle } from "lucide-react";
 
 // Google Places types
@@ -215,7 +215,7 @@ function PropertyCreateForm() {
   };
 
   return (
-    <AuthenticatedLayout>
+    <ProtectedPageWrapper>
       <div className="container mx-auto px-4 py-8">
         <h1 className="text-2xl font-bold mb-6">Create New Property</h1>
 
@@ -368,7 +368,7 @@ function PropertyCreateForm() {
         defer
         src={`https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=places&loading=async`}
       />
-    </AuthenticatedLayout>
+    </ProtectedPageWrapper>
   );
 }
 
@@ -384,7 +384,7 @@ export default function CreatePropertyPage() {
   // Show loading state or nothing during server-side rendering
   if (!isMounted) {
     return (
-      <AuthenticatedLayout>
+      <ProtectedPageWrapper>
         <div className="container mx-auto px-4 py-8">
           <h1 className="text-2xl font-bold mb-6">Create New Property</h1>
           <div className="flex items-center justify-center py-8">
@@ -392,7 +392,7 @@ export default function CreatePropertyPage() {
             <span className="ml-2">Loading property form...</span>
           </div>
         </div>
-      </AuthenticatedLayout>
+      </ProtectedPageWrapper>
     );
   }
 
