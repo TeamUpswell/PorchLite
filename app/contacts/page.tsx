@@ -20,6 +20,8 @@ import {
   Wrench,
   AlertTriangle,
   ExternalLink,
+  Eye,
+  X,
 } from "lucide-react";
 import Link from "next/link";
 import ProtectedPageWrapper from "@/components/layout/ProtectedPageWrapper";
@@ -59,6 +61,7 @@ export default function ContactsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [showAddModal, setShowAddModal] = useState(false);
+  const [selectedContact, setSelectedContact] = useState<Contact | null>(null); // ✅ For details modal
 
   // ✅ Enhanced categories following dashboard color standards
   const categories = [
@@ -300,6 +303,206 @@ export default function ContactsPage() {
     );
   }
 
+  // ✅ Contact Details Modal Component
+  const ContactDetailsModal = ({
+    contact,
+    onClose,
+  }: {
+    contact: Contact | null;
+    onClose: () => void;
+  }) => {
+    if (!contact) return null;
+
+    const category = categories.find((c) => c.id === contact.role);
+    const avatarUrl = getUserAvatar(contact);
+
+    return (
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-xl max-w-md w-full max-h-[80vh] overflow-y-auto">
+          {/* Header */}
+          <div className="p-6 border-b border-gray-100">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="relative">
+                  {avatarUrl ? (
+                    <img
+                      src={avatarUrl}
+                      alt={contact.name}
+                      className="w-16 h-16 rounded-full object-cover ring-2 ring-yellow-400"
+                    />
+                  ) : (
+                    <div
+                      className={`w-16 h-16 rounded-full flex items-center justify-center ${
+                        category?.color || "bg-gray-100 text-gray-600"
+                      }`}
+                    >
+                      <span className="text-2xl">{category?.icon || "👤"}</span>
+                    </div>
+                  )}
+                  {contact.priority && contact.priority <= 2 && (
+                    <div className="absolute -top-1 -right-1 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center">
+                      <Star className="h-4 w-4 text-white" />
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900">
+                    {contact.name}
+                  </h3>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span
+                      className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                        category?.color || "bg-gray-100 text-gray-800"
+                      }`}
+                    >
+                      {category?.name || contact.role}
+                    </span>
+                    {contact.role === "owner" && (
+                      <Crown className="h-4 w-4 text-yellow-500" />
+                    )}
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={onClose}
+                className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+          </div>
+
+          {/* Contact Details */}
+          <div className="p-6 space-y-4">
+            {contact.phone && (
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-blue-50 rounded-lg">
+                  <Phone className="h-5 w-5 text-blue-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Phone</p>
+                  <a
+                    href={`tel:${contact.phone}`}
+                    className="text-blue-600 hover:text-blue-700 font-medium"
+                  >
+                    {contact.phone}
+                  </a>
+                </div>
+              </div>
+            )}
+
+            {contact.email && (
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-blue-50 rounded-lg">
+                  <Mail className="h-5 w-5 text-blue-600" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm text-gray-500">Email</p>
+                  <a
+                    href={`mailto:${contact.email}`}
+                    className="text-blue-600 hover:text-blue-700 font-medium truncate block"
+                    title={contact.email}
+                  >
+                    {contact.email}
+                  </a>
+                </div>
+              </div>
+            )}
+
+            {contact.website && (
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-blue-50 rounded-lg">
+                  <Globe className="h-5 w-5 text-blue-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Website</p>
+                  <a
+                    href={
+                      contact.website.startsWith("http")
+                        ? contact.website
+                        : `https://${contact.website}`
+                    }
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
+                  >
+                    Visit Website
+                    <ExternalLink className="h-4 w-4" />
+                  </a>
+                </div>
+              </div>
+            )}
+
+            {contact.address && (
+              <div className="flex items-start gap-3">
+                <div className="p-2 bg-blue-50 rounded-lg">
+                  <MapPin className="h-5 w-5 text-blue-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Address</p>
+                  <p className="text-gray-900 leading-relaxed">
+                    {contact.address}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {contact.description && (
+              <div className="border-t border-gray-100 pt-4">
+                <p className="text-sm text-gray-500 mb-2">Description</p>
+                <p className="text-gray-900 leading-relaxed">
+                  {contact.description}
+                </p>
+              </div>
+            )}
+
+            <div className="border-t border-gray-100 pt-4 flex items-center justify-between">
+              <div className="flex items-center gap-1 text-sm text-gray-500">
+                <Clock className="h-4 w-4" />
+                <span>
+                  Added {new Date(contact.created_at).toLocaleDateString()}
+                </span>
+              </div>
+              {contact.priority && contact.priority <= 3 && (
+                <span className="text-xs px-2 py-1 bg-red-100 text-red-700 rounded-full font-medium">
+                  High Priority
+                </span>
+              )}
+            </div>
+
+            {/* Action Buttons */}
+            <div className="border-t border-gray-100 pt-4 flex gap-3">
+              {contact.phone && (
+                <a
+                  href={`tel:${contact.phone}`}
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-center font-medium"
+                >
+                  Call
+                </a>
+              )}
+              {contact.email && (
+                <a
+                  href={`mailto:${contact.email}`}
+                  className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-center font-medium"
+                >
+                  Email
+                </a>
+              )}
+              {isManagerView && (
+                <Link
+                  href={`/contacts/${contact.id}/edit`}
+                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  <Edit className="h-4 w-4" />
+                </Link>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <ProtectedPageWrapper>
       <Header title="Contacts" />
@@ -363,29 +566,26 @@ export default function ContactsPage() {
             </div>
           </div>
 
-          {/* Contact Cards or Loading */}
+          {/* ✅ Compact Contact Cards */}
           {loading ? (
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {[...Array(6)].map((_, i) => (
-                <StandardCard key={i} className="p-6">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {[...Array(8)].map((_, i) => (
+                <StandardCard key={i} className="p-4">
                   <div className="animate-pulse">
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="w-12 h-12 bg-gray-200 rounded-full"></div>
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="w-10 h-10 bg-gray-200 rounded-full"></div>
                       <div className="flex-1">
-                        <div className="h-4 bg-gray-200 rounded mb-2"></div>
-                        <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                        <div className="h-3 bg-gray-200 rounded mb-1"></div>
+                        <div className="h-2 bg-gray-200 rounded w-2/3"></div>
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <div className="h-3 bg-gray-200 rounded"></div>
-                      <div className="h-3 bg-gray-200 rounded w-3/4"></div>
-                    </div>
+                    <div className="h-2 bg-gray-200 rounded"></div>
                   </div>
                 </StandardCard>
               ))}
             </div>
           ) : filteredContacts.length > 0 ? (
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {filteredContacts.map((contact) => {
                 const category = categories.find((c) => c.id === contact.role);
                 const avatarUrl = getUserAvatar(contact);
@@ -393,142 +593,84 @@ export default function ContactsPage() {
                 return (
                   <StandardCard
                     key={contact.id}
-                    className="p-6 hover:shadow-lg transition-all duration-200 border-l-4 border-l-blue-500"
+                    className="p-4 hover:shadow-lg transition-all duration-200 cursor-pointer border-l-4 border-l-blue-500"
+                    onClick={() => setSelectedContact(contact)} // ✅ Click to view details
                   >
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex items-center gap-3 flex-1">
-                        <div className="relative">
-                          {avatarUrl ? (
-                            <img
-                              src={avatarUrl}
-                              alt={contact.name}
-                              className="w-12 h-12 rounded-full object-cover ring-2 ring-yellow-400"
-                            />
-                          ) : (
-                            <div
-                              className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                                category?.color || "bg-gray-100 text-gray-600"
-                              }`}
-                            >
-                              <span className="text-xl">
-                                {category?.icon || "👤"}
-                              </span>
-                            </div>
-                          )}
-
-                          {contact.priority && contact.priority <= 2 && (
-                            <div className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center">
-                              <Star className="h-3 w-3 text-white" />
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-semibold text-gray-900 truncate">
-                            {contact.name}
-                          </h3>
-                          <div className="flex items-center gap-2">
-                            <span
-                              className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                                category?.color || "bg-gray-100 text-gray-800"
-                              }`}
-                            >
-                              {category?.name || contact.role}
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="relative">
+                        {avatarUrl ? (
+                          <img
+                            src={avatarUrl}
+                            alt={contact.name}
+                            className="w-10 h-10 rounded-full object-cover ring-2 ring-yellow-400"
+                          />
+                        ) : (
+                          <div
+                            className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                              category?.color || "bg-gray-100 text-gray-600"
+                            }`}
+                          >
+                            <span className="text-lg">
+                              {category?.icon || "👤"}
                             </span>
-                            {contact.role === "owner" && (
-                              <Crown className="h-3 w-3 text-yellow-500" />
-                            )}
                           </div>
-                        </div>
-                      </div>
-
-                      {isManagerView && (
-                        <Link
-                          href={`/contacts/${contact.id}/edit`}
-                          className="p-2 text-gray-400 hover:text-blue-600 transition-colors rounded-lg hover:bg-blue-50"
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Link>
-                      )}
-                    </div>
-
-                    {/* Contact Information */}
-                    <div className="space-y-3">
-                      {contact.phone && (
-                        <div className="flex items-center gap-3">
-                          <Phone className="h-4 w-4 text-gray-400 flex-shrink-0" />
-                          <a
-                            href={`tel:${contact.phone}`}
-                            className="text-blue-600 hover:text-blue-700 font-medium"
-                          >
-                            {contact.phone}
-                          </a>
-                        </div>
-                      )}
-
-                      {contact.email && (
-                        <div className="flex items-center gap-3">
-                          <Mail className="h-4 w-4 text-gray-400 flex-shrink-0" />
-                          <a
-                            href={`mailto:${contact.email}`}
-                            className="text-blue-600 hover:text-blue-700 font-medium truncate"
-                            title={contact.email}
-                          >
-                            {contact.email}
-                          </a>
-                        </div>
-                      )}
-
-                      {contact.website && (
-                        <div className="flex items-center gap-3">
-                          <Globe className="h-4 w-4 text-gray-400 flex-shrink-0" />
-                          <a
-                            href={
-                              contact.website.startsWith("http")
-                                ? contact.website
-                                : `https://${contact.website}`
-                            }
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
-                          >
-                            Website
-                            <ExternalLink className="h-3 w-3" />
-                          </a>
-                        </div>
-                      )}
-
-                      {contact.address && (
-                        <div className="flex items-start gap-3">
-                          <MapPin className="h-4 w-4 text-gray-400 flex-shrink-0 mt-0.5" />
-                          <p className="text-gray-600 text-sm leading-relaxed">
-                            {contact.address}
-                          </p>
-                        </div>
-                      )}
-
-                      {contact.description && (
-                        <div className="mt-4 pt-4 border-t border-gray-100">
-                          <p className="text-gray-600 text-sm leading-relaxed">
-                            {contact.description}
-                          </p>
-                        </div>
-                      )}
-
-                      <div className="flex items-center justify-between pt-3 border-t border-gray-50">
-                        <div className="flex items-center gap-1 text-xs text-gray-400">
-                          <Clock className="h-3 w-3" />
-                          <span>
-                            {new Date(contact.created_at).toLocaleDateString()}
-                          </span>
-                        </div>
-
-                        {contact.priority && contact.priority <= 3 && (
-                          <span className="text-xs px-2 py-1 bg-red-100 text-red-700 rounded-full font-medium">
-                            High Priority
-                          </span>
+                        )}
+                        {contact.priority && contact.priority <= 2 && (
+                          <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center">
+                            <Star className="h-2 w-2 text-white" />
+                          </div>
                         )}
                       </div>
+
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-gray-900 truncate text-sm">
+                          {contact.name}
+                        </h3>
+                        <div className="flex items-center gap-1">
+                          <span
+                            className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium ${
+                              category?.color || "bg-gray-100 text-gray-800"
+                            }`}
+                          >
+                            {category?.name || contact.role}
+                          </span>
+                          {contact.role === "owner" && (
+                            <Crown className="h-3 w-3 text-yellow-500" />
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1">
+                        <Eye className="h-4 w-4 text-gray-400" />
+                        {isManagerView && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation(); // Prevent card click
+                              // Navigate to edit page
+                              window.location.href = `/contacts/${contact.id}/edit`;
+                            }}
+                            className="p-1 text-gray-400 hover:text-blue-600 transition-colors rounded"
+                          >
+                            <Edit className="h-3 w-3" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* ✅ Compact contact info preview */}
+                    <div className="space-y-1 text-xs text-gray-600">
+                      {contact.phone && (
+                        <div className="flex items-center gap-2 truncate">
+                          <Phone className="h-3 w-3 text-gray-400 flex-shrink-0" />
+                          <span className="truncate">{contact.phone}</span>
+                        </div>
+                      )}
+                      {contact.email && (
+                        <div className="flex items-center gap-2 truncate">
+                          <Mail className="h-3 w-3 text-gray-400 flex-shrink-0" />
+                          <span className="truncate">{contact.email}</span>
+                        </div>
+                      )}
                     </div>
                   </StandardCard>
                 );
@@ -587,6 +729,12 @@ export default function ContactsPage() {
           onContactAdded={refreshContacts} // ✅ Now this function exists!
           propertyId={property.id}
           userId={user.id}
+        />
+
+        {/* ✅ Contact Details Modal */}
+        <ContactDetailsModal
+          contact={selectedContact}
+          onClose={() => setSelectedContact(null)}
         />
       </PageContainer>
     </ProtectedPageWrapper>
