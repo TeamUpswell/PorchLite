@@ -1,251 +1,490 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { supabase } from "@/lib/supabase";
-import { Eye, EyeOff, Lock, AlertCircle, CheckCircle } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { getSupabase } from "@/lib/supabase";
+import {
+  Settings,
+  Database,
+  Shield,
+  Server,
+  AlertCircle,
+  User,
+  Wifi,
+  WifiOff,
+  CheckCircle,
+  XCircle,
+  RefreshCw,
+} from "lucide-react";
 import Header from "@/components/layout/Header";
 import PageContainer from "@/components/layout/PageContainer";
 import StandardCard from "@/components/ui/StandardCard";
 
-export default function ResetPasswordPage() {
+export default function AdminDiagnosticsPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState(false);
-
-  // Check for auth tokens in URL
-  const accessToken = searchParams?.get("access_token");
-  const refreshToken = searchParams?.get("refresh_token");
+  const [userData, setUserData] = useState<any>(null);
+  const [connectionStatus, setConnectionStatus] = useState<Record<string, any>>({});
+  const [systemInfo, setSystemInfo] = useState<Record<string, any>>({});
+  const [isAuthorized, setIsAuthorized] = useState(false);
+  const [isTestingConnection, setIsTestingConnection] = useState(false);
 
   useEffect(() => {
-    // If tokens are present, set the session
-    if (accessToken && refreshToken) {
-      supabase.auth.setSession({
-        access_token: accessToken,
-        refresh_token: refreshToken,
-      });
-    }
-  }, [accessToken, refreshToken]);
+    async function checkAuth() {
+      try {
+        const {
+          data: { user },
+          error: userError,
+        } = await supabase.auth.getUser();
 
-  const handleResetPassword = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-    setLoading(true);
+        if (userError) throw userError;
+        if (!user) {
+          router.push("/auth");
+          return;
+        }
 
-    // Validation
-    if (password.length < 6) {
-      setError("Password must be at least 6 characters long");
-      setLoading(false);
-      return;
+        setUserData(user);
+        setIsAuthorized(true); // For development, assume authorized
+
+        // Get environment info
+        setSystemInfo({
+          nodeEnv: process.env.NODE_ENV || "unknown",
+          supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL || "not set",
+          hasAnon: Boolean(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY),
+          buildTime: new Date().toISOString(),
+        });
+
+        // Initial connection test
+        testConnections();
+      } catch (err: any) {
+        console.error("Auth check failed:", err);
+        setError(err.message || "Authentication check failed");
+      } finally {
+        setLoading(false);
+      }
     }
 
-    if (password !== confirmPassword) {
-      setError("Passwords do not match");
-      setLoading(false);
-      return;
-    }
+    checkAuth();
+  }, [router]);
+
+  async function testConnections() {
+    setIsTestingConnection(true);
+    const testResults: Record<string, any> = {};
 
     try {
-      const { error } = await supabase.auth.updateUser({
-        password: password,
-      });
+      // Test auth connection
+      const startAuthTime = performance.now();
+      const { data: authData, error: authError } = await supabase.auth.getSession();
+      const authTime = performance.now() - startAuthTime;
 
-      if (error) throw error;
+      testResults.auth = {
+        status: authError ? "error" : "success",
+        latency: `${authTime.toFixed(1)}ms`,
+        error: authError?.message,
+        timestamp: new Date().toISOString(),
+      };
 
-      setSuccess(true);
+      // Test database connection
+      const startDbTime = performance.now();
+      try {
+        // Simple query to test database access
+        const { data: dbData, error: dbError } = await supabase
+          .from("profiles")
+          .select("count")
+          .limit(1);
 
-      // Redirect after successful password reset
-      setTimeout(() => {
-        router.push("/dashboard");
-      }, 2000);
-    } catch (error: any) {
-      setError(error.message || "Failed to reset password");
+        const dbTime = performance.now() - startDbTime;
+
+        testResults.database = {
+          status: dbError ? "error" : "success",
+          latency: `${dbTime.toFixed(1)}ms`,
+          error: dbError?.message,
+          timestamp: new Date().toISOString(),
+        };
+      } catch (dbErr: any) {
+        testResults.database = {
+          status: "error",
+          latency: "n/a",
+          error: dbErr.message || "Database connection failed",
+          timestamp: new Date().toISOString(),
+        };
+      }
+
+      // Test tenant API connection
+      const startTenantTime = performance.now();
+      try {
+        const { data: tenantData, error: tenantError } = await supabase
+          .from("tenants")
+          .select("count")
+          .limit(1);
+
+        const tenantTime = performance.now() - startTenantTime;
+
+        testResults.tenants = {
+          status: tenantError ? "error" : "success",
+          latency: `${tenantTime.toFixed(1)}ms`,
+          error: tenantError?.message,
+          corsIssue: tenantError?.message?.includes("CORS"),
+          timestamp: new Date().toISOString(),
+        };
+      } catch (tenantErr: any) {
+        testResults.tenants = {
+          status: "error",
+          latency: "n/a",
+          error: tenantErr.message || "Tenant API connection failed",
+          corsIssue: tenantErr.message?.includes("CORS"),
+          timestamp: new Date().toISOString(),
+        };
+      }
+
+      // Test properties API connection
+      const startPropsTime = performance.now();
+      try {
+        const { data: propsData, error: propsError } = await supabase
+          .from("properties")
+          .select("count")
+          .limit(1);
+
+        const propsTime = performance.now() - startPropsTime;
+
+        testResults.properties = {
+          status: propsError ? "error" : "success",
+          latency: `${propsTime.toFixed(1)}ms`,
+          error: propsError?.message,
+          corsIssue: propsError?.message?.includes("CORS"),
+          timestamp: new Date().toISOString(),
+        };
+      } catch (propsErr: any) {
+        testResults.properties = {
+          status: "error",
+          latency: "n/a",
+          error: propsErr.message || "Properties API connection failed",
+          corsIssue: propsErr.message?.includes("CORS"),
+          timestamp: new Date().toISOString(),
+        };
+      }
+
+      setConnectionStatus(testResults);
+    } catch (err: any) {
+      console.error("Connection tests failed:", err);
     } finally {
-      setLoading(false);
+      setIsTestingConnection(false);
     }
-  };
+  }
+
+  if (loading) {
+    return (
+      <div className="p-6">
+        <Header title="Admin Diagnostics" />
+        <PageContainer>
+          <div className="flex items-center justify-center min-h-[60vh]">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-600"></div>
+          </div>
+        </PageContainer>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6">
-      <Header title="Reset Password" />
+      <Header title="Admin Diagnostics" />
       <PageContainer>
-        <div className="max-w-md mx-auto space-y-6">
+        <div className="max-w-7xl mx-auto space-y-6">
           {/* Page Header */}
-          <div className="text-center">
-            <div className="flex justify-center mb-4">
-              <div className="p-3 bg-blue-100 rounded-full">
-                <Lock className="h-8 w-8 text-blue-600" />
-              </div>
+          <div className="flex items-center mb-6">
+            <div className="p-3 bg-blue-100 rounded-full mr-4">
+              <Settings className="h-8 w-8 text-blue-600" />
             </div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">
-              Reset Your Password
-            </h1>
-            <p className="text-gray-600">Enter your new password below</p>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">
+                System Diagnostics
+              </h1>
+              <p className="text-gray-600">
+                Connection troubleshooting and system status
+              </p>
+            </div>
           </div>
 
-          {/* Success Message */}
-          {success && (
-            <StandardCard className="border-green-200 bg-green-50">
-              <div className="flex items-center">
-                <CheckCircle className="h-5 w-5 text-green-600 mr-3" />
-                <div>
-                  <h3 className="font-medium text-green-800">
-                    Password Reset Successful
-                  </h3>
-                  <p className="text-green-700 text-sm mt-1">
-                    Redirecting you to the dashboard...
-                  </p>
-                </div>
-              </div>
-            </StandardCard>
-          )}
-
-          {/* Error Message */}
           {error && (
             <StandardCard className="border-red-200 bg-red-50">
               <div className="flex items-center">
                 <AlertCircle className="h-5 w-5 text-red-600 mr-3" />
                 <div>
-                  <h3 className="font-medium text-red-800">
-                    Password Reset Failed
-                  </h3>
+                  <h3 className="font-medium text-red-800">Error</h3>
                   <p className="text-red-700 text-sm mt-1">{error}</p>
                 </div>
               </div>
             </StandardCard>
           )}
 
-          {/* Reset Form */}
+          {/* User Authentication Info */}
           <StandardCard>
-            <form onSubmit={handleResetPassword} className="space-y-6">
-              {/* New Password Field */}
+            <div className="flex items-start justify-between">
               <div>
-                <label
-                  htmlFor="password"
-                  className="block text-sm font-medium text-gray-700 mb-2"
-                >
-                  New Password
-                </label>
-                <div className="relative">
-                  <input
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Enter your new password"
-                    required
-                    minLength={6}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                  >
-                    {showPassword ? (
-                      <EyeOff className="h-4 w-4 text-gray-400" />
-                    ) : (
-                      <Eye className="h-4 w-4 text-gray-400" />
-                    )}
-                  </button>
+                <h2 className="text-lg font-medium text-gray-900 mb-2">
+                  Authentication Status
+                </h2>
+                <div className="space-y-2">
+                  {userData ? (
+                    <>
+                      <div className="flex items-center text-sm">
+                        <User className="h-4 w-4 text-gray-500 mr-2" />
+                        <span className="font-medium text-gray-600">Email:</span>
+                        <span className="ml-2">{userData?.email}</span>
+                      </div>
+                      <div className="flex items-center text-sm">
+                        <Shield className="h-4 w-4 text-gray-500 mr-2" />
+                        <span className="font-medium text-gray-600">User ID:</span>
+                        <span className="ml-2 text-xs font-mono bg-gray-100 px-2 py-1 rounded">
+                          {userData?.id}
+                        </span>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="flex items-center">
+                      <AlertCircle className="h-4 w-4 text-amber-500 mr-2" />
+                      <span className="text-amber-600">Not authenticated</span>
+                    </div>
+                  )}
                 </div>
               </div>
-
-              {/* Confirm Password Field */}
-              <div>
-                <label
-                  htmlFor="confirmPassword"
-                  className="block text-sm font-medium text-gray-700 mb-2"
-                >
-                  Confirm New Password
-                </label>
-                <div className="relative">
-                  <input
-                    id="confirmPassword"
-                    type={showConfirmPassword ? "text" : "password"}
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Confirm your new password"
-                    required
-                    minLength={6}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                  >
-                    {showConfirmPassword ? (
-                      <EyeOff className="h-4 w-4 text-gray-400" />
-                    ) : (
-                      <Eye className="h-4 w-4 text-gray-400" />
-                    )}
-                  </button>
-                </div>
-              </div>
-
-              {/* Password Requirements */}
-              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                <h4 className="font-medium text-gray-900 mb-2">
-                  Password Requirements:
-                </h4>
-                <ul className="text-sm text-gray-600 space-y-1">
-                  <li className="flex items-center">
-                    <div
-                      className={`w-2 h-2 rounded-full mr-2 ${
-                        password.length >= 6 ? "bg-green-500" : "bg-gray-300"
-                      }`}
-                    ></div>
-                    At least 6 characters long
-                  </li>
-                  <li className="flex items-center">
-                    <div
-                      className={`w-2 h-2 rounded-full mr-2 ${
-                        password === confirmPassword && password.length > 0
-                          ? "bg-green-500"
-                          : "bg-gray-300"
-                      }`}
-                    ></div>
-                    Passwords match
-                  </li>
-                </ul>
-              </div>
-
-              {/* Submit Button */}
               <button
-                type="submit"
-                disabled={loading || success}
-                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                onClick={() => router.push("/dashboard")}
+                className="text-sm text-blue-600 hover:text-blue-500 font-medium"
               >
-                {loading ? (
-                  <div className="flex items-center">
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    Updating Password...
-                  </div>
-                ) : success ? (
-                  "Password Updated!"
-                ) : (
-                  "Update Password"
-                )}
+                Back to Dashboard
               </button>
-            </form>
+            </div>
           </StandardCard>
 
-          {/* Back to Login */}
-          <div className="text-center">
-            <button
-              onClick={() => router.push("/auth")}
-              className="text-blue-600 hover:text-blue-500 text-sm font-medium"
-            >
-              ← Back to Login
-            </button>
-          </div>
+          {/* Connection Test Card */}
+          <StandardCard>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-medium text-gray-900">
+                API Connection Tests
+              </h2>
+              <button
+                onClick={testConnections}
+                disabled={isTestingConnection}
+                className="inline-flex items-center px-3 py-1.5 border border-gray-300 text-sm leading-5 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:border-blue-300 focus:shadow-outline-blue transition ease-in-out duration-150"
+              >
+                {isTestingConnection ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 mr-1 animate-spin" />
+                    Testing...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="h-4 w-4 mr-1" />
+                    Test Connections
+                  </>
+                )}
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {Object.keys(connectionStatus).length === 0 ? (
+                <div className="text-sm text-gray-500 italic">
+                  Click "Test Connections" to run diagnostics
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {/* Auth Connection */}
+                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div className="flex items-center">
+                      {connectionStatus.auth?.status === "success" ? (
+                        <CheckCircle className="h-5 w-5 text-green-500 mr-3" />
+                      ) : (
+                        <XCircle className="h-5 w-5 text-red-500 mr-3" />
+                      )}
+                      <div>
+                        <div className="font-medium">Authentication API</div>
+                        <div className="text-xs text-gray-500">
+                          {connectionStatus.auth?.latency} response time
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-sm">
+                      {connectionStatus.auth?.status === "success" ? (
+                        <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">
+                          Connected
+                        </span>
+                      ) : (
+                        <span className="px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs">
+                          Failed
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Database Connection */}
+                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div className="flex items-center">
+                      {connectionStatus.database?.status === "success" ? (
+                        <CheckCircle className="h-5 w-5 text-green-500 mr-3" />
+                      ) : (
+                        <XCircle className="h-5 w-5 text-red-500 mr-3" />
+                      )}
+                      <div>
+                        <div className="font-medium">Database Connection</div>
+                        <div className="text-xs text-gray-500">
+                          {connectionStatus.database?.latency} response time
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-sm">
+                      {connectionStatus.database?.status === "success" ? (
+                        <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">
+                          Connected
+                        </span>
+                      ) : (
+                        <span className="px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs">
+                          Failed
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Tenants API */}
+                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div className="flex items-center">
+                      {connectionStatus.tenants?.status === "success" ? (
+                        <CheckCircle className="h-5 w-5 text-green-500 mr-3" />
+                      ) : (
+                        <XCircle className="h-5 w-5 text-red-500 mr-3" />
+                      )}
+                      <div>
+                        <div className="font-medium">Tenants API</div>
+                        {connectionStatus.tenants?.corsIssue && (
+                          <div className="text-xs text-red-600 font-medium">
+                            CORS Issue Detected
+                          </div>
+                        )}
+                        <div className="text-xs text-gray-500">
+                          {connectionStatus.tenants?.latency} response time
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-sm">
+                      {connectionStatus.tenants?.status === "success" ? (
+                        <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">
+                          Connected
+                        </span>
+                      ) : (
+                        <span className="px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs">
+                          Failed
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Properties API */}
+                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div className="flex items-center">
+                      {connectionStatus.properties?.status === "success" ? (
+                        <CheckCircle className="h-5 w-5 text-green-500 mr-3" />
+                      ) : (
+                        <XCircle className="h-5 w-5 text-red-500 mr-3" />
+                      )}
+                      <div>
+                        <div className="font-medium">Properties API</div>
+                        {connectionStatus.properties?.corsIssue && (
+                          <div className="text-xs text-red-600 font-medium">
+                            CORS Issue Detected
+                          </div>
+                        )}
+                        <div className="text-xs text-gray-500">
+                          {connectionStatus.properties?.latency} response time
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-sm">
+                      {connectionStatus.properties?.status === "success" ? (
+                        <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">
+                          Connected
+                        </span>
+                      ) : (
+                        <span className="px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs">
+                          Failed
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* CORS Troubleshooting */}
+            {Object.values(connectionStatus).some(
+              (status: any) => status?.corsIssue
+            ) && (
+              <div className="mt-4 p-4 border border-amber-200 bg-amber-50 rounded-lg">
+                <h3 className="font-medium text-amber-800 mb-2">
+                  CORS Issues Detected
+                </h3>
+                <p className="text-sm text-amber-700 mb-3">
+                  Your local environment is experiencing CORS issues with Supabase.
+                  To fix this:
+                </p>
+                <ol className="text-sm text-amber-700 space-y-2 list-decimal list-inside">
+                  <li>Go to your Supabase project dashboard</li>
+                  <li>Navigate to Project Settings → API → CORS</li>
+                  <li>
+                    Add{" "}
+                    <code className="px-1 py-0.5 bg-amber-100 rounded">
+                      http://localhost:3000
+                    </code>{" "}
+                    to the allowed origins
+                  </li>
+                  <li>Save changes and restart your local development server</li>
+                </ol>
+              </div>
+            )}
+          </StandardCard>
+
+          {/* Environment Info */}
+          <StandardCard>
+            <h2 className="text-lg font-medium text-gray-900 mb-4">
+              Environment Information
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <span className="font-medium">Node Environment:</span>
+                <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">
+                  {systemInfo.nodeEnv}
+                </span>
+              </div>
+              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <span className="font-medium">Supabase URL Configured:</span>
+                <span
+                  className={`px-2 py-1 ${
+                    systemInfo.supabaseUrl !== "not set"
+                      ? "bg-green-100 text-green-800"
+                      : "bg-red-100 text-red-800"
+                  } rounded-full text-xs`}
+                >
+                  {systemInfo.supabaseUrl !== "not set" ? "Yes" : "No"}
+                </span>
+              </div>
+              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <span className="font-medium">Anon Key Configured:</span>
+                <span
+                  className={`px-2 py-1 ${
+                    systemInfo.hasAnon ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
+                  } rounded-full text-xs`}
+                >
+                  {systemInfo.hasAnon ? "Yes" : "No"}
+                </span>
+              </div>
+              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <span className="font-medium">Server Time:</span>
+                <span className="text-gray-600">
+                  {new Date().toLocaleString()}
+                </span>
+              </div>
+            </div>
+          </StandardCard>
         </div>
       </PageContainer>
     </div>

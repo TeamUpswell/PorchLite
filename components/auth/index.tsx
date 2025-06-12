@@ -8,6 +8,7 @@ import React, {
   useCallback,
 } from "react";
 import { supabase } from "@/lib/supabase";
+import { debug } from "@/lib/debug"; // Add this import
 import type { User, Session } from "@supabase/supabase-js";
 import { useRouter } from "next/navigation";
 import { debugLog, debugError } from "@/lib/utils/debug";
@@ -101,37 +102,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // ✅ FIXED: Initialize auth without early errors
   const initializeAuth = async () => {
     try {
-      console.log("🔍 Checking initial auth session...");
-      const {
-        data: { session: initialSession },
-        error,
-      } = await supabase.auth.getSession();
-
+      console.log('🔍 Checking initial auth session...')  // Use console.log instead
+    
+      const { data: { session }, error } = await supabase.auth.getSession()
+    
       if (error) {
-        console.error("❌ Auth session error:", error);
-        // Don't throw error immediately - set fallback state
-        setIsLoading(false);
-        return;
+        console.log('❌ Error getting session:', error.message)
+        return
       }
 
-      if (initialSession?.user) {
-        console.log(
-          "✅ Found existing session for:",
-          initialSession.user.email
-        );
-        setSession(initialSession);
-        setUser(initialSession.user);
-
-        // Load user data without blocking
-        loadUserData(initialSession.user.id);
+      if (session?.user) {
+        console.log("✅ Found existing session for:", session.user.email);
+        setSession(session);
+        setUser(session.user);
+        await loadUserData(session.user.id);
       } else {
-        console.log("🔍 No existing session found");
+        console.log("🔍 No existing session found - user needs to log in");
+        // 🔥 FIX: Set loading to false and let the app redirect to login
         setIsLoading(false);
+        setUser(null);
+        setSession(null);
+        setProperty(null);
+        setTenant(null);
       }
     } catch (error) {
-      console.error("❌ Auth initialization error:", error);
-      // Don't show toast error during initialization
-      setIsLoading(false);
+      console.log('❌ Auth initialization error:', error)
     }
   };
 
@@ -200,11 +195,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (uniqueProperties.length > 0) {
         const selectedProperty = uniqueProperties[0];
-
-        debugLog("🏠 Setting property in AuthProvider:", selectedProperty);
         setProperty(selectedProperty);
 
-        // Determine tenant role
         const isOwner = ownedProperties?.some(
           (p) => p.id === selectedProperty.id
         );
@@ -218,17 +210,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           tenant_id: tenantId,
         };
 
-        debugLog("✅ Set up as property owner:", {
-          tenant: enhancedTenant,
-          property: selectedProperty,
-        });
-        debugLog("👤 Setting tenant in AuthProvider:", enhancedTenant);
         setTenant(enhancedTenant);
+
+        // 🔥 ADD THIS - Set the user role based on tenant role
+        setUserRole(isOwner ? "manager" : "family"); // or whatever role mapping you want
       } else {
         debugLog("⚠️ No properties found for user");
+        // 🔥 ADD THIS - Set a default role even when no properties
+        setUserRole("guest");
       }
     } catch (error) {
       debugLog("❌ Error loading property data:", error);
+      // 🔥 ADD THIS - Set fallback role on error
+      setUserRole("guest");
     } finally {
       setIsLoading(false);
     }
@@ -242,14 +236,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log("🔄 Auth state changed:", event);
+      console.log("🔍 Session data:", session);
+      console.log("🔍 User data:", session?.user);
 
       if (session?.user) {
+        console.log("✅ Setting user in AuthProvider:", session.user.email);
         setSession(session);
         setUser(session.user);
         setContextVersion((prev) => prev + 1);
 
         if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
-          loadUserData(session.user.id);
+          await loadUserData(session.user.id);
         }
       } else {
         console.log("🔍 No user - clearing all data");

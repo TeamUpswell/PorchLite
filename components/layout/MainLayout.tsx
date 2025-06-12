@@ -6,6 +6,7 @@ import { useAuth } from "@/components/auth";
 import { useProperty } from "@/lib/hooks/useProperty";
 import SideNavigation from "@/components/SideNavigation";
 import { usePathname } from "next/navigation";
+import { getSupabase } from '@/lib/supabase'
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -16,6 +17,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
   const pathname = usePathname();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const supabase = getSupabase()
 
   // Close mobile menu when clicking outside
   useEffect(() => {

@@ -1,4 +1,4 @@
-import { createClient } from "@supabase/supabase-js";
+import { createClient, SupabaseClient } from "@supabase/supabase-js";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -7,12 +7,26 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error("Missing Supabase environment variables");
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-  },
-});
+// Singleton pattern to ensure only one instance
+let supabaseInstance: SupabaseClient | null = null;
+
+export const getSupabase = () => {
+  if (!supabaseInstance) {
+    supabaseInstance = createClient(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        autoRefreshToken: true,
+        persistSession: true,
+        detectSessionInUrl: true,
+        storage:
+          typeof window !== "undefined" ? window.localStorage : undefined,
+      },
+    });
+  }
+  return supabaseInstance;
+};
+
+// Export the instance
+export const supabase = getSupabase();
 
 // Add this export for server-side operations
 export function getSupabaseClient() {
@@ -20,12 +34,13 @@ export function getSupabaseClient() {
 }
 
 // Error handling helper function
-export const logSupabaseError = (error: any, context: string) => {
-  console.error(`Error in ${context}:`, error);
-  console.error("Error code:", error.code);
-  console.error("Error message:", error.message);
-  console.error("Error details:", error.details);
-};
+export function handleSupabaseError(error: any) {
+  console.error("Supabase error:", error);
+  return {
+    error: error.message || "An unexpected error occurred",
+    data: null,
+  };
+}
 
 // Helper function to explore table schemas
 export const exploreTableSchema = async (tableName: string) => {
@@ -34,6 +49,7 @@ export const exploreTableSchema = async (tableName: string) => {
     const { data, error } = await supabase.from(tableName).select("*").limit(1);
 
     if (error) {
+      console.error("Error details:", error.details);
       console.error(`Error exploring ${tableName}:`, error);
       return null;
     }

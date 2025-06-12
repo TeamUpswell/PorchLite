@@ -1,0 +1,17 @@
+// lib/supabase-dev.ts
+import { createClient } from "@supabase/supabase-js";
+
+const supabaseUrl =
+  process.env.NODE_ENV === "development"
+    ? "http://localhost:8080/https://hkrgfqpshdoroimlulzw.supabase.co"
+    : process.env.NEXT_PUBLIC_SUPABASE_URL!;
+
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+
+export const supabase = createClient(supabaseUrl, supabaseKey, {
+  auth: {
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: true,
+  },
+});

@@ -10,6 +10,7 @@ import DashboardHeader from "@/components/dashboard/DashboardHeader"; // ✅ Add
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import StandardCard from "@/components/ui/StandardCard";
 import { Home as HomeIcon } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 // Simplified interfaces
 interface UpcomingVisit {
@@ -44,6 +45,8 @@ export default function HomePage() {
     inventory: true,
     tasks: true,
   });
+
+  const router = useRouter();
 
   // Mock weather data (you can replace with real API)
   const mockWeather = {
@@ -158,6 +161,22 @@ export default function HomePage() {
     window.location.href = "/calendar";
   };
 
+  // Redirect to auth if no user
+  useEffect(() => {
+    if (!authLoading && !user) {
+      console.log("🔄 No user found, redirecting to auth...");
+      router.push("/auth");
+    }
+  }, [user, authLoading, router]);
+
+  // Add this at the top of your HomePage component
+  console.log('🏠 HomePage render - Auth state:', { 
+    user: user?.email || 'none', 
+    authLoading, 
+    propertyLoading,
+    currentProperty: currentProperty?.name || 'none'
+  });
+
   // ✅ Early returns AFTER all hooks
   if (authLoading || propertyLoading) {
     return (
@@ -176,7 +195,11 @@ export default function HomePage() {
   }
 
   if (!user) {
-    return null;
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div>Redirecting to login...</div>
+      </div>
+    );
   }
 
   if (!currentProperty) {

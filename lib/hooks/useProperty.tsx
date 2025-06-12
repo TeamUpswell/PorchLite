@@ -10,7 +10,7 @@ import React, {
   useMemo,
 } from "react";
 import { useAuth } from "@/components/auth";
-import { supabase } from "../supabase";
+import { getSupabase } from "@/lib/supabase";
 import { debugLog, debugError } from "@/lib/utils/debug";
 
 const isDev = process.env.NODE_ENV === "development";
@@ -75,6 +75,7 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
       }
 
       try {
+        const supabase = getSupabase();
         // Add session check
         const {
           data: { session },
@@ -281,6 +282,7 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
 
   const updateProperty = useCallback(
     async (propertyId: string, updates: any) => {
+      const supabase = getSupabase();
       const { error } = await supabase
         .from("properties")
         .update(updates)
@@ -305,6 +307,7 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
   const refreshProperty = useCallback(async () => {
     if (!currentProperty?.id) return;
 
+    const supabase = getSupabase();
     const { data, error } = await supabase
       .from("properties")
       .select("*")
