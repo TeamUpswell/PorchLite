@@ -7,6 +7,7 @@ import { usePermissions } from "@/lib/hooks/usePermissions";
 import { supabase } from "@/lib/supabase";
 import ProtectedPageWrapper from "@/components/layout/ProtectedPageWrapper";
 import PageContainer from "@/components/layout/PageContainer";
+import Header from "@/components/layout/Header"; // ✅ Add Header import
 import StandardCard from "@/components/ui/StandardCard";
 import {
   ArrowRight,
@@ -14,12 +15,12 @@ import {
   Building2,
   Camera,
   Car,
-  Compass, // Add this import
+  Compass,
   ExternalLink,
   Gamepad2,
   MapPin,
   Plus,
-  Navigation, // Replace Route with Navigation
+  Navigation,
   Waves,
   Wifi,
 } from "lucide-react";
@@ -136,17 +137,23 @@ export default function HousePage() {
 
   if (loading) {
     return (
-      <StandardCard>
-        <div className="flex items-center justify-center py-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          <span className="ml-2">Loading house information...</span>
-        </div>
-      </StandardCard>
+      <ProtectedPageWrapper>
+        <Header title="House Info" /> {/* ✅ Add Header to loading state */}
+        <PageContainer>
+          <StandardCard>
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              <span className="ml-2">Loading house information...</span>
+            </div>
+          </StandardCard>
+        </PageContainer>
+      </ProtectedPageWrapper>
     );
   }
 
   return (
     <ProtectedPageWrapper>
+      <Header title="House Info" /> {/* ✅ Add Header component */}
       <PageContainer className="space-y-6">
         {/* Location Map - Moved to Top & Simplified */}
         {currentProperty &&

@@ -64,9 +64,9 @@ interface User {
 interface SideNavigationProps {
   user?: any;
   onCollapseChange?: (collapsed: boolean) => void;
-  useGridLayout?: boolean;
-  isMobileMenuOpen?: boolean; // Add this
-  setIsMobileMenuOpen?: (open: boolean) => void; // Add this
+  isCollapsed?: boolean;
+  isMobileMenuOpen?: boolean;
+  setIsMobileMenuOpen?: (open: boolean) => void;
 }
 
 // ✅ UPDATE: Navigation structure - add The House section
@@ -111,11 +111,9 @@ export default function SideNavigation({
   user: propUser,
   onCollapseChange,
   isCollapsed = false,
-}: {
-  user?: any;
-  onCollapseChange?: (collapsed: boolean) => void;
-  isCollapsed?: boolean;
-}) {
+  isMobileMenuOpen = false,
+  setIsMobileMenuOpen,
+}: SideNavigationProps) {
   const pathname = usePathname();
   const { user: authUser, signOut } = useAuth();
   const { currentProperty, loading: propertyLoading } = useProperty();
@@ -200,6 +198,13 @@ export default function SideNavigation({
   if (!user) {
     return null;
   }
+
+  // Add this to your Link onClick handlers:
+  const handleLinkClick = () => {
+    if (setIsMobileMenuOpen) {
+      setIsMobileMenuOpen(false);
+    }
+  };
 
   return (
     <div
@@ -311,7 +316,7 @@ export default function SideNavigation({
                       <Link
                         key={item.name}
                         href={item.href}
-                        onClick={() => isMobile && setIsMobileMenuOpen(false)}
+                        onClick={handleLinkClick} // ✅ Add this
                         className={`flex items-center ${
                           isCollapsed ? "justify-center px-2" : "px-4"
                         } py-2 text-sm rounded-md group relative ${

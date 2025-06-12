@@ -34,16 +34,23 @@ interface Tenant {
 
 interface AuthContextType {
   user: User | null;
+  session: Session | null;
+  isLoading: boolean;
   property: Property | null;
   tenant: Tenant | null;
-  isLoading: boolean;
-  signIn: (email: string, password: string) => Promise<{ error: any }>;
-  signUp: (email: string, password: string) => Promise<{ error: any }>;
-  signOut: () => Promise<void>;
-  userRole: UserRole | null;
-  hasPermission: (requiredRole: UserRole) => boolean;
-  canAccess: (feature: string) => boolean;
   contextVersion: number;
+  userRole: string | null;
+  signIn: (
+    email: string,
+    password: string
+  ) => Promise<{ data?: any; error?: any }>;
+  signUp: (
+    email: string,
+    password: string
+  ) => Promise<{ data?: any; error?: any }>;
+  signOut: () => Promise<void>;
+  hasPermission: (requiredRole: string) => boolean;
+  canAccess: (feature: string) => boolean;
 }
 
 // ✅ Add permission hierarchy
@@ -108,7 +115,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (initialSession?.user) {
-        console.log("✅ Found existing session for:", initialSession.user.email);
+        console.log(
+          "✅ Found existing session for:",
+          initialSession.user.email
+        );
         setSession(initialSession);
         setUser(initialSession.user);
 
@@ -255,7 +265,107 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  // ✅ NO EARLY RETURNS - Render with loading state instead
+  // ✅ ADD these missing functions before the value object:
+  const signIn = async (email: string, password: string) => {
+    try {
+      setIsLoading(true);
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        console.error("Sign in error:", error);
+        return { error };
+      }
+
+      return { data, error: null };
+    } catch (error) {
+      console.error("Sign in error:", error);
+      return { error };
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const signUp = async (email: string, password: string) => {
+    try {
+      setIsLoading(true);
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+      });
+
+      if (error) {
+        console.error("Sign up error:", error);
+        return { error };
+      }
+
+      return { data, error: null };
+    } catch (error) {
+      console.error("Sign up error:", error);
+      return { error };
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const signOut = async () => {
+    try {
+      setIsLoading(true);
+      await supabase.auth.signOut();
+
+      // Clear all state
+      setUser(null);
+      setSession(null);
+      setProperty(null);
+      setTenant(null);
+      setContextVersion((prev) => prev + 1);
+
+      // Optional: redirect to sign in page
+      // router.push('/auth/signin');
+    } catch (error) {
+      console.error("Sign out error:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const hasPermission = (requiredRole: string) => {
+    if (!userRole) return false;
+
+    // Simple role hierarchy - adjust as needed
+    const roleHierarchy: Record<string, number> = {
+      guest: 1,
+      tenant: 2,
+      manager: 3,
+      owner: 4,
+      admin: 5,
+    };
+
+    const userLevel = roleHierarchy[userRole] || 0;
+    const requiredLevel = roleHierarchy[requiredRole] || 0;
+
+    return userLevel >= requiredLevel;
+  };
+
+  const canAccess = (feature: string) => {
+    if (!userRole) return false;
+
+    // Simple feature permissions - adjust as needed
+    const featurePermissions: Record<string, string[]> = {
+      dashboard: ["tenant", "manager", "owner", "admin"],
+      inventory: ["manager", "owner", "admin"],
+      reservations: ["tenant", "manager", "owner", "admin"],
+      tasks: ["manager", "owner", "admin"],
+      settings: ["owner", "admin"],
+    };
+
+    const allowedRoles = featurePermissions[feature] || [];
+    return allowedRoles.includes(userRole);
+  };
+
+  // ✅ Now your value object will work:
   const value = {
     user,
     session,
@@ -263,14 +373,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     property,
     tenant,
     contextVersion,
-    // ... your methods
+    userRole,
+    signIn,
+    signUp,
+    signOut,
+    hasPermission,
+    canAccess,
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export const useAuth = () => {
@@ -279,17 +390,6 @@ export const useAuth = () => {
   if (!context) {
     throw new Error("useAuth must be used within an AuthProvider");
   }
-
-  // Log whenever context is accessed
-  useEffect(() => {
-    debugLog("🔍 useAuth called:", {
-      hasUser: !!context.user,
-      hasProperty: !!context.property,
-      hasTenant: !!context.tenant,
-      version: context.contextVersion,
-      timestamp: new Date().toISOString(),
-    });
-  }, [context.contextVersion]);
 
   return context;
 };

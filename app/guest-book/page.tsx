@@ -9,6 +9,7 @@ import Link from "next/link";
 import Image from "next/image";
 import ProtectedPageWrapper from "@/components/layout/ProtectedPageWrapper";
 import PageContainer from "@/components/layout/PageContainer";
+import Header from "@/components/layout/Header"; // ✅ Add Header import
 
 interface GuestBookEntry {
   id: string;
@@ -58,7 +59,10 @@ export default function GuestBookPage() {
   const fetchGuestBookEntries = async () => {
     try {
       setLoading(true);
-      console.log("🔍 Fetching guest book entries for property:", currentProperty?.id);
+      console.log(
+        "🔍 Fetching guest book entries for property:",
+        currentProperty?.id
+      );
 
       if (!currentProperty?.id) {
         console.warn("❌ No property ID available");
@@ -69,7 +73,8 @@ export default function GuestBookPage() {
       // ✅ Try with photos first
       let { data, error } = await supabase
         .from("guest_book_entries")
-        .select(`
+        .select(
+          `
           *,
           guest_book_photos (
             id,
@@ -77,7 +82,8 @@ export default function GuestBookPage() {
             caption,
             order_index
           )
-        `)
+        `
+        )
         .eq("property_id", currentProperty.id)
         .eq("is_approved", true)
         .eq("is_public", true)
@@ -87,7 +93,7 @@ export default function GuestBookPage() {
       // ✅ If photos query fails, try without photos
       if (error && error.message.includes("guest_book_photos")) {
         console.log("📸 Photos table not found, trying without photos...");
-        
+
         const { data: fallbackData, error: fallbackError } = await supabase
           .from("guest_book_entries")
           .select("*")
@@ -100,7 +106,7 @@ export default function GuestBookPage() {
         if (fallbackError) {
           throw fallbackError;
         }
-        
+
         data = fallbackData;
         error = null;
       }
@@ -112,7 +118,6 @@ export default function GuestBookPage() {
       console.log("✅ Found guest book entries:", data?.length || 0);
 
       setEntries(data || []);
-
     } catch (error) {
       console.error("❌ Error fetching guest book entries:", error);
       // ✅ Still set empty array so page renders
@@ -126,7 +131,7 @@ export default function GuestBookPage() {
     try {
       console.log("🔍 Debug: Current property:", {
         id: currentProperty?.id,
-        name: currentProperty?.name
+        name: currentProperty?.name,
       });
 
       if (!currentProperty?.id) {
@@ -150,15 +155,17 @@ export default function GuestBookPage() {
       }
 
       // ✅ Check filters
-      const approvedEntries = allData?.filter(entry => entry.is_approved) || [];
-      const publicEntries = allData?.filter(entry => entry.is_public) || [];
-      const visibleEntries = allData?.filter(entry => entry.is_approved && entry.is_public) || [];
+      const approvedEntries =
+        allData?.filter((entry) => entry.is_approved) || [];
+      const publicEntries = allData?.filter((entry) => entry.is_public) || [];
+      const visibleEntries =
+        allData?.filter((entry) => entry.is_approved && entry.is_public) || [];
 
       console.log("📋 Filter analysis:", {
         total: allData?.length || 0,
         approved: approvedEntries.length,
         public: publicEntries.length,
-        visible: visibleEntries.length
+        visible: visibleEntries.length,
       });
 
       // ✅ Log each entry's status
@@ -171,10 +178,9 @@ export default function GuestBookPage() {
           is_public: entry.is_public,
           will_show: entry.is_approved && entry.is_public,
           visit_date: entry.visit_date,
-          created_at: entry.created_at
+          created_at: entry.created_at,
         });
       });
-
     } catch (error) {
       console.error("❌ Debug query failed:", error);
     }
@@ -195,6 +201,7 @@ export default function GuestBookPage() {
   if (!currentProperty) {
     return (
       <ProtectedPageWrapper>
+        <Header title="Guest Book" /> {/* ✅ Add Header to loading state */}
         <PageContainer>
           <div className="flex items-center justify-center min-h-64">
             <div className="text-center">
@@ -209,10 +216,8 @@ export default function GuestBookPage() {
 
   return (
     <ProtectedPageWrapper>
+      <Header title="Guest Book" /> {/* ✅ Add Header component */}
       <PageContainer className="space-y-6">
-        {/* Remove header section and start with content */}
-        {/* Your existing guest book content */}
-
         {/* Top card with fade and collapse - this animation is enough */}
         <div
           className={`transition-all duration-1000 ease-out ${
@@ -296,8 +301,8 @@ export default function GuestBookPage() {
                   </h3>
                   <p className="text-lg text-gray-600 mb-6 leading-relaxed">
                     This lovely pace is waiting for its first memory to be
-                    shared! We would love to hear about the moments that
-                    made your stay special.
+                    shared! We would love to hear about the moments that made
+                    your stay special.
                   </p>
 
                   {/* Features preview */}
@@ -360,7 +365,8 @@ export default function GuestBookPage() {
                   {/* Inspiring quote */}
                   <div className="mt-8 p-4 bg-white/40 rounded-lg border-l-4 border-rose-400">
                     <p className="text-gray-600 italic text-center">
-                      "A house becomes a home through the memories made while staying here. Help us celebrate yours."
+                      "A house becomes a home through the memories made while
+                      staying here. Help us celebrate yours."
                     </p>
                   </div>
                 </div>
@@ -372,8 +378,8 @@ export default function GuestBookPage() {
               <StandardCard className="bg-gradient-to-r from-blue-50 to-purple-50 border-blue-200">
                 <div className="p-4 text-center">
                   <p className="text-gray-700 mb-3">
-                    <strong>📖 Add your chapter to our home's story!</strong>{" "}
-                    We love reading about the memories our guests make here.
+                    <strong>📖 Add your chapter to our home's story!</strong> We
+                    love reading about the memories our guests make here.
                   </p>
                   <Link
                     href="/guest-book/new"
@@ -539,7 +545,6 @@ export default function GuestBookPage() {
         </div>
         */}
       </PageContainer>
-
       <style jsx>{`
         @keyframes float {
           0%,

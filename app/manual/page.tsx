@@ -12,10 +12,11 @@ import {
   Sparkles,
 } from "lucide-react";
 import { toast } from "react-hot-toast";
+import { useAuth } from "@/components/auth";
 import ProtectedPageWrapper from "@/components/layout/ProtectedPageWrapper";
 import PageContainer from "@/components/layout/PageContainer";
+import Header from "@/components/layout/Header";
 import StandardCard from "@/components/ui/StandardCard";
-import { useAuth } from "@/components/auth";
 import { useProperty } from "@/lib/hooks/useProperty";
 import { supabase } from "@/lib/supabase";
 import { CreatePattern } from "@/components/ui/FloatingActionPresets";
@@ -33,7 +34,6 @@ interface ManualSection {
 }
 
 export default function ManualPage() {
-  // ✅ CRITICAL FIX: ALL HOOKS FIRST - No early returns before hooks
   const { user, loading: authLoading } = useAuth();
   const { currentProperty, loading: propertyLoading } = useProperty();
   const [sections, setSections] = useState<ManualSection[]>([]);
@@ -43,7 +43,9 @@ export default function ManualPage() {
   // ✅ FIXED: Function to create default cleaning section with proper timing
   const createDefaultCleaningSection = async () => {
     if (!currentProperty?.id || !user?.id) {
-      console.log("❌ Cannot create cleaning section - missing property or user");
+      console.log(
+        "❌ Cannot create cleaning section - missing property or user"
+      );
       return null;
     }
 
@@ -57,7 +59,10 @@ export default function ManualPage() {
         .single();
 
       if (checkError && checkError.code !== "PGRST116") {
-        console.error("Error checking for existing cleaning section:", checkError);
+        console.error(
+          "Error checking for existing cleaning section:",
+          checkError
+        );
         return null;
       }
 
@@ -75,13 +80,19 @@ export default function ManualPage() {
         .limit(1)
         .single();
 
-      const nextOrderIndex = maxOrderData?.order_index ? maxOrderData.order_index + 1 : 1;
+      const nextOrderIndex = maxOrderData?.order_index
+        ? maxOrderData.order_index + 1
+        : 1;
 
-      console.log("🚀 Creating new cleaning section for property:", currentProperty.id);
+      console.log(
+        "🚀 Creating new cleaning section for property:",
+        currentProperty.id
+      );
 
       const insertData = {
         title: "Cleaning Procedures",
-        description: "Cleaning tasks, checklists, and maintenance procedures for your property",
+        description:
+          "Cleaning tasks, checklists, and maintenance procedures for your property",
         icon: "✨",
         is_priority: true,
         property_id: currentProperty.id,
@@ -124,7 +135,10 @@ export default function ManualPage() {
       return;
     }
 
-    console.log("🔍 Fetching instruction sections for property:", currentProperty.id);
+    console.log(
+      "🔍 Fetching instruction sections for property:",
+      currentProperty.id
+    );
     setLoading(true);
 
     try {
@@ -133,10 +147,12 @@ export default function ManualPage() {
 
       const { data, error } = await supabase
         .from("manual_sections")
-        .select(`
+        .select(
+          `
           *,
           manual_items(count)
-        `)
+        `
+        )
         .eq("property_id", currentProperty.id)
         .order("is_priority", { ascending: false })
         .order("created_at", { ascending: true });
@@ -161,7 +177,9 @@ export default function ManualPage() {
             if (b.title === "Cleaning Procedures") return 1;
           }
 
-          return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+          return (
+            new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+          );
         });
 
         setSections(sortedData || []);
@@ -192,7 +210,10 @@ export default function ManualPage() {
       return;
     }
 
-    console.log("🏠 Property and user loaded, fetching sections:", currentProperty.name);
+    console.log(
+      "🏠 Property and user loaded, fetching sections:",
+      currentProperty.name
+    );
     setHasInitialized(true);
     fetchSections();
   }, [currentProperty?.id, user?.id, authLoading, propertyLoading]);
@@ -218,17 +239,17 @@ export default function ManualPage() {
     }
   };
 
-  // ✅ CRITICAL FIX: Early returns AFTER all hooks
   if (authLoading || propertyLoading) {
     return (
       <ProtectedPageWrapper>
+        <Header title="Property Manual" />
         <PageContainer>
-          <StandardCard>
-            <div className="flex items-center justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-              <span className="ml-2">Loading...</span>
+          <div className="flex items-center justify-center min-h-[400px]">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+              <p className="text-muted-foreground">Loading manual...</p>
             </div>
-          </StandardCard>
+          </div>
         </PageContainer>
       </ProtectedPageWrapper>
     );
@@ -275,6 +296,7 @@ export default function ManualPage() {
 
   return (
     <ProtectedPageWrapper>
+      <Header title="Property Manual" />
       <PageContainer className="space-y-6">
         <div className="space-y-8">
           {/* Priority Sections - with cleaning first */}
@@ -330,11 +352,8 @@ export default function ManualPage() {
             </div>
           )}
         </div>
-        
-        <CreatePattern
-          href="/manual/sections/new"
-          label="Add Instructions"
-        />
+
+        <CreatePattern href="/manual/sections/new" label="Add Instructions" />
       </PageContainer>
     </ProtectedPageWrapper>
   );
