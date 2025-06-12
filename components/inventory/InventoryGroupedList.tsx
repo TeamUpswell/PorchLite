@@ -1,7 +1,7 @@
 "use client";
 
 import { useInventoryCategories } from "@/lib/hooks/useInventoryCategories";
-import { getCategoryIcon } from "@/lib/utils"; // Adjust this path if getCategoryIcon is elsewhere
+import { getCategoryIcon } from "@/components/ui/utils"; // Adjust this path if getCategoryIcon is elsewhere
 import InventoryItemCard from "./InventoryItemCard"; // Assuming this is also in the inventory folder
 
 // components/InventoryGroupedList.tsx - Group items by category with icons

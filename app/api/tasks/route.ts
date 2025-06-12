@@ -1,108 +1,116 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server"; // ADD: NextRequest import
 import { supabase } from "@/lib/supabase";
 
+// ADD: Interface for type safety
+interface TaskRequest {
+  title: string;
+  description?: string;
+  due_date?: string;
+  priority?: "low" | "medium" | "high";
+  status?: "pending" | "in_progress" | "completed";
+  property_id?: string;
+}
+
+interface TaskUpdateRequest extends Partial<TaskRequest> {
+  id: string;
+}
+
 // Handler for GET requests to retrieve tasks
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const { data, error } = await supabase.from("tasks").select("*");
+    const { data, error } = await supabase
+      .from("tasks")
+      .select("*")
+      .order("created_at", { ascending: false });
 
-    if (error) {
-      console.error("Supabase query error:", error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
+    if (error) throw error;
 
-    return NextResponse.json({ data });
-  } catch (err) {
-    console.error("Tasks API error:", err);
+    return NextResponse.json({ tasks: data });
+  } catch (error) {
+    console.error("Error fetching tasks:", error);
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: "Failed to fetch tasks" },
       { status: 500 }
     );
   }
 }
 
-// Handler for POST requests to create a new task
-export async function POST(request: Request) {
+// CHANGE: Request → NextRequest
+export async function POST(request: NextRequest) {
   try {
-    const { title, description } = await request.json();
+    const body: TaskRequest = await request.json();
 
-    // Add a proper return type to tell TypeScript what to expect
     const { data, error } = await supabase
       .from("tasks")
-      .insert([{ title, description }])
-      .select(); // Add .select() to get the inserted data back
+      .insert([body])
+      .select()
+      .single();
 
-    if (error) {
-      console.error("Supabase query error:", error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
+    if (error) throw error;
 
-    // Use Array.isArray instead of checking length directly
-    if (!data || Array.isArray(data) && data.length === 0) {
+    return NextResponse.json({ task: data }, { status: 201 });
+  } catch (error) {
+    console.error("Error creating task:", error);
+    return NextResponse.json(
+      { error: "Failed to create task" },
+      { status: 500 }
+    );
+  }
+}
+
+// CHANGE: Request → NextRequest
+export async function PUT(request: NextRequest) {
+  try {
+    const body: TaskUpdateRequest = await request.json();
+    const { id, ...updateData } = body;
+
+    if (!id) {
       return NextResponse.json(
-        { message: "Task created but no data returned" },
-        { status: 201 }
+        { error: "Task ID is required" },
+        { status: 400 }
       );
     }
-    
-    return NextResponse.json(Array.isArray(data) ? data[0] : data, { status: 201 });
-  } catch (err) {
-    console.error("Tasks API error:", err);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
-  }
-}
-
-// Handler for PUT requests to update an existing task
-export async function PUT(request: Request) {
-  try {
-    const { id, title, description } = await request.json();
 
     const { data, error } = await supabase
       .from("tasks")
-      .update({ title, description })
+      .update(updateData)
       .eq("id", id)
-      .select(); // Add .select() to get the updated data
+      .select()
+      .single();
 
-    if (error) {
-      console.error("Supabase query error:", error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
+    if (error) throw error;
 
-    // Handle potentially null/empty data
-    if (!data || Array.isArray(data) && data.length === 0) {
-      return NextResponse.json({ message: "Task updated" });
-    }
-    
-    return NextResponse.json(Array.isArray(data) ? data[0] : data);
-  } catch (err) {
-    console.error("Tasks API error:", err);
+    return NextResponse.json({ task: data });
+  } catch (error) {
+    console.error("Error updating task:", error);
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: "Failed to update task" },
       { status: 500 }
     );
   }
 }
 
-// Handler for DELETE requests to remove a task
-export async function DELETE(request: Request) {
+// CHANGE: Request → NextRequest
+export async function DELETE(request: NextRequest) {
   try {
-    const { id } = await request.json();
+    const { id }: { id: string } = await request.json();
+
+    if (!id) {
+      return NextResponse.json(
+        { error: "Task ID is required" },
+        { status: 400 }
+      );
+    }
 
     const { error } = await supabase.from("tasks").delete().eq("id", id);
 
-    if (error) {
-      console.error("Supabase query error:", error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
+    if (error) throw error;
 
-    return NextResponse.json({ message: "Task deleted successfully" });
-  } catch (err) {
-    console.error("Tasks API error:", err);
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Error deleting task:", error);
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: "Failed to delete task" },
       { status: 500 }
     );
   }

@@ -4,9 +4,8 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/components/auth";
 import { useProperty } from "@/lib/hooks/useProperty";
 import { supabase } from "@/lib/supabase";
-import ProtectedPageWrapper from "@/components/layout/ProtectedPageWrapper";
-import PageContainer from "@/components/layout/PageContainer";
 import Header from "@/components/layout/Header";
+import PageContainer from "@/components/layout/PageContainer";
 import DashboardHeader from "@/components/dashboard/DashboardHeader"; // ✅ Add back banner
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import StandardCard from "@/components/ui/StandardCard";
@@ -162,7 +161,7 @@ export default function HomePage() {
   // ✅ Early returns AFTER all hooks
   if (authLoading || propertyLoading) {
     return (
-      <ProtectedPageWrapper>
+      <div className="p-6">
         <Header title="Dashboard" />
         <PageContainer>
           <StandardCard>
@@ -172,7 +171,7 @@ export default function HomePage() {
             </div>
           </StandardCard>
         </PageContainer>
-      </ProtectedPageWrapper>
+      </div>
     );
   }
 
@@ -182,7 +181,7 @@ export default function HomePage() {
 
   if (!currentProperty) {
     return (
-      <ProtectedPageWrapper>
+      <div className="p-6">
         <Header title="Dashboard" />
         <PageContainer>
           <StandardCard>
@@ -197,13 +196,13 @@ export default function HomePage() {
             </div>
           </StandardCard>
         </PageContainer>
-      </ProtectedPageWrapper>
+      </div>
     );
   }
 
   // ✅ Main dashboard with BOTH Header and DashboardHeader
   return (
-    <ProtectedPageWrapper>
+    <div className="p-6">
       <Header title="Dashboard" />
 
       {/* ✅ Beautiful banner with weather and property info */}
@@ -234,6 +233,6 @@ export default function HomePage() {
           />
         </div>
       </PageContainer>
-    </ProtectedPageWrapper>
+    </div>
   );
 }

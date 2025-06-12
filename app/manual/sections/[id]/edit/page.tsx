@@ -1,51 +1,52 @@
 "use client";
 
-export const dynamic = "force-dynamic";
-
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { ArrowLeft, Save } from "lucide-react";
-import Link from "next/link";
-import StandardCard from "@/components/ui/StandardCard";
-import ProtectedPageWrapper from "@/components/layout/ProtectedPageWrapper";
 import { useAuth } from "@/components/auth";
 import { useProperty } from "@/lib/hooks/useProperty";
 import { supabase } from "@/lib/supabase";
+import Header from "@/components/layout/Header"; // ✅ FIXED: Changed from @/components/ui/Header
+import PageContainer from "@/components/layout/PageContainer";
+import StandardCard from "@/components/ui/StandardCard";
+import { Save, ArrowLeft, FileText } from "lucide-react";
+import Link from "next/link";
 
 interface ManualSection {
   id: string;
   title: string;
-  description: string;
+  description?: string;
   icon: string;
-  category: string;
+  is_priority: boolean;
   property_id: string;
-  created_at: string;
+  created_by: string;
 }
 
-export default function EditSectionPage() {
-  const { user } = useAuth();
-  const { currentProperty } = useProperty();
+export default function EditManualSectionPage() {
   const router = useRouter();
   const params = useParams();
-  const sectionId = params.id as string;
-
+  const { user } = useAuth();
+  const { currentProperty } = useProperty();
+  const [section, setSection] = useState<ManualSection | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [section, setSection] = useState<ManualSection | null>(null);
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [icon, setIcon] = useState("");
-  const [category, setCategory] = useState("");
+  const [formData, setFormData] = useState({
+    title: "",
+    description: "",
+    icon: "file-text",
+    is_priority: false,
+  });
+
+  const sectionId = params?.id as string;
 
   useEffect(() => {
     if (sectionId) {
-      loadSection();
+      fetchSection();
     }
   }, [sectionId]);
 
-  const loadSection = async () => {
+  const fetchSection = async () => {
     try {
-      const { data: sectionData, error } = await supabase
+      const { data, error } = await supabase
         .from("manual_sections")
         .select("*")
         .eq("id", sectionId)
@@ -53,49 +54,45 @@ export default function EditSectionPage() {
 
       if (error) throw error;
 
-      setSection(sectionData);
-      setTitle(sectionData.title);
-      setDescription(sectionData.description || "");
-      setIcon(sectionData.icon);
-      setCategory(sectionData.category || "");
+      setSection(data);
+      setFormData({
+        title: data.title,
+        description: data.description || "",
+        icon: data.icon,
+        is_priority: data.is_priority,
+      });
     } catch (error) {
-      console.error("Error loading section:", error);
-      alert("Error loading section");
+      console.error("Error fetching manual section:", error);
+      router.push("/manual");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSave = async () => {
-    if (!title.trim()) {
-      alert("Please enter a title");
-      return;
-    }
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
 
-    if (!icon.trim()) {
-      alert("Please enter an icon");
-      return;
-    }
+    if (!section) return;
+
+    setSaving(true);
 
     try {
-      setSaving(true);
-
       const { error } = await supabase
         .from("manual_sections")
         .update({
-          title: title.trim(),
-          description: description.trim(),
-          icon: icon.trim(),
-          category: category.trim(),
+          title: formData.title,
+          description: formData.description,
+          icon: formData.icon,
+          is_priority: formData.is_priority,
         })
-        .eq("id", sectionId);
+        .eq("id", section.id);
 
       if (error) throw error;
 
-      router.push(`/manual/sections/${sectionId}`);
-    } catch (error: any) {
-      console.error("Error updating section:", error);
-      alert("Error updating section");
+      router.push(`/manual/sections/${section.id}`);
+    } catch (error) {
+      console.error("Error updating manual section:", error);
+      alert("Failed to update manual section");
     } finally {
       setSaving(false);
     }
@@ -103,155 +100,178 @@ export default function EditSectionPage() {
 
   if (loading) {
     return (
-      <ProtectedPageWrapper title="Loading...">
-        <StandardCard>
-          <div className="flex items-center justify-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            <span className="ml-2">Loading section...</span>
-          </div>
-        </StandardCard>
-      </ProtectedPageWrapper>
+      <div className="p-6">
+        <Header title="Edit Manual Section" />
+        <PageContainer>
+          <StandardCard>
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              <span className="ml-2">Loading section...</span>
+            </div>
+          </StandardCard>
+        </PageContainer>
+      </div>
     );
   }
 
   if (!section) {
     return (
-      <ProtectedPageWrapper title="Section Not Found">
-        <StandardCard>
-          <div className="text-center py-8">
-            <p className="text-red-600">Section not found</p>
-            <Link href="/manual" className="text-blue-600 hover:underline">
-              Back to Manual
-            </Link>
-          </div>
-        </StandardCard>
-      </ProtectedPageWrapper>
+      <div className="p-6">
+        <Header title="Edit Manual Section" />
+        <PageContainer>
+          <StandardCard>
+            <div className="text-center py-8">
+              <p className="text-gray-500">Section not found</p>
+              <Link
+                href="/manual"
+                className="inline-flex items-center mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                Back to Manual
+              </Link>
+            </div>
+          </StandardCard>
+        </PageContainer>
+      </div>
     );
   }
 
   return (
-    <ProtectedPageWrapper
-      title="Edit Section"
-      breadcrumb={[
-        { label: "Manual", href: "/manual" },
-        {
-          label: section?.title || "Loading...",
-          href: `/manual/sections/${sectionId}`,
-        },
-        { label: "Edit" },
-      ]}
-    >
-      <StandardCard>
-        <div className="p-6">
-          <form
-            id="edit-section-form"
-            onSubmit={handleSave}
-            className="space-y-6"
-          >
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Section Title
-              </label>
-              <input
-                type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Enter section title..."
-              />
+    <div className="p-6">
+      <Header title="Edit Manual Section" />
+      <PageContainer>
+        <div className="space-y-6">
+          {/* Page Header */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <FileText className="h-6 w-6 text-blue-600" />
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">
+                  Edit Manual Section
+                </h1>
+                <p className="text-gray-600">Update section details</p>
+              </div>
             </div>
+            <Link
+              href={`/manual/sections/${section.id}`}
+              className="flex items-center px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Section
+            </Link>
+          </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Description
-              </label>
-              <textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Enter section description..."
-              />
-            </div>
+          {/* Form */}
+          <StandardCard title="Section Details">
+            <form onSubmit={handleSave} className="space-y-6">
+              <div>
+                <label
+                  htmlFor="title"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
+                  Section Title *
+                </label>
+                <input
+                  type="text"
+                  id="title"
+                  value={formData.title}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, title: e.target.value }))
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="e.g., Kitchen Appliances, WiFi Setup, House Rules"
+                  required
+                />
+              </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Icon (Emoji)
-              </label>
-              <input
-                type="text"
-                value={icon}
-                onChange={(e) => setIcon(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="🏠"
-                maxLength={2}
-              />
-              <p className="text-sm text-gray-500 mt-1">
-                Enter an emoji to represent this section
-              </p>
-            </div>
+              <div>
+                <label
+                  htmlFor="description"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
+                  Description
+                </label>
+                <textarea
+                  id="description"
+                  value={formData.description}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      description: e.target.value,
+                    }))
+                  }
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Brief description of what this section covers..."
+                />
+              </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Category
-              </label>
-              <input
-                type="text"
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Enter category..."
-              />
-              <p className="text-sm text-gray-500 mt-1">
-                Optional: Group related sections together
-              </p>
-            </div>
-          </form>
+              <div>
+                <label
+                  htmlFor="icon"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
+                  Icon
+                </label>
+                <select
+                  id="icon"
+                  value={formData.icon}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, icon: e.target.value }))
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="file-text">File Text</option>
+                  <option value="home">Home</option>
+                  <option value="wifi">WiFi</option>
+                  <option value="tv">TV</option>
+                  <option value="car">Parking</option>
+                  <option value="utensils">Kitchen</option>
+                  <option value="bed">Bedroom</option>
+                  <option value="shower">Bathroom</option>
+                </select>
+              </div>
+
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="is_priority"
+                  checked={formData.is_priority}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      is_priority: e.target.checked,
+                    }))
+                  }
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                />
+                <label
+                  htmlFor="is_priority"
+                  className="ml-2 block text-sm text-gray-700"
+                >
+                  Mark as priority section (appears at top)
+                </label>
+              </div>
+
+              <div className="flex justify-end space-x-3">
+                <Link
+                  href={`/manual/sections/${section.id}`}
+                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </Link>
+                <button
+                  type="submit"
+                  disabled={saving || !formData.title}
+                  className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  <Save className="h-4 w-4 mr-2" />
+                  {saving ? "Saving..." : "Save Changes"}
+                </button>
+              </div>
+            </form>
+          </StandardCard>
         </div>
-      </StandardCard>
-
-      {/* Floating Action Buttons */}
-      <div className="fixed bottom-6 right-6 z-40 flex flex-col space-y-3">
-        {/* Save Changes */}
-        <button
-          type="submit"
-          form="edit-section-form"
-          disabled={saving}
-          className="group flex items-center justify-center bg-green-600 hover:bg-green-700 active:bg-green-800 text-white shadow-lg transition-all duration-300 hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-green-500 focus:ring-opacity-50 disabled:opacity-50 disabled:cursor-not-allowed
-          
-          /* Mobile: circular button */
-          w-14 h-14 rounded-full
-          
-          /* Desktop: expandable button with rounded corners */
-          sm:w-auto sm:h-auto sm:px-4 sm:py-3 sm:rounded-lg sm:hover:scale-105"
-          aria-label="Save changes"
-        >
-          <Save className="h-6 w-6 transition-transform group-hover:rotate-12 duration-200 sm:mr-0 group-hover:sm:mr-2" />
-
-          <span className="hidden sm:inline-block sm:w-0 sm:overflow-hidden sm:whitespace-nowrap sm:transition-all sm:duration-300 group-hover:sm:w-auto group-hover:sm:ml-2">
-            {saving ? "Saving..." : "Save Changes"}
-          </span>
-        </button>
-
-        {/* Back to Section */}
-        <Link
-          href={`/manual/sections/${sectionId}`}
-          className="group flex items-center justify-center bg-gray-600 hover:bg-gray-700 active:bg-gray-800 text-white shadow-lg transition-all duration-300 hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-gray-500 focus:ring-opacity-50
-          
-          /* Mobile: circular button */
-          w-14 h-14 rounded-full
-          
-          /* Desktop: expandable button with rounded corners */
-          sm:w-auto sm:h-auto sm:px-4 sm:py-3 sm:rounded-lg sm:hover:scale-105"
-          aria-label="Back to section"
-        >
-          <ArrowLeft className="h-6 w-6 transition-transform group-hover:-translate-x-1 duration-200 sm:mr-0 group-hover:sm:mr-2" />
-
-          <span className="hidden sm:inline-block sm:w-0 sm:overflow-hidden sm:whitespace-nowrap sm:transition-all sm:duration-300 group-hover:sm:w-auto group-hover:sm:ml-2">
-            Back to Section
-          </span>
-        </Link>
-      </div>
-    </ProtectedPageWrapper>
+      </PageContainer>
+    </div>
   );
 }

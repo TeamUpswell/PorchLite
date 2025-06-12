@@ -504,7 +504,7 @@ export default function ContactsPage() {
   };
 
   return (
-    <ProtectedPageWrapper>
+    <div className="p-6">
       <Header title="Contacts" />
       <PageContainer>
         <div className="space-y-6">
@@ -737,6 +737,6 @@ export default function ContactsPage() {
           onClose={() => setSelectedContact(null)}
         />
       </PageContainer>
-    </ProtectedPageWrapper>
+    </div>
   );
 }

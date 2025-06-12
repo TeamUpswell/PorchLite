@@ -1,11 +1,16 @@
+import "./globals.css";
+import { Inter } from "next/font/google";
 import { AuthProvider } from "@/components/auth";
 import { PropertyProvider } from "@/lib/hooks/useProperty";
 import { ThemeProvider } from "@/components/ThemeProvider";
-import "./globals.css";
+import { Toaster } from "react-hot-toast";
+import MainLayout from "@/components/layout/MainLayout"; // ✅ Use your existing MainLayout
+
+const inter = Inter({ subsets: ["latin"] });
 
 export const metadata = {
-  title: "PorchLite",
-  description: "Property management made simple",
+  title: "PorchLite - Property Management",
+  description: "Streamlined property management platform",
 };
 
 export default function RootLayout({
@@ -14,14 +19,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="dark" suppressHydrationWarning>
-      <body
-        className="bg-gray-900 text-white min-h-screen"
-        suppressHydrationWarning
-      >
+    <html lang="en">
+      <body className={inter.className}>
         <ThemeProvider>
           <AuthProvider>
-            <PropertyProvider>{children}</PropertyProvider>
+            <PropertyProvider>
+              {/* ✅ Use your existing MainLayout - it handles everything */}
+              <MainLayout>{children}</MainLayout>
+
+              <Toaster position="top-right" />
+            </PropertyProvider>
           </AuthProvider>
         </ThemeProvider>
       </body>

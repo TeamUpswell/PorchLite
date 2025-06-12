@@ -13,7 +13,6 @@ import {
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { useAuth } from "@/components/auth";
-import ProtectedPageWrapper from "@/components/layout/ProtectedPageWrapper";
 import PageContainer from "@/components/layout/PageContainer";
 import Header from "@/components/layout/Header";
 import StandardCard from "@/components/ui/StandardCard";
@@ -195,7 +194,7 @@ export default function ManualPage() {
     }
   };
 
-  // ✅ FIXED: Effect with proper timing and dependency array
+  // ✅ FIXED: Effect with immediate banner render
   useEffect(() => {
     // Don't fetch if still loading auth/property
     if (authLoading || propertyLoading) {
@@ -205,7 +204,7 @@ export default function ManualPage() {
     // Don't fetch if no user or property
     if (!user?.id || !currentProperty?.id) {
       console.log("⏳ Waiting for user and property to load...");
-      setLoading(false);
+      setLoading(false); // ✅ Set loading false immediately for banner
       setHasInitialized(true);
       return;
     }
@@ -215,7 +214,61 @@ export default function ManualPage() {
       currentProperty.name
     );
     setHasInitialized(true);
-    fetchSections();
+
+    // ✅ FIXED: Don't block rendering - fetch in background
+    const fetchData = async () => {
+      try {
+        // Create cleaning section if needed (background operation)
+        await createDefaultCleaningSection();
+
+        const { data, error } = await supabase
+          .from("manual_sections")
+          .select(
+            `
+            *,
+            manual_items(count)
+          `
+          )
+          .eq("property_id", currentProperty.id)
+          .order("is_priority", { ascending: false })
+          .order("created_at", { ascending: true });
+
+        if (error) {
+          console.error("❌ Error fetching instruction sections:", error);
+          if (hasInitialized) {
+            toast.error("Failed to load instruction sections");
+          }
+        } else {
+          console.log("✅ Fetched instruction sections:", data);
+
+          const sortedData = data?.sort((a, b) => {
+            if (a.is_priority !== b.is_priority) {
+              return b.is_priority ? 1 : -1;
+            }
+            if (a.is_priority && b.is_priority) {
+              if (a.title === "Cleaning Procedures") return -1;
+              if (b.title === "Cleaning Procedures") return 1;
+            }
+            return (
+              new Date(a.created_at).getTime() -
+              new Date(b.created_at).getTime()
+            );
+          });
+
+          setSections(sortedData || []);
+        }
+      } catch (error) {
+        console.error("❌ Unexpected error in fetchSections:", error);
+        if (hasInitialized) {
+          toast.error("Failed to load instruction sections");
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    // ✅ Don't await - let it run in background
+    fetchData();
   }, [currentProperty?.id, user?.id, authLoading, propertyLoading]);
 
   // Add toggle pin function
@@ -239,19 +292,20 @@ export default function ManualPage() {
     }
   };
 
+  // ✅ Simplified early returns
   if (authLoading || propertyLoading) {
     return (
-      <ProtectedPageWrapper>
+      <div className="p-6">
         <Header title="Property Manual" />
         <PageContainer>
           <div className="flex items-center justify-center min-h-[400px]">
             <div className="text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
-              <p className="text-muted-foreground">Loading manual...</p>
+              <p className="text-gray-600">Loading manual...</p>
             </div>
           </div>
         </PageContainer>
-      </ProtectedPageWrapper>
+      </div>
     );
   }
 
@@ -261,7 +315,8 @@ export default function ManualPage() {
 
   if (!currentProperty) {
     return (
-      <ProtectedPageWrapper>
+      <div className="p-6">
+        <Header title="Property Manual" />
         <PageContainer>
           <StandardCard>
             <div className="text-center py-8">
@@ -275,87 +330,82 @@ export default function ManualPage() {
             </div>
           </StandardCard>
         </PageContainer>
-      </ProtectedPageWrapper>
+      </div>
     );
   }
 
-  if (loading) {
-    return (
-      <ProtectedPageWrapper>
-        <PageContainer>
+  // ✅ Clean page content - no wrapper needed
+  return (
+    <div className="p-6">
+      <Header title="Property Manual" />
+      <PageContainer className="space-y-6">
+        {loading ? (
+          // ✅ Show loading state for content only
           <StandardCard>
             <div className="flex items-center justify-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-              <span className="ml-2">Loading instructions...</span>
+              <span className="ml-2">Loading sections...</span>
             </div>
           </StandardCard>
-        </PageContainer>
-      </ProtectedPageWrapper>
-    );
-  }
-
-  return (
-    <ProtectedPageWrapper>
-      <Header title="Property Manual" />
-      <PageContainer className="space-y-6">
-        <div className="space-y-8">
-          {/* Priority Sections - with cleaning first */}
-          {sections.filter((section) => section.is_priority).length > 0 && (
-            <div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {sections
-                  .filter((section) => section.is_priority)
-                  .sort((a, b) => {
-                    // Cleaning section always first
-                    if (a.title === "Cleaning Procedures") return -1;
-                    if (b.title === "Cleaning Procedures") return 1;
-                    // Other priority sections sorted by creation date
-                    return (
-                      new Date(a.created_at).getTime() -
-                      new Date(b.created_at).getTime()
-                    );
-                  })
-                  .map((section) => (
-                    <PrioritySectionCard
-                      key={section.id}
-                      section={section}
-                      onTogglePin={handleTogglePin}
-                    />
-                  ))}
+        ) : (
+          // ✅ Content renders after loading
+          <div className="space-y-8">
+            {/* Priority Sections - with cleaning first */}
+            {sections.filter((section) => section.is_priority).length > 0 && (
+              <div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {sections
+                    .filter((section) => section.is_priority)
+                    .sort((a, b) => {
+                      if (a.title === "Cleaning Procedures") return -1;
+                      if (b.title === "Cleaning Procedures") return 1;
+                      return (
+                        new Date(a.created_at).getTime() -
+                        new Date(b.created_at).getTime()
+                      );
+                    })
+                    .map((section) => (
+                      <PrioritySectionCard
+                        key={section.id}
+                        section={section}
+                        onTogglePin={handleTogglePin}
+                      />
+                    ))}
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Regular Sections (non-priority) */}
-          {sections.filter((section) => !section.is_priority).length > 0 && (
-            <div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {sections
-                  .filter((section) => !section.is_priority)
-                  .map((section) => (
-                    <SectionCard key={section.id} section={section} />
-                  ))}
+            {/* Regular Sections (non-priority) */}
+            {sections.filter((section) => !section.is_priority).length > 0 && (
+              <div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {sections
+                    .filter((section) => !section.is_priority)
+                    .map((section) => (
+                      <SectionCard key={section.id} section={section} />
+                    ))}
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Empty state - only show if NO sections at all */}
-          {sections.length === 0 && (
-            <div className="text-center py-12">
-              <BookOpen className="mx-auto h-12 w-12 text-gray-400" />
-              <h3 className="mt-2 text-sm font-medium text-gray-900">
-                No instruction sections yet
-              </h3>
-              <p className="mt-1 text-sm text-gray-500">
-                Get started by creating your first instruction section.
-              </p>
-            </div>
-          )}
-        </div>
+            {/* Empty state - only show if NO sections at all */}
+            {sections.length === 0 && (
+              <div className="text-center py-12">
+                <BookOpen className="mx-auto h-12 w-12 text-gray-400" />
+                <h3 className="mt-2 text-sm font-medium text-gray-900">
+                  No instruction sections yet
+                </h3>
+                <p className="mt-1 text-sm text-gray-500">
+                  Get started by creating your first instruction section.
+                </p>
+              </div>
+            )}
+          </div>
+        )}
 
         <CreatePattern href="/manual/sections/new" label="Add Instructions" />
       </PageContainer>
-    </ProtectedPageWrapper>
+    </div>
   );
 }
 

@@ -5,9 +5,8 @@ import { useAuth } from "@/components/auth";
 import { useProperty } from "@/lib/hooks/useProperty";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { supabase } from "@/lib/supabase";
-import ProtectedPageWrapper from "@/components/layout/ProtectedPageWrapper";
 import PageContainer from "@/components/layout/PageContainer";
-import Header from "@/components/layout/Header"; // ✅ Add Header import
+import Header from "@/components/layout/Header";
 import StandardCard from "@/components/ui/StandardCard";
 import {
   ArrowRight,
@@ -137,8 +136,8 @@ export default function HousePage() {
 
   if (loading) {
     return (
-      <ProtectedPageWrapper>
-        <Header title="House Info" /> {/* ✅ Add Header to loading state */}
+      <div className="p-6">
+        <Header title="The House" />
         <PageContainer>
           <StandardCard>
             <div className="flex items-center justify-center py-8">
@@ -147,13 +146,13 @@ export default function HousePage() {
             </div>
           </StandardCard>
         </PageContainer>
-      </ProtectedPageWrapper>
+      </div>
     );
   }
 
   return (
-    <ProtectedPageWrapper>
-      <Header title="House Info" /> {/* ✅ Add Header component */}
+    <div className="p-6">
+      <Header title="The House" />
       <PageContainer className="space-y-6">
         {/* Location Map - Moved to Top & Simplified */}
         {currentProperty &&
@@ -401,6 +400,6 @@ export default function HousePage() {
           </>
         )}
       </PageContainer>
-    </ProtectedPageWrapper>
+    </div>
   );
 }

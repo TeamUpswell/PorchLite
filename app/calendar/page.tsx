@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/components/auth";
 import { debugLog } from "@/lib/utils/debug";
-import ProtectedPageWrapper from "@/components/layout/ProtectedPageWrapper";
 import PageContainer from "@/components/layout/PageContainer";
 import Header from "@/components/layout/Header";
 import Calendar from "./components/Calendar";
@@ -19,25 +18,27 @@ export default function ReservationCalendarPage() {
     };
   }, []);
 
+  // ✅ Simplified loading state
   if (loading) {
     return (
-      <ProtectedPageWrapper>
-        <Header title="Reservations" />
+      <div className="p-6">
+        <Header title="Calendar" />
         <PageContainer>
           <div className="flex items-center justify-center min-h-[400px]">
             <div className="text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
-              <p className="text-muted-foreground">Loading calendar...</p>
+              <p className="text-gray-600">Loading calendar...</p>
             </div>
           </div>
         </PageContainer>
-      </ProtectedPageWrapper>
+      </div>
     );
   }
 
+  // ✅ Simplified main content
   return (
-    <ProtectedPageWrapper>
-      <Header title="Reservations" />
+    <div className="p-6">
+      <Header title="Calendar" />
       <PageContainer>
         <div className="space-y-6">
           <Calendar
@@ -46,6 +47,6 @@ export default function ReservationCalendarPage() {
           />
         </div>
       </PageContainer>
-    </ProtectedPageWrapper>
+    </div>
   );
 }

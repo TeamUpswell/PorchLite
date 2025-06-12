@@ -1,39 +1,33 @@
 "use client";
 
-export const dynamic = "force-dynamic";
-
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Save } from "lucide-react";
-import Link from "next/link";
-import StandardCard from "@/components/ui/StandardCard";
-import ProtectedPageWrapper from "@/components/layout/ProtectedPageWrapper";
 import { useAuth } from "@/components/auth";
 import { useProperty } from "@/lib/hooks/useProperty";
 import { supabase } from "@/lib/supabase";
-import { toast } from "react-hot-toast";
-import { EditPattern } from "@/components/ui/FloatingActionPresets";
+import Header from "@/components/layout/Header"; // ✅ FIXED: Changed from @/components/ui/Header
+import PageContainer from "@/components/layout/PageContainer";
+import StandardCard from "@/components/ui/StandardCard";
+import { Save, ArrowLeft, FileText } from "lucide-react";
+import Link from "next/link";
 
-export default function NewSectionPage() {
+export default function NewManualSectionPage() {
   const router = useRouter();
   const { user } = useAuth();
   const { currentProperty } = useProperty();
-
+  const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState({
     title: "",
     description: "",
-    icon: "📖",
-    order_index: 1,
-    category: "",
-    type: "",
+    icon: "file-text",
+    is_priority: false,
   });
-  const [saving, setSaving] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!currentProperty || !user) {
-      toast.error("Missing property or user information");
+    if (!currentProperty?.id || !user?.id) {
+      alert("Missing property or user information");
       return;
     }
 
@@ -42,120 +36,167 @@ export default function NewSectionPage() {
     try {
       const { data, error } = await supabase
         .from("manual_sections")
-        .insert([
-          {
-            ...formData,
-            property_id: currentProperty.id,
-            created_by: user.id,
-          },
-        ])
+        .insert({
+          title: formData.title,
+          description: formData.description,
+          icon: formData.icon,
+          is_priority: formData.is_priority,
+          property_id: currentProperty.id,
+          created_by: user.id,
+        })
         .select()
         .single();
 
       if (error) throw error;
 
-      toast.success("Section created successfully!");
-      router.push("/manual");
+      router.push(`/manual/sections/${data.id}`);
     } catch (error) {
-      console.error("Error creating section:", error);
-      toast.error("Failed to create section");
+      console.error("Error creating manual section:", error);
+      alert("Failed to create manual section");
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <ProtectedPageWrapper
-      title="Create Section"
-      breadcrumb={[
-        { label: "Manual", href: "/manual" },
-        { label: "Create Section" },
-      ]}
-    >
-      <StandardCard>
-        <div className="p-6">
-          <form onSubmit={handleSubmit} className="space-y-6" id="section-form">
-            <div>
-              <label className="block text-sm font-medium text-gray-900 mb-2">
-                Section Title
-              </label>
-              <input
-                type="text"
-                value={formData.title}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, title: e.target.value }))
-                }
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="e.g., Smart TV Operation"
-                required
-              />
+    <div className="p-6">
+      <Header title="New Manual Section" />
+      <PageContainer>
+        <div className="space-y-6">
+          {/* Page Header */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <FileText className="h-6 w-6 text-blue-600" />
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">
+                  New Manual Section
+                </h1>
+                <p className="text-gray-600">
+                  Create a new section for your property manual
+                </p>
+              </div>
             </div>
+            <Link
+              href="/manual"
+              className="flex items-center px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Manual
+            </Link>
+          </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-900 mb-2">
-                Description
-              </label>
-              <textarea
-                value={formData.description}
-                onChange={(e) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    description: e.target.value,
-                  }))
-                }
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                rows={3}
-                placeholder="Brief description of this section..."
-              />
-            </div>
+          {/* Form */}
+          <StandardCard title="Section Details">
+            <form onSubmit={handleSave} className="space-y-6">
+              <div>
+                <label
+                  htmlFor="title"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
+                  Section Title *
+                </label>
+                <input
+                  type="text"
+                  id="title"
+                  value={formData.title}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, title: e.target.value }))
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="e.g., Kitchen Appliances, WiFi Setup, House Rules"
+                  required
+                />
+              </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-900 mb-2">
-                Icon
-              </label>
-              <input
-                type="text"
-                value={formData.icon}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, icon: e.target.value }))
-                }
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="📖"
-              />
-            </div>
+              <div>
+                <label
+                  htmlFor="description"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
+                  Description
+                </label>
+                <textarea
+                  id="description"
+                  value={formData.description}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      description: e.target.value,
+                    }))
+                  }
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Brief description of what this section covers..."
+                />
+              </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-900 mb-2">
-                Category
-              </label>
-              <select
-                value={formData.category}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, category: e.target.value }))
-                }
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="">Select a category</option>
-                <option value="appliances">Appliances</option>
-                <option value="entertainment">Entertainment</option>
-                <option value="utilities">Utilities</option>
-                <option value="maintenance">Maintenance</option>
-                <option value="safety">Safety</option>
-                <option value="policies">Policies</option>
-              </select>
-            </div>
-          </form>
+              <div>
+                <label
+                  htmlFor="icon"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
+                  Icon
+                </label>
+                <select
+                  id="icon"
+                  value={formData.icon}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, icon: e.target.value }))
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="file-text">File Text</option>
+                  <option value="home">Home</option>
+                  <option value="wifi">WiFi</option>
+                  <option value="tv">TV</option>
+                  <option value="car">Parking</option>
+                  <option value="utensils">Kitchen</option>
+                  <option value="bed">Bedroom</option>
+                  <option value="shower">Bathroom</option>
+                </select>
+              </div>
+
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="is_priority"
+                  checked={formData.is_priority}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      is_priority: e.target.checked,
+                    }))
+                  }
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                />
+                <label
+                  htmlFor="is_priority"
+                  className="ml-2 block text-sm text-gray-700"
+                >
+                  Mark as priority section (appears at top)
+                </label>
+              </div>
+
+              <div className="flex justify-end space-x-3">
+                <Link
+                  href="/manual"
+                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </Link>
+                <button
+                  type="submit"
+                  disabled={saving || !formData.title}
+                  className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  <Save className="h-4 w-4 mr-2" />
+                  {saving ? "Creating..." : "Create Section"}
+                </button>
+              </div>
+            </form>
+          </StandardCard>
         </div>
-      </StandardCard>
-
-      <EditPattern
-        form="section-form"
-        backHref="/manual"
-        saveLabel="Create Section"
-        backLabel="Back to Manual"
-        saving={saving}
-        disabled={!formData.title.trim()}
-      />
-    </ProtectedPageWrapper>
+      </PageContainer>
+    </div>
   );
 }

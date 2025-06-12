@@ -31,7 +31,7 @@ interface ManualItem {
   order_index?: number;
 }
 
-export default function SectionPage() {
+export default function ManualSectionDetailPage() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [section, setSection] = useState<ManualSection | null>(null);

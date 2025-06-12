@@ -119,43 +119,51 @@ export default function SideNavigation({
   const { currentProperty, loading: propertyLoading } = useProperty();
   const { theme } = useTheme();
 
-  // Add collapsed state
+  // ✅ Mobile menu state management
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isCollapsedState, setIsCollapsed] = useState(isCollapsed);
 
-  // ✅ UPDATE: Simplified expanded categories - only for non-collapsed state
-  const [expandedCategories, setExpandedCategories] = useState<
-    Record<string, boolean>
-  >({
-    General: true,
-    Account: false,
-  });
+  // ✅ Handle mobile menu toggle
+  const toggleMobileMenu = () => {
+    setMobileMenuOpen(!mobileMenuOpen);
+  };
+
+  // ✅ Close mobile menu on navigation
+  const handleLinkClick = () => {
+    setMobileMenuOpen(false);
+    if (setIsMobileMenuOpen) {
+      setIsMobileMenuOpen(false);
+    }
+  };
+
+  // ✅ Close mobile menu on outside click
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const sidebar = document.getElementById("mobile-sidebar");
+      const menuButton = document.getElementById("mobile-menu-button");
+
+      if (
+        mobileMenuOpen &&
+        sidebar &&
+        !sidebar.contains(event.target as Node) &&
+        menuButton &&
+        !menuButton.contains(event.target as Node)
+      ) {
+        setMobileMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [mobileMenuOpen]);
 
   // Use either the passed user or the auth user
   const user = propUser || authUser;
 
-  // Simple permission checker since we don't have the hasPermission function
-  const hasPermission = (requiredRole: string) => {
-    if (!user) return false;
-    if (!requiredRole) return true;
-
-    // Simple role check - you can enhance this based on your needs
-    const userRole = user.user_metadata?.role || "family";
-
-    // Basic hierarchy: owner > manager > family > friend
-    const roleHierarchy = {
-      owner: 4,
-      manager: 3,
-      family: 2,
-      friend: 1,
-    };
-
-    const userLevel =
-      roleHierarchy[userRole as keyof typeof roleHierarchy] || 1;
-    const requiredLevel =
-      roleHierarchy[requiredRole as keyof typeof roleHierarchy] || 1;
-
-    return userLevel >= requiredLevel;
-  };
+  // ✅ Don't render navigation until auth is ready
+  if (!user) {
+    return null;
+  }
 
   const toggleSidebar = () => {
     const newCollapsedState = !isCollapsedState;
@@ -194,182 +202,202 @@ export default function SideNavigation({
       typeof window !== "undefined" &&
       window.matchMedia("(prefers-color-scheme: dark)").matches);
 
-  // ✅ FIXED: Don't render navigation until auth is ready
-  if (!user) {
-    return null;
-  }
-
-  // Add this to your Link onClick handlers:
-  const handleLinkClick = () => {
-    if (setIsMobileMenuOpen) {
-      setIsMobileMenuOpen(false);
-    }
-  };
-
   return (
-    <div
-      className={`
-      h-full flex flex-col
-      ${isCollapsed ? "w-16" : "w-64"}
-      ${isDarkMode ? "bg-gray-900" : "bg-white"}
-      border-r ${isDarkMode ? "border-gray-800" : "border-gray-200"}
-      transition-all duration-300 ease-in-out
-    `}
-    >
-      {/* Header with logo */}
-      <div
-        className={`p-4 border-b ${
-          isDarkMode
-            ? "border-gray-800 bg-gray-900"
-            : "border-gray-200 bg-white"
-        }`}
-      >
-        {/* Logo content - adaptive to collapsed state */}
-        <div className="rounded-lg p-4 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-radial from-amber-500/20 via-transparent to-transparent"></div>
-
-          <Link
-            href="/"
-            className={`flex items-center ${
-              isCollapsed ? "justify-center" : "space-x-3"
-            } relative z-10`}
-          >
-            {/* Logo with glow effect */}
-            <div className="relative">
-              <div className="absolute inset-0 bg-amber-400 rounded-full blur-md opacity-30"></div>
-              <Image
-                src="/images/logo-dark.png"
-                alt="PorchLite"
-                width={40}
-                height={40}
-                className="w-10 h-10 relative z-10"
-                priority
-              />
-            </div>
-
-            {/* Hide text when collapsed */}
-            {!isCollapsed && (
-              <div>
-                <h1 className="text-lg font-bold text-white">PorchLite</h1>
-                <p className="text-xs text-amber-200">Always Welcome</p>
-              </div>
-            )}
-          </Link>
-        </div>
+    <>
+      {/* ✅ Mobile Menu Button */}
+      <div className="lg:hidden fixed top-4 left-4 z-50">
+        <button
+          id="mobile-menu-button"
+          onClick={toggleMobileMenu}
+          className="p-2 bg-white dark:bg-gray-800 shadow-lg rounded-lg border border-gray-200 dark:border-gray-700"
+        >
+          {mobileMenuOpen ? (
+            <X className="h-6 w-6 text-gray-600 dark:text-gray-300" />
+          ) : (
+            <Menu className="h-6 w-6 text-gray-600 dark:text-gray-300" />
+          )}
+        </button>
       </div>
 
-      {/* Navigation items */}
-      <div className="flex-1 overflow-y-auto">
-        {navigationStructure.map((section) => {
-          // Always show General section expanded, only allow Account to collapse
-          const isExpanded =
-            section.category === "General"
-              ? true
-              : expandedCategories[section.category] ?? true;
+      {/* ✅ Mobile Overlay */}
+      {mobileMenuOpen && (
+        <div className="lg:hidden fixed inset-0 bg-black/50 z-40" />
+      )}
 
-          return (
-            <div key={section.category} className="space-y-1.5">
-              {/* Category header - hide when collapsed, and don't show toggle for General */}
-              {!isCollapsed && section.category !== "General" && (
-                <button
-                  onClick={() => toggleCategory(section.category)}
-                  className={`w-full flex items-center justify-between text-left text-sm font-medium px-4 py-2 ${
-                    isDarkMode
-                      ? "text-gray-300 hover:text-white"
-                      : "text-gray-600 hover:text-gray-900"
-                  } mb-1 transition-colors duration-200`}
-                >
-                  <span>{section.category}</span>
-                  <ChevronRight
-                    className={`h-4 w-4 transition-transform ${
-                      isExpanded ? "rotate-90" : ""
-                    }`}
-                  />
-                </button>
-              )}
-
-              {/* Show General category label when not collapsed */}
-              {!isCollapsed && section.category === "General" && (
-                <div
-                  className={`text-sm font-medium px-4 py-2 ${
-                    isDarkMode ? "text-gray-300" : "text-gray-600"
-                  } mb-1`}
-                >
-                  <span>{section.category}</span>
-                </div>
-              )}
-
-              {/* Navigation items */}
-              {(isExpanded || isCollapsed) && (
-                <div className={`space-y-1 ${!isCollapsed ? "pl-1" : ""}`}>
-                  {section.items.map((item) => {
-                    if (
-                      item.requiredRole &&
-                      !hasPermission(item.requiredRole)
-                    ) {
-                      return null;
-                    }
-
-                    const IconComponent = item.icon || DocumentTextIcon;
-
-                    return (
-                      <Link
-                        key={item.name}
-                        href={item.href}
-                        onClick={handleLinkClick} // ✅ Add this
-                        className={`flex items-center ${
-                          isCollapsed ? "justify-center px-2" : "px-4"
-                        } py-2 text-sm rounded-md group relative ${
-                          isActive(item.href)
-                            ? "bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
-                            : "text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"
-                        }`}
-                        title={isCollapsed ? item.name : undefined}
-                      >
-                        <IconComponent
-                          className={`${
-                            isCollapsed ? "" : "mr-3"
-                          } flex-shrink-0 h-5 w-5 ${
-                            isActive(item.href)
-                              ? "text-gray-500"
-                              : "text-gray-400 group-hover:text-gray-500"
-                          }`}
-                        />
-                        {!isCollapsed && item.name}
-
-                        {/* Tooltip for collapsed state */}
-                        {isCollapsed && (
-                          <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-sm rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
-                            {item.name}
-                          </div>
-                        )}
-                      </Link>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Simple footer/version info (optional) */}
+      {/* ✅ Sidebar */}
       <div
-        className={`border-t ${
-          isDarkMode ? "border-gray-800" : "border-gray-200"
-        } px-3 py-2 text-center`}
+        id="mobile-sidebar"
+        className={`
+          fixed lg:static top-0 left-0 z-40 h-screen
+          ${isCollapsedState ? "w-16" : "w-64"}
+          ${isDarkMode ? "bg-gray-900" : "bg-white"}
+          border-r ${isDarkMode ? "border-gray-800" : "border-gray-200"}
+          transition-all duration-300 ease-in-out
+          ${
+            mobileMenuOpen
+              ? "translate-x-0"
+              : "-translate-x-full lg:translate-x-0"
+          }
+        `}
       >
-        {!isCollapsed && (
-          <p
-            className={`text-xs ${
-              isDarkMode ? "text-gray-500" : "text-gray-400"
+        {/* ✅ Your existing sidebar content remains exactly the same */}
+        <div className="h-full flex flex-col">
+          {/* Header with logo */}
+          <div
+            className={`p-4 border-b ${
+              isDarkMode
+                ? "border-gray-800 bg-gray-900"
+                : "border-gray-200 bg-white"
             }`}
           >
-            PorchLite v1.0
-          </p>
-        )}
+            {/* Logo content - adaptive to collapsed state */}
+            <div className="rounded-lg p-4 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 relative overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-radial from-amber-500/20 via-transparent to-transparent"></div>
+
+              <Link
+                href="/"
+                className={`flex items-center ${
+                  isCollapsed ? "justify-center" : "space-x-3"
+                } relative z-10`}
+              >
+                {/* Logo with glow effect */}
+                <div className="relative">
+                  <div className="absolute inset-0 bg-amber-400 rounded-full blur-md opacity-30"></div>
+                  <Image
+                    src="/images/logo-dark.png"
+                    alt="PorchLite"
+                    width={40}
+                    height={40}
+                    className="w-10 h-10 relative z-10"
+                    priority
+                  />
+                </div>
+
+                {/* Hide text when collapsed */}
+                {!isCollapsed && (
+                  <div>
+                    <h1 className="text-lg font-bold text-white">PorchLite</h1>
+                    <p className="text-xs text-amber-200">Always Welcome</p>
+                  </div>
+                )}
+              </Link>
+            </div>
+          </div>
+
+          {/* Navigation items */}
+          <div className="flex-1 overflow-y-auto">
+            {navigationStructure.map((section) => {
+              // Always show General section expanded, only allow Account to collapse
+              const isExpanded =
+                section.category === "General"
+                  ? true
+                  : expandedCategories[section.category] ?? true;
+
+              return (
+                <div key={section.category} className="space-y-1.5">
+                  {/* Category header - hide when collapsed, and don't show toggle for General */}
+                  {!isCollapsed && section.category !== "General" && (
+                    <button
+                      onClick={() => toggleCategory(section.category)}
+                      className={`w-full flex items-center justify-between text-left text-sm font-medium px-4 py-2 ${
+                        isDarkMode
+                          ? "text-gray-300 hover:text-white"
+                          : "text-gray-600 hover:text-gray-900"
+                      } mb-1 transition-colors duration-200`}
+                    >
+                      <span>{section.category}</span>
+                      <ChevronRight
+                        className={`h-4 w-4 transition-transform ${
+                          isExpanded ? "rotate-90" : ""
+                        }`}
+                      />
+                    </button>
+                  )}
+
+                  {/* Show General category label when not collapsed */}
+                  {!isCollapsed && section.category === "General" && (
+                    <div
+                      className={`text-sm font-medium px-4 py-2 ${
+                        isDarkMode ? "text-gray-300" : "text-gray-600"
+                      } mb-1`}
+                    >
+                      <span>{section.category}</span>
+                    </div>
+                  )}
+
+                  {/* Navigation items */}
+                  {(isExpanded || isCollapsed) && (
+                    <div className={`space-y-1 ${!isCollapsed ? "pl-1" : ""}`}>
+                      {section.items.map((item) => {
+                        if (
+                          item.requiredRole &&
+                          !hasPermission(item.requiredRole)
+                        ) {
+                          return null;
+                        }
+
+                        const IconComponent = item.icon || DocumentTextIcon;
+
+                        return (
+                          <Link
+                            key={item.name}
+                            href={item.href}
+                            onClick={handleLinkClick} // ✅ Add this
+                            className={`flex items-center ${
+                              isCollapsed ? "justify-center px-2" : "px-4"
+                            } py-2 text-sm rounded-md group relative ${
+                              isActive(item.href)
+                                ? "bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
+                                : "text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"
+                            }`}
+                            title={isCollapsed ? item.name : undefined}
+                          >
+                            <IconComponent
+                              className={`${
+                                isCollapsed ? "" : "mr-3"
+                              } flex-shrink-0 h-5 w-5 ${
+                                isActive(item.href)
+                                  ? "text-gray-500"
+                                  : "text-gray-400 group-hover:text-gray-500"
+                              }`}
+                            />
+                            {!isCollapsed && item.name}
+
+                            {/* Tooltip for collapsed state */}
+                            {isCollapsed && (
+                              <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-sm rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
+                                {item.name}
+                              </div>
+                            )}
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* ✅ Your existing footer */}
+          <div
+            className={`border-t ${
+              isDarkMode ? "border-gray-800" : "border-gray-200"
+            } px-3 py-2 text-center`}
+          >
+            {!isCollapsed && (
+              <p
+                className={`text-xs ${
+                  isDarkMode ? "text-gray-500" : "text-gray-400"
+                }`}
+              >
+                PorchLite v1.0
+              </p>
+            )}
+          </div>
+        </div>
       </div>
-    </div>
+    </>
   );
 }
 

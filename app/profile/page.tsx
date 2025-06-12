@@ -2,378 +2,291 @@
 
 import { useState, useEffect } from "react";
 import { useAuth } from "@/components/auth";
-import ProtectedPageWrapper from "@/components/layout/ProtectedPageWrapper";
+import { useProperty } from "@/lib/hooks/useProperty";
 import PageContainer from "@/components/layout/PageContainer";
 import StandardCard from "@/components/ui/StandardCard";
-import AvatarUpload from "@/components/ui/AvatarUpload";
 import { User, Phone, Mail, MapPin, Eye, EyeOff, Save } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import Header from "@/components/layout/Header"; // ✅ FIXED: Changed from @/components/ui/Header
 
 interface UserProfile {
   id: string;
-  full_name: string | null;
-  phone_number: string | null;
   email: string;
-  avatar_url: string | null;
-  address: string | null;
-  show_in_contacts: boolean;
-  role: string | null;
-  created_at: string;
-  updated_at: string;
+  name?: string;
+  phone?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  zip?: string;
 }
 
 export default function ProfilePage() {
   const { user } = useAuth();
+  const { currentProperty } = useProperty();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [hasChanges, setHasChanges] = useState(false);
-  const [formData, setFormData] = useState<Partial<UserProfile>>({});
+  const [showPassword, setShowPassword] = useState(false);
+  const [message, setMessage] = useState({ text: "", type: "" });
+
+  // Form fields
+  const [formData, setFormData] = useState({
+    name: "",
+    phone: "",
+    address: "",
+    city: "",
+    state: "",
+    zip: "",
+  });
 
   useEffect(() => {
-    const loadProfile = async () => {
-      if (!user) return;
-
-      try {
-        const { data, error } = await supabase
-          .from("profiles")
-          .select("*")
-          .eq("id", user.id)
-          .single();
-
-        if (error) {
-          console.error("Error loading profile:", error);
-          // If profile doesn't exist, create a basic one
-          if (error.code === "PGRST116") {
-            await createInitialProfile();
-          }
-          return;
-        }
-
-        setProfile(data);
-        setFormData(data);
-      } catch (error) {
-        console.error("Error loading profile:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadProfile();
-  }, [user]);
-
-  const createInitialProfile = async () => {
-    if (!user) return;
-
-    try {
-      const initialProfile = {
+    if (user) {
+      const userProfile: UserProfile = {
         id: user.id,
         email: user.email || "",
-        full_name: null,
-        phone_number: null,
-        avatar_url: null,
-        address: null,
-        show_in_contacts: false,
-        role: "user",
+        name: user.user_metadata?.name || "",
+        phone: user.user_metadata?.phone || "",
+        address: user.user_metadata?.address || "",
+        city: user.user_metadata?.city || "",
+        state: user.user_metadata?.state || "",
+        zip: user.user_metadata?.zip || "",
       };
 
-      const { data, error } = await supabase
-        .from("profiles")
-        .insert(initialProfile)
-        .select()
-        .single();
+      setProfile(userProfile);
+      setFormData({
+        name: userProfile.name || "",
+        phone: userProfile.phone || "",
+        address: userProfile.address || "",
+        city: userProfile.city || "",
+        state: userProfile.state || "",
+        zip: userProfile.zip || "",
+      });
+      setLoading(false);
+    }
+  }, [user]);
 
-      if (error) {
-        console.error("Error creating profile:", error);
-        return;
-      }
+  const handleSave = async () => {
+    if (!user) return;
 
-      setProfile(data);
-      setFormData(data);
-    } catch (error) {
-      console.error("Error creating initial profile:", error);
+    setSaving(true);
+    setMessage({ text: "", type: "" });
+
+    try {
+      const { error } = await supabase.auth.updateUser({
+        data: {
+          name: formData.name,
+          phone: formData.phone,
+          address: formData.address,
+          city: formData.city,
+          state: formData.state,
+          zip: formData.zip,
+        },
+      });
+
+      if (error) throw error;
+
+      setMessage({
+        text: "Profile updated successfully!",
+        type: "success",
+      });
+
+      // Update local profile state
+      setProfile((prev) => (prev ? { ...prev, ...formData } : null));
+    } catch (error: any) {
+      setMessage({
+        text: error.message || "Failed to update profile",
+        type: "error",
+      });
+    } finally {
+      setSaving(false);
     }
   };
 
-  const handleInputChange = (
-    field: keyof UserProfile,
-    value: string | boolean
-  ) => {
+  const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({
       ...prev,
       [field]: value,
     }));
-    setHasChanges(true);
-  };
-
-  const handleAvatarChange = async (avatarUrl: string) => {
-    if (!user || !profile) return;
-
-    setSaving(true);
-    try {
-      const { error } = await supabase
-        .from("profiles")
-        .update({
-          avatar_url: avatarUrl,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", user.id);
-
-      if (error) {
-        console.error("Error updating avatar:", error);
-        alert("Failed to update avatar");
-        return;
-      }
-
-      setProfile((prev) => (prev ? { ...prev, avatar_url: avatarUrl } : null));
-      setFormData((prev) => ({ ...prev, avatar_url: avatarUrl }));
-    } catch (error) {
-      console.error("Error updating avatar:", error);
-      alert("Failed to update avatar");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const saveProfile = async () => {
-    if (!user || !profile || !hasChanges) return;
-
-    setSaving(true);
-    try {
-      const updateData = {
-        ...formData,
-        updated_at: new Date().toISOString(),
-      };
-
-      const { error } = await supabase
-        .from("profiles")
-        .update(updateData)
-        .eq("id", user.id);
-
-      if (error) {
-        console.error("Error updating profile:", error);
-        alert("Failed to save profile changes");
-        return;
-      }
-
-      setProfile((prev) => (prev ? { ...prev, ...updateData } : null));
-      setHasChanges(false);
-      alert("Profile updated successfully!");
-    } catch (error) {
-      console.error("Error saving profile:", error);
-      alert("Failed to save profile changes");
-    } finally {
-      setSaving(false);
-    }
   };
 
   if (loading) {
     return (
-      <ProtectedPageWrapper>
-        <div className="flex items-center justify-center min-h-64">
-          <div className="text-gray-500">Loading profile...</div>
-        </div>
-      </ProtectedPageWrapper>
-    );
-  }
-
-  if (!profile) {
-    return (
-      <ProtectedPageWrapper>
-        <div className="flex items-center justify-center min-h-64">
-          <div className="text-red-500">Error loading profile</div>
-        </div>
-      </ProtectedPageWrapper>
+      <div className="p-6">
+        <Header title="Profile" />
+        <PageContainer>
+          <StandardCard>
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              <span className="ml-2">Loading profile...</span>
+            </div>
+          </StandardCard>
+        </PageContainer>
+      </div>
     );
   }
 
   return (
-    <ProtectedPageWrapper>
-      <PageContainer className="space-y-6">
-        <div className="max-w-2xl mx-auto">
-          <StandardCard>
-            <div className="p-6">
-              {/* Avatar Section */}
-              <div className="mb-8">
-                <h2 className="text-lg font-medium text-gray-900 mb-4">
-                  Profile Photo
-                </h2>
-                <AvatarUpload
-                  onAvatarChange={handleAvatarChange}
-                  currentAvatar={profile.avatar_url || undefined}
+    <div className="p-6">
+      <Header title="Profile" />
+      <PageContainer>
+        <div className="space-y-6">
+          {/* Page Header */}
+          <div className="flex items-center space-x-3">
+            <User className="h-6 w-6 text-blue-600" />
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Profile</h1>
+              <p className="text-gray-600">Manage your account information</p>
+            </div>
+          </div>
+
+          {/* Success/Error Message */}
+          {message.text && (
+            <div
+              className={`p-4 rounded-md ${
+                message.type === "error"
+                  ? "bg-red-50 text-red-700 border border-red-200"
+                  : "bg-green-50 text-green-700 border border-green-200"
+              }`}
+            >
+              {message.text}
+            </div>
+          )}
+
+          {/* Profile Information */}
+          <StandardCard
+            title="Profile Information"
+            subtitle="Update your personal details"
+            icon={<User className="h-5 w-5 text-gray-600" />}
+          >
+            <div className="space-y-6">
+              {/* Email (Read-only) */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Email Address
+                </label>
+                <div className="flex items-center">
+                  <Mail className="h-4 w-4 text-gray-400 mr-2" />
+                  <input
+                    type="email"
+                    value={profile?.email || ""}
+                    disabled
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-500"
+                  />
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  Email cannot be changed. Contact support if needed.
+                </p>
+              </div>
+
+              {/* Name */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Full Name
+                </label>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => handleInputChange("name", e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Your full name"
                 />
               </div>
 
-              {/* Personal Information */}
-              <div className="space-y-6">
-                <h2 className="text-lg font-medium text-gray-900 border-b border-gray-200 pb-2">
-                  Personal Information
-                </h2>
-
-                {/* Full Name */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    <User className="w-4 h-4 inline mr-2" />
-                    Full Name
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.full_name || ""}
-                    onChange={(e) =>
-                      handleInputChange("full_name", e.target.value)
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Enter your full name"
-                  />
-                </div>
-
-                {/* Email */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    <Mail className="w-4 h-4 inline mr-2" />
-                    Email Address
-                  </label>
-                  <input
-                    type="email"
-                    value={profile.email}
-                    disabled
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Email cannot be changed
-                  </p>
-                </div>
-
-                {/* Phone Number */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    <Phone className="w-4 h-4 inline mr-2" />
-                    Phone Number
-                  </label>
+              {/* Phone */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Phone Number
+                </label>
+                <div className="flex items-center">
+                  <Phone className="h-4 w-4 text-gray-400 mr-2" />
                   <input
                     type="tel"
-                    value={formData.phone_number || ""}
-                    onChange={(e) =>
-                      handleInputChange("phone_number", e.target.value)
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Enter your phone number"
+                    value={formData.phone}
+                    onChange={(e) => handleInputChange("phone", e.target.value)}
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="(555) 123-4567"
                   />
                 </div>
-
-                {/* Address */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    <MapPin className="w-4 h-4 inline mr-2" />
-                    Address
-                  </label>
-                  <textarea
-                    value={formData.address || ""}
-                    onChange={(e) => handleInputChange("address", e.target.value)}
-                    rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Enter your address"
-                  />
-                </div>
-
-                {/* Role */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Role
-                  </label>
-                  <input
-                    type="text"
-                    value={profile.role || "user"}
-                    disabled
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Role is managed by administrators
-                  </p>
-                </div>
-
-                {/* Privacy Settings */}
-                <div className="border-t border-gray-200 pt-6">
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">
-                    Privacy Settings
-                  </h3>
-
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      {formData.show_in_contacts ? (
-                        <Eye className="w-5 h-5 text-green-500" />
-                      ) : (
-                        <EyeOff className="w-5 h-5 text-gray-400" />
-                      )}
-                      <div>
-                        <label className="text-sm font-medium text-gray-700">
-                          Show in Contacts
-                        </label>
-                        <p className="text-xs text-gray-500">
-                          Allow other users to see your contact information
-                        </p>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() =>
-                        handleInputChange(
-                          "show_in_contacts",
-                          !formData.show_in_contacts
-                        )
-                      }
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                        formData.show_in_contacts ? "bg-blue-600" : "bg-gray-200"
-                      }`}
-                    >
-                      <span
-                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                          formData.show_in_contacts ? "translate-x-6" : "translate-x-1"
-                        }`}
-                      />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Account Information */}
-                <div className="border-t border-gray-200 pt-6">
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">
-                    Account Information
-                  </h3>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <label className="block text-gray-500">Account Created</label>
-                      <p className="text-gray-900">
-                        {new Date(profile.created_at).toLocaleDateString()}
-                      </p>
-                    </div>
-                    <div>
-                      <label className="block text-gray-500">Last Updated</label>
-                      <p className="text-gray-900">
-                        {new Date(profile.updated_at).toLocaleDateString()}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Save Button (Mobile) */}
-                {hasChanges && (
-                  <div className="md:hidden pt-4">
-                    <button
-                      onClick={saveProfile}
-                      disabled={saving}
-                      className="w-full flex items-center justify-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <Save className="w-4 h-4" />
-                      <span>{saving ? "Saving..." : "Save Changes"}</span>
-                    </button>
-                  </div>
-                )}
               </div>
             </div>
           </StandardCard>
+
+          {/* Address Information */}
+          <StandardCard
+            title="Address Information"
+            subtitle="Your contact address"
+            icon={<MapPin className="h-5 w-5 text-gray-600" />}
+          >
+            <div className="space-y-4">
+              {/* Street Address */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Street Address
+                </label>
+                <input
+                  type="text"
+                  value={formData.address}
+                  onChange={(e) => handleInputChange("address", e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="123 Main Street"
+                />
+              </div>
+
+              {/* City, State, ZIP */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    City
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.city}
+                    onChange={(e) => handleInputChange("city", e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="City"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    State
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.state}
+                    onChange={(e) => handleInputChange("state", e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="State"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    ZIP Code
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.zip}
+                    onChange={(e) => handleInputChange("zip", e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="12345"
+                  />
+                </div>
+              </div>
+            </div>
+          </StandardCard>
+
+          {/* Save Button */}
+          <div className="flex justify-end">
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="flex items-center px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              <Save className="h-4 w-4 mr-2" />
+              {saving ? "Saving..." : "Save Changes"}
+            </button>
+          </div>
         </div>
       </PageContainer>
-    </ProtectedPageWrapper>
+    </div>
   );
 }

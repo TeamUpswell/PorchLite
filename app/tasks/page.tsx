@@ -502,7 +502,7 @@ export default function TasksPage() {
   }
 
   return (
-    <ProtectedPageWrapper>
+    <div className="p-6">
       <Header title="Tasks" />
       <PageContainer>
         <div className="space-y-6">
@@ -727,6 +727,6 @@ export default function TasksPage() {
           />
         </div>
       </PageContainer>
-    </ProtectedPageWrapper>
+    </div>
   );
 }

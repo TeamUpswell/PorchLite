@@ -1,10 +1,16 @@
 import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
-export async function POST(request) {
+interface CreateUserRequest {
+  email: string;
+  name: string;
+  role?: string;
+}
+
+export async function POST(request: NextRequest) {
   try {
-    const requestData = await request.json();
+    const requestData: CreateUserRequest = await request.json();
     console.log("Creating user with data:", requestData);
 
     // Create a Supabase client with the service role key
@@ -20,7 +26,7 @@ export async function POST(request) {
         email_confirm: true,
         password: null, // No password, will require user to set it
         user_metadata: {
-          full_name: requestData.full_name,
+          full_name: requestData.name,
           role: requestData.role,
         },
       });
@@ -38,7 +44,7 @@ export async function POST(request) {
       .from("profiles")
       .insert({
         id: userId,
-        full_name: requestData.full_name,
+        full_name: requestData.name,
         email: requestData.email,
         phone_number: requestData.phone_number,
         address: requestData.address,
@@ -97,6 +103,9 @@ export async function POST(request) {
     });
   } catch (error) {
     console.error("Server error:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
   }
 }

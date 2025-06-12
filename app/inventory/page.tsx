@@ -355,7 +355,7 @@ export default function InventoryPage() {
   }
 
   return (
-    <ProtectedPageWrapper>
+    <div className="p-6">
       <Header title="Inventory" />
       <PageContainer>
         <div className="space-y-6">
@@ -483,6 +483,6 @@ export default function InventoryPage() {
           />
         </div>
       </PageContainer>
-    </ProtectedPageWrapper>
+    </div>
   );
 }
