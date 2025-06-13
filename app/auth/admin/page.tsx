@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { getSupabase } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
 import {
   Settings,
   Database,
@@ -25,7 +25,9 @@ export default function AdminDiagnosticsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [userData, setUserData] = useState<any>(null);
-  const [connectionStatus, setConnectionStatus] = useState<Record<string, any>>({});
+  const [connectionStatus, setConnectionStatus] = useState<Record<string, any>>(
+    {}
+  );
   const [systemInfo, setSystemInfo] = useState<Record<string, any>>({});
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [isTestingConnection, setIsTestingConnection] = useState(false);
@@ -75,7 +77,8 @@ export default function AdminDiagnosticsPage() {
     try {
       // Test auth connection
       const startAuthTime = performance.now();
-      const { data: authData, error: authError } = await supabase.auth.getSession();
+      const { data: authData, error: authError } =
+        await supabase.auth.getSession();
       const authTime = performance.now() - startAuthTime;
 
       testResults.auth = {
@@ -230,12 +233,16 @@ export default function AdminDiagnosticsPage() {
                     <>
                       <div className="flex items-center text-sm">
                         <User className="h-4 w-4 text-gray-500 mr-2" />
-                        <span className="font-medium text-gray-600">Email:</span>
+                        <span className="font-medium text-gray-600">
+                          Email:
+                        </span>
                         <span className="ml-2">{userData?.email}</span>
                       </div>
                       <div className="flex items-center text-sm">
                         <Shield className="h-4 w-4 text-gray-500 mr-2" />
-                        <span className="font-medium text-gray-600">User ID:</span>
+                        <span className="font-medium text-gray-600">
+                          User ID:
+                        </span>
                         <span className="ml-2 text-xs font-mono bg-gray-100 px-2 py-1 rounded">
                           {userData?.id}
                         </span>
@@ -424,8 +431,8 @@ export default function AdminDiagnosticsPage() {
                   CORS Issues Detected
                 </h3>
                 <p className="text-sm text-amber-700 mb-3">
-                  Your local environment is experiencing CORS issues with Supabase.
-                  To fix this:
+                  Your local environment is experiencing CORS issues with
+                  Supabase. To fix this:
                 </p>
                 <ol className="text-sm text-amber-700 space-y-2 list-decimal list-inside">
                   <li>Go to your Supabase project dashboard</li>
@@ -437,7 +444,9 @@ export default function AdminDiagnosticsPage() {
                     </code>{" "}
                     to the allowed origins
                   </li>
-                  <li>Save changes and restart your local development server</li>
+                  <li>
+                    Save changes and restart your local development server
+                  </li>
                 </ol>
               </div>
             )}
@@ -471,7 +480,9 @@ export default function AdminDiagnosticsPage() {
                 <span className="font-medium">Anon Key Configured:</span>
                 <span
                   className={`px-2 py-1 ${
-                    systemInfo.hasAnon ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
+                    systemInfo.hasAnon
+                      ? "bg-green-100 text-green-800"
+                      : "bg-red-100 text-red-800"
                   } rounded-full text-xs`}
                 >
                   {systemInfo.hasAnon ? "Yes" : "No"}

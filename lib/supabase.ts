@@ -1,30 +1,33 @@
-import { createClient, SupabaseClient } from "@supabase/supabase-js";
+import { createClient } from "@supabase/supabase-js";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-if (!supabaseUrl || !supabaseAnonKey) {
+if (!supabaseUrl || !supabaseKey) {
   throw new Error("Missing Supabase environment variables");
 }
 
-// Singleton pattern to ensure only one instance
-let supabaseInstance: SupabaseClient | null = null;
+// Create and export the main Supabase client
+export const supabase = createClient(supabaseUrl, supabaseKey, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
+  },
+  db: {
+    schema: "public",
+  },
+  global: {
+    headers: {
+      "x-my-custom-header": "porchlite-app",
+    },
+  },
+});
 
-export const getSupabase = () => {
-  if (!supabaseInstance) {
-    supabaseInstance = createClient(supabaseUrl, supabaseAnonKey, {
-      auth: {
-        autoRefreshToken: true,
-        persistSession: true,
-        detectSessionInUrl: true,
-      },
-    });
-  }
-  return supabaseInstance;
-};
-
-// Export the instance
-export const supabase = getSupabase();
+// Legacy function for backwards compatibility
+export function getSupabase() {
+  return supabase;
+}
 
 // Add this export for server-side operations
 export function getSupabaseClient() {
@@ -43,7 +46,6 @@ export function handleSupabaseError(error: any) {
 // Helper function to explore table schemas
 export const exploreTableSchema = async (tableName: string) => {
   try {
-    // Get a single row to examine structure
     const { data, error } = await supabase.from(tableName).select("*").limit(1);
 
     if (error) {
@@ -57,10 +59,8 @@ export const exploreTableSchema = async (tableName: string) => {
       return null;
     }
 
-    // Log column names
     const columns = Object.keys(data[0]);
     console.log(`${tableName} columns:`, columns);
-
     return columns;
   } catch (err) {
     console.error(`Error exploring ${tableName}:`, err);
@@ -68,25 +68,47 @@ export const exploreTableSchema = async (tableName: string) => {
   }
 };
 
-// Create a storage bucket for property images
-export async function createStorageBuckets() {
-  const { data, error } = await supabase.storage.createBucket("properties", {
-    public: true,
-    fileSizeLimit: 10485760, // 10MB limit
-    allowedMimeTypes: ["image/jpeg", "image/png", "image/webp"],
-  });
-
-  if (error) {
-    console.error("Error creating storage bucket:", error);
+// Test Supabase connection function
+export async function testSupabaseConnection() {
+  console.log('🔍 Testing Supabase connection...');
+  
+  try {
+    console.log('📡 Supabase client:', supabase);
+    console.log('📡 Supabase URL:', supabase.supabaseUrl);
+    
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    console.log('👤 Current session:', session);
+    console.log('❌ Session error:', sessionError);
+    
+    const { data, error } = await supabase.from('properties').select('count').limit(1);
+    console.log('✅ Test query result:', data);
+    console.log('❌ Test query error:', error);
+    
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    console.log('👤 Current user:', user);
+    console.log('❌ User error:', userError);
+    
+    return { session, user, data, error };
+  } catch (err) {
+    console.error('💥 Supabase test failed:', err);
+    return { error: err };
   }
 }
 
-// Add validation helpers like this to your supabase.ts
-export const validateDatabaseRecord = (
-  data: any,
-  requiredFields: string[]
-): boolean => {
-  return requiredFields.every(
-    (field) => data[field] !== undefined && data[field] !== null
-  );
-};
+// Debug function - add this
+export function debugSupabaseConfig() {
+  console.log('🔧 === SUPABASE CONFIG DEBUG ===');
+  console.log('🔧 URL from env:', process.env.NEXT_PUBLIC_SUPABASE_URL);
+  console.log('🔧 Key from env (first 20):', process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.substring(0, 20));
+  console.log('🔧 Client instance:', supabase);
+  console.log('🔧 Client auth:', supabase.auth);
+  console.log('🔧 Client rest URL:', supabase.restUrl);
+  return {
+    url: process.env.NEXT_PUBLIC_SUPABASE_URL,
+    keyPreview: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.substring(0, 20),
+    client: supabase
+  };
+}
+
+// Call the debug function immediately
+debugSupabaseConfig();

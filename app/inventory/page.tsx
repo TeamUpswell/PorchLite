@@ -9,6 +9,7 @@ import {
   Settings,
   AlertTriangle,
   ShoppingCart,
+  Home as HomeIcon,
 } from "lucide-react";
 import Header from "@/components/layout/Header";
 import PageContainer from "@/components/layout/PageContainer";
@@ -21,75 +22,37 @@ import ShoppingListModal from "@/components/ShoppingListModal";
 import FloatingActionButton from "@/components/ui/FloatingActionButton";
 import { useInventory } from "@/components/inventory/hooks/useInventory";
 import { useProperty } from "@/lib/hooks/useProperty";
-import ProtectedPageWrapper from "@/components/layout/ProtectedPageWrapper";
 import { debugLog, debugError } from "@/lib/utils/debug";
-import { supabase } from "@/lib/supabase"; // ✅ Add missing import
-import toast from "react-hot-toast"; // ✅ Add missing import
+import { supabase } from "@/lib/supabase";
+import toast from "react-hot-toast";
+import { useRouter } from "next/navigation";
 
 const isDev = process.env.NODE_ENV === "development";
 
 export const dynamic = "force-dynamic";
 
-// ✅ Define missing components
-const LoadingComponent = () => (
-  <div className="flex items-center justify-center min-h-64">
-    <div className="text-center">
-      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-      <p className="mt-2 text-gray-600">Loading...</p>
-    </div>
-  </div>
-);
-
-const NoPropertyComponent = () => (
-  <ProtectedPageWrapper>
-    <PageContainer>
-      <div className="text-center py-8">
-        <p className="text-gray-600">No property selected</p>
-        <p className="text-sm text-gray-500 mt-2">
-          Please select a property from your dashboard
-        </p>
-      </div>
-    </PageContainer>
-  </ProtectedPageWrapper>
-);
-
-const LoadingInventoryComponent = () => (
-  <ProtectedPageWrapper>
-    <PageContainer>
-      <div className="flex items-center justify-center min-h-64">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-2 text-gray-600">Loading inventory...</p>
-        </div>
-      </div>
-    </PageContainer>
-  </ProtectedPageWrapper>
-);
-
-// ✅ Add missing interface
+// Enhanced interface
 interface InventoryItem {
   id: string;
   name: string;
   quantity: number;
   threshold?: number;
   status: "good" | "low" | "out";
-  // Add other properties as needed
+  property_id: string;
+  is_active: boolean;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export default function InventoryPage() {
-  // ✅ All hooks first
+  // ✅ ALL HOOKS FIRST
   const { user, loading: authLoading } = useAuth();
-  const { currentProperty, loading: propertyLoading } = useProperty();
+  const { currentProperty, currentTenant, loading: propertyLoading, error: propertyError } = useProperty();
   const inventoryHook = useInventory();
-  const {
-    currentProperty: property,
-    currentTenant,
-    loading: propertyLoadingInventory,
-    error,
-  } = useProperty();
   const { isManagerView, isFamilyView, isGuestView } = useViewMode();
+  const router = useRouter();
 
-  // ✅ State declarations
+  // ✅ STATE DECLARATIONS
   const [showManageModal, setShowManageModal] = useState(false);
   const [showShoppingListModal, setShowShoppingListModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
@@ -98,7 +61,7 @@ export default function InventoryPage() {
   const [hasInitialized, setHasInitialized] = useState(false);
   const [filter, setFilter] = useState("all");
 
-  // ✅ Memoized values
+  // ✅ MEMOIZED VALUES
   const shoppingListItems = useMemo(() => {
     if (!inventoryHook.filteredItems) return [];
     return inventoryHook.filteredItems.filter((item) => {
@@ -136,14 +99,14 @@ export default function InventoryPage() {
   const propertyId = useMemo(() => currentProperty?.id, [currentProperty?.id]);
   const userId = useMemo(() => user?.id, [user?.id]);
 
-  // ✅ Move threshold analysis inside useEffect to avoid render phase updates
+  // Threshold analysis state
   const [thresholdAnalysis, setThresholdAnalysis] = useState({
     averageThreshold: 0,
     thresholdRange: { min: 0, max: 0 },
     itemsWithHighThreshold: 0,
   });
 
-  // ✅ Effects
+  // ✅ URL PARAMS EFFECT
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
 
@@ -158,22 +121,23 @@ export default function InventoryPage() {
     }
   }, []);
 
+  // ✅ DEBUG EFFECTS
   useEffect(() => {
-    debugLog("📦 CORRECT INVENTORY PAGE LOADED - /app/inventory/page.tsx");
+    debugLog("📦 INVENTORY PAGE LOADED - /app/inventory/page.tsx");
   }, []);
 
   useEffect(() => {
     debugLog("📦 Inventory Page Debug:", {
-      propertyId: property?.id,
-      propertyName: property?.name,
+      propertyId: currentProperty?.id,
+      propertyName: currentProperty?.name,
       tenantRole: currentTenant?.role,
       isManagerView,
       isFamilyView,
       isGuestView,
     });
-  }, [property, currentTenant, isManagerView, isFamilyView, isGuestView]);
+  }, [currentProperty, currentTenant, isManagerView, isFamilyView, isGuestView]);
 
-  // ✅ Move threshold analysis to useEffect
+  // ✅ THRESHOLD ANALYSIS EFFECT
   useEffect(() => {
     if (inventoryHook.filteredItems) {
       const analysis = {
@@ -204,12 +168,7 @@ export default function InventoryPage() {
     }
   }, [inventoryHook.filteredItems]);
 
-  // ✅ Functions
-  const handleModalClose = () => {
-    setShowManageModal(false);
-    inventoryHook.refreshItems();
-  };
-
+  // ✅ LOAD INVENTORY FUNCTION
   const loadInventory = async () => {
     if (!propertyId) {
       console.log("❌ No property ID, skipping inventory fetch");
@@ -232,6 +191,7 @@ export default function InventoryPage() {
         }
       } else {
         setInventory(data || []);
+        console.log("✅ Loaded inventory:", data?.length || 0, "items");
       }
     } catch (error) {
       console.error("❌ Unexpected error:", error);
@@ -243,6 +203,7 @@ export default function InventoryPage() {
     }
   };
 
+  // ✅ MAIN DATA LOADING EFFECT
   useEffect(() => {
     if (authLoading || propertyLoading) {
       return;
@@ -260,100 +221,153 @@ export default function InventoryPage() {
     loadInventory();
   }, [userId, propertyId, authLoading, propertyLoading]);
 
-  // ✅ Early returns
+  // ✅ MODAL HANDLERS
+  const handleModalClose = () => {
+    setShowManageModal(false);
+    inventoryHook.refreshItems();
+  };
+
+  // ✅ EARLY RETURNS AFTER ALL HOOKS
   if (authLoading || propertyLoading) {
     return (
-      <ProtectedPageWrapper>
+      <div className="p-6">
         <Header title="Inventory" />
         <PageContainer>
-          <div className="flex items-center justify-center min-h-[400px]">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
-              <p className="text-muted-foreground">Loading inventory...</p>
+          <StandardCard>
+            <div className="flex items-center justify-center py-12">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-3"></div>
+                <p className="text-gray-600">
+                  {authLoading ? "Authenticating..." : "Loading property..."}
+                </p>
+              </div>
             </div>
-          </div>
+          </StandardCard>
         </PageContainer>
-      </ProtectedPageWrapper>
+      </div>
     );
   }
 
   if (!user) {
-    return null;
+    return null; // Auth will redirect
+  }
+
+  if (propertyError) {
+    return (
+      <div className="p-6">
+        <Header title="Inventory" />
+        <PageContainer>
+          <StandardCard
+            title="Property Access Error"
+            subtitle="Unable to load property information"
+          >
+            <div className="text-center py-8">
+              <AlertTriangle className="mx-auto h-12 w-12 text-red-500 mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                Property Access Error
+              </h3>
+              <p className="text-red-600 mb-4">{propertyError}</p>
+              <button
+                onClick={() => window.location.reload()}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Try Again
+              </button>
+            </div>
+          </StandardCard>
+        </PageContainer>
+      </div>
+    );
   }
 
   if (!currentProperty) {
-    return <NoPropertyComponent />;
-  }
-
-  if (loading) {
-    return <LoadingInventoryComponent />;
-  }
-
-  if (propertyLoadingInventory) {
     return (
-      <ProtectedPageWrapper>
+      <div className="p-6">
+        <Header title="Inventory" />
         <PageContainer>
-          <div className="flex items-center justify-center min-h-64">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-              <p className="mt-2 text-gray-600">Loading property...</p>
+          <StandardCard
+            title="No Property Selected"
+            subtitle="Select a property to manage inventory"
+          >
+            <div className="text-center py-12">
+              <HomeIcon className="mx-auto h-16 w-16 text-gray-300 mb-4" />
+              <h3 className="text-xl font-medium text-gray-900 mb-2">
+                No Property Selected
+              </h3>
+              <p className="text-gray-600 mb-6">
+                Please select a property to view and manage its inventory.
+              </p>
+              <div className="flex gap-3 justify-center">
+                <button
+                  onClick={() => router.push("/properties")}
+                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Select Property
+                </button>
+                <button
+                  onClick={() => router.push("/")}
+                  className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Go to Dashboard
+                </button>
+              </div>
             </div>
-          </div>
+          </StandardCard>
         </PageContainer>
-      </ProtectedPageWrapper>
-    );
-  }
-
-  if (error) {
-    return (
-      <ProtectedPageWrapper>
-        <PageContainer>
-          <div className="text-center py-8">
-            <p className="text-red-600">
-              Error loading property: {error.message}
-            </p>
-            <button
-              onClick={() => window.location.reload()}
-              className="mt-4 px-4 py-2 bg-blue-600 text-white rounded"
-            >
-              Retry
-            </button>
-          </div>
-        </PageContainer>
-      </ProtectedPageWrapper>
-    );
-  }
-
-  if (!property?.id) {
-    return (
-      <ProtectedPageWrapper>
-        <PageContainer>
-          <div className="text-center py-8">
-            <p className="text-gray-600">No property selected</p>
-            <p className="text-sm text-gray-500 mt-2">
-              Please select a property from your dashboard
-            </p>
-          </div>
-        </PageContainer>
-      </ProtectedPageWrapper>
+      </div>
     );
   }
 
   if (!currentTenant) {
     return (
-      <ProtectedPageWrapper>
+      <div className="p-6">
+        <Header title="Inventory" />
         <PageContainer>
-          <div className="text-center py-8">
-            <p className="text-red-600">Access denied</p>
-            <p className="text-sm text-gray-500 mt-2">
-              You don't have access to this property
-            </p>
-          </div>
+          <StandardCard
+            title="Access Denied"
+            subtitle="You don't have permission to access this property"
+          >
+            <div className="text-center py-8">
+              <AlertTriangle className="mx-auto h-12 w-12 text-red-500 mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                Access Denied
+              </h3>
+              <p className="text-gray-600 mb-4">
+                You don't have access to manage inventory for this property.
+              </p>
+              <button
+                onClick={() => router.push("/")}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Return to Dashboard
+              </button>
+            </div>
+          </StandardCard>
         </PageContainer>
-      </ProtectedPageWrapper>
+      </div>
     );
   }
 
+  if (loading) {
+    return (
+      <div className="p-6">
+        <Header title="Inventory" />
+        <PageContainer>
+          <StandardCard>
+            <div className="flex items-center justify-center py-12">
+              <div className="text-center">
+                <Package className="mx-auto h-12 w-12 text-gray-300 mb-3 animate-pulse" />
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto mb-3"></div>
+                <p className="text-gray-600">Loading inventory...</p>
+              </div>
+            </div>
+          </StandardCard>
+        </PageContainer>
+      </div>
+    );
+  }
+
+  // ✅ MAIN INVENTORY PAGE
   return (
     <div className="p-6">
       <Header title="Inventory" />
@@ -361,11 +375,32 @@ export default function InventoryPage() {
         <div className="space-y-6">
           <StandardCard
             title="Property Inventory"
-            subtitle="Manage your property inventory and supplies"
+            subtitle={`Manage inventory for ${currentProperty.name}`}
+            headerActions={
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-500">
+                  {totalItems} total items
+                </span>
+                {(outOfStockItems > 0 || lowStockItems > 0) && (
+                  <div className="flex items-center gap-1">
+                    {outOfStockItems > 0 && (
+                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                        <AlertTriangle className="h-3 w-3 mr-1" />
+                        {outOfStockItems} out
+                      </span>
+                    )}
+                    {lowStockItems > 0 && (
+                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                        <AlertTriangle className="h-3 w-3 mr-1" />
+                        {lowStockItems} low
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            }
           >
-            {/* Move all existing inventory content here */}
             <div className="space-y-6">
-              {/* Your existing inventory JSX goes here */}
               {/* Stats Cards */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <StandardCard padding="sm">
@@ -374,6 +409,9 @@ export default function InventoryPage() {
                       {goodStockItems}
                     </div>
                     <div className="text-sm text-gray-600">Well Stocked</div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      {totalItems > 0 ? Math.round((goodStockItems / totalItems) * 100) : 0}% of inventory
+                    </div>
                   </div>
                 </StandardCard>
 
@@ -383,6 +421,9 @@ export default function InventoryPage() {
                       {lowStockItems}
                     </div>
                     <div className="text-sm text-gray-600">Getting Low</div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      Need restocking soon
+                    </div>
                   </div>
                 </StandardCard>
 
@@ -392,12 +433,47 @@ export default function InventoryPage() {
                       {outOfStockItems}
                     </div>
                     <div className="text-sm text-gray-600">Out of Stock</div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      {outOfStockItems > 0 ? "Immediate attention needed" : "All good!"}
+                    </div>
                   </div>
                 </StandardCard>
               </div>
 
+              {/* Quick Actions */}
+              {(isManagerView || isFamilyView) && (
+                <div className="flex flex-wrap gap-3">
+                  <button
+                    onClick={() => inventoryHook.setIsAddingItem(true)}
+                    className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Item
+                  </button>
+                  <button
+                    onClick={() => setShowShoppingListModal(true)}
+                    className="inline-flex items-center px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    <ShoppingCart className="h-4 w-4 mr-2" />
+                    Shopping List
+                    {shoppingListItems.length > 0 && (
+                      <span className="ml-2 px-2 py-0.5 bg-red-100 text-red-800 text-xs rounded-full">
+                        {shoppingListItems.length}
+                      </span>
+                    )}
+                  </button>
+                  <button
+                    onClick={() => setShowManageModal(true)}
+                    className="inline-flex items-center px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    <Settings className="h-4 w-4 mr-2" />
+                    Manage
+                  </button>
+                </div>
+              )}
+
               {/* Filters */}
-              <StandardCard className="mb-6" padding="sm">
+              <StandardCard padding="sm">
                 <InventoryFilters
                   items={inventoryHook.items}
                   setFilteredItems={inventoryHook.setFilteredItems}
@@ -407,93 +483,94 @@ export default function InventoryPage() {
               {/* Main Inventory Table */}
               <StandardCard
                 title="Inventory Items"
-                subtitle={`${totalItems} items in inventory`}
-                headerActions={
-                  <div className="flex items-center space-x-2">
-                    <button
-                      onClick={() => setShowManageModal(true)}
-                      className="flex items-center gap-2 px-3 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                    >
-                      <Settings className="h-4 w-4" />
-                      <span className="hidden sm:inline">Manage</span>
-                    </button>
-
-                    {outOfStockItems > 0 && (
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                        <AlertTriangle className="h-3 w-3 mr-1" />
-                        {outOfStockItems} out of stock
-                      </span>
-                    )}
-                    {lowStockItems > 0 && (
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                        <AlertTriangle className="h-3 w-3 mr-1" />
-                        {lowStockItems} low stock
-                      </span>
+                subtitle={`${totalItems} items • ${currentProperty.name}`}
+              >
+                {inventoryHook.filteredItems?.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Package className="mx-auto h-16 w-16 text-gray-300 mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">
+                      No inventory items found
+                    </h3>
+                    <p className="text-gray-600 mb-6">
+                      {totalItems === 0 
+                        ? "Get started by adding your first inventory item."
+                        : "Try adjusting your filters to see more items."}
+                    </p>
+                    {(isManagerView || isFamilyView) && totalItems === 0 && (
+                      <button
+                        onClick={() => inventoryHook.setIsAddingItem(true)}
+                        className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                      >
+                        <Plus className="h-5 w-5 mr-2" />
+                        Add Your First Item
+                      </button>
                     )}
                   </div>
-                }
-              >
-                <InventoryTable
-                  items={inventoryHook.filteredItems || []}
-                  handleEdit={inventoryHook.handleEdit}
-                  handleDelete={inventoryHook.handleDelete}
-                  updateQuantity={inventoryHook.updateQuantity}
-                  updateItemStatus={(itemId, status) => {
-                    console.log(
-                      "🔄 Direct call to updateItemStatus:",
-                      itemId,
-                      status
-                    );
-                    return inventoryHook.updateItemStatus?.(itemId, status);
-                  }}
-                />
-              </StandardCard>
-
-              {/* Floating Action Buttons */}
-              <div className="fixed bottom-6 right-6 flex flex-col items-end space-y-3 z-50">
-                <FloatingActionButton
-                  icon={Plus}
-                  label="Add Item"
-                  onClick={() => inventoryHook.setIsAddingItem(true)}
-                  variant="primary"
-                />
-
-                <div className="relative">
-                  <FloatingActionButton
-                    icon={ShoppingCart}
-                    label="Shopping List"
-                    onClick={() => setShowShoppingListModal(true)}
-                    variant={
-                      shoppingListItems.length > 0 ? "success" : "secondary"
-                    }
+                ) : (
+                  <InventoryTable
+                    items={inventoryHook.filteredItems || []}
+                    handleEdit={inventoryHook.handleEdit}
+                    handleDelete={inventoryHook.handleDelete}
+                    updateQuantity={inventoryHook.updateQuantity}
+                    updateItemStatus={(itemId, status) => {
+                      console.log(
+                        "🔄 Direct call to updateItemStatus:",
+                        itemId,
+                        status
+                      );
+                      return inventoryHook.updateItemStatus?.(itemId, status);
+                    }}
                   />
-
-                  {shoppingListItems.length > 0 && (
-                    <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-6 w-6 flex items-center justify-center font-bold shadow-lg ring-2 ring-white">
-                      {shoppingListItems.length > 99
-                        ? "99+"
-                        : shoppingListItems.length}
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              {/* Modals */}
-              <ItemModal {...inventoryHook} />
-              <ManageItemsModal
-                isOpen={showManageModal}
-                onClose={handleModalClose}
-                inventoryHook={inventoryHook}
-              />
-              <ShoppingListModal
-                isOpen={showShoppingListModal}
-                onClose={() => setShowShoppingListModal(false)}
-                items={shoppingListItems}
-              />
+                )}
+              </StandardCard>
             </div>
           </StandardCard>
         </div>
       </PageContainer>
+
+      {/* Floating Action Buttons - Only for family/manager */}
+      {(isManagerView || isFamilyView) && (
+        <div className="fixed bottom-6 right-6 flex flex-col items-end space-y-3 z-50">
+          <FloatingActionButton
+            icon={Plus}
+            label="Add Item"
+            onClick={() => inventoryHook.setIsAddingItem(true)}
+            variant="primary"
+          />
+
+          <div className="relative">
+            <FloatingActionButton
+              icon={ShoppingCart}
+              label="Shopping List"
+              onClick={() => setShowShoppingListModal(true)}
+              variant={
+                shoppingListItems.length > 0 ? "success" : "secondary"
+              }
+            />
+
+            {shoppingListItems.length > 0 && (
+              <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-6 w-6 flex items-center justify-center font-bold shadow-lg ring-2 ring-white">
+                {shoppingListItems.length > 99
+                  ? "99+"
+                  : shoppingListItems.length}
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Modals */}
+      <ItemModal {...inventoryHook} />
+      <ManageItemsModal
+        isOpen={showManageModal}
+        onClose={handleModalClose}
+        inventoryHook={inventoryHook}
+      />
+      <ShoppingListModal
+        isOpen={showShoppingListModal}
+        onClose={() => setShowShoppingListModal(false)}
+        items={shoppingListItems}
+      />
     </div>
   );
 }

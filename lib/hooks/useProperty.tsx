@@ -10,7 +10,7 @@ import React, {
   useMemo,
 } from "react";
 import { useAuth } from "@/components/auth";
-import { getSupabase } from "@/lib/supabase";
+import { supabase, debugSupabaseConfig } from "@/lib/supabase";
 import { debugLog, debugError } from "@/lib/utils/debug";
 
 const isDev = process.env.NODE_ENV === "development";
@@ -40,7 +40,8 @@ const PropertyContext = createContext<PropertyContextType | undefined>(
 
 export function PropertyProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
-  const [currentProperty, setCurrentProperty] = useState(null);
+  const [properties, setProperties] = useState<Property[]>([]);
+  const [currentProperty, setCurrentProperty] = useState<Property | null>(null);
   const [currentTenant, setCurrentTenant] = useState(null);
   const [userProperties, setUserProperties] = useState([]);
   const [userTenants, setUserTenants] = useState([]);
@@ -48,189 +49,90 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const [hasInitialized, setHasInitialized] = useState(false);
 
-  // 🔧 FIX: Remove circular dependency by only depending on user.id
-  useEffect(() => {
-    async function loadUserData() {
-      if (!user) {
-        debugLog("🔍 No user - clearing all data");
-        setCurrentProperty(null);
-        setCurrentTenant(null);
-        setUserTenants([]);
-        setUserProperties([]);
-        setLoading(false);
-        setError(null);
-        setHasInitialized(true);
-        return;
-      }
-
-      // 🔧 FIX: Prevent multiple simultaneous loads
-      if (hasInitialized && loading) {
-        debugLog("🔍 Already loading, skipping...");
-        return;
-      }
-
-      setLoading(true);
-      setError(null);
-      if (isDev) {
-        debugLog("🔍 Loading data for user:", user.id);
-        debugLog("🔍 Starting property lookup for user:", user.id);
-      }
-
-      try {
-        const supabase = getSupabase();
-        
-        // Add session check
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
-        debugLog("🔍 Current session:", session?.user?.id);
-
-        // Get user's tenant IDs first
-        const { data: userTenants, error: tenantError } = await supabase
-          .from("tenant_users")
-          .select("tenant_id")
-          .eq("user_id", user.id)
-          .eq("status", "active");
-
-        if (tenantError) {
-          debugError("❌ Error fetching tenant IDs:", tenantError);
-        }
-
-        const tenantIds = userTenants?.map((t) => t.tenant_id) || [];
-
-        debugLog("🔍 User tenant IDs:", tenantIds);
-        debugLog("🔍 User ID:", user.id);
-
-        // Get properties created by user
-        const { data: ownedProperties, error: ownedError } = await supabase
-          .from("properties")
-          .select(
-            `
-            *,
-            tenants (
-              id,
-              name
-            )
-          `
-          )
-          .eq("created_by", user.id);
-
-        debugLog("🔍 Owned properties query result:", {
-          ownedProperties,
-          ownedError,
-        });
-
-        if (ownedError) throw ownedError;
-
-        let tenantProperties = [];
-
-        // Get properties from user's tenants (if any)
-        if (tenantIds.length > 0) {
-          const { data: props, error: tenantError } = await supabase
-            .from("properties")
-            .select(
-              `
-              *,
-              tenants (
-                id,
-                name
-              )
-            `
-            )
-            .in("tenant_id", tenantIds)
-            .neq("created_by", user.id);
-
-          debugLog("🔍 Tenant properties query result:", {
-            props,
-            tenantError,
-          });
-
-          if (tenantError) throw tenantError;
-          tenantProperties = props || [];
-        }
-
-        // Combine and deduplicate properties
-        const allProperties = [...(ownedProperties || []), ...tenantProperties];
-        debugLog("🔍 All properties before deduplication:", allProperties);
-
-        const uniqueProperties = allProperties.filter(
-          (prop, index, self) =>
-            index === self.findIndex((p) => p.id === prop.id)
-        );
-
-        const properties = uniqueProperties.sort((a, b) =>
-          a.name.localeCompare(b.name)
-        );
-
-        debugLog("✅ Final properties after processing:", properties);
-
-        if (properties && properties.length > 0) {
-          const firstProperty = properties[0];
-
-          // Set properties array first
-          setUserProperties(properties);
-
-          // Create tenant object
-          let tenantObj;
-          const inferredTenant = properties.find(
-            (p) => p.created_by !== user.id
-          );
-
-          if (inferredTenant) {
-            tenantObj = {
-              id: inferredTenant.tenant_id,
-              user_id: user.id,
-              role: "member",
-              tenant_id: inferredTenant.tenant_id,
-              tenant: {
-                id: inferredTenant.tenant_id,
-                name: "Inferred Tenant",
-              },
-            };
-            debugLog("✅ Inferred tenant from property:", tenantObj);
-          } else {
-            tenantObj = {
-              id: `owner-${user.id}`,
-              user_id: user.id,
-              role: "owner",
-              tenant_id: firstProperty.tenant_id,
-              tenant: {
-                id: firstProperty.tenant_id,
-                name: "Property Owner",
-              },
-            };
-            debugLog("✅ Set up as property owner:", tenantObj);
-          }
-
-          // Set tenant first, then property
-          setCurrentTenant(tenantObj);
-          setUserTenants([tenantObj]);
-          setCurrentProperty(firstProperty);
-          
-          debugLog("✅ Property and tenant both set:", {
-            property: firstProperty.name,
-            tenant: tenantObj.tenant.name,
-          });
-        } else {
-          debugLog("🔍 No properties found for user");
-          setUserProperties([]);
-          setCurrentProperty(null);
-          setCurrentTenant(null);
-          setUserTenants([]);
-        }
-      } catch (error: any) {
-        debugError("❌ Error loading user data:", error);
-        setError(error?.message || "Failed to load user data");
-        setUserTenants([]);
-        setUserProperties([]);
-        setCurrentTenant(null);
-        setCurrentProperty(null);
-      } finally {
-        setLoading(false);
-        setHasInitialized(true);
-      }
+  const loadUserData = async () => {
+    if (!user?.id) {
+      console.log("❌ No user ID - exiting loadUserData");
+      return;
     }
 
+    console.log("🔍 === WORKING FRESH CLIENT VERSION ===");
+    setLoading(true);
+    setError(null);
+
+    try {
+      // Create fresh client (this works!)
+      const { createClient } = await import("@supabase/supabase-js");
+
+      const supabaseUrl = "https://hkrgfqpshdoroimlulzw.supabase.co";
+      const supabaseKey =
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhrcmdmcXBzaGRvcm9pbWx1bHp3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY3NTk3MTMsImV4cCI6MjA2MjMzNTcxM30.Wt84o_Xcvdqp48qZVqYEmMLBY8VTvTsPBTysN3LvRm0";
+
+      const freshClient = createClient(supabaseUrl, supabaseKey, {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false,
+        },
+      });
+
+      console.log("🆕 Fresh client created successfully");
+
+      // Get user properties with fresh client
+      const { data: userProperties, error: propertiesError } = await freshClient
+        .from("properties")
+        .select("*")
+        .eq("created_by", user.id);
+
+      console.log("🏠 Fresh client properties result:", {
+        count: userProperties?.length,
+        data: userProperties,
+        error: propertiesError,
+      });
+
+      if (propertiesError) {
+        throw new Error(`Properties query failed: ${propertiesError.message}`);
+      }
+
+      // Check what state setters are actually available in your hook
+      console.log("🔍 Available setters check:", {
+        hasSetProperties: typeof setProperties !== "undefined",
+        hasSetCurrentProperty: typeof setCurrentProperty !== "undefined",
+        hasSetData: typeof setData !== "undefined",
+        hasSetProperty: typeof setProperty !== "undefined",
+      });
+
+      // Try different possible setter names
+      if (typeof setProperties !== "undefined") {
+        console.log("✅ Using setProperties");
+        setProperties(userProperties || []);
+      } else if (typeof setData !== "undefined") {
+        console.log("✅ Using setData");
+        setData(userProperties || []);
+      } else {
+        console.log("❌ No properties setter found - will set manually in context");
+      }
+
+      if (
+        typeof setCurrentProperty !== "undefined" &&
+        userProperties &&
+        userProperties.length > 0
+      ) {
+        setCurrentProperty(userProperties[0]);
+        console.log("✅ SUCCESS! Set current property:", userProperties[0].name);
+      } else if (userProperties && userProperties.length > 0) {
+        console.log("✅ Property found but no setter:", userProperties[0].name);
+      }
+
+      console.log("🎉 === FRESH CLIENT SUCCESS - DATA LOADED ===");
+    } catch (error) {
+      console.error("💥 Error:", error);
+      setError(`Failed to load properties: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 🔧 FIX: Remove circular dependency by only depending on user.id
+  useEffect(() => {
     loadUserData();
   }, [user?.id]); // 🔧 FIX: Only depend on user.id, not hasInitialized
 
@@ -278,7 +180,6 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
 
   const updateProperty = useCallback(
     async (propertyId: string, updates: any) => {
-      const supabase = getSupabase();
       const { error } = await supabase
         .from("properties")
         .update(updates)
@@ -303,7 +204,6 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
   const refreshProperty = useCallback(async () => {
     if (!currentProperty?.id) return;
 
-    const supabase = getSupabase();
     const { data, error } = await supabase
       .from("properties")
       .select("*")

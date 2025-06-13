@@ -32,7 +32,7 @@ import {
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import Image from "next/image";
-import { getSupabase } from '@/lib/supabase'
+import { supabase } from "@/lib/supabase";
 
 // Define interfaces for navigation items
 interface NavigationItem {

@@ -5,6 +5,7 @@ import { PropertyProvider } from "@/lib/hooks/useProperty";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { Toaster } from "react-hot-toast";
 import MainLayout from "@/components/layout/MainLayout"; // ✅ Use your existing MainLayout
+import { supabase } from '@/lib/supabase';
 
 const inter = Inter({ subsets: ["latin"] });
 

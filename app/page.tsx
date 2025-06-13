@@ -6,7 +6,7 @@ import { useProperty } from "@/lib/hooks/useProperty";
 import { supabase } from "@/lib/supabase";
 import Header from "@/components/layout/Header";
 import PageContainer from "@/components/layout/PageContainer";
-import DashboardHeader from "@/components/dashboard/DashboardHeader";
+import DashboardHeader from "@/components/dashboard/DashboardHeader"; // ✅ Add back banner
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import StandardCard from "@/components/ui/StandardCard";
 import { Home as HomeIcon } from "lucide-react";
@@ -30,13 +30,13 @@ interface InventoryItem {
 
 export default function HomePage() {
   // ✅ ALL HOOKS FIRST
-  const { user, loading } = useAuth();
-  const { currentProperty } = useProperty();
+  const { user, loading: authLoading } = useAuth();
+  const { currentProperty, loading: propertyLoading } = useProperty();
   const [upcomingVisits, setUpcomingVisits] = useState<UpcomingVisit[]>([]);
   const [inventoryAlerts, setInventoryAlerts] = useState<InventoryItem[]>([]);
   const [taskAlerts, setTaskAlerts] = useState<any[]>([]);
   const [totalInventoryCount, setTotalInventoryCount] = useState(0);
-  const [dashboardLoading, setDashboardLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
   const [hasInitialized, setHasInitialized] = useState(false);
 
   // Loading states for individual components
@@ -78,7 +78,7 @@ export default function HomePage() {
     }
 
     console.log("🔍 Fetching dashboard data for property:", currentProperty.id);
-    setDashboardLoading(true);
+    setLoading(true);
 
     try {
       // Visits
@@ -129,19 +129,19 @@ export default function HomePage() {
       console.error("❌ Error fetching dashboard data:", error);
       setComponentLoading({ visits: false, inventory: false, tasks: false });
     } finally {
-      setDashboardLoading(false);
+      setLoading(false);
     }
   };
 
   // ✅ Effect with proper timing
   useEffect(() => {
-    if (loading) {
+    if (authLoading || propertyLoading) {
       return;
     }
 
     if (!user?.id || !currentProperty?.id) {
       console.log("⏳ Waiting for user and property to load...");
-      setDashboardLoading(false);
+      setLoading(false);
       setHasInitialized(true);
       return;
     }
@@ -152,31 +152,121 @@ export default function HomePage() {
     );
     setHasInitialized(true);
     fetchDashboardData();
-  }, [currentProperty?.id, user?.id, loading]);
+  }, [currentProperty?.id, user?.id, authLoading, propertyLoading]);
+
+  // Add this inside your main useEffect:
+  useEffect(() => {
+    const testPropertyData = async () => {
+      if (!user?.id) return;
+
+      console.log("🔍 Testing property data fetch...");
+
+      try {
+        // Test 1: Get user tenants
+        const { data: tenants, error: tenantsError } = await supabase
+          .from("tenants")
+          .select("*")
+          .eq("owner_user_id", user.id);
+
+        console.log("👥 User tenants:", tenants, tenantsError);
+
+        // Test 2: Get all properties for user
+        const { data: properties, error: propertiesError } = await supabase
+          .from("properties")
+          .select("*")
+          .eq("created_by", user.id);
+
+        console.log("🏠 User properties:", properties, propertiesError);
+
+        // Test 3: Get property tenants
+        if (tenants && tenants.length > 0) {
+          const { data: propTenants, error: propTenantsError } = await supabase
+            .from("property_tenants")
+            .select("*, properties(*)")
+            .eq("tenant_id", tenants[0].id);
+
+          console.log("🔗 Property tenants:", propTenants, propTenantsError);
+        }
+      } catch (error) {
+        console.error("💥 Property test failed:", error);
+      }
+    };
+
+    if (hasInitialized && user?.id) {
+      testPropertyData();
+    }
+  }, [hasInitialized, user?.id]);
+
+  // Add this useEffect temporarily to test from the dashboard:
+  useEffect(() => {
+    const quickPropertyTest = async () => {
+      if (!user?.id) return;
+
+      console.log("🏠 === DASHBOARD PROPERTY TEST ===");
+
+      try {
+        // Quick test - get any data at all
+        const { data: anyData, error } = await supabase
+          .from("properties")
+          .select("*")
+          .limit(5);
+
+        console.log("📊 Quick property test:", { anyData, error });
+
+        if (anyData && anyData.length > 0) {
+          console.log("✅ Database has properties!");
+          console.log("🔍 Sample property:", anyData[0]);
+        } else {
+          console.log("❌ No properties found in database");
+        }
+      } catch (err) {
+        console.error("💥 Quick test failed:", err);
+      }
+    };
+
+    quickPropertyTest();
+  }, [user?.id]);
 
   // Handle new reservation callback
   const handleAddReservation = () => {
     console.log("➕ Add reservation triggered");
-    router.push("/calendar");
+    // You can add navigation to calendar page or open a modal here
+    window.location.href = "/calendar";
   };
 
   // Redirect to auth if no user
   useEffect(() => {
-    if (!loading && !user) {
+    if (!authLoading && !user) {
       console.log("🔄 No user found, redirecting to auth...");
       router.push("/auth");
     }
-  }, [user, loading, router]);
+  }, [user, authLoading, router]);
 
   // Add this at the top of your HomePage component
-  console.log('🏠 HomePage render - Auth state:', { 
-    user: user?.email || 'none', 
-    loading, 
-    currentProperty: currentProperty?.name || 'none'
+  console.log("🏠 HomePage render - Auth state:", {
+    user: user?.email || "none",
+    authLoading,
+    propertyLoading,
+    currentProperty: currentProperty?.name || "none",
   });
 
+  // Add this useEffect at the top of your HomePage component, right after the existing useEffect blocks:
+  useEffect(() => {
+    console.log("🔧 === ENVIRONMENT DEBUG ===");
+    console.log(
+      "🔧 NEXT_PUBLIC_SUPABASE_URL:",
+      process.env.NEXT_PUBLIC_SUPABASE_URL
+    );
+    console.log(
+      "🔧 NEXT_PUBLIC_SUPABASE_ANON_KEY first 20:",
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.substring(0, 20)
+    );
+    console.log("🔧 Expected URL: https://hkrgfqpshdoroimlulzw.supabase.co");
+    console.log("🔧 Expected Key first 20: eyJhbGciOiJIUzI1NiIsI");
+  }, []);
+
   // ✅ Early returns AFTER all hooks
-  if (loading) {
+  if (authLoading || propertyLoading) {
     return (
       <div className="p-6">
         <Header title="Dashboard" />
