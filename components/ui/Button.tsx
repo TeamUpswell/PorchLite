@@ -1,9 +1,6 @@
 import * as React from "react";
-import { ReactNode } from "react";
-import Link from "next/link";
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  children?: ReactNode;
   variant?:
     | "default"
     | "destructive"
@@ -12,24 +9,10 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
     | "ghost"
     | "link";
   size?: "default" | "sm" | "lg" | "icon";
-  isLoading?: boolean;
-  href?: string;
-  className?: string;
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  (
-    {
-      children,
-      className = "",
-      variant = "default",
-      size = "default",
-      isLoading = false,
-      href,
-      ...props
-    },
-    ref
-  ) => {
+  ({ className = "", variant = "default", size = "default", ...props }, ref) => {
     const baseStyles =
       "inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 disabled:pointer-events-none disabled:opacity-50";
 
@@ -49,36 +32,12 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       icon: "h-10 w-10",
     };
 
-    const disabledClasses = isLoading ? "opacity-70 cursor-not-allowed" : "";
-
-    // Combine classes
-    const buttonClasses = `${baseStyles} ${variants[variant]} ${sizes[size]} ${disabledClasses} ${className}`;
-
-    // If href is provided, render as Link
-    if (href) {
-      return (
-        <Link href={href} className={buttonClasses}>
-          {isLoading ? (
-            <span className="mr-2 inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"></span>
-          ) : null}
-          {children}
-        </Link>
-      );
-    }
-
-    // Otherwise render as button
     return (
       <button
-        className={buttonClasses}
-        disabled={isLoading}
+        className={`${baseStyles} ${variants[variant]} ${sizes[size]} ${className}`}
         ref={ref}
         {...props}
-      >
-        {isLoading ? (
-          <span className="mr-2 inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"></span>
-        ) : null}
-        {children}
-      </button>
+      />
     );
   }
 );
