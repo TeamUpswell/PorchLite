@@ -1,18 +1,22 @@
 "use client";
 
 import { useState } from "react";
-import { Metadata } from "next";
+import { useRouter } from "next/navigation";
+import { signUp } from "@/lib/auth";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-// Fix the metadata - this should be for signup, not login
-export const metadata: Metadata = {
-  title: "Sign Up - PorchLite",
-  description: "Create your PorchLite account",
-};
+// Remove the metadata export - client components can't export metadata
+// Metadata should be in a layout.tsx or moved to a server component
 
 export default function SignUpPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -21,6 +25,8 @@ export default function SignUpPage() {
     try {
       // Add your signup logic here
       console.log("Signing up with:", { email, password });
+      await signUp(email, password);
+      router.push("/"); // Redirect to home or desired page after signup
     } catch (error) {
       console.error("Signup error:", error);
     } finally {
@@ -40,37 +46,35 @@ export default function SignUpPage() {
           </div>
 
           <form onSubmit={handleSubmit} className="mt-6 space-y-4">
-            <input
+            <Input
               type="email"
               placeholder="Email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-3 py-2 border rounded-md"
               required
             />
-            <input
+            <Input
               type="password"
               placeholder="Password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-3 py-2 border rounded-md"
               required
             />
-            <button
+            <Button
               type="submit"
               disabled={loading}
               className="w-full py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
             >
               {loading ? "Creating Account..." : "Sign Up"}
-            </button>
+            </Button>
           </form>
 
           <div className="mt-4 text-center">
             <p className="text-sm text-gray-600">
               Already have an account?{" "}
-              <a href="/login" className="text-blue-600 hover:underline">
+              <Link href="/login" className="text-blue-600 hover:underline">
                 Sign in
-              </a>
+              </Link>
             </p>
           </div>
         </div>

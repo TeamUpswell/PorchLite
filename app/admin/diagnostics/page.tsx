@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import DatabaseDiagnostic from "@/components/DatabaseDiagnostic";
+import DatabaseDiagnostics from "@/components/admin/DatabaseDiagnostics";
 import { useAuth } from "@/components/auth";
 import Header from "@/components/layout/Header";
 import PageContainer from "@/components/layout/PageContainer";
@@ -193,8 +193,7 @@ export default function DiagnosticsPage() {
               title="Quick Database Check" 
               icon={<Database className="h-5 w-5 text-gray-600" />}
             >
-              <DatabaseDiagnostic
-                mode="advanced"
+              <DatabaseDiagnostics
                 showAdvanced={true}
                 showSeeding={true}
               />
