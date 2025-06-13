@@ -1,75 +1,97 @@
 // app/api/places/photo/route.ts
 import { NextRequest, NextResponse } from "next/server";
 
-// Add this line to make the route dynamic
-export const dynamic = "force-dynamic";
-
 export async function GET(request: NextRequest) {
-  try {
-    // Get query parameters
-    const url = new URL(request.url);
-    const photoReference = url.searchParams.get("photo_reference");
-    const maxWidth = url.searchParams.get("maxwidth") || "400";
+  console.log("🚀 Photo API called");
+  
+  const searchParams = request.nextUrl.searchParams;
+  const placeId = searchParams.get("place_id");
+  const photoReference = searchParams.get("photo_reference");
+  const maxWidth = searchParams.get("max_width") || searchParams.get("maxwidth") || "400";
+  const maxHeight = searchParams.get("max_height") || searchParams.get("maxheight") || "400";
 
-    if (!photoReference) {
-      console.error("❌ Missing photo_reference parameter");
-      return NextResponse.json(
-        { error: "photo_reference is required" },
-        { status: 400 }
-      );
-    }
+  console.log("📸 Photo API params:", { placeId, photoReference, maxWidth, maxHeight });
 
-    // Important: Use the server-side key, not the public key
-    const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+  // Use the same API key variable as your search route
+  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_PLACES_API_KEY || process.env.GOOGLE_PLACES_API_KEY;
 
-    if (!apiKey) {
-      console.error("❌ Google Maps API key not configured");
-      return NextResponse.json(
-        { error: "API key not configured" },
-        { status: 500 }
-      );
-    }
-
-    console.log(`📸 Fetching photo with reference: ${photoReference.substring(0, 20)}...`);
-
-    // Construct the Google Places Photo API URL
-    const googlePhotoUrl = `https://maps.googleapis.com/maps/api/place/photo?photo_reference=${photoReference}&maxwidth=${maxWidth}&key=${apiKey}`;
-
-    // Fetch the photo from Google Places API
-    const response = await fetch(googlePhotoUrl);
-
-    if (!response.ok) {
-      console.error(`❌ Google Photo API HTTP error: ${response.status}`);
-      return NextResponse.json(
-        {
-          error: `Google Photo API HTTP error: ${response.status}`,
-        },
-        { status: response.status }
-      );
-    }
-
-    // Get the image as a buffer
-    const imageBuffer = await response.arrayBuffer();
-    const contentType = response.headers.get('content-type') || 'image/jpeg';
-
-    console.log(`✅ Successfully fetched photo (${imageBuffer.byteLength} bytes)`);
-
-    // Return the image with proper headers
-    return new NextResponse(imageBuffer, {
-      status: 200,
-      headers: {
-        'Content-Type': contentType,
-        'Cache-Control': 'public, max-age=86400', // Cache for 24 hours
-      },
-    });
-
-  } catch (error) {
-    console.error("❌ Error fetching photo:", error);
+  if (!apiKey) {
+    console.error("❌ Google Places API key not configured");
     return NextResponse.json(
-      {
-        error: "Failed to fetch photo",
-        details: error instanceof Error ? error.message : "Unknown error",
-      },
+      { error: "API key not configured" },
+      { status: 500 }
+    );
+  }
+
+  try {
+    // If we have a photo_reference, serve the image directly
+    if (photoReference) {
+      console.log("📸 Serving photo with reference:", photoReference);
+      const photoUrl = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=${maxWidth}&photo_reference=${photoReference}&key=${apiKey}`;
+
+      const response = await fetch(photoUrl);
+      if (!response.ok) {
+        console.error("❌ Google photo fetch failed:", response.status);
+        throw new Error("Failed to fetch photo from Google");
+      }
+
+      const buffer = await response.arrayBuffer();
+      return new NextResponse(buffer, {
+        headers: {
+          "Content-Type": response.headers.get("Content-Type") || "image/jpeg",
+        },
+      });
+    }
+
+    // If we have a place_id, get place details first
+    if (placeId) {
+      console.log("📍 Fetching place details for:", placeId);
+      const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=photos&key=${apiKey}`;
+
+      console.log("🔗 Calling Google API for place details");
+      const detailsResponse = await fetch(detailsUrl);
+      
+      if (!detailsResponse.ok) {
+        console.error("❌ Google details fetch failed:", detailsResponse.status);
+        throw new Error("Failed to fetch place details");
+      }
+
+      const detailsData = await detailsResponse.json();
+      console.log("📋 Place details response status:", detailsData.status);
+
+      if (detailsData.status !== "OK") {
+        console.error("❌ Google API error:", detailsData.status, detailsData.error_message);
+        return NextResponse.json(
+          { error: `Google API error: ${detailsData.status}` },
+          { status: 400 }
+        );
+      }
+
+      if (!detailsData.result?.photos || detailsData.result.photos.length === 0) {
+        console.log("📷 No photos found for place:", placeId);
+        return NextResponse.json(
+          { error: "No photos found for this place" },
+          { status: 404 }
+        );
+      }
+
+      const firstPhotoReference = detailsData.result.photos[0].photo_reference;
+      console.log("✅ Found photo reference:", firstPhotoReference);
+
+      return NextResponse.json({
+        photo_url: `/api/places/photo?photo_reference=${firstPhotoReference}&maxwidth=${maxWidth}`,
+      });
+    }
+
+    console.log("❌ Missing required parameters");
+    return NextResponse.json(
+      { error: "Missing place_id or photo_reference parameter" },
+      { status: 400 }
+    );
+  } catch (error) {
+    console.error("❌ Error in photo API:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch photo", details: error.message },
       { status: 500 }
     );
   }

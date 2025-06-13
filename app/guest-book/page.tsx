@@ -388,151 +388,226 @@ export default function GuestBookPage() {
               </StandardCard>
             </div>
           ) : (
-            /* Guest book entries display */
-            <div className="space-y-6">
-              {/* Add new entry prompt */}
-              <StandardCard className="bg-gradient-to-r from-blue-50 to-purple-50 border-blue-200">
-                <div className="p-4 text-center">
-                  <p className="text-gray-700 mb-3">
-                    <strong>📖 Add your chapter to our home's story!</strong>{" "}
-                    We love reading about the memories our guests make here.
-                  </p>
-                  <button
-                    onClick={() => setShowWizardModal(true)}
-                    className="inline-flex items-center bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium transition-colors"
-                  >
-                    <Heart className="h-4 w-4 mr-2" />
-                    Share Your Memory
-                  </button>
-                </div>
-              </StandardCard>
+            /* Guest book entries - Timeline Layout */
+            <div className="space-y-8">
+              {/* Timeline Header */}
+              <div className="text-center mb-12">
+                <h2 className="text-3xl font-bold text-gray-900 mb-4">
+                  Memory Timeline
+                </h2>
+                <p className="text-gray-600 max-w-2xl mx-auto">
+                  Follow the journey of guests who have made this place their temporary home
+                </p>
+                <div className="mt-6 w-24 h-1 bg-gradient-to-r from-rose-400 to-amber-400 mx-auto rounded-full"></div>
+              </div>
 
-              {/* Guest book entries */}
-              {entries.map((entry) => (
-                <StandardCard key={entry.id} className="overflow-hidden">
-                  <div className="p-6">
-                    {/* Entry header */}
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex-1">
-                        <h3 className="text-xl font-bold text-gray-900 mb-2">
-                          {entry.title || `A wonderful stay`}
-                        </h3>
-                        <div className="flex items-center space-x-4 text-sm text-gray-500">
-                          <span className="flex items-center">
-                            <Calendar className="h-4 w-4 mr-1" />
-                            {new Date(entry.visit_date).toLocaleDateString("en-US", {
-                              year: "numeric",
-                              month: "long",
-                              day: "numeric",
-                            })}
-                          </span>
-                          <span className="flex items-center">
-                            <Heart className="h-4 w-4 mr-1" />
-                            {entry.guest_name}
-                          </span>
+              {/* Add new entry prompt - Timeline style */}
+              <div className="relative">
+                <div className="flex items-center mb-8">
+                  <div className="flex-shrink-0 w-4 h-4 bg-blue-500 rounded-full border-4 border-white shadow-lg z-10"></div>
+                  <div className="flex-1 ml-6">
+                    <StandardCard className="bg-gradient-to-r from-blue-50 to-purple-50 border-blue-200">
+                      <div className="p-6">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                              📖 Add Your Chapter
+                            </h3>
+                            <p className="text-gray-600">
+                              Share your experience and become part of this home's story
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => setShowWizardModal(true)}
+                            className="inline-flex items-center bg-blue-600 text-white px-6 py-3 rounded-xl hover:bg-blue-700 font-medium transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
+                          >
+                            <Heart className="h-5 w-5 mr-2" />
+                            Share Memory
+                          </button>
                         </div>
                       </div>
-                      <div className="flex items-center bg-amber-50 px-3 py-2 rounded-lg">
-                        {renderStars(entry.rating)}
-                        <span className="ml-2 text-sm font-medium text-gray-700">
-                          {entry.rating}/5
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Photos section */}
-                    {((entry.guest_book_photos && entry.guest_book_photos.length > 0) ||
-                      (entry.photos && entry.photos.length > 0)) && (
-                      <div className="mb-6">
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                          {entry.guest_book_photos?.map((photo, index) => (
-                            <div key={photo.id} className="relative group">
-                              <div className="relative overflow-hidden rounded-lg bg-gray-100 aspect-video">
-                                <Image
-                                  src={photo.photo_url}
-                                  alt={photo.caption || `Photo ${index + 1}`}
-                                  fill
-                                  className="object-cover group-hover:scale-105 transition-transform duration-200"
-                                />
-                                <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-opacity duration-200" />
-                              </div>
-                              {photo.caption && (
-                                <p className="mt-2 text-sm text-gray-600 italic">
-                                  {photo.caption}
-                                </p>
-                              )}
-                            </div>
-                          ))}
-
-                          {entry.photos?.map((photoUrl, index) => (
-                            <div key={index} className="relative group">
-                              <div className="relative overflow-hidden rounded-lg bg-gray-100 aspect-video">
-                                <Image
-                                  src={photoUrl}
-                                  alt={entry.photo_captions?.[index] || `Photo ${index + 1}`}
-                                  fill
-                                  className="object-cover group-hover:scale-105 transition-transform duration-200"
-                                />
-                                <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-opacity duration-200" />
-                              </div>
-                              {entry.photo_captions?.[index] && (
-                                <p className="mt-2 text-sm text-gray-600 italic">
-                                  {entry.photo_captions[index]}
-                                </p>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Message */}
-                    {entry.message && (
-                      <div className="mb-6">
-                        <div className="bg-gray-50 rounded-lg p-4 border-l-4 border-blue-400">
-                          <p className="text-gray-800 leading-relaxed text-lg italic">
-                            "{entry.message}"
-                          </p>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Status indicators and metadata */}
-                    <div className="flex flex-wrap items-center justify-between pt-4 border-t border-gray-100">
-                      <div className="flex flex-wrap gap-2">
-                        {entry.everything_was_great && (
-                          <span className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-green-100 text-green-800 font-medium">
-                            ✨ Everything was perfect
-                          </span>
-                        )}
-                        {entry.everything_well_stocked && (
-                          <span className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-800 font-medium">
-                            📦 Well stocked
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="text-sm text-gray-500 mt-2 md:mt-0">
-                        Shared {new Date(entry.created_at).toLocaleDateString()}
-                      </div>
-                    </div>
-
-                    {/* Edit button */}
-                    {canEditEntry(entry) && (
-                      <button
-                        onClick={() => {
-                          setEditingEntry(entry);
-                          setShowWizardModal(true);
-                        }}
-                        className="inline-flex items-center text-blue-600 hover:text-blue-800 text-sm font-medium"
-                      >
-                        <Edit className="h-4 w-4 mr-1" />
-                        Edit
-                      </button>
-                    )}
+                    </StandardCard>
                   </div>
-                </StandardCard>
-              ))}
+                </div>
+                {/* Vertical line */}
+                <div className="absolute left-2 top-8 bottom-0 w-0.5 bg-gray-200"></div>
+              </div>
+
+              {/* Timeline Entries */}
+              <div className="relative">
+                {/* Main timeline line */}
+                <div className="absolute left-2 top-0 bottom-0 w-0.5 bg-gray-200"></div>
+                
+                {entries.map((entry, index) => (
+                  <div key={entry.id} className="relative mb-8 last:mb-0">
+                    {/* Timeline dot */}
+                    <div className="absolute left-0 w-4 h-4 bg-gradient-to-r from-rose-400 to-amber-400 rounded-full border-4 border-white shadow-lg z-10 transform -translate-x-[7px]"></div>
+                    
+                    {/* Date badge */}
+                    <div className="absolute left-8 -top-1">
+                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700 border">
+                        <Calendar className="h-3 w-3 mr-1" />
+                        {new Date(entry.visit_date).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                        })}
+                      </span>
+                    </div>
+
+                    {/* Entry content - more compact */}
+                    <div className="ml-10 mt-3">
+                      <StandardCard className="overflow-hidden hover:shadow-lg transition-shadow duration-200">
+                        <div className="p-4">
+                          {/* Compact header */}
+                          <div className="flex items-start justify-between mb-3">
+                            <div className="flex-1 min-w-0">
+                              <h3 className="text-lg font-bold text-gray-900 mb-1 leading-tight truncate">
+                                {entry.title || `A wonderful stay`}
+                              </h3>
+                              <div className="flex items-center space-x-3 text-sm text-gray-500">
+                                <span className="flex items-center font-medium">
+                                  <Heart className="h-3 w-3 mr-1 text-rose-400" />
+                                  {entry.guest_name}
+                                </span>
+                                <span className="text-gray-300">•</span>
+                                <span className="truncate">
+                                  {new Date(entry.visit_date).toLocaleDateString("en-US", {
+                                    weekday: "long"
+                                  })}
+                                </span>
+                              </div>
+                            </div>
+                            
+                            {/* Compact rating */}
+                            <div className="flex items-center bg-gradient-to-r from-amber-50 to-yellow-50 px-3 py-1 rounded-lg border border-amber-200 ml-3">
+                              <div className="flex items-center">
+                                {renderStars(entry.rating)}
+                              </div>
+                              <span className="ml-1 text-sm font-bold text-amber-700">
+                                {entry.rating}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Compact message */}
+                          {entry.message && (
+                            <div className="mb-4">
+                              <div className="bg-gradient-to-r from-gray-50 to-blue-50 rounded-lg p-3 border-l-3 border-blue-400">
+                                <p className="text-gray-800 leading-relaxed italic">
+                                  "{entry.message}"
+                                </p>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Compact photos grid */}
+                          {((entry.guest_book_photos && entry.guest_book_photos.length > 0) ||
+                            (entry.photos && entry.photos.length > 0)) && (
+                            <div className="mb-4">
+                              <div className="flex items-center mb-2">
+                                <Camera className="h-4 w-4 text-gray-400 mr-1" />
+                                <span className="text-xs font-medium text-gray-600">
+                                  Memory Snapshots
+                                </span>
+                              </div>
+                              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                                {entry.guest_book_photos?.map((photo, photoIndex) => (
+                                  <div key={photo.id} className="relative group">
+                                    <div className="relative overflow-hidden rounded-lg bg-gray-100 aspect-square">
+                                      <Image
+                                        src={photo.photo_url}
+                                        alt={photo.caption || `Memory ${photoIndex + 1}`}
+                                        fill
+                                        className="object-cover group-hover:scale-110 transition-transform duration-300"
+                                      />
+                                      {photo.caption && (
+                                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                                          <p className="text-white text-xs">
+                                            {photo.caption}
+                                          </p>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                ))}
+
+                                {entry.photos?.map((photoUrl, photoIndex) => (
+                                  <div key={photoIndex} className="relative group">
+                                    <div className="relative overflow-hidden rounded-lg bg-gray-100 aspect-square">
+                                      <Image
+                                        src={photoUrl}
+                                        alt={entry.photo_captions?.[photoIndex] || `Memory ${photoIndex + 1}`}
+                                        fill
+                                        className="object-cover group-hover:scale-110 transition-transform duration-300"
+                                      />
+                                      {entry.photo_captions?.[photoIndex] && (
+                                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                                          <p className="text-white text-xs">
+                                            {entry.photo_captions[photoIndex]}
+                                          </p>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Compact status and actions */}
+                          <div className="flex flex-wrap items-center justify-between pt-3 border-t border-gray-100">
+                            <div className="flex flex-wrap gap-1">
+                              {entry.everything_was_great && (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-800 font-medium">
+                                  ✨ Perfect
+                                </span>
+                              )}
+                              {entry.everything_well_stocked && (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-blue-100 text-blue-800 font-medium">
+                                  📦 Well stocked
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="flex items-center space-x-3 mt-1 md:mt-0">
+                              <div className="text-xs text-gray-500">
+                                {new Date(entry.created_at).toLocaleDateString()}
+                              </div>
+                              
+                              {canEditEntry(entry) && (
+                                <button
+                                  onClick={() => {
+                                    setEditingEntry(entry);
+                                    setShowWizardModal(true);
+                                  }}
+                                  className="inline-flex items-center px-2 py-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50 text-xs font-medium rounded transition-all duration-200"
+                                >
+                                  <Edit className="h-3 w-3 mr-1" />
+                                  Edit
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </StandardCard>
+                    </div>
+                  </div>
+                ))}
+
+                {/* Timeline end marker */}
+                <div className="relative">
+                  <div className="absolute left-0 w-4 h-4 bg-gray-300 rounded-full border-4 border-white shadow-sm transform -translate-x-[7px]"></div>
+                  <div className="ml-10">
+                    <div className="text-center py-4">
+                      <div className="inline-flex items-center px-3 py-1 bg-gray-50 rounded-full text-xs text-gray-500 border">
+                        <Heart className="h-3 w-3 mr-1 text-gray-400" />
+                        The story continues...
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
         </div>

@@ -18,15 +18,15 @@ import PageContainer from "@/components/layout/PageContainer";
 import StandardCard from "@/components/ui/StandardCard";
 import { useProperty } from "@/lib/hooks/useProperty";
 import { supabase } from "@/lib/supabase";
-import GooglePlacePhoto from "@/components/GooglePlacePhoto";
+import DynamicGooglePlacePhoto from "@/components/DynamicGooglePlacePhoto";
 import RecommendationComments from "@/components/recommendations/RecommendationComments";
 import RecommendationFilters from "@/components/recommendations/RecommendationFilters";
 import { MultiActionPattern } from "@/components/ui/FloatingActionPresets";
 import PlaceSearch from "@/components/maps/PlaceSearch";
-import DynamicGooglePlacePhoto from "@/components/DynamicGooglePlacePhoto";
 import GooglePlacesSearch from "@/components/ui/GooglePlacesSearch";
 import { debugLog, debugError } from "@/lib/utils/debug";
 import LoadingSpinner from "@/components/LoadingSpinner";
+import Image from "next/image";
 
 interface Recommendation {
   id: string;
@@ -520,6 +520,28 @@ export default function RecommendationsPage() {
                                 width={400}
                                 height={300}
                                 className="w-full h-full object-cover"
+                                fallback={
+                                  <div className="h-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center">
+                                    <span className="text-4xl">
+                                      {category?.icon || "📍"}
+                                    </span>
+                                  </div>
+                                }
+                              />
+                            ) : rec.images &&
+                              rec.images.length > 0 &&
+                              rec.images[0] ? (
+                              <Image
+                                src={rec.images[0]}
+                                alt={rec.name}
+                                fill
+                                className="object-cover"
+                                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                                onError={() =>
+                                  console.log(
+                                    `Failed to load image: ${rec.images[0]}`
+                                  )
+                                }
                               />
                             ) : (
                               <div className="h-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center">
