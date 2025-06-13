@@ -2,12 +2,14 @@
 
 import { useViewMode } from "@/lib/hooks/useViewMode";
 import { useState, useEffect } from "react";
-import { Users, Plus, Phone, Mail, MapPin, Edit } from "lucide-react";
+import { Users, Phone, Mail, MapPin, Edit } from "lucide-react";
 import Link from "next/link";
 import StandardCard from "@/components/ui/StandardCard";
 import { useAuth } from "@/components/auth";
 import { useProperty } from "@/lib/hooks/useProperty";
 import { supabase } from "@/lib/supabase";
+import FloatingActionButton from "@/components/ui/FloatingActionButton";
+import { Plus } from "lucide-react";
 
 interface Contact {
   id: string;
@@ -276,16 +278,6 @@ export default function ContactsPage() {
             Property: <strong>{currentProperty.name}</strong>
           </p>
         </div>
-
-        {(isManagerView || isFamilyView) && (
-          <Link
-            href="/contacts/add"
-            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Add Contact
-          </Link>
-        )}
       </div>
 
       {/* Emergency contacts always visible */}
@@ -385,6 +377,17 @@ export default function ContactsPage() {
             />
             )}
         </StandardCard>
+      )}
+
+      {(isManagerView || isFamilyView) && (
+        <div className="fixed bottom-6 right-6 z-50">
+          <FloatingActionButton
+            icon={Plus}
+            label="Add Contact"
+            href="/contacts/add"
+            variant="primary"
+          />
+        </div>
       )}
     </div>
   );

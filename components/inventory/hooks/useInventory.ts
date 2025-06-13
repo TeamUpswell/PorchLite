@@ -6,7 +6,7 @@ import { debugLog, debugError } from "@/lib/utils/debug";
 interface InventoryItem {
   id: string;
   name: string;
-  quantity: number;
+  quantity: number; // ✅ Correct
   threshold: number;
   status: "good" | "low" | "out";
   category: string;

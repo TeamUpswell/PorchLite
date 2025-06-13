@@ -24,12 +24,11 @@ interface UpcomingVisit {
 interface InventoryItem {
   id: string;
   name: string;
-  current_stock: number;
+  quantity: number;
   status: "good" | "low" | "critical";
 }
 
 export default function HomePage() {
-  // ✅ ALL HOOKS FIRST
   const { user, loading: authLoading } = useAuth();
   const { currentProperty, loading: propertyLoading } = useProperty();
   const [upcomingVisits, setUpcomingVisits] = useState<UpcomingVisit[]>([]);
@@ -37,7 +36,7 @@ export default function HomePage() {
   const [taskAlerts, setTaskAlerts] = useState<any[]>([]);
   const [totalInventoryCount, setTotalInventoryCount] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [hasInitialized, setHasInitialized] = useState(false);
+  const [hasFetchedData, setHasFetchedData] = useState(false);
 
   // Loading states for individual components
   const [componentLoading, setComponentLoading] = useState({
@@ -98,13 +97,13 @@ export default function HomePage() {
       setComponentLoading((prev) => ({ ...prev, inventory: true }));
       const inventoryData = await supabase
         .from("inventory")
-        .select("id, name, current_stock")
+        .select("id, name, quantity")
         .eq("property_id", currentProperty.id)
         .eq("is_active", true);
 
       const inventoryItems = inventoryData.data || [];
       const lowStockItems = inventoryItems.filter(
-        (item) => item.current_stock !== null && item.current_stock < 5
+        (item) => item.quantity !== null && item.quantity < 5
       );
 
       setInventoryAlerts(lowStockItems);
@@ -130,6 +129,7 @@ export default function HomePage() {
       setComponentLoading({ visits: false, inventory: false, tasks: false });
     } finally {
       setLoading(false);
+      setHasFetchedData(true);
     }
   };
 
@@ -142,7 +142,6 @@ export default function HomePage() {
     if (!user?.id || !currentProperty?.id) {
       console.log("⏳ Waiting for user and property to load...");
       setLoading(false);
-      setHasInitialized(true);
       return;
     }
 
@@ -150,7 +149,6 @@ export default function HomePage() {
       "🏠 Property and user loaded, fetching dashboard:",
       currentProperty.name
     );
-    setHasInitialized(true);
     fetchDashboardData();
   }, [currentProperty?.id, user?.id, authLoading, propertyLoading]);
 
@@ -192,10 +190,10 @@ export default function HomePage() {
       }
     };
 
-    if (hasInitialized && user?.id) {
+    if (user?.id) {
       testPropertyData();
     }
-  }, [hasInitialized, user?.id]);
+  }, [user?.id]);
 
   // Add this useEffect temporarily to test from the dashboard:
   useEffect(() => {
@@ -265,22 +263,30 @@ export default function HomePage() {
     console.log("🔧 Expected Key first 20: eyJhbGciOiJIUzI1NiIsI");
   }, []);
 
-  // ✅ Early returns AFTER all hooks
-  if (authLoading || propertyLoading) {
+  // Simplify your loading detection:
+
+  // Show auth spinner
+  if (authLoading) {
     return (
-      <div className="p-6">
-        <Header title="Dashboard" />
-        <PageContainer>
-          <StandardCard>
-            <div className="flex items-center justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-              <span className="ml-2">Loading...</span>
-            </div>
-          </StandardCard>
-        </PageContainer>
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
       </div>
     );
   }
+
+  // Show property loading (only if we have a user)
+  if (user && propertyLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p>Loading your property...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Rest of your component...
 
   if (!user) {
     return (

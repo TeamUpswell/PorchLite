@@ -85,8 +85,10 @@ const FEATURE_PERMISSIONS: Record<string, UserRole[]> = {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  // ✅ CRITICAL FIX: ALL HOOKS FIRST
   const [user, setUser] = useState<User | null>(null);
+  // 🔧 ADD THIS LINE - Make sure loading state exists
+  const [loading, setLoading] = useState(true);
+  const [hasInitialized, setHasInitialized] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [userRole, setUserRole] = useState<UserRole | null>(null);
@@ -265,6 +267,65 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
+  // In components/auth/index.tsx - Add session refresh logic:
+  const checkAndRefreshSession = useCallback(async () => {
+    try {
+      const { data: { session }, error } = await supabase.auth.getSession();
+      
+      if (error) {
+        console.error('Session check error:', error);
+        return null;
+      }
+      
+      // If session exists but is close to expiry, refresh it
+      if (session && session.expires_at) {
+        const expiryTime = session.expires_at * 1000; // Convert to milliseconds
+        const now = Date.now();
+        const timeUntilExpiry = expiryTime - now;
+        
+        // Refresh if expiring in next 5 minutes
+        if (timeUntilExpiry < 300000) { 
+          console.log('🔄 Session close to expiry, refreshing...');
+          const { data: refreshedSession } = await supabase.auth.refreshSession();
+          return refreshedSession.session;
+        }
+      }
+      
+      return session;
+    } catch (error) {
+      console.error('Session refresh error:', error);
+      return null;
+    }
+  }, []);
+
+  // Call this before setting user
+  useEffect(() => {
+    const initializeAuth = async () => {
+      console.log('🔍 Checking initial auth session...');
+      setLoading(true); // ✅ Ensure loading starts true
+      
+      try {
+        const session = await checkAndRefreshSession();
+        
+        if (session?.user) {
+          console.log('✅ Valid session found:', session.user.email);
+          setUser(session.user);
+        } else {
+          console.log('❌ No valid session');
+          setUser(null); // ✅ Explicitly set to null
+        }
+      } catch (error) {
+        console.error('❌ Auth initialization error:', error);
+        setUser(null); // ✅ Explicitly set to null on error
+      } finally {
+        setLoading(false);
+        setHasInitialized(true); // ✅ Always set this
+      }
+    };
+
+    initializeAuth();
+  }, [checkAndRefreshSession]);
+
   // ✅ ADD these missing functions before the value object:
   const signIn = async (email: string, password: string) => {
     try {
@@ -368,20 +429,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // ✅ Now your value object will work:
   const value = {
     user,
+    loading, // 🔧 Make sure to include loading in the value
+    signIn,
+    signUp,
+    signOut,
+    hasPermission,
+    canAccess,
     session,
     isLoading,
     property,
     tenant,
     contextVersion,
     userRole,
-    signIn,
-    signUp,
-    signOut,
-    hasPermission,
-    canAccess,
+    checkAndRefreshSession,
+    hasInitialized,
   };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+    </AuthContext.Provider>
+  );
 }
 
 export const useAuth = () => {

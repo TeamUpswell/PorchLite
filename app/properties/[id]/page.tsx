@@ -94,8 +94,8 @@ export default function PropertyDetailPage() {
               .select("id", { count: "exact" })
               .eq("property_id", id),
             supabase
-              .from("inventory_items")
-              .select("id", { count: "exact" })
+              .from("inventory")
+              .select("id, name, quantity")
               .eq("property_id", id),
           ]);
 

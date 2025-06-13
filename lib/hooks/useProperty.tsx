@@ -45,14 +45,19 @@ interface PropertyContextType {
   switchProperty: (propertyId: string) => Promise<void>;
   updateProperty: (propertyId: string, updates: any) => Promise<{ error: any }>;
   refreshProperty: () => Promise<void>;
-  updateCurrentProperty: (propertyId: string, updates: Partial<Property>) => Promise<void>;
+  updateCurrentProperty: (
+    propertyId: string,
+    updates: Partial<Property>
+  ) => Promise<void>;
 }
 
-const PropertyContext = createContext<PropertyContextType | undefined>(undefined);
+const PropertyContext = createContext<PropertyContextType | undefined>(
+  undefined
+);
 
 export function PropertyProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
-  
+
   const [currentProperty, setCurrentProperty] = useState<Property | null>(null);
   const [currentTenant, setCurrentTenant] = useState<Tenant | null>(null);
   const [userProperties, setUserProperties] = useState<Property[]>([]);
@@ -61,14 +66,46 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const [hasInitialized, setHasInitialized] = useState(false);
 
-  console.log('🔍 PropertyProvider state:', {
+  console.log("🔍 PropertyProvider state:", {
     user: user?.email,
     loading,
     hasInitialized,
     currentProperty: currentProperty?.name,
     userPropertiesCount: userProperties.length,
-    error
+    error,
   });
+
+  const ensureValidSession = useCallback(async () => {
+    try {
+      const {
+        data: { session },
+        error,
+      } = await supabase.auth.getSession();
+
+      if (error) throw error;
+      if (!session) throw new Error("No active session");
+
+      // Check if token is close to expiry (within 5 minutes)
+      if (session.expires_at) {
+        const expiryTime = session.expires_at * 1000;
+        const now = Date.now();
+        const timeUntilExpiry = expiryTime - now;
+
+        if (timeUntilExpiry < 300000) {
+          console.log("🔄 Refreshing session before query...");
+          const { data: refreshed, error: refreshError } =
+            await supabase.auth.refreshSession();
+          if (refreshError) throw refreshError;
+          return refreshed.session;
+        }
+      }
+
+      return session;
+    } catch (error) {
+      console.error("Session validation error:", error);
+      throw error;
+    }
+  }, []);
 
   const loadUserData = useCallback(async () => {
     if (!user?.id) {
@@ -78,37 +115,34 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    console.log('🔍 Starting property lookup for user:', user.id);
+    console.log("🔍 Starting property lookup for user:", user.id);
     setLoading(true);
     setError(null);
 
     try {
-      console.log('🔍 About to execute simple query...');
-      
-      // Simple, direct query without race conditions
+      // Ensure valid session before any database operations
+      await ensureValidSession();
+
       const response = await supabase
         .from("properties")
         .select("*")
-        .eq("created_by", user.id);
+        .eq("created_by", user.id)
+        .order("created_at", { ascending: false });
 
       console.log("🏠 Raw response:", response);
-      console.log("🏠 Response data:", response.data);
-      console.log("🏠 Response error:", response.error);
 
       if (response.error) {
-        console.error('🚨 Supabase query error:', response.error);
+        console.error("🚨 Query error:", response.error);
         throw new Error(`Properties query failed: ${response.error.message}`);
       }
 
       const propertiesData = response.data || [];
-      console.log('✅ Got properties data:', propertiesData.length, 'items');
+      console.log("✅ Got properties data:", propertiesData.length, "items");
 
-      // Set userProperties regardless of count
       setUserProperties(propertiesData);
 
       if (propertiesData.length > 0) {
-        // Use the first property (we know "Bend House Test" exists)
-        const selectedProperty = propertiesData[0];
+        const selectedProperty = propertiesData[0]; // Use the most recent property
         setCurrentProperty(selectedProperty);
         console.log("✅ SUCCESS! Set current property:", selectedProperty.name);
       } else {
@@ -117,26 +151,35 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
       }
 
       setHasInitialized(true);
-      console.log("✅ Property initialization complete");
-
     } catch (error: any) {
       console.error("💥 Property loading error:", error);
-      console.error("💥 Error details:", {
-        name: error.name,
-        message: error.message,
-        stack: error.stack
-      });
       setError(`Failed to load properties: ${error.message}`);
       setHasInitialized(true);
     } finally {
       setLoading(false);
-      console.log("🔄 Property loading finished");
     }
-  }, [user?.id]);
+  }, [user?.id, ensureValidSession]);
 
   useEffect(() => {
-    loadUserData();
-  }, [loadUserData]);
+    console.log("🔍 PropertyProvider useEffect triggered", {
+      user: user?.email || "none",
+      userId: user?.id || "none",
+      hasProperty: !!currentProperty,
+      loading,
+    });
+
+    if (user?.id && !currentProperty && !loading) {
+      console.log("🚀 Loading property data...");
+      loadUserData();
+    } else if (user === null) {
+      setCurrentProperty(null);
+      setUserProperties([]);
+      setLoading(false);
+      setHasInitialized(true);
+    } else if (currentProperty) {
+      console.log("✅ Property already loaded, skipping");
+    }
+  }, [user?.id, currentProperty, loading, loadUserData]); // ✅ Watch currentProperty too
 
   const enhancedCurrentTenant = useMemo(() => {
     debugLog("🔍 Enhanced tenant calculation:", {

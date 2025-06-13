@@ -1,110 +1,82 @@
 "use client";
 
 import { useState } from "react";
-import { Heart, Camera, MapPin, AlertTriangle, Package, Check, ChevronLeft, ChevronRight } from "lucide-react";
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'; // Add this import
-import BasicStep from "./BasicInfoStep";
-import PhotosStep from "./PhotosStep";
-import RecommendationsStep from "./RecommendationsStep";
-import IssuesStep from "./IssuesStep";
-import SuppliesStep from "./SuppliesStep";
-import ReviewStep from "./ReviewStep";
+import { supabase } from "@/lib/supabase";
+import StandardCard from "@/components/ui/StandardCard";
+import PhotoUpload from "@/components/ui/PhotoUpload";
+import {
+  Check,
+  ChevronRight,
+  ArrowLeft,
+  ArrowRight,
+  Calendar,
+  User,
+  Star,
+  MessageSquare,
+  Camera,
+  MapPin,
+  Heart,
+  Eye,
+  EyeOff,
+} from "lucide-react";
+import Header from "@/components/layout/Header";
+import { BookOpen } from "lucide-react";
 
-interface FormData {
-  guestName: string;
-  guestEmail: string;
-  visitDate: string;
-  numberOfNights: number;
-  rating: number;
-  title: string;
-  message: string;
-  photos: File[];
-  photoCaptions: string[];
-  recommendations: any[];
-  issues: any[];
-  inventoryNotes: {
-    itemName: string;
-    noteType: string;
-    notes: string;
-    // Removed quantityUsed field
-  }[];
-  everythingWasGreat?: boolean;
-  everythingWellStocked?: boolean;
+interface Property {
+  id: string;
+  name: string;
 }
-
-const STEPS = [
-  { id: 'basic', title: 'Your Stay', icon: Heart },
-  { id: 'photos', title: 'Photos', icon: Camera },
-  { id: 'recommendations', title: 'Places', icon: MapPin },
-  { id: 'issues', title: 'Issues', icon: AlertTriangle },
-  { id: 'supplies', title: 'Supplies', icon: Package },
-  { id: 'review', title: 'Review', icon: Check }
-];
 
 interface TripReportWizardProps {
-  property: any;
-  onComplete: (result: any) => void;
+  property: Property;
+  onComplete: () => void;
 }
 
-export default function TripReportWizard({ property, onComplete }: TripReportWizardProps) {
-  const [currentStep, setCurrentStep] = useState(0);
+const steps = [
+  { id: 1, name: "Basic Info", icon: User },
+  { id: 2, name: "Your Story", icon: MessageSquare },
+  { id: 3, name: "Photos", icon: Camera },
+  { id: 4, name: "Settings", icon: Eye },
+];
+
+export default function TripReportWizard({
+  property,
+  onComplete,
+}: TripReportWizardProps) {
+  const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [formData, setFormData] = useState<FormData>({
+  const [formData, setFormData] = useState({
+    // Basic info
     guestName: "",
-    guestEmail: "",
     visitDate: "",
-    numberOfNights: 1,
     rating: 5,
     title: "",
     message: "",
-    photos: [],
-    photoCaptions: [],
-    recommendations: [],
-    issues: [],
-    inventoryNotes: [],
+
+    // Photos - updated structure
+    photos: [] as { url: string; caption: string }[],
+
+    // Feedback
     everythingWasGreat: false,
     everythingWellStocked: false,
+
+    // Settings
+    isPublic: true,
+    allowContact: false,
   });
 
-  // Initialize Supabase client
-  const supabase = createClientComponentClient();
-
-  const updateFormData = (updates: Partial<FormData>) => {
-    setFormData(prev => ({ ...prev, ...updates }));
+  const updateFormData = (data: Partial<typeof formData>) => {
+    setFormData((prev) => ({ ...prev, ...data }));
   };
 
   const nextStep = () => {
-    if (currentStep === 0) {
-      // Basic step validation
-      if (!formData.guestName.trim()) {
-        alert("Please enter your name");
-        return;
-      }
-      if (!formData.visitDate) {
-        alert("Please select your visit date");
-        return;
-      }
-      if (!formData.numberOfNights || formData.numberOfNights < 1) {
-        alert("Please select the number of nights");
-        return;
-      }
-      if (formData.rating === 0) {
-        alert("Please provide a rating");
-        return;
-      }
-      if (!formData.message.trim()) {
-        alert("Please share your experience");
-        return;
-      }
-    }
-    
-    if (currentStep < STEPS.length - 1) {
+    if (currentStep < steps.length) {
       setCurrentStep(currentStep + 1);
     }
   };
 
   const prevStep = () => {
-    if (currentStep > 0) {
+    if (currentStep > 1) {
       setCurrentStep(currentStep - 1);
     }
   };
@@ -113,296 +85,188 @@ export default function TripReportWizard({ property, onComplete }: TripReportWiz
     try {
       setIsSubmitting(true);
 
-      // Upload photos first
-      const uploadedPhotoUrls: string[] = [];
-      for (let i = 0; i < formData.photos.length; i++) {
-        const photo = formData.photos[i];
-        const fileExt = photo.name.split('.').pop();
-        const fileName = `${property.id}/${Date.now()}-${i}.${fileExt}`;
-        
-        const { data: uploadData, error: uploadError } = await supabase.storage
-          .from('guest-photos')
-          .upload(fileName, photo);
+      // Prepare photo data for database
+      const photoUrls = formData.photos.map((p) => p.url);
+      const photoCaptions = formData.photos.map((p) => p.caption);
 
-        if (uploadError) {
-          throw new Error(`Photo upload failed: ${uploadError.message}`);
-        }
-
-        const { data: publicUrlData } = supabase.storage
-          .from('guest-photos')
-          .getPublicUrl(fileName);
-        
-        uploadedPhotoUrls.push(publicUrlData.publicUrl);
-      }
-
-      // Create guest book entry
-      const { data: guestBookEntry, error: guestBookError } = await supabase
-        .from('guest_book_entries')
+      const { data: entry, error } = await supabase
+        .from("guest_book_entries")
         .insert({
           property_id: property.id,
           guest_name: formData.guestName,
-          guest_email: formData.guestEmail,
           visit_date: formData.visitDate,
           rating: formData.rating,
           title: formData.title,
           message: formData.message,
-          is_public: true, // Make visible
-          is_approved: true, // Auto-approve all entries for now
-          everything_was_great: formData.everythingWasGreat || false,
-          everything_well_stocked: formData.everythingWellStocked || false,
+          photos: photoUrls,
+          photo_captions: photoCaptions,
+          everything_was_great: formData.everythingWasGreat,
+          everything_well_stocked: formData.everythingWellStocked,
+          is_public: formData.isPublic,
+          is_approved: false, // Requires approval
         })
         .select()
         .single();
 
-      if (guestBookError) {
-        throw new Error(`Guest book entry failed: ${guestBookError.message}`);
-      }
+      if (error) throw error;
 
-      // Handle recommendations
-      if (formData.recommendations.length > 0) {
-        for (const rec of formData.recommendations) {
-          let recommendationId = rec.existing_recommendation_id;
-
-          // If it's a new recommendation, create it first
-          if (rec.is_new_recommendation) {
-            const { data: newRec, error: recError } = await supabase
-              .from('recommendations')
-              .insert({
-                name: rec.name,
-                category: rec.category,
-                address: rec.address,
-                coordinates: rec.coordinates,
-                description: rec.description || `Recommended by ${formData.guestName}`,
-                rating: rec.rating,
-                website: rec.website,
-                phone_number: rec.phone_number,
-                place_id: rec.place_id,
-                property_id: property.id,
-                is_recommended: true,
-                images: [],
-              })
-              .select()
-              .single();
-
-            if (recError) {
-              console.error('Error creating recommendation:', recError);
-              continue;
-            }
-            recommendationId = newRec.id;
-          }
-
-          // Create guest recommendation link
-          if (recommendationId) {
-            const { error: guestRecError } = await supabase
-              .from('guest_recommendations')
-              .insert({
-                guest_book_entry_id: guestBookEntry.id,
-                recommendation_id: recommendationId,
-                guest_rating: rec.guest_rating,
-                guest_notes: rec.guest_notes,
-                place_name: rec.name,
-                place_type: rec.category,
-                location: rec.address,
-                rating: rec.guest_rating,
-                notes: rec.guest_notes,
-              });
-
-            if (guestRecError) {
-              console.error('Error linking guest recommendation:', guestRecError);
-            }
-          }
-        }
-      }
-
-      // Handle issues (only if not "everything was great")
-      if (!formData.everythingWasGreat && formData.issues.length > 0) {
-        for (const issue of formData.issues) {
-          // Upload issue photo if exists
-          let issuePhotoUrl = null;
-          if (issue.photo) {
-            const fileExt = issue.photo.name.split('.').pop();
-            const fileName = `issues/${property.id}/${Date.now()}-${Math.random()}.${fileExt}`;
-            
-            const { data: uploadData, error: uploadError } = await supabase.storage
-              .from('issue-photos')
-              .upload(fileName, issue.photo);
-
-            if (!uploadError) {
-              const { data: publicUrlData } = supabase.storage
-                .from('issue-photos')
-                .getPublicUrl(fileName);
-              issuePhotoUrl = publicUrlData.publicUrl;
-            }
-          }
-
-          // Create task for property owner
-          const { error: taskError } = await supabase
-            .from('tasks')
-            .insert({
-              property_id: property.id,
-              title: `${issue.issueType.replace('_', ' ')} - ${issue.location || 'Property'}`,
-              description: issue.description,
-              priority: issue.priority,
-              status: 'todo',
-              category: 'maintenance',
-              location: issue.location,
-              reported_by_guest: true,
-              guest_book_entry_id: guestBookEntry.id,
-              photos: issuePhotoUrl ? [issuePhotoUrl] : [],
-              due_date: issue.priority === 'high' ? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) : null,
-            });
-
-          if (taskError) {
-            console.error('Error creating task from issue:', taskError);
-          }
-        }
-      }
-
-      // Handle inventory notes (only if not "everything well-stocked")
-      if (!formData.everythingWellStocked && formData.inventoryNotes.length > 0) {
-        for (const note of formData.inventoryNotes) {
-          const { error: inventoryError } = await supabase
-            .from('inventory_notes')
-            .insert({
-              property_id: property.id,
-              guest_book_entry_id: guestBookEntry.id,
-              item_name: note.itemName,
-              note_type: note.noteType,
-              notes: note.notes,
-              // Removed quantity_used field
-              guest_name: formData.guestName,
-            });
-
-          if (inventoryError) {
-            console.error('Error creating inventory note:', inventoryError);
-          }
-        }
-      }
-
-      // Send notification email to property owner
-      try {
-        await fetch('/api/notifications/guest-book-entry', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            propertyId: property.id,
-            guestName: formData.guestName,
-            rating: formData.rating,
-            hasIssues: !formData.everythingWasGreat && formData.issues.length > 0,
-            hasRecommendations: formData.recommendations.length > 0,
-            numberOfNights: formData.numberOfNights,
-          }),
-        });
-      } catch (emailError) {
-        console.error('Email notification failed:', emailError);
-      }
-
-      // Success!
-      onComplete({
-        success: true,
-        message: "Thank you for your wonderful review! Your entry has been published successfully.", // Updated message
-        entryId: guestBookEntry.id,
-      });
-
+      onComplete();
     } catch (error) {
-      console.error('Submission error:', error);
+      console.error("Error submitting guest book entry:", error);
+      alert("There was an error submitting your entry. Please try again.");
+    } finally {
       setIsSubmitting(false);
-      
-      alert(`Failed to submit your review: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`);
     }
   };
 
   const renderStep = () => {
     switch (currentStep) {
-      case 0:
-        return <BasicStep formData={formData} updateFormData={updateFormData} />;
       case 1:
-        return <PhotosStep formData={formData} updateFormData={updateFormData} />;
+        return <BasicInfoStep data={formData} updateData={updateFormData} />;
       case 2:
-        return <RecommendationsStep formData={formData} updateFormData={updateFormData} property={property} />;
+        return <StoryStep data={formData} updateData={updateFormData} />;
       case 3:
-        return <IssuesStep formData={formData} updateFormData={updateFormData} />;
+        return (
+          <PhotosStep
+            data={formData}
+            updateData={updateFormData}
+            property={property}
+          />
+        );
       case 4:
-        return <SuppliesStep formData={formData} updateFormData={updateFormData} />;
-      case 5:
-        return <ReviewStep formData={formData} property={property} />;
+        return <SettingsStep data={formData} updateData={updateFormData} />;
       default:
-        return <BasicStep formData={formData} updateFormData={updateFormData} />;
+        return null;
     }
   };
 
-  const isLastStep = currentStep === STEPS.length - 1;
-  const isFirstStep = currentStep === 0;
+  const isStepValid = () => {
+    switch (currentStep) {
+      case 1:
+        return (
+          formData.guestName.trim() && formData.visitDate && formData.rating > 0
+        );
+      case 2:
+        return formData.title.trim() && formData.message.trim();
+      case 3:
+        return true; // Photos are optional
+      case 4:
+        return true; // Settings have defaults
+      default:
+        return false;
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-        {/* Progress Steps */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between">
-            {STEPS.map((step, index) => {
-              const Icon = step.icon;
-              const isActive = index === currentStep;
-              const isCompleted = index < currentStep;
-              
-              return (
-                <div key={step.id} className="flex items-center">
-                  <div className={`flex items-center justify-center w-10 h-10 rounded-full border-2 ${
-                    isActive 
-                      ? 'border-blue-600 bg-blue-600 text-white' 
-                      : isCompleted
-                      ? 'border-green-600 bg-green-600 text-white'
-                      : 'border-gray-300 bg-white text-gray-400'
-                  }`}>
-                    <Icon className="h-5 w-5" />
-                  </div>
-                  <div className="ml-3 hidden sm:block">
-                    <p className={`text-sm font-medium ${
-                      isActive ? 'text-blue-600' : isCompleted ? 'text-green-600' : 'text-gray-500'
-                    }`}>
-                      {step.title}
-                    </p>
-                  </div>
-                  {index < STEPS.length - 1 && (
-                    <div className={`hidden sm:block w-16 h-px mx-4 ${
-                      isCompleted ? 'bg-green-600' : 'bg-gray-300'
-                    }`} />
-                  )}
-                </div>
-              );
-            })}
+    <div className="w-full space-y-6">
+      {/* Breadcrumb Navigation - Separate from card */}
+      <div className="w-full">
+        {/* Mobile: Simple step indicator */}
+        <div className="sm:hidden">
+          <div className="flex items-center justify-between text-sm text-gray-400 mb-3">
+            <span>
+              Step {currentStep} of {steps.length}
+            </span>
+            <span>{Math.round((currentStep / steps.length) * 100)}%</span>
+          </div>
+          <div className="w-full bg-gray-200 rounded-full h-2">
+            <div
+              className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+              style={{ width: `${(currentStep / steps.length) * 100}%` }}
+            />
+          </div>
+          <div className="mt-4 text-center">
+            <span className="text-xl font-semibold text-gray-100">
+              {steps[currentStep - 1].name}
+            </span>
           </div>
         </div>
 
-        {/* Step Content */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-8">
-          {renderStep()}
+        {/* Desktop: Enhanced breadcrumb with very light text */}
+        <div className="hidden sm:block">
+          <nav aria-label="Progress">
+            <ol className="flex items-center justify-center">
+              {steps.map((step, stepIdx) => (
+                <li key={step.name} className="flex items-center">
+                  {/* Step indicator - Darker backgrounds and text */}
+                  <div className="flex flex-col items-center">
+                    <div
+                      className={`flex items-center justify-center w-10 h-10 rounded-full transition-all duration-200 ${
+                        step.id < currentStep
+                          ? "bg-blue-600 text-white shadow-md"
+                          : step.id === currentStep
+                          ? "bg-blue-500 text-white shadow-md"
+                          : "bg-gray-300 text-gray-600"
+                      }`}
+                    >
+                      {step.id < currentStep ? (
+                        <Check className="h-5 w-5" />
+                      ) : (
+                        <step.icon className="h-5 w-5" />
+                      )}
+                    </div>
+                    {/* Step name - Almost white text */}
+                    <div className="mt-3 text-center max-w-24">
+                      <span
+                        className={`text-sm font-medium transition-colors duration-200 ${
+                          step.id < currentStep
+                            ? "text-gray-100"
+                            : step.id === currentStep
+                            ? "text-white"
+                            : "text-gray-200"
+                        }`}
+                      >
+                        {step.name}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Connector line */}
+                  {stepIdx < steps.length - 1 && (
+                    <div className="flex-1 mx-6 max-w-20">
+                      <div
+                        className={`h-1 rounded transition-colors duration-200 ${
+                          step.id < currentStep ? "bg-blue-400" : "bg-gray-300"
+                        }`}
+                      />
+                    </div>
+                  )}
+                </li>
+              ))}
+            </ol>
+          </nav>
         </div>
+      </div>
+
+      {/* Main Content Card - Shorter, below breadcrumbs */}
+      <StandardCard className="w-full" padding="lg">
+        {/* Step Content */}
+        <div className="py-2">{renderStep()}</div>
 
         {/* Navigation */}
-        <div className="flex justify-between">
+        <div className="pt-6 border-t border-gray-100 flex justify-between">
           <button
             onClick={prevStep}
-            disabled={isFirstStep}
-            className={`flex items-center px-6 py-3 rounded-lg ${
-              isFirstStep
-                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+            disabled={currentStep === 1}
+            className={`inline-flex items-center px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+              currentStep === 1
+                ? "text-gray-400 cursor-not-allowed"
+                : "text-gray-600 bg-gray-50 border border-gray-200 hover:bg-gray-100"
             }`}
           >
-            <ChevronLeft className="h-4 w-4 mr-2" />
+            <ArrowLeft className="h-4 w-4 mr-2" />
             Previous
           </button>
 
-          {isLastStep ? (
+          {currentStep === steps.length ? (
             <button
               onClick={submitForm}
-              disabled={isSubmitting}
-              className={`flex items-center px-6 py-3 rounded-lg ${
-                isSubmitting
-                  ? 'bg-blue-400 cursor-not-allowed'
-                  : 'bg-blue-600 hover:bg-blue-700'
-              } text-white`}
+              disabled={!isStepValid() || isSubmitting}
+              className={`inline-flex items-center px-6 py-2 text-sm font-medium rounded-md transition-colors ${
+                !isStepValid() || isSubmitting
+                  ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                  : "bg-blue-500 text-white hover:bg-blue-600"
+              }`}
             >
               {isSubmitting ? (
                 <>
@@ -411,20 +275,265 @@ export default function TripReportWizard({ property, onComplete }: TripReportWiz
                 </>
               ) : (
                 <>
-                  Submit Review
-                  <Check className="h-4 w-4 ml-2" />
+                  <Heart className="h-4 w-4 mr-2" />
+                  Share Memory
                 </>
               )}
             </button>
           ) : (
             <button
               onClick={nextStep}
-              className="flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              disabled={!isStepValid()}
+              className={`inline-flex items-center px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                !isStepValid()
+                  ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                  : "bg-blue-500 text-white hover:bg-blue-600"
+              }`}
             >
               Next
-              <ChevronRight className="h-4 w-4 ml-2" />
+              <ArrowRight className="h-4 w-4 ml-2" />
             </button>
           )}
+        </div>
+      </StandardCard>
+    </div>
+  );
+}
+
+// Step Components
+function BasicInfoStep({ data, updateData }: any) {
+  return (
+    <div className="space-y-6">
+      <div>
+        <h3 className="text-lg font-medium text-gray-900 mb-4">
+          Tell us about yourself and your visit
+        </h3>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Your Name *
+            </label>
+            <input
+              type="text"
+              value={data.guestName}
+              onChange={(e) => updateData({ guestName: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="How should we remember you?"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Visit Date *
+            </label>
+            <input
+              type="date"
+              value={data.visitDate}
+              onChange={(e) => updateData({ visitDate: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+        </div>
+
+        <div className="mt-6">
+          <label className="block text-sm font-medium text-gray-700 mb-3">
+            Overall Rating *
+          </label>
+          <div className="flex items-center space-x-2">
+            {[1, 2, 3, 4, 5].map((rating) => (
+              <button
+                key={rating}
+                onClick={() => updateData({ rating })}
+                className="focus:outline-none"
+              >
+                <Star
+                  className={`h-8 w-8 ${
+                    rating <= data.rating
+                      ? "text-yellow-400 fill-current"
+                      : "text-gray-300"
+                  }`}
+                />
+              </button>
+            ))}
+            <span className="ml-3 text-sm text-gray-600">
+              {data.rating} out of 5 stars
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StoryStep({ data, updateData }: any) {
+  return (
+    <div className="space-y-6">
+      <div>
+        <h3 className="text-lg font-medium text-gray-900 mb-4">
+          Share your story
+        </h3>
+
+        <div className="space-y-6">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Give your memory a title *
+            </label>
+            <input
+              type="text"
+              value={data.title}
+              onChange={(e) => updateData({ title: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="e.g., 'Perfect weekend getaway' or 'Unforgettable family time'"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Tell us about your experience *
+            </label>
+            <textarea
+              value={data.message}
+              onChange={(e) => updateData({ message: e.target.value })}
+              rows={6}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="What made your stay special? Any favorite moments, discoveries, or recommendations for future guests?"
+            />
+          </div>
+
+          <div className="space-y-3">
+            <label className="flex items-center">
+              <input
+                type="checkbox"
+                checked={data.everythingWasGreat}
+                onChange={(e) =>
+                  updateData({ everythingWasGreat: e.target.checked })
+                }
+                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
+              <span className="ml-2 text-sm text-gray-700">
+                Everything was perfect! ✨
+              </span>
+            </label>
+
+            <label className="flex items-center">
+              <input
+                type="checkbox"
+                checked={data.everythingWellStocked}
+                onChange={(e) =>
+                  updateData({ everythingWellStocked: e.target.checked })
+                }
+                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
+              <span className="ml-2 text-sm text-gray-700">
+                Everything was well stocked 📦
+              </span>
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PhotosStep({ data, updateData, property }: any) {
+  const handlePhotosChange = (
+    newPhotos: { url: string; caption: string }[]
+  ) => {
+    updateData({ photos: newPhotos });
+  };
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h3 className="text-lg font-medium text-gray-900 mb-4">
+          Add photos (optional)
+        </h3>
+        <p className="text-gray-600 mb-6">
+          Share your favorite moments from your stay!
+        </p>
+
+        <PhotoUpload
+          photos={data.photos}
+          onPhotosChange={handlePhotosChange}
+          maxPhotos={10}
+          bucketName="property-photos"
+          folderPath={`${property.id}/guest-book`}
+          showCaptions={true}
+          className="w-full"
+        />
+
+        {data.photos.length > 0 && (
+          <div className="mt-4 p-4 bg-green-50 rounded-lg">
+            <p className="text-sm text-green-800">
+              📸 You've added {data.photos.length} photo
+              {data.photos.length === 1 ? "" : "s"}! These will help future
+              guests see what makes this place special.
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function SettingsStep({ data, updateData }: any) {
+  return (
+    <div className="space-y-6">
+      <div>
+        <h3 className="text-lg font-medium text-gray-900 mb-4">
+          Privacy settings
+        </h3>
+
+        <div className="space-y-4">
+          <label className="flex items-start">
+            <input
+              type="checkbox"
+              checked={data.isPublic}
+              onChange={(e) => updateData({ isPublic: e.target.checked })}
+              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 mt-1"
+            />
+            <div className="ml-3">
+              <span className="text-sm font-medium text-gray-700 flex items-center">
+                {data.isPublic ? (
+                  <Eye className="h-4 w-4 mr-1" />
+                ) : (
+                  <EyeOff className="h-4 w-4 mr-1" />
+                )}
+                Make this entry public
+              </span>
+              <p className="text-sm text-gray-500">
+                Other guests will be able to see your review and photos
+              </p>
+            </div>
+          </label>
+
+          <label className="flex items-start">
+            <input
+              type="checkbox"
+              checked={data.allowContact}
+              onChange={(e) => updateData({ allowContact: e.target.checked })}
+              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 mt-1"
+            />
+            <div className="ml-3">
+              <span className="text-sm font-medium text-gray-700">
+                Allow property owners to contact me
+              </span>
+              <p className="text-sm text-gray-500">
+                Owners may reach out with questions or thank you messages
+              </p>
+            </div>
+          </label>
+        </div>
+
+        <div className="mt-8 p-4 bg-blue-50 rounded-lg">
+          <h4 className="text-sm font-medium text-blue-900 mb-2">
+            Ready to share your memory!
+          </h4>
+          <p className="text-sm text-blue-800">
+            Your entry will be reviewed by the property owners before being
+            published. Thank you for taking the time to share your experience!
+          </p>
         </div>
       </div>
     </div>
