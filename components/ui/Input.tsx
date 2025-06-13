@@ -1,19 +1,20 @@
-import React from 'react';
+import * as React from "react";
 
-// Input component for form inputs
-const Input = React.forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement>>(
-  ({ className, ...props }, ref) => {
+interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {}
+
+const Input = React.forwardRef<HTMLInputElement, InputProps>(
+  ({ className = "", type, ...props }, ref) => {
     return (
       <input
+        type={type}
+        className={`flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm ring-offset-white file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-gray-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${className}`}
         ref={ref}
-        className={`border rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${className}`}
         {...props}
       />
     );
   }
 );
 
-// Display a name for the component in React DevTools
-Input.displayName = 'Input';
+Input.displayName = "Input";
 
-export default Input;
+export { Input };

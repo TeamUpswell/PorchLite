@@ -1,7 +1,9 @@
 "use client";
 
 import { useAuth } from "@/components/auth";
-import { Header, PageContainer, StandardCard } from "@/components/ui";
+import Header from "@/components/layout/Header";
+import PageContainer from "@/components/layout/PageContainer";
+import StandardCard from "@/components/ui/StandardCard";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
