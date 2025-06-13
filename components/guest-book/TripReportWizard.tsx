@@ -2,25 +2,20 @@
 
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
-import StandardCard from "@/components/ui/StandardCard";
 import PhotoUpload from "@/components/ui/PhotoUpload";
 import {
   Check,
-  ChevronRight,
+  X,
   ArrowLeft,
   ArrowRight,
-  Calendar,
   User,
   Star,
   MessageSquare,
   Camera,
-  MapPin,
   Heart,
   Eye,
   EyeOff,
 } from "lucide-react";
-import Header from "@/components/layout/Header";
-import { BookOpen } from "lucide-react";
 
 interface Property {
   id: string;
@@ -28,8 +23,11 @@ interface Property {
 }
 
 interface TripReportWizardProps {
+  isOpen?: boolean;
+  onClose?: () => void;
   property: Property;
   onComplete: () => void;
+  editEntry?: any; // Add this for editing existing entries
 }
 
 const steps = [
@@ -40,30 +38,35 @@ const steps = [
 ];
 
 export default function TripReportWizard({
+  isOpen = true,
+  onClose,
   property,
   onComplete,
+  editEntry, // Add this
 }: TripReportWizardProps) {
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Initialize form data with edit entry if provided
   const [formData, setFormData] = useState({
-    // Basic info
-    guestName: "",
-    visitDate: "",
-    rating: 5,
-    title: "",
-    message: "",
-
-    // Photos - updated structure
-    photos: [] as { url: string; caption: string }[],
-
-    // Feedback
-    everythingWasGreat: false,
-    everythingWellStocked: false,
-
-    // Settings
-    isPublic: true,
+    guestName: editEntry?.guest_name || "",
+    visitDate: editEntry?.visit_date || "",
+    rating: editEntry?.rating || 5,
+    title: editEntry?.title || "",
+    message: editEntry?.message || "",
+    photos:
+      editEntry?.photos?.map((url: string, index: number) => ({
+        url,
+        caption: editEntry?.photo_captions?.[index] || "",
+      })) || [],
+    everythingWasGreat: editEntry?.everything_was_great || false,
+    everythingWellStocked: editEntry?.everything_well_stocked || false,
+    isPublic: editEntry?.is_public ?? true,
     allowContact: false,
   });
+
+  // If used as modal and not open, return null
+  if (isOpen === false) return null;
 
   const updateFormData = (data: Partial<typeof formData>) => {
     setFormData((prev) => ({ ...prev, ...data }));
@@ -85,37 +88,101 @@ export default function TripReportWizard({
     try {
       setIsSubmitting(true);
 
-      // Prepare photo data for database
       const photoUrls = formData.photos.map((p) => p.url);
       const photoCaptions = formData.photos.map((p) => p.caption);
 
-      const { data: entry, error } = await supabase
-        .from("guest_book_entries")
-        .insert({
-          property_id: property.id,
-          guest_name: formData.guestName,
-          visit_date: formData.visitDate,
-          rating: formData.rating,
-          title: formData.title,
-          message: formData.message,
-          photos: photoUrls,
-          photo_captions: photoCaptions,
-          everything_was_great: formData.everythingWasGreat,
-          everything_well_stocked: formData.everythingWellStocked,
-          is_public: formData.isPublic,
-          is_approved: false, // Requires approval
-        })
-        .select()
-        .single();
+      if (editEntry) {
+        // Update existing entry
+        const { data: entry, error } = await supabase
+          .from("guest_book_entries")
+          .update({
+            guest_name: formData.guestName,
+            visit_date: formData.visitDate,
+            rating: formData.rating,
+            title: formData.title,
+            message: formData.message,
+            photos: photoUrls,
+            photo_captions: photoCaptions,
+            everything_was_great: formData.everythingWasGreat,
+            everything_well_stocked: formData.everythingWellStocked,
+            is_public: formData.isPublic,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", editEntry.id)
+          .select()
+          .single();
 
-      if (error) throw error;
+        if (error) throw error;
+      } else {
+        // Create new entry
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+
+        const { data: entry, error } = await supabase
+          .from("guest_book_entries")
+          .insert({
+            property_id: property.id,
+            created_by: user?.id,
+            guest_name: formData.guestName,
+            visit_date: formData.visitDate,
+            rating: formData.rating,
+            title: formData.title,
+            message: formData.message,
+            photos: photoUrls,
+            photo_captions: photoCaptions,
+            everything_was_great: formData.everythingWasGreat,
+            everything_well_stocked: formData.everythingWellStocked,
+            is_public: formData.isPublic,
+            is_approved: false,
+          })
+          .select()
+          .single();
+
+        if (error) throw error;
+      }
 
       onComplete();
+      onClose?.();
+
+      // Reset form only if creating new entry
+      if (!editEntry) {
+        setCurrentStep(1);
+        setFormData({
+          guestName: "",
+          visitDate: "",
+          rating: 5,
+          title: "",
+          message: "",
+          photos: [],
+          everythingWasGreat: false,
+          everythingWellStocked: false,
+          isPublic: true,
+          allowContact: false,
+        });
+      }
     } catch (error) {
       console.error("Error submitting guest book entry:", error);
       alert("There was an error submitting your entry. Please try again.");
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const isStepValid = () => {
+    switch (currentStep) {
+      case 1:
+        return (
+          formData.guestName.trim() && formData.visitDate && formData.rating > 0
+        );
+      case 2:
+        return formData.title.trim() && formData.message.trim();
+      case 3:
+        return true; // Photos are optional
+      case 4:
+        return true; // Settings have defaults
+      default:
+        return false;
     }
   };
 
@@ -140,167 +207,137 @@ export default function TripReportWizard({
     }
   };
 
-  const isStepValid = () => {
-    switch (currentStep) {
-      case 1:
-        return (
-          formData.guestName.trim() && formData.visitDate && formData.rating > 0
-        );
-      case 2:
-        return formData.title.trim() && formData.message.trim();
-      case 3:
-        return true; // Photos are optional
-      case 4:
-        return true; // Settings have defaults
-      default:
-        return false;
-    }
-  };
-
-  return (
-    <div className="w-full space-y-6">
-      {/* Breadcrumb Navigation - Separate from card */}
-      <div className="w-full">
-        {/* Mobile: Simple step indicator */}
-        <div className="sm:hidden">
-          <div className="flex items-center justify-between text-sm text-gray-400 mb-3">
-            <span>
-              Step {currentStep} of {steps.length}
-            </span>
-            <span>{Math.round((currentStep / steps.length) * 100)}%</span>
-          </div>
-          <div className="w-full bg-gray-200 rounded-full h-2">
-            <div
-              className="bg-blue-500 h-2 rounded-full transition-all duration-300"
-              style={{ width: `${(currentStep / steps.length) * 100}%` }}
-            />
-          </div>
-          <div className="mt-4 text-center">
-            <span className="text-xl font-semibold text-gray-100">
-              {steps[currentStep - 1].name}
-            </span>
-          </div>
+  const modalContent = (
+    <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+      {/* Modal Header */}
+      <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+        <div>
+          <h2 className="text-xl font-semibold text-gray-900">
+            {editEntry ? "Edit Your Memory" : "Share Your Memory"}
+          </h2>
+          <p className="text-sm text-gray-600">{property.name}</p>
         </div>
+        <button
+          onClick={onClose}
+          className="text-gray-400 hover:text-gray-600 transition-colors"
+        >
+          <X className="h-6 w-6" />
+        </button>
+      </div>
 
-        {/* Desktop: Enhanced breadcrumb with very light text */}
-        <div className="hidden sm:block">
-          <nav aria-label="Progress">
-            <ol className="flex items-center justify-center">
-              {steps.map((step, stepIdx) => (
-                <li key={step.name} className="flex items-center">
-                  {/* Step indicator - Darker backgrounds and text */}
-                  <div className="flex flex-col items-center">
-                    <div
-                      className={`flex items-center justify-center w-10 h-10 rounded-full transition-all duration-200 ${
-                        step.id < currentStep
-                          ? "bg-blue-600 text-white shadow-md"
-                          : step.id === currentStep
-                          ? "bg-blue-500 text-white shadow-md"
-                          : "bg-gray-300 text-gray-600"
-                      }`}
-                    >
-                      {step.id < currentStep ? (
-                        <Check className="h-5 w-5" />
-                      ) : (
-                        <step.icon className="h-5 w-5" />
-                      )}
-                    </div>
-                    {/* Step name - Almost white text */}
-                    <div className="mt-3 text-center max-w-24">
-                      <span
-                        className={`text-sm font-medium transition-colors duration-200 ${
-                          step.id < currentStep
-                            ? "text-gray-100"
-                            : step.id === currentStep
-                            ? "text-white"
-                            : "text-gray-200"
-                        }`}
-                      >
-                        {step.name}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Connector line */}
-                  {stepIdx < steps.length - 1 && (
-                    <div className="flex-1 mx-6 max-w-20">
-                      <div
-                        className={`h-1 rounded transition-colors duration-200 ${
-                          step.id < currentStep ? "bg-blue-400" : "bg-gray-300"
-                        }`}
-                      />
-                    </div>
+      {/* Progress Steps */}
+      <div className="px-6 py-4 border-b border-gray-100">
+        <div className="flex items-center justify-center">
+          {steps.map((step, stepIdx) => (
+            <div key={step.name} className="flex items-center">
+              <div className="flex flex-col items-center">
+                <div
+                  className={`flex items-center justify-center w-8 h-8 rounded-full transition-all duration-200 ${
+                    step.id < currentStep
+                      ? "bg-blue-600 text-white"
+                      : step.id === currentStep
+                      ? "bg-blue-500 text-white"
+                      : "bg-gray-200 text-gray-600"
+                  }`}
+                >
+                  {step.id < currentStep ? (
+                    <Check className="h-4 w-4" />
+                  ) : (
+                    <step.icon className="h-4 w-4" />
                   )}
-                </li>
-              ))}
-            </ol>
-          </nav>
+                </div>
+                <span className="mt-2 text-xs font-medium text-gray-600">
+                  {step.name}
+                </span>
+              </div>
+              {stepIdx < steps.length - 1 && (
+                <div className="mx-4 w-12">
+                  <div
+                    className={`h-0.5 ${
+                      step.id < currentStep ? "bg-blue-300" : "bg-gray-300"
+                    }`}
+                  />
+                </div>
+              )}
+            </div>
+          ))}
         </div>
       </div>
 
-      {/* Main Content Card - Shorter, below breadcrumbs */}
-      <StandardCard className="w-full" padding="lg">
-        {/* Step Content */}
-        <div className="py-2">{renderStep()}</div>
+      {/* Modal Body */}
+      <div className="px-6 py-6 max-h-[60vh] overflow-y-auto">
+        {renderStep()}
+      </div>
 
-        {/* Navigation */}
-        <div className="pt-6 border-t border-gray-100 flex justify-between">
+      {/* Modal Footer */}
+      <div className="px-6 py-4 border-t border-gray-100 flex justify-between">
+        <button
+          onClick={prevStep}
+          disabled={currentStep === 1}
+          className={`inline-flex items-center px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+            currentStep === 1
+              ? "text-gray-400 cursor-not-allowed"
+              : "text-gray-600 bg-gray-50 border border-gray-200 hover:bg-gray-100"
+          }`}
+        >
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Previous
+        </button>
+
+        {currentStep === steps.length ? (
           <button
-            onClick={prevStep}
-            disabled={currentStep === 1}
-            className={`inline-flex items-center px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-              currentStep === 1
-                ? "text-gray-400 cursor-not-allowed"
-                : "text-gray-600 bg-gray-50 border border-gray-200 hover:bg-gray-100"
+            onClick={submitForm}
+            disabled={!isStepValid() || isSubmitting}
+            className={`inline-flex items-center px-6 py-2 text-sm font-medium rounded-md transition-colors ${
+              !isStepValid() || isSubmitting
+                ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                : "bg-blue-500 text-white hover:bg-blue-600"
             }`}
           >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Previous
+            {isSubmitting ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                Submitting...
+              </>
+            ) : (
+              <>
+                <Heart className="h-4 w-4 mr-2" />
+                Share Memory
+              </>
+            )}
           </button>
-
-          {currentStep === steps.length ? (
-            <button
-              onClick={submitForm}
-              disabled={!isStepValid() || isSubmitting}
-              className={`inline-flex items-center px-6 py-2 text-sm font-medium rounded-md transition-colors ${
-                !isStepValid() || isSubmitting
-                  ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                  : "bg-blue-500 text-white hover:bg-blue-600"
-              }`}
-            >
-              {isSubmitting ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  Submitting...
-                </>
-              ) : (
-                <>
-                  <Heart className="h-4 w-4 mr-2" />
-                  Share Memory
-                </>
-              )}
-            </button>
-          ) : (
-            <button
-              onClick={nextStep}
-              disabled={!isStepValid()}
-              className={`inline-flex items-center px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-                !isStepValid()
-                  ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                  : "bg-blue-500 text-white hover:bg-blue-600"
-              }`}
-            >
-              Next
-              <ArrowRight className="h-4 w-4 ml-2" />
-            </button>
-          )}
-        </div>
-      </StandardCard>
+        ) : (
+          <button
+            onClick={nextStep}
+            disabled={!isStepValid()}
+            className={`inline-flex items-center px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+              !isStepValid()
+                ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                : "bg-blue-500 text-white hover:bg-blue-600"
+            }`}
+          >
+            Next
+            <ArrowRight className="h-4 w-4 ml-2" />
+          </button>
+        )}
+      </div>
     </div>
   );
+
+  // If onClose is provided, show as modal with backdrop
+  if (onClose) {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+        {modalContent}
+      </div>
+    );
+  }
+
+  // Otherwise show as page content
+  return modalContent;
 }
 
-// Step Components
+// Step components remain the same...
 function BasicInfoStep({ data, updateData }: any) {
   return (
     <div className="space-y-6">
@@ -457,7 +494,7 @@ function PhotosStep({ data, updateData, property }: any) {
           photos={data.photos}
           onPhotosChange={handlePhotosChange}
           maxPhotos={10}
-          bucketName="property-photos"
+          bucketName="guest-photos"
           folderPath={`${property.id}/guest-book`}
           showCaptions={true}
           className="w-full"

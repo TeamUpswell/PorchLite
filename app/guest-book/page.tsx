@@ -7,9 +7,10 @@ import { supabase } from "@/lib/supabase";
 import Header from "@/components/layout/Header";
 import PageContainer from "@/components/layout/PageContainer";
 import StandardCard from "@/components/ui/StandardCard";
-import { Heart, Star, Camera, MapPin, Calendar, Plus, BookOpen } from "lucide-react";
+import { Heart, Star, Camera, MapPin, Calendar, Plus, BookOpen, Edit } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
+import TripReportWizard from "@/components/guest-book/TripReportWizard";
 
 interface GuestBookEntry {
   id: string;
@@ -40,6 +41,8 @@ export default function GuestBookPage() {
   const [entries, setEntries] = useState<GuestBookEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [showTopCard, setShowTopCard] = useState(true);
+  const [showWizardModal, setShowWizardModal] = useState(false);
+  const [editingEntry, setEditingEntry] = useState<any>(null);
 
   // Debug current state
   useEffect(() => {
@@ -176,6 +179,20 @@ export default function GuestBookPage() {
         }`}
       />
     ));
+  };
+
+  // Update the canEditEntry function to show more debug info:
+  const canEditEntry = (entry: any) => {
+    console.log('🔍 Edit check for entry:', {
+      entryId: entry.id,
+      entryTitle: entry.title,
+      hasUser: !!user,
+      userId: user?.id,
+      entryCreatedBy: entry.created_by,
+      createdByType: typeof entry.created_by,
+      canEdit: user && entry.created_by === user.id
+    });
+    return user && entry.created_by === user.id;
   };
 
   // Show loading while auth or property is loading
@@ -338,13 +355,13 @@ export default function GuestBookPage() {
                   </div>
 
                   <div className="space-y-4">
-                    <Link
-                      href="/guest-book/new"
+                    <button
+                      onClick={() => setShowWizardModal(true)}
                       className="inline-flex items-center bg-gradient-to-r from-rose-600 to-amber-600 text-white px-8 py-4 rounded-xl hover:from-rose-700 hover:to-amber-700 transform hover:scale-105 transition-all duration-200 shadow-lg font-semibold text-lg"
                     >
                       <Plus className="h-5 w-5 mr-3" />
                       Start This Home's Memory Collection
-                    </Link>
+                    </button>
 
                     <div className="flex items-center justify-center space-x-6 text-sm text-gray-500 mt-6">
                       <div className="flex items-center">
@@ -380,13 +397,13 @@ export default function GuestBookPage() {
                     <strong>📖 Add your chapter to our home's story!</strong>{" "}
                     We love reading about the memories our guests make here.
                   </p>
-                  <Link
-                    href="/guest-book/new"
+                  <button
+                    onClick={() => setShowWizardModal(true)}
                     className="inline-flex items-center bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium transition-colors"
                   >
                     <Heart className="h-4 w-4 mr-2" />
                     Share Your Memory
-                  </Link>
+                  </button>
                 </div>
               </StandardCard>
 
@@ -499,12 +516,43 @@ export default function GuestBookPage() {
                         Shared {new Date(entry.created_at).toLocaleDateString()}
                       </div>
                     </div>
+
+                    {/* Edit button */}
+                    {canEditEntry(entry) && (
+                      <button
+                        onClick={() => {
+                          setEditingEntry(entry);
+                          setShowWizardModal(true);
+                        }}
+                        className="inline-flex items-center text-blue-600 hover:text-blue-800 text-sm font-medium"
+                      >
+                        <Edit className="h-4 w-4 mr-1" />
+                        Edit
+                      </button>
+                    )}
                   </div>
                 </StandardCard>
               ))}
             </div>
           )}
         </div>
+
+        {showWizardModal && currentProperty && (
+          <TripReportWizard
+            isOpen={showWizardModal}
+            onClose={() => {
+              setShowWizardModal(false);
+              setEditingEntry(null); // Reset editing state
+            }}
+            property={currentProperty}
+            editEntry={editingEntry} // Pass the entry to edit
+            onComplete={() => {
+              fetchGuestBookEntries();
+              setShowWizardModal(false);
+              setEditingEntry(null); // Reset editing state
+            }}
+          />
+        )}
 
         <style jsx>{`
           @keyframes float {
