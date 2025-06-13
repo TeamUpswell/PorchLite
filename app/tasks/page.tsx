@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { useAuth } from "@/components/auth";
 import { useProperty } from "@/lib/hooks/useProperty";
 import { supabase } from "@/lib/supabase";
-import ProtectedPageWrapper from "@/components/layout/ProtectedPageWrapper";
 import PageContainer from "@/components/layout/PageContainer";
 import Header from "@/components/layout/Header";
 import StandardCard from "@/components/ui/StandardCard";
@@ -59,8 +58,6 @@ type UserProfile = {
   role: string;
 };
 
-// Add these categories based on your database schema:
-
 const TASK_CATEGORIES = [
   { value: "maintenance", label: "🔧 Maintenance", color: "orange" },
   { value: "repair", label: "🛠️ Repair", color: "red" },
@@ -90,24 +87,18 @@ const TASK_STATUSES = [
 ];
 
 export default function TasksPage() {
-  const { user, loading } = useAuth();
-  const { currentProperty } = useProperty();
+  const { user, loading: authLoading } = useAuth();
+  const { currentProperty, loading: propertyLoading } = useProperty();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [users, setUsers] = useState<UserProfile[]>([]);
-  const [filter, setFilter] = useState("open"); // Changed from "all" to "open"
+  const [filter, setFilter] = useState("open");
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [viewingPhotos, setViewingPhotos] = useState<string[] | null>(null);
-
-  // Add state for edit modal
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
-
-  // Add state for delete modal
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
-
-  // Add delete confirmation state
   const [deletingTaskId, setDeletingTaskId] = useState<string | null>(null);
 
   // Memoize property and user IDs to prevent unnecessary re-renders
@@ -181,7 +172,6 @@ export default function TasksPage() {
       } else if (filter === "completed") {
         query = query.eq("status", "completed");
       } else if (filter === "open") {
-        // Open tasks = pending OR in_progress (not completed)
         query = query.in("status", ["pending", "in_progress"]);
       } else if (filter === "mine") {
         query = query
@@ -191,9 +181,6 @@ export default function TasksPage() {
         query = query
           .eq("created_by", userId)
           .in("status", ["pending", "in_progress"]);
-      } else if (filter === "all") {
-        // All tasks including completed ones
-        // No additional filter needed
       }
 
       const { data, error } = await query.order("created_at", {
@@ -361,12 +348,10 @@ export default function TasksPage() {
     setIsEditModalOpen(true);
   };
 
-  // Add the deleteTask function
   const deleteTask = async (taskId: string) => {
     const task = tasks.find((t) => t.id === taskId);
     if (!task) return;
 
-    // Check if user is the creator
     if (task.created_by !== userId) {
       toast.error("You can only delete tasks you created");
       return;
@@ -382,7 +367,6 @@ export default function TasksPage() {
     setIsDeleting(true);
 
     try {
-      // Delete task from database
       const { error } = await supabase
         .from("tasks")
         .delete()
@@ -390,7 +374,6 @@ export default function TasksPage() {
 
       if (error) throw error;
 
-      // If task has attachments, try to delete them from storage
       if (taskToDelete.attachments && taskToDelete.attachments.length > 0) {
         try {
           const filePaths = taskToDelete.attachments
@@ -463,29 +446,28 @@ export default function TasksPage() {
     return true; // Managers see all tasks
   });
 
-  // Loading state
-  if (loading) {
+  // ✅ EARLY RETURNS AFTER ALL HOOKS
+  if (authLoading || propertyLoading) {
     return (
-      <ProtectedPageWrapper>
-        <Header title="Tasks" />
-        <PageContainer>
-          <div className="flex items-center justify-center min-h-[400px]">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
-              <p className="text-muted-foreground">Loading tasks...</p>
-            </div>
-          </div>
-        </PageContainer>
-      </ProtectedPageWrapper>
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+      </div>
     );
   }
 
-  // No property selected
+  if (!user) {
+    return null; // Auth will redirect
+  }
+
   if (!currentProperty) {
     return (
-      <ProtectedPageWrapper>
+      <div className="p-6">
+        <Header title="Tasks" />
         <PageContainer>
-          <StandardCard>
+          <StandardCard
+            title="No Property Selected"
+            subtitle="Please select a property to view its tasks"
+          >
             <div className="text-center py-8">
               <CheckSquareIcon className="h-12 w-12 text-gray-300 mx-auto mb-3" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">
@@ -497,7 +479,7 @@ export default function TasksPage() {
             </div>
           </StandardCard>
         </PageContainer>
-      </ProtectedPageWrapper>
+      </div>
     );
   }
 
@@ -506,180 +488,177 @@ export default function TasksPage() {
       <Header title="Tasks" />
       <PageContainer>
         <div className="space-y-6">
-          <div className="flex justify-between items-center">
-            <h1 className="text-2xl font-bold">Tasks</h1>
-
-            {/* Task management buttons */}
-            <div className="flex gap-2">
+          <StandardCard
+            title="Property Tasks"
+            subtitle="Manage your property tasks and maintenance"
+            headerActions={
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-gray-500">
+                  {currentProperty?.name} • {tasks.length} tasks
+                </span>
+                <select
+                  value={filter}
+                  onChange={(e) => setFilter(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="open">Open Tasks</option>
+                  <option value="all">All Tasks</option>
+                  <option value="pending">Pending</option>
+                  <option value="in-progress">In Progress</option>
+                  <option value="completed">Completed</option>
+                  <option value="mine">My Open Tasks</option>
+                  <option value="created-by-me">Created by Me (Open)</option>
+                </select>
+              </div>
+            }
+          >
+            <div className="space-y-6">
+              {/* Task management buttons */}
               {(isManagerView || isFamilyView) && (
-                <button
-                  onClick={() => setIsCreateModalOpen(true)}
-                  className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  <PlusIcon className="h-5 w-5 mr-2" />
-                  Add Task
-                </button>
-              )}
-
-              {isManagerView && (
-                <button
-                  onClick={() => setFilter("all")}
-                  className="inline-flex items-center px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  View All Tasks
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* Filter dropdown */}
-          <div className="mb-6">
-            <label
-              htmlFor="task-filter"
-              className="block text-sm font-medium text-gray-400 mb-2" // Changed from gray-500 to gray-400
-            >
-              Filter Tasks
-            </label>
-            <select
-              id="task-filter"
-              value={filter}
-              onChange={(e) => setFilter(e.target.value)}
-              className="w-full sm:w-auto border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="open">Open Tasks</option>
-              <option value="all">All Tasks</option>
-              <option value="pending">Pending</option>
-              <option value="in-progress">In Progress</option>
-              <option value="completed">Completed</option>
-              <option value="mine">My Open Tasks</option>
-              <option value="created-by-me">Created by Me (Open)</option>
-            </select>
-          </div>
-
-          {/* Task cards */}
-          {filteredTasks.length === 0 && filter === "open" ? (
-            // ✅ NEW: Beautiful "All Clear" empty state
-            <StandardCard>
-              <div className="text-center py-16">
-                <div className="relative mb-6">
-                  <div className="w-24 h-24 bg-green-100 rounded-full mx-auto flex items-center justify-center">
-                    <CheckSquareIcon className="h-12 w-12 text-green-600" />
-                  </div>
-                  <div className="absolute -top-2 -right-2 w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
-                    <span className="text-white text-lg">✨</span>
-                  </div>
-                </div>
-                <h3 className="text-2xl font-semibold text-gray-900 mb-3">
-                  All Clear! 🎉
-                </h3>
-                <p className="text-gray-500 mb-2 max-w-md mx-auto">
-                  No open tasks for <strong>{currentProperty.name}</strong>.
-                  Everything is running smoothly!
-                </p>
-                <p className="text-sm text-gray-400 mb-8">
-                  Check back later or create a new task if something needs
-                  attention.
-                </p>
-
-                {/* Quick Actions */}
-                <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
+                <div className="flex gap-2">
                   <button
                     onClick={() => setIsCreateModalOpen(true)}
-                    className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                   >
                     <PlusIcon className="h-5 w-5 mr-2" />
-                    Create New Task
-                  </button>
-                  <button
-                    onClick={() => setFilter("completed")}
-                    className="inline-flex items-center px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                  >
-                    View Completed Tasks
+                    Add Task
                   </button>
                 </div>
-              </div>
-            </StandardCard>
-          ) : filteredTasks.length === 0 ? (
-            // Existing empty state for other filters
-            <StandardCard>
-              <div className="text-center py-12">
-                <CheckSquareIcon className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                <h3 className="text-xl font-medium text-gray-900 mb-2">
-                  No Tasks Found
-                </h3>
-                <p className="text-gray-500 mb-6">
-                  {filter === "completed"
-                    ? "No completed tasks found"
-                    : filter === "pending"
-                    ? "No pending tasks found"
-                    : filter === "in-progress"
-                    ? "No tasks in progress"
-                    : filter === "mine"
-                    ? "No tasks assigned to you"
-                    : filter === "created-by-me"
-                    ? "You haven't created any tasks yet"
-                    : `No tasks match the "${filter}" filter`}
-                </p>
-                <div className="flex gap-3 justify-center">
-                  <button
-                    onClick={() => setFilter("all")}
-                    className="inline-flex items-center px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
-                  >
-                    View All Tasks
-                  </button>
-                  <button
-                    onClick={() => setIsCreateModalOpen(true)}
-                    className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                  >
-                    <PlusIcon className="h-5 w-5 mr-2" />
-                    Create Task
-                  </button>
-                </div>
-              </div>
-            </StandardCard>
-          ) : (
-            // Task list - full width cards
-            <div className="space-y-4">
-              {filteredTasks.map((task) => (
-                <TaskCard
-                  key={task.id}
-                  task={task}
-                  userId={userId || ""}
-                  onClaim={claimTask}
-                  onComplete={completeTask}
-                  onEdit={editTask}
-                  onDelete={deleteTask}
-                  onViewPhotos={setViewingPhotos}
-                  layout="wide" // Add this prop if TaskCard supports it
-                />
-              ))}
+              )}
 
-              {/* "That's it!" message when there are few tasks */}
-              {filteredTasks.length > 0 && filteredTasks.length <= 5 && (
-                <div className="text-center py-8 border-t border-gray-200 mt-8">
-                  <div className="flex items-center justify-center mb-3">
-                    <div className="h-px bg-gray-200 flex-1 max-w-20"></div>
-                    <span className="px-4 text-sm text-gray-400">
-                      That's it!
-                    </span>
-                    <div className="h-px bg-gray-200 flex-1 max-w-20"></div>
+              {/* Task cards */}
+              {filteredTasks.length === 0 && filter === "open" ? (
+                <div className="text-center py-16">
+                  <div className="relative mb-6">
+                    <div className="w-24 h-24 bg-green-100 rounded-full mx-auto flex items-center justify-center">
+                      <CheckSquareIcon className="h-12 w-12 text-green-600" />
+                    </div>
+                    <div className="absolute -top-2 -right-2 w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
+                      <span className="text-white text-lg">✨</span>
+                    </div>
                   </div>
-                  <p className="text-sm text-gray-500">
-                    {filteredTasks.length === 1
-                      ? "Just one task to focus on."
-                      : `Only ${filteredTasks.length} tasks to manage right now.`}
+                  <h3 className="text-2xl font-semibold text-gray-900 mb-3">
+                    All Clear! 🎉
+                  </h3>
+                  <p className="text-gray-500 mb-2 max-w-md mx-auto">
+                    No open tasks for <strong>{currentProperty.name}</strong>.
+                    Everything is running smoothly!
                   </p>
-                  <button
-                    onClick={() => setIsCreateModalOpen(true)}
-                    className="mt-4 inline-flex items-center px-4 py-2 text-sm text-blue-600 hover:text-blue-700 font-medium"
-                  >
-                    <PlusIcon className="h-4 w-4 mr-1" />
-                    Add another task
-                  </button>
+                  <p className="text-sm text-gray-400 mb-8">
+                    Check back later or create a new task if something needs
+                    attention.
+                  </p>
+
+                  <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
+                    <button
+                      onClick={() => setIsCreateModalOpen(true)}
+                      className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      <PlusIcon className="h-5 w-5 mr-2" />
+                      Create New Task
+                    </button>
+                    <button
+                      onClick={() => setFilter("completed")}
+                      className="inline-flex items-center px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                    >
+                      View Completed Tasks
+                    </button>
+                    {isManagerView && (
+                      <button
+                        onClick={() => setFilter("all")}
+                        className="inline-flex items-center px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                      >
+                        View All Tasks
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ) : filteredTasks.length === 0 ? (
+                <div className="text-center py-12">
+                  <CheckSquareIcon className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+                  <h3 className="text-xl font-medium text-gray-900 mb-2">
+                    No Tasks Found
+                  </h3>
+                  <p className="text-gray-500 mb-6">
+                    {filter === "completed"
+                      ? "No completed tasks found"
+                      : filter === "pending"
+                      ? "No pending tasks found"
+                      : filter === "in-progress"
+                      ? "No tasks in progress"
+                      : filter === "mine"
+                      ? "No tasks assigned to you"
+                      : filter === "created-by-me"
+                      ? "You haven't created any tasks yet"
+                      : `No tasks match the "${filter}" filter`}
+                  </p>
+                  <div className="flex gap-3 justify-center">
+                    {isManagerView && (
+                      <button
+                        onClick={() => setFilter("all")}
+                        className="inline-flex items-center px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                      >
+                        View All Tasks
+                      </button>
+                    )}
+                    <button
+                      onClick={() => setFilter("open")}
+                      className="inline-flex items-center px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                    >
+                      View Open Tasks
+                    </button>
+                    <button
+                      onClick={() => setIsCreateModalOpen(true)}
+                      className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                    >
+                      <PlusIcon className="h-5 w-5 mr-2" />
+                      Create Task
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {filteredTasks.map((task) => (
+                    <TaskCard
+                      key={task.id}
+                      task={task}
+                      userId={userId || ""}
+                      onClaim={claimTask}
+                      onComplete={completeTask}
+                      onEdit={editTask}
+                      onDelete={deleteTask}
+                      onViewPhotos={setViewingPhotos}
+                      layout="wide"
+                    />
+                  ))}
+
+                  {filteredTasks.length > 0 && filteredTasks.length <= 5 && (
+                    <div className="text-center py-8 border-t border-gray-200 mt-8">
+                      <div className="flex items-center justify-center mb-3">
+                        <div className="h-px bg-gray-200 flex-1 max-w-20"></div>
+                        <span className="px-4 text-sm text-gray-400">
+                          That's it!
+                        </span>
+                        <div className="h-px bg-gray-200 flex-1 max-w-20"></div>
+                      </div>
+                      <p className="text-sm text-gray-500">
+                        {filteredTasks.length === 1
+                          ? "Just one task to focus on."
+                          : `Only ${filteredTasks.length} tasks to manage right now.`}
+                      </p>
+                      <button
+                        onClick={() => setIsCreateModalOpen(true)}
+                        className="mt-4 inline-flex items-center px-4 py-2 text-sm text-blue-600 hover:text-blue-700 font-medium"
+                      >
+                        <PlusIcon className="h-4 w-4 mr-1" />
+                        Add another task
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
-          )}
+          </StandardCard>
 
           {/* Modals */}
           <CreateTaskModal

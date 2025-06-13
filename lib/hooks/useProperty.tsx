@@ -22,7 +22,7 @@ interface PropertyContextType {
   userTenants: any[];
   loading: boolean;
   error: string | null;
-  hasInitialized: boolean; // ✅ ONLY ADD THIS
+  hasInitialized: boolean;
   setCurrentProperty: (property: any) => void;
   setCurrentTenant: (tenant: any) => void;
   switchProperty: (propertyId: string) => Promise<void>;
@@ -46,13 +46,9 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
   const [userTenants, setUserTenants] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [hasInitialized, setHasInitialized] = useState(false); // ✅ ONLY ADD THIS
+  const [hasInitialized, setHasInitialized] = useState(false);
 
-  // Add loading guards to prevent duplicate calls
-  const [isLoadingProperties, setIsLoadingProperties] = useState(false);
-  const [isLoadingTenants, setIsLoadingTenants] = useState(false);
-
-  // ✅ SIMPLIFIED APPROACH - PROPERTY OWNERSHIP MODEL
+  // 🔧 FIX: Remove circular dependency by only depending on user.id
   useEffect(() => {
     async function loadUserData() {
       if (!user) {
@@ -63,7 +59,13 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
         setUserProperties([]);
         setLoading(false);
         setError(null);
-        setHasInitialized(true); // ✅ ONLY ADD THIS
+        setHasInitialized(true);
+        return;
+      }
+
+      // 🔧 FIX: Prevent multiple simultaneous loads
+      if (hasInitialized && loading) {
+        debugLog("🔍 Already loading, skipping...");
         return;
       }
 
@@ -76,6 +78,7 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
 
       try {
         const supabase = getSupabase();
+        
         // Add session check
         const {
           data: { session },
@@ -199,46 +202,39 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
             debugLog("✅ Set up as property owner:", tenantObj);
           }
 
-          // Set tenant first, then property to ensure both are available
+          // Set tenant first, then property
           setCurrentTenant(tenantObj);
           setUserTenants([tenantObj]);
-
-          // Use setTimeout to ensure state updates are processed
-          setTimeout(() => {
-            setCurrentProperty(firstProperty);
-            debugLog("✅ Property and tenant both set:", {
-              property: firstProperty.name,
-              tenant: tenantObj.tenant.name,
-            });
-          }, 0);
+          setCurrentProperty(firstProperty);
+          
+          debugLog("✅ Property and tenant both set:", {
+            property: firstProperty.name,
+            tenant: tenantObj.tenant.name,
+          });
         } else {
-          // ✅ ONLY CHANGE THIS - DON'T THROW ERROR ON FIRST LOAD
-          if (hasInitialized) {
-            throw new Error("No properties found");
-          } else {
-            debugLog("🔍 No properties found for user");
-          }
+          debugLog("🔍 No properties found for user");
+          setUserProperties([]);
+          setCurrentProperty(null);
+          setCurrentTenant(null);
+          setUserTenants([]);
         }
       } catch (error: any) {
         debugError("❌ Error loading user data:", error);
-        // ✅ ONLY CHANGE THIS - DON'T SHOW ERROR ON FIRST LOAD
-        if (hasInitialized) {
-          setError(error?.message || "Failed to load user data");
-        }
+        setError(error?.message || "Failed to load user data");
         setUserTenants([]);
         setUserProperties([]);
         setCurrentTenant(null);
         setCurrentProperty(null);
       } finally {
         setLoading(false);
-        setHasInitialized(true); // ✅ ONLY ADD THIS
+        setHasInitialized(true);
       }
     }
 
     loadUserData();
-  }, [user?.id, hasInitialized]); // ✅ ONLY ADD hasInitialized TO DEPENDENCY
+  }, [user?.id]); // 🔧 FIX: Only depend on user.id, not hasInitialized
 
-  // ✅ Enhanced currentTenant with proper structure and better logging
+  // Enhanced currentTenant with proper structure and better logging
   const enhancedCurrentTenant = useMemo(() => {
     debugLog("🔍 Enhanced tenant calculation:", {
       hasProperty: !!currentProperty,
@@ -267,7 +263,7 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
     return enhanced;
   }, [currentProperty, currentTenant]);
 
-  // ✅ Property management methods
+  // Property management methods
   const switchProperty = useCallback(
     async (propertyId: string) => {
       const property = userProperties.find((p) => p.id === propertyId);
@@ -333,17 +329,6 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
     []
   );
 
-  const loadUserTenants = useCallback(async () => {
-    if (!user?.id || isLoadingTenants || isLoadingProperties) return;
-
-    setIsLoadingTenants(true);
-    try {
-      // Your existing logic
-    } finally {
-      setIsLoadingTenants(false);
-    }
-  }, [user?.id, isLoadingTenants, isLoadingProperties]);
-
   const value = useMemo(
     () => ({
       currentProperty,
@@ -352,7 +337,7 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
       userTenants,
       loading,
       error,
-      hasInitialized, // ✅ ONLY ADD THIS
+      hasInitialized,
       setCurrentProperty,
       setCurrentTenant,
       switchProperty,
@@ -367,7 +352,7 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
       userTenants,
       loading,
       error,
-      hasInitialized, // ✅ ONLY ADD THIS
+      hasInitialized,
       switchProperty,
       updateProperty,
       refreshProperty,

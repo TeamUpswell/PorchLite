@@ -4,9 +4,10 @@ import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { Plus, Edit, ArrowLeft } from "lucide-react";
 import Link from "next/link";
-import StandardCard from "@/components/ui/StandardCard";
-import ProtectedPageWrapper from "@/components/layout/ProtectedPageWrapper";
 import { useAuth } from "@/components/auth";
+import Header from "@/components/layout/Header";
+import PageContainer from "@/components/layout/PageContainer";
+import StandardCard from "@/components/ui/StandardCard";
 import { supabase } from "@/lib/supabase";
 import { MultiActionPattern } from "@/components/ui/FloatingActionPresets";
 
@@ -32,8 +33,7 @@ interface ManualItem {
 }
 
 export default function ManualSectionDetailPage() {
-  const { user } = useAuth();
-  const [loading, setLoading] = useState(true);
+  const { user, loading } = useAuth();
   const [section, setSection] = useState<ManualSection | null>(null);
   const [items, setItems] = useState<ManualItem[]>([]);
   const params = useParams();
@@ -64,8 +64,6 @@ export default function ManualSectionDetailPage() {
         setItems(itemsData || []);
       } catch (error) {
         console.error("Error fetching data:", error);
-      } finally {
-        setLoading(false);
       }
     }
 
@@ -76,15 +74,14 @@ export default function ManualSectionDetailPage() {
 
   if (loading) {
     return (
-      <ProtectedPageWrapper title="Loading...">
-        <StandardCard>
-          <div className="flex justify-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            <span className="ml-2">Loading section...</span>
-          </div>
-        </StandardCard>
-      </ProtectedPageWrapper>
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+      </div>
     );
+  }
+
+  if (!user) {
+    return null; // Auth will redirect
   }
 
   if (!section) {
@@ -106,83 +103,85 @@ export default function ManualSectionDetailPage() {
   }
 
   return (
-    <ProtectedPageWrapper
-      title={section.title}
-      breadcrumb={[
-        { label: "Manual", href: "/manual" },
-        { label: section.title },
-      ]}
-    >
-      <StandardCard>
+    <div className="p-6">
+      <Header title="Manual Section" />
+      <PageContainer>
         <div className="space-y-6">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-4">
-              {section.title}
-            </h1>
-            <p className="text-gray-600">{section.description}</p>
-          </div>
-
-          <div>
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">
-              Items ({items.length})
-            </h2>
-
-            {items.length === 0 ? (
-              <div className="text-center py-8 bg-gray-50 rounded-lg">
-                <p className="text-gray-500 mb-4">
-                  No items in this section yet
-                </p>
-                <Link
-                  href={`/manual/sections/${sectionId}/items/new`}
-                  className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add First Item
-                </Link>
+          <StandardCard
+            title="Section Details"
+            subtitle="View and manage manual section content"
+          >
+            <div className="space-y-6">
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900 mb-4">
+                  {section.title}
+                </h1>
+                <p className="text-gray-600">{section.description}</p>
               </div>
-            ) : (
-              <div className="space-y-3">
-                {items.map((item) => (
-                  <div
-                    key={item.id}
-                    className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:border-gray-300 transition-colors"
-                  >
-                    <div className="flex-1">
-                      <Link
-                        href={`/manual/sections/${sectionId}/items/${item.id}`}
-                        className="block"
-                      >
-                        <h3 className="font-medium text-gray-900 hover:text-blue-600">
-                          {item.title}
-                          {item.important && (
-                            <span className="ml-2 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                              Important
-                            </span>
-                          )}
-                        </h3>
-                        <p className="text-sm text-gray-500 mt-1">
-                          {item.content.length > 100
-                            ? `${item.content.substring(0, 100)}...`
-                            : item.content}
-                        </p>
-                      </Link>
-                    </div>
-                    <div className="flex items-center space-x-2 ml-4">
-                      <Link
-                        href={`/manual/sections/${sectionId}/items/${item.id}/edit`}
-                        className="flex items-center px-3 py-2 text-blue-600 hover:text-blue-800"
-                      >
-                        <Edit className="h-4 w-4 mr-1" />
-                        Edit
-                      </Link>
-                    </div>
+
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">
+                  Items ({items.length})
+                </h2>
+
+                {items.length === 0 ? (
+                  <div className="text-center py-8 bg-gray-50 rounded-lg">
+                    <p className="text-gray-500 mb-4">
+                      No items in this section yet
+                    </p>
+                    <Link
+                      href={`/manual/sections/${sectionId}/items/new`}
+                      className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add First Item
+                    </Link>
                   </div>
-                ))}
+                ) : (
+                  <div className="space-y-3">
+                    {items.map((item) => (
+                      <div
+                        key={item.id}
+                        className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:border-gray-300 transition-colors"
+                      >
+                        <div className="flex-1">
+                          <Link
+                            href={`/manual/sections/${sectionId}/items/${item.id}`}
+                            className="block"
+                          >
+                            <h3 className="font-medium text-gray-900 hover:text-blue-600">
+                              {item.title}
+                              {item.important && (
+                                <span className="ml-2 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                  Important
+                                </span>
+                              )}
+                            </h3>
+                            <p className="text-sm text-gray-500 mt-1">
+                              {item.content.length > 100
+                                ? `${item.content.substring(0, 100)}...`
+                                : item.content}
+                            </p>
+                          </Link>
+                        </div>
+                        <div className="flex items-center space-x-2 ml-4">
+                          <Link
+                            href={`/manual/sections/${sectionId}/items/${item.id}/edit`}
+                            className="flex items-center px-3 py-2 text-blue-600 hover:text-blue-800"
+                          >
+                            <Edit className="h-4 w-4 mr-1" />
+                            Edit
+                          </Link>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
-            )}
-          </div>
+            </div>
+          </StandardCard>
         </div>
-      </StandardCard>
+      </PageContainer>
 
       {/* Multi-button floating action menu */}
       <MultiActionPattern
@@ -207,6 +206,6 @@ export default function ManualSectionDetailPage() {
           },
         ]}
       />
-    </ProtectedPageWrapper>
+    </div>
   );
 }

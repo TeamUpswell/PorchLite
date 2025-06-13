@@ -20,6 +20,8 @@ import { toast } from "react-hot-toast";
 import { convertToWebP, supportsWebP } from "@/lib/imageUtils";
 import Image from "next/image";
 import { EditPattern } from "@/components/ui/FloatingActionPresets";
+import Header from "@/components/layout/Header";
+import PageContainer from "@/components/layout/PageContainer";
 
 interface ManualItem {
   id: string;
@@ -38,14 +40,12 @@ interface ManualSection {
 }
 
 export default function EditItemPage() {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const router = useRouter();
   const params = useParams();
   const sectionId = params.id as string;
   const itemId = params.itemId as string; // ✅ Correct
 
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [item, setItem] = useState<ManualItem | null>(null);
   const [section, setSection] = useState<ManualSection | null>(null);
   const [title, setTitle] = useState("");
@@ -92,8 +92,6 @@ export default function EditItemPage() {
     } catch (error) {
       console.error("Error loading data:", error);
       toast.error("Error loading item");
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -212,8 +210,6 @@ export default function EditItemPage() {
     }
 
     try {
-      setSaving(true);
-
       const { error } = await supabase
         .from("manual_items")
         .update({
@@ -231,202 +227,169 @@ export default function EditItemPage() {
     } catch (error: any) {
       console.error("Error updating item:", error);
       toast.error("Error updating item");
-    } finally {
-      setSaving(false);
     }
   };
 
   if (loading) {
     return (
-      <ProtectedPageWrapper title="Loading...">
-        <StandardCard>
-          <div className="flex items-center justify-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            <span className="ml-2">Loading item...</span>
-          </div>
-        </StandardCard>
-      </ProtectedPageWrapper>
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+      </div>
     );
   }
 
-  if (!item || !section) {
-    return (
-      <ProtectedPageWrapper title="Item Not Found">
-        <StandardCard>
-          <div className="text-center py-8">
-            <p className="text-red-600">Item not found</p>
-            <Link
-              href={`/manual/sections/${sectionId}`}
-              className="text-blue-600 hover:underline"
-            >
-              Back to Section
-            </Link>
-          </div>
-        </StandardCard>
-      </ProtectedPageWrapper>
-    );
+  if (!user) {
+    return null; // Auth will redirect
   }
 
   return (
-    <ProtectedPageWrapper
-      title="Edit Item"
-      breadcrumb={[
-        { label: "Manual", href: "/manual" },
-        {
-          label: section?.title || "Loading...",
-          href: `/manual/sections/${sectionId}`,
-        },
-        {
-          label: item?.title || "Loading...",
-          href: `/manual/sections/${sectionId}/items/${itemId}`,
-        },
-        { label: "Edit" },
-      ]}
-    >
-      <StandardCard>
-        <div className="p-6">
-          <form id="edit-item-form" onSubmit={handleSave} className="space-y-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Item Title *
-              </label>
-              <input
-                type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Enter item title..."
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Content *
-              </label>
-              <textarea
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-                rows={8}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm"
-                placeholder="Enter item content..."
-              />
-              <p className="text-sm text-gray-500 mt-1">
-                Line breaks will be preserved in the display
-              </p>
-            </div>
-
-            {/* Photo Upload Section */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Photos
-              </label>
-
-              {/* Upload Buttons */}
-              <div className="flex flex-wrap gap-2 mb-4">
-                <label className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 cursor-pointer transition-colors">
-                  <Upload className="h-4 w-4 mr-2" />
-                  Upload Photos
+    <div className="p-6">
+      <Header title="Edit Manual Item" />
+      <PageContainer>
+        <div className="space-y-6">
+          <StandardCard
+            title="Edit Item"
+            subtitle="Update manual item content and details"
+          >
+            <div className="space-y-6">
+              <form
+                id="edit-item-form"
+                onSubmit={handleSave}
+                className="space-y-6"
+              >
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Item Title *
+                  </label>
                   <input
-                    type="file"
-                    multiple
-                    accept="image/*"
-                    onChange={handlePhotoUpload}
-                    className="hidden"
-                    disabled={isUploading}
+                    type="text"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Enter item title..."
                   />
-                </label>
+                </div>
 
-                <label className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 cursor-pointer transition-colors md:hidden">
-                  <Camera className="h-4 w-4 mr-2" />
-                  Take Photo
-                  <input
-                    type="file"
-                    accept="image/*"
-                    capture="environment"
-                    onChange={handlePhotoUpload}
-                    className="hidden"
-                    disabled={isUploading}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Content *
+                  </label>
+                  <textarea
+                    value={content}
+                    onChange={(e) => setContent(e.target.value)}
+                    rows={8}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm"
+                    placeholder="Enter item content..."
                   />
-                </label>
-              </div>
-
-              {/* Upload Progress */}
-              {isUploading && (
-                <div className="mb-4">
-                  <div className="flex items-center justify-between text-sm text-gray-600 mb-1">
-                    <span>Uploading...</span>
-                    <span>{uploadProgress}%</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div
-                      className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                      style={{ width: `${uploadProgress}%` }}
-                    ></div>
-                  </div>
-                </div>
-              )}
-
-              {/* Photo Grid */}
-              {photos.length > 0 ? (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                  {photos.map((photo, index) => (
-                    <div key={index} className="relative group">
-                      <Image
-                        src={photo}
-                        alt={`Item photo ${index + 1}`}
-                        width={200}
-                        height={96}
-                        className="w-full h-24 object-cover rounded-lg border"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => removePhoto(photo)}
-                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                  <ImageIcon className="h-12 w-12 text-gray-400 mx-auto mb-2" />
-                  <p className="text-gray-500">No photos added yet</p>
-                  <p className="text-sm text-gray-400 mt-1">
-                    Upload photos or take new ones to document this item
+                  <p className="text-sm text-gray-500 mt-1">
+                    Line breaks will be preserved in the display
                   </p>
                 </div>
-              )}
-            </div>
 
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                id="important"
-                checked={important}
-                onChange={(e) => setImportant(e.target.checked)}
-                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-              />
-              <label
-                htmlFor="important"
-                className="ml-2 block text-sm text-gray-900"
-              >
-                Mark as important
-              </label>
+                {/* Photo Upload Section */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Photos
+                  </label>
+
+                  {/* Upload Buttons */}
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    <label className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 cursor-pointer transition-colors">
+                      <Upload className="h-4 w-4 mr-2" />
+                      Upload Photos
+                      <input
+                        type="file"
+                        multiple
+                        accept="image/*"
+                        onChange={handlePhotoUpload}
+                        className="hidden"
+                        disabled={isUploading}
+                      />
+                    </label>
+
+                    <label className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 cursor-pointer transition-colors md:hidden">
+                      <Camera className="h-4 w-4 mr-2" />
+                      Take Photo
+                      <input
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        onChange={handlePhotoUpload}
+                        className="hidden"
+                        disabled={isUploading}
+                      />
+                    </label>
+                  </div>
+
+                  {/* Upload Progress */}
+                  {isUploading && (
+                    <div className="mb-4">
+                      <div className="flex items-center justify-between text-sm text-gray-600 mb-1">
+                        <span>Uploading...</span>
+                        <span>{uploadProgress}%</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div
+                          className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                          style={{ width: `${uploadProgress}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Photo Grid */}
+                  {photos.length > 0 ? (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                      {photos.map((photo, index) => (
+                        <div key={index} className="relative group">
+                          <Image
+                            src={photo}
+                            alt={`Item photo ${index + 1}`}
+                            width={200}
+                            height={96}
+                            className="w-full h-24 object-cover rounded-lg border"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => removePhoto(photo)}
+                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                      <ImageIcon className="h-12 w-12 text-gray-400 mx-auto mb-2" />
+                      <p className="text-gray-500">No photos added yet</p>
+                      <p className="text-sm text-gray-400 mt-1">
+                        Upload photos or take new ones to document this item
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="important"
+                    checked={important}
+                    onChange={(e) => setImportant(e.target.checked)}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                  <label
+                    htmlFor="important"
+                    className="ml-2 block text-sm text-gray-900"
+                  >
+                    Mark as important
+                  </label>
+                </div>
+              </form>
             </div>
-          </form>
+          </StandardCard>
         </div>
-      </StandardCard>
-
-      {/* Floating Action Buttons */}
-      <EditPattern
-        form="edit-item-form"
-        backHref={`/manual/sections/${sectionId}/items/${itemId}`}
-        saveLabel="Save Changes"
-        backLabel="Back to Item"
-        saving={saving}
-        disabled={!title.trim()}
-      />
-    </ProtectedPageWrapper>
+      </PageContainer>
+    </div>
   );
 }

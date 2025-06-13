@@ -1,7 +1,10 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
-// ... imports
+import { useState, useEffect } from "react";
+import { useAuth } from "@/components/auth";
+import Header from "@/components/layout/Header";
+import PageContainer from "@/components/layout/PageContainer";
+import StandardCard from "@/components/ui/StandardCard";
 
 export default function IssuesPage() {
   // ✅ ALL HOOKS FIRST
@@ -33,5 +36,21 @@ export default function IssuesPage() {
   if (!currentProperty) return <NoPropertyComponent />;
   if (loading) return <LoadingIssuesComponent />;
 
-  // Your JSX...
+  return (
+    <div className="p-6">
+      <Header title="Issues" />
+      <PageContainer>
+        <div className="space-y-6">
+          <StandardCard
+            title="Property Issues"
+            subtitle="Track and manage property issues"
+          >
+            <div className="space-y-6">
+              {/* Your existing issues JSX goes here */}
+            </div>
+          </StandardCard>
+        </div>
+      </PageContainer>
+    </div>
+  );
 }

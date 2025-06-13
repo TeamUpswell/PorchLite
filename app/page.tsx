@@ -6,7 +6,7 @@ import { useProperty } from "@/lib/hooks/useProperty";
 import { supabase } from "@/lib/supabase";
 import Header from "@/components/layout/Header";
 import PageContainer from "@/components/layout/PageContainer";
-import DashboardHeader from "@/components/dashboard/DashboardHeader"; // ✅ Add back banner
+import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import StandardCard from "@/components/ui/StandardCard";
 import { Home as HomeIcon } from "lucide-react";
@@ -30,13 +30,13 @@ interface InventoryItem {
 
 export default function HomePage() {
   // ✅ ALL HOOKS FIRST
-  const { user, loading: authLoading } = useAuth();
-  const { currentProperty, loading: propertyLoading } = useProperty();
+  const { user, loading } = useAuth();
+  const { currentProperty } = useProperty();
   const [upcomingVisits, setUpcomingVisits] = useState<UpcomingVisit[]>([]);
   const [inventoryAlerts, setInventoryAlerts] = useState<InventoryItem[]>([]);
   const [taskAlerts, setTaskAlerts] = useState<any[]>([]);
   const [totalInventoryCount, setTotalInventoryCount] = useState(0);
-  const [loading, setLoading] = useState(true);
+  const [dashboardLoading, setDashboardLoading] = useState(true);
   const [hasInitialized, setHasInitialized] = useState(false);
 
   // Loading states for individual components
@@ -78,7 +78,7 @@ export default function HomePage() {
     }
 
     console.log("🔍 Fetching dashboard data for property:", currentProperty.id);
-    setLoading(true);
+    setDashboardLoading(true);
 
     try {
       // Visits
@@ -129,19 +129,19 @@ export default function HomePage() {
       console.error("❌ Error fetching dashboard data:", error);
       setComponentLoading({ visits: false, inventory: false, tasks: false });
     } finally {
-      setLoading(false);
+      setDashboardLoading(false);
     }
   };
 
   // ✅ Effect with proper timing
   useEffect(() => {
-    if (authLoading || propertyLoading) {
+    if (loading) {
       return;
     }
 
     if (!user?.id || !currentProperty?.id) {
       console.log("⏳ Waiting for user and property to load...");
-      setLoading(false);
+      setDashboardLoading(false);
       setHasInitialized(true);
       return;
     }
@@ -152,33 +152,31 @@ export default function HomePage() {
     );
     setHasInitialized(true);
     fetchDashboardData();
-  }, [currentProperty?.id, user?.id, authLoading, propertyLoading]);
+  }, [currentProperty?.id, user?.id, loading]);
 
   // Handle new reservation callback
   const handleAddReservation = () => {
     console.log("➕ Add reservation triggered");
-    // You can add navigation to calendar page or open a modal here
-    window.location.href = "/calendar";
+    router.push("/calendar");
   };
 
   // Redirect to auth if no user
   useEffect(() => {
-    if (!authLoading && !user) {
+    if (!loading && !user) {
       console.log("🔄 No user found, redirecting to auth...");
       router.push("/auth");
     }
-  }, [user, authLoading, router]);
+  }, [user, loading, router]);
 
   // Add this at the top of your HomePage component
   console.log('🏠 HomePage render - Auth state:', { 
     user: user?.email || 'none', 
-    authLoading, 
-    propertyLoading,
+    loading, 
     currentProperty: currentProperty?.name || 'none'
   });
 
   // ✅ Early returns AFTER all hooks
-  if (authLoading || propertyLoading) {
+  if (loading) {
     return (
       <div className="p-6">
         <Header title="Dashboard" />

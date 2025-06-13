@@ -7,6 +7,7 @@ import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useTenant } from "@/lib/hooks/useTenant";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/components/auth";
 
 import { MapPin, Check, AlertCircle } from "lucide-react";
 
@@ -375,6 +376,7 @@ function PropertyCreateForm() {
 // Main page component that uses conditional rendering
 export default function CreatePropertyPage() {
   const [isMounted, setIsMounted] = useState(false);
+  const { user, loading } = useAuth();
 
   // Only render on client-side
   useEffect(() => {
@@ -382,18 +384,16 @@ export default function CreatePropertyPage() {
   }, []);
 
   // Show loading state or nothing during server-side rendering
-  if (!isMounted) {
+  if (loading) {
     return (
-      <ProtectedPageWrapper>
-        <div className="container mx-auto px-4 py-8">
-          <h1 className="text-2xl font-bold mb-6">Create New Property</h1>
-          <div className="flex items-center justify-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            <span className="ml-2">Loading property form...</span>
-          </div>
-        </div>
-      </ProtectedPageWrapper>
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+      </div>
     );
+  }
+
+  if (!user) {
+    return null; // Auth will redirect
   }
 
   // Only render the actual form component on the client

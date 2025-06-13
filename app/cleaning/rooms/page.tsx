@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/auth";
-import AuthenticatedLayout from "@/components/auth/AuthenticatedLayout";
+import Header from "@/components/layout/Header";
+import PageContainer from "@/components/layout/PageContainer";
+import StandardCard from "@/components/ui/StandardCard";
 import { supabase } from "@/lib/supabase";
 import { useProperty } from "@/lib/hooks/useProperty";
 import {
@@ -30,13 +30,11 @@ const ICON_OPTIONS = [
   "Trees",
 ];
 
-export default function RoomManagement() {
-  const router = useRouter();
-  const { user } = useAuth();
+export default function CleaningRoomsPage() {
+  const { user, loading } = useAuth();
   const { currentProperty } = useProperty();
 
   const [customRooms, setCustomRooms] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingRoom, setEditingRoom] = useState<any>(null);
   const [formData, setFormData] = useState({
@@ -48,16 +46,12 @@ export default function RoomManagement() {
   useEffect(() => {
     async function loadData() {
       try {
-        setLoading(true);
-
         if (currentProperty?.id) {
           await fetchCustomRooms(currentProperty.id);
         }
       } catch (error) {
         console.error("Error loading room types:", error);
         toast.error("Failed to load custom rooms");
-      } finally {
-        setLoading(false);
       }
     }
 
@@ -192,229 +186,246 @@ export default function RoomManagement() {
     }
   };
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return null;
+  }
+
   return (
-    <AuthenticatedLayout>
-      <div className="container mx-auto py-8 px-4">
-        <div className="mb-6">
-          <Link
-            href="/cleaning"
-            className="flex items-center text-blue-600 hover:text-blue-800"
+    <div className="p-6">
+      <Header title="Cleaning Rooms" />
+      <PageContainer>
+        <div className="space-y-6">
+          <StandardCard
+            title="Room Management"
+            subtitle="Manage room-specific cleaning tasks"
           >
-            <ArrowLeft className="h-4 w-4 mr-1" />
-            Back to Cleaning Dashboard
-          </Link>
-        </div>
-
-        {/* ✅ Add property validation: */}
-        {!currentProperty ? (
-          <div className="text-center py-8">
-            <h2 className="text-xl font-semibold mb-2">No Property Selected</h2>
-            <p className="text-gray-600">
-              Please select a property from your account settings to manage
-              rooms.
-            </p>
-          </div>
-        ) : (
-          <>
-            <div className="flex justify-between items-center mb-6">
-              <h1 className="text-2xl font-semibold">
-                {currentProperty.name} - Room Management
-              </h1>
-
-              {!showAddForm && (
-                <button
-                  onClick={() => setShowAddForm(true)}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center"
+            <div className="space-y-6">
+              {/* Your existing cleaning rooms JSX goes here */}
+              <div className="mb-6">
+                <Link
+                  href="/cleaning"
+                  className="flex items-center text-blue-600 hover:text-blue-800"
                 >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Custom Room
-                </button>
-              )}
-            </div>
-
-            {/* Add/Edit Form */}
-            {showAddForm && (
-              <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-                <h2 className="text-lg font-medium mb-4">
-                  {editingRoom ? "Edit Room" : "Add New Room"}
-                </h2>
-
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <div>
-                    <label
-                      htmlFor="name"
-                      className="block text-sm font-medium text-gray-700 mb-1"
-                    >
-                      Room Name *
-                    </label>
-                    <input
-                      id="name"
-                      name="name"
-                      value={formData.name}
-                      onChange={handleChange}
-                      required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="e.g., Game Room"
-                    />
-                  </div>
-
-                  <div>
-                    <label
-                      htmlFor="slug"
-                      className="block text-sm font-medium text-gray-700 mb-1"
-                    >
-                      Room Identifier * (auto-generated)
-                    </label>
-                    <input
-                      id="slug"
-                      name="slug"
-                      value={formData.slug}
-                      onChange={handleChange}
-                      required
-                      pattern="[a-z0-9_]+"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="e.g., game_room"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">
-                      Only use lowercase letters, numbers and underscores
-                    </p>
-                  </div>
-
-                  <div>
-                    <label
-                      htmlFor="icon"
-                      className="block text-sm font-medium text-gray-700 mb-1"
-                    >
-                      Icon
-                    </label>
-                    <select
-                      id="icon"
-                      name="icon"
-                      value={formData.icon}
-                      onChange={handleChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      {ICON_OPTIONS.map((icon) => (
-                        <option key={icon} value={icon}>
-                          {icon}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="flex justify-end space-x-3">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowAddForm(false);
-                        setEditingRoom(null);
-                        setFormData({ name: "", slug: "", icon: "Home" });
-                      }}
-                      className="px-4 py-2 bg-gray-100 text-gray-800 rounded-md hover:bg-gray-200"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                    >
-                      {editingRoom ? "Save Changes" : "Add Room"}
-                    </button>
-                  </div>
-                </form>
+                  <ArrowLeft className="h-4 w-4 mr-1" />
+                  Back to Cleaning Dashboard
+                </Link>
               </div>
-            )}
 
-            {loading ? (
-              <div className="flex justify-center py-12">
-                <div className="animate-spin h-8 w-8 border-4 border-blue-500 rounded-full border-t-transparent"></div>
-              </div>
-            ) : (
-              <>
-                <div className="bg-white rounded-lg shadow-md overflow-hidden mb-6">
-                  <div className="p-4 bg-blue-50 border-b border-blue-100">
-                    <h2 className="font-medium">Standard Rooms</h2>
-                  </div>
-
-                  <ul className="divide-y divide-gray-100">
-                    {[
-                      "Kitchen",
-                      "Living Room",
-                      "Master Bedroom",
-                      "Guest Bedroom",
-                      "Master Bathroom",
-                      "Guest Bathroom",
-                      "Hallway",
-                      "Outdoor Area",
-                    ].map((room, index) => (
-                      <li
-                        key={index}
-                        className="p-4 flex items-center justify-between"
-                      >
-                        <div className="flex items-center">
-                          <div className="p-2 bg-blue-100 rounded-full mr-3">
-                            <HomeIcon className="h-4 w-4 text-blue-600" />
-                          </div>
-                          <span>{room}</span>
-                        </div>
-                        <span className="text-xs bg-gray-100 py-1 px-2 rounded">
-                          Default
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
+              {/* ✅ Add property validation: */}
+              {!currentProperty ? (
+                <div className="text-center py-8">
+                  <h2 className="text-xl font-semibold mb-2">
+                    No Property Selected
+                  </h2>
+                  <p className="text-gray-600">
+                    Please select a property from your account settings to manage
+                    rooms.
+                  </p>
                 </div>
+              ) : (
+                <>
+                  <div className="flex justify-between items-center mb-6">
+                    <h1 className="text-2xl font-semibold">
+                      {currentProperty.name} - Room Management
+                    </h1>
 
-                <div className="bg-white rounded-lg shadow-md overflow-hidden">
-                  <div className="p-4 bg-blue-50 border-b border-blue-100">
-                    <h2 className="font-medium">Custom Rooms</h2>
-                  </div>
-
-                  {customRooms.length === 0 ? (
-                    <div className="p-6 text-center text-gray-500">
-                      <p>No custom rooms have been added yet</p>
+                    {!showAddForm && (
                       <button
                         onClick={() => setShowAddForm(true)}
-                        className="mt-3 text-blue-600 hover:text-blue-800"
+                        className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center"
                       >
-                        Add your first custom room
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Custom Room
                       </button>
+                    )}
+                  </div>
+
+                  {/* Add/Edit Form */}
+                  {showAddForm && (
+                    <div className="bg-white rounded-lg shadow-md p-6 mb-8">
+                      <h2 className="text-lg font-medium mb-4">
+                        {editingRoom ? "Edit Room" : "Add New Room"}
+                      </h2>
+
+                      <form onSubmit={handleSubmit} className="space-y-4">
+                        <div>
+                          <label
+                            htmlFor="name"
+                            className="block text-sm font-medium text-gray-700 mb-1"
+                          >
+                            Room Name *
+                          </label>
+                          <input
+                            id="name"
+                            name="name"
+                            value={formData.name}
+                            onChange={handleChange}
+                            required
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            placeholder="e.g., Game Room"
+                          />
+                        </div>
+
+                        <div>
+                          <label
+                            htmlFor="slug"
+                            className="block text-sm font-medium text-gray-700 mb-1"
+                          >
+                            Room Identifier * (auto-generated)
+                          </label>
+                          <input
+                            id="slug"
+                            name="slug"
+                            value={formData.slug}
+                            onChange={handleChange}
+                            required
+                            pattern="[a-z0-9_]+"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            placeholder="e.g., game_room"
+                          />
+                          <p className="text-xs text-gray-500 mt-1">
+                            Only use lowercase letters, numbers and underscores
+                          </p>
+                        </div>
+
+                        <div>
+                          <label
+                            htmlFor="icon"
+                            className="block text-sm font-medium text-gray-700 mb-1"
+                          >
+                            Icon
+                          </label>
+                          <select
+                            id="icon"
+                            name="icon"
+                            value={formData.icon}
+                            onChange={handleChange}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          >
+                            {ICON_OPTIONS.map((icon) => (
+                              <option key={icon} value={icon}>
+                                {icon}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className="flex justify-end space-x-3">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowAddForm(false);
+                              setEditingRoom(null);
+                              setFormData({ name: "", slug: "", icon: "Home" });
+                            }}
+                            className="px-4 py-2 bg-gray-100 text-gray-800 rounded-md hover:bg-gray-200"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="submit"
+                            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                          >
+                            {editingRoom ? "Save Changes" : "Add Room"}
+                          </button>
+                        </div>
+                      </form>
                     </div>
-                  ) : (
+                  )}
+
+                  <div className="bg-white rounded-lg shadow-md overflow-hidden mb-6">
+                    <div className="p-4 bg-blue-50 border-b border-blue-100">
+                      <h2 className="font-medium">Standard Rooms</h2>
+                    </div>
+
                     <ul className="divide-y divide-gray-100">
-                      {customRooms.map((room) => (
+                      {[
+                        "Kitchen",
+                        "Living Room",
+                        "Master Bedroom",
+                        "Guest Bedroom",
+                        "Master Bathroom",
+                        "Guest Bathroom",
+                        "Hallway",
+                        "Outdoor Area",
+                      ].map((room, index) => (
                         <li
-                          key={room.id}
+                          key={index}
                           className="p-4 flex items-center justify-between"
                         >
                           <div className="flex items-center">
                             <div className="p-2 bg-blue-100 rounded-full mr-3">
                               <HomeIcon className="h-4 w-4 text-blue-600" />
                             </div>
-                            <span>{room.name}</span>
+                            <span>{room}</span>
                           </div>
-                          <div className="flex space-x-2">
-                            <ActionButton
-                              onClick={() => setEditingRoom(room)}
-                              title="Edit room"
-                              variant="edit"
-                            />
-                            <ActionButton
-                              onClick={() => handleDelete(room.id)}
-                              title="Delete room"
-                              variant="delete"
-                            />
-                          </div>
+                          <span className="text-xs bg-gray-100 py-1 px-2 rounded">
+                            Default
+                          </span>
                         </li>
                       ))}
                     </ul>
-                  )}
-                </div>
-              </>
-            )}
-          </>
-        )}
-      </div>
-    </AuthenticatedLayout>
+                  </div>
+
+                  <div className="bg-white rounded-lg shadow-md overflow-hidden">
+                    <div className="p-4 bg-blue-50 border-b border-blue-100">
+                      <h2 className="font-medium">Custom Rooms</h2>
+                    </div>
+
+                    {customRooms.length === 0 ? (
+                      <div className="p-6 text-center text-gray-500">
+                        <p>No custom rooms have been added yet</p>
+                        <button
+                          onClick={() => setShowAddForm(true)}
+                          className="mt-3 text-blue-600 hover:text-blue-800"
+                        >
+                          Add your first custom room
+                        </button>
+                      </div>
+                    ) : (
+                      <ul className="divide-y divide-gray-100">
+                        {customRooms.map((room) => (
+                          <li
+                            key={room.id}
+                            className="p-4 flex items-center justify-between"
+                          >
+                            <div className="flex items-center">
+                              <div className="p-2 bg-blue-100 rounded-full mr-3">
+                                <HomeIcon className="h-4 w-4 text-blue-600" />
+                              </div>
+                              <span>{room.name}</span>
+                            </div>
+                            <div className="flex space-x-2">
+                              <ActionButton
+                                onClick={() => setEditingRoom(room)}
+                                title="Edit room"
+                                variant="edit"
+                              />
+                              <ActionButton
+                                onClick={() => handleDelete(room.id)}
+                                title="Delete room"
+                                variant="delete"
+                              />
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+          </StandardCard>
+        </div>
+      </PageContainer>
+    </div>
   );
 }

@@ -1,17 +1,19 @@
 "use client";
 
-import { useState, FormEvent, ChangeEvent } from "react";
+import { useState, FormEvent, ChangeEvent, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/auth";
 import { supabase } from "@/lib/supabase";
 import SideNavigation from "@/components/SideNavigation";
 import { ArrowLeft, Save } from "lucide-react";
 import Link from "next/link";
+import Header from "@/components/layout/Header";
+import PageContainer from "@/components/layout/PageContainer";
+import StandardCard from "@/components/ui/StandardCard";
 
 export default function AddContactPage() {
   const router = useRouter();
-  const { user } = useAuth();
-  const [loading, setLoading] = useState(false);
+  const { user, loading } = useAuth();
   const [error, setError] = useState("");
   const [formData, setFormData] = useState({
     name: "",
@@ -23,6 +25,12 @@ export default function AddContactPage() {
     website: "",
     priority: 0,
   });
+
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push("/"); // Redirect to home or login page if not authenticated
+    }
+  }, [loading, user, router]);
 
   const handleChange = (
     e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
@@ -36,7 +44,6 @@ export default function AddContactPage() {
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setLoading(true);
     setError("");
 
     try {
@@ -67,10 +74,20 @@ export default function AddContactPage() {
       const errorMessage =
         error instanceof Error ? error.message : "An unknown error occurred";
       setError(errorMessage);
-    } finally {
-      setLoading(false);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return null; // Auth will redirect
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -244,10 +261,9 @@ export default function AddContactPage() {
                   </Link>
                   <button
                     type="submit"
-                    disabled={loading}
                     className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                   >
-                    {loading ? "Saving..." : "Save Contact"}
+                    Save Contact
                   </button>
                 </div>
               </div>

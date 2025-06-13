@@ -102,13 +102,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // ✅ FIXED: Initialize auth without early errors
   const initializeAuth = async () => {
     try {
-      console.log('🔍 Checking initial auth session...')  // Use console.log instead
-    
-      const { data: { session }, error } = await supabase.auth.getSession()
-    
+      console.log("🔍 Checking initial auth session..."); // Use console.log instead
+
+      const {
+        data: { session },
+        error,
+      } = await supabase.auth.getSession();
+
       if (error) {
-        console.log('❌ Error getting session:', error.message)
-        return
+        console.log("❌ Error getting session:", error.message);
+        return;
       }
 
       if (session?.user) {
@@ -126,7 +129,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setTenant(null);
       }
     } catch (error) {
-      console.log('❌ Auth initialization error:', error)
+      console.log("❌ Auth initialization error:", error);
     }
   };
 

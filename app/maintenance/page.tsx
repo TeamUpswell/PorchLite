@@ -1,23 +1,41 @@
 "use client";
-import ProtectedPageWrapper from "@/components/layout/ProtectedPageWrapper";
 
-import { useState } from "react";
-import { CreatePattern } from "@/components/ui/FloatingActionPresets";
-
+import { useState, useEffect } from "react";
+import { useAuth } from "@/components/auth";
+import Header from "@/components/layout/Header";
+import PageContainer from "@/components/layout/PageContainer";
+import StandardCard from "@/components/ui/StandardCard";
 
 export default function MaintenancePage() {
-  const [showReportModal, setShowReportModal] = useState(false);
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return null;
+  }
 
   return (
-    <ProtectedPageWrapper><div className="space-y-6">
-      {/* Your page content */}
-
-      <CreatePattern
-        onClick={() => setShowReportModal(true)}
-        label="Report Issue"
-      />
-
-      {/* Rest of your component */}
-    </div></ProtectedPageWrapper>
+    <div className="p-6">
+      <Header title="Maintenance" />
+      <PageContainer>
+        <div className="space-y-6">
+          <StandardCard
+            title="Property Maintenance"
+            subtitle="Track property maintenance and repairs"
+          >
+            <div className="space-y-6">
+              {/* Your existing maintenance JSX goes here */}
+            </div>
+          </StandardCard>
+        </div>
+      </PageContainer>
+    </div>
   );
 }

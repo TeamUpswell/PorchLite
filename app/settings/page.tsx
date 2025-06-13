@@ -1,26 +1,40 @@
 "use client";
 
+import { useAuth } from "@/components/auth";
 import { Header, PageContainer, StandardCard } from "@/components/ui";
-import ProtectedPageWrapper from "@/components/layout/ProtectedPageWrapper";
+import LoadingSpinner from "@/components/LoadingSpinner";
 
-export default function SettingsPage() {
+export default function ReservationsPage() {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return null; // Auth will redirect
+  }
+
   return (
-    <ProtectedPageWrapper>
-      <>
-        <Header
-          title="Settings"
-          subtitle="Manage your account and preferences"
-        />
-        <PageContainer>
-          <div className="p-6">
-            <StandardCard>
-              <div className="text-center py-8">
-                <p className="text-gray-500">Settings page coming soon</p>
-              </div>
-            </StandardCard>
-          </div>
-        </PageContainer>
-      </>
-    </ProtectedPageWrapper>
+    <>
+      <Header
+        title="Reservations"
+        subtitle="Manage guest bookings and availability"
+      />
+      <PageContainer>
+        <div className="p-6">
+          <StandardCard>
+            {/* Move all existing reservations content here */}
+            <div className="space-y-6">
+              {/* Your existing reservations JSX goes here */}
+            </div>
+          </StandardCard>
+        </div>
+      </PageContainer>
+    </>
   );
 }

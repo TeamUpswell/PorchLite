@@ -1,9 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useAuth } from "@/components/auth";
+import Header from "@/components/layout/Header";
+import PageContainer from "@/components/layout/PageContainer";
+import StandardCard from "@/components/ui/StandardCard";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { useAuth } from "@/components/auth";
 import AuthenticatedLayout from "@/components/auth/AuthenticatedLayout";
 import { supabase } from "@/lib/supabase";
 import { useProperty } from "@/lib/hooks/useProperty";
@@ -30,11 +33,11 @@ const LOCATIONS = [
 ];
 
 export default function CreateCleaningIssuePage() {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const router = useRouter();
   const { currentProperty } = useProperty();
 
-  const [loading, setLoading] = useState(false);
+  const [formLoading, setFormLoading] = useState(false);
   const [photos, setPhotos] = useState<string[]>([]); // Simplified to just URLs
 
   const [issueData, setIssueData] = useState({
@@ -43,6 +46,12 @@ export default function CreateCleaningIssuePage() {
     location: "",
     notes: "",
   });
+
+  useEffect(() => {
+    if (!user && !loading) {
+      router.push("/"); // Redirect to home if not logged in
+    }
+  }, [user, loading, router]);
 
   const handleChange = (
     e: React.ChangeEvent<
@@ -66,7 +75,7 @@ export default function CreateCleaningIssuePage() {
       return;
     }
 
-    setLoading(true);
+    setFormLoading(true);
 
     try {
       // Create the issue record (photos are already uploaded by PhotoUpload component)
@@ -90,39 +99,33 @@ export default function CreateCleaningIssuePage() {
       console.error("Error reporting issue:", error);
       toast.error("Failed to report issue");
     } finally {
-      setLoading(false);
+      setFormLoading(false);
     }
   };
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return null;
+  }
+
   return (
     <AuthenticatedLayout>
-      <div className="container mx-auto py-8 px-4">
-        <div className="mb-6">
-          <Link
-            href="/cleaning/issues"
-            className="flex items-center text-blue-600 hover:text-blue-800"
-          >
-            <ArrowLeft className="h-4 w-4 mr-1" />
-            Back to Issues
-          </Link>
-        </div>
-
-        {!currentProperty ? (
-          <div className="text-center py-8">
-            <h2 className="text-xl font-semibold mb-2">No Property Selected</h2>
-            <p className="text-gray-600">
-              Please select a property from your account settings to report
-              issues.
-            </p>
-          </div>
-        ) : (
-          <>
-            <h1 className="text-2xl font-semibold mb-6">
-              {currentProperty.name} - Report Cleaning Issue
-            </h1>
-
-            <div className="bg-white p-6 rounded-lg shadow-md">
-              <form onSubmit={handleSubmit} className="space-y-6">
+      <div className="p-6">
+        <Header title="Create Cleaning Issue" />
+        <PageContainer>
+          <div className="space-y-6">
+            <StandardCard
+              title="Report New Issue"
+              subtitle="Create a new cleaning issue report"
+            >
+              <div className="space-y-6">
                 {/* Description */}
                 <div>
                   <label
@@ -242,14 +245,14 @@ export default function CreateCleaningIssuePage() {
                   </Link>
                   <button
                     type="submit"
-                    disabled={loading}
+                    disabled={formLoading}
                     className={`px-6 py-2 rounded-md text-white font-medium ${
-                      loading
+                      formLoading
                         ? "bg-blue-400 cursor-not-allowed"
                         : "bg-blue-600 hover:bg-blue-700"
                     }`}
                   >
-                    {loading ? (
+                    {formLoading ? (
                       <div className="flex items-center">
                         <div className="h-4 w-4 border-2 border-t-transparent border-white rounded-full animate-spin mr-2"></div>
                         Submitting...
@@ -259,10 +262,10 @@ export default function CreateCleaningIssuePage() {
                     )}
                   </button>
                 </div>
-              </form>
-            </div>
-          </>
-        )}
+              </div>
+            </StandardCard>
+          </div>
+        </PageContainer>
       </div>
     </AuthenticatedLayout>
   );

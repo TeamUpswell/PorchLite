@@ -15,6 +15,9 @@ import {
   LucideIcon,
 } from "lucide-react";
 import RoomCard from "../components/RoomCard";
+import Header from "@/components/layout/Header";
+import PageContainer from "@/components/layout/PageContainer";
+import StandardCard from "@/components/ui/StandardCard";
 
 // Define interfaces for our data structures
 interface RoomStat {
@@ -36,10 +39,9 @@ interface Property {
 }
 
 export default function CleaningChecklist() {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const { currentProperty } = useProperty();
   const [roomStats, setRoomStats] = useState<Record<string, RoomStat>>({});
-  const [loading, setLoading] = useState(true);
   const [roomTypes, setRoomTypes] = useState<RoomType[]>([
     { id: "kitchen", name: "Kitchen", icon: Utensils },
     { id: "living_room", name: "Living Room", icon: Home },
@@ -52,8 +54,6 @@ export default function CleaningChecklist() {
   useEffect(() => {
     async function loadData() {
       try {
-        setLoading(true);
-
         // ✅ Use currentProperty instead of getMainProperty()
         if (currentProperty?.id) {
           // Get task statistics for each room
@@ -79,8 +79,6 @@ export default function CleaningChecklist() {
         }
       } catch (error) {
         console.error("Error loading cleaning checklist data:", error);
-      } finally {
-        setLoading(false);
       }
     }
 
@@ -124,6 +122,18 @@ export default function CleaningChecklist() {
     loadCustomRooms();
   }, [currentProperty]);
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return null;
+  }
+
   return (
     <AuthenticatedLayout>
       <div className="container mx-auto py-8 px-4">
@@ -141,29 +151,25 @@ export default function CleaningChecklist() {
           {currentProperty?.name} - Cleaning Checklist
         </h1>
 
-        {loading ? (
-          <div className="flex justify-center">
-            <div className="animate-spin h-8 w-8 border-4 border-blue-500 rounded-full border-t-transparent"></div>
+        <Header title="Cleaning Checklist" />
+        <PageContainer>
+          <div className="space-y-6">
+            <StandardCard
+              title="Cleaning Tasks"
+              subtitle="Manage your cleaning checklist and tasks"
+            >
+              <div className="space-y-6">
+                {roomTypes.map((room) => (
+                  <RoomCard
+                    key={room.id}
+                    room={room}
+                    stats={roomStats[room.id] || { total: 0, completed: 0 }}
+                  />
+                ))}
+              </div>
+            </StandardCard>
           </div>
-        ) : !currentProperty ? (
-          <div className="text-center py-8">
-            <h2 className="text-xl font-semibold mb-2">No Property Selected</h2>
-            <p className="text-gray-600">
-              Please select a property from your account settings to view the
-              cleaning checklist.
-            </p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {roomTypes.map((room) => (
-              <RoomCard
-                key={room.id}
-                room={room}
-                stats={roomStats[room.id] || { total: 0, completed: 0 }}
-              />
-            ))}
-          </div>
-        )}
+        </PageContainer>
       </div>
     </AuthenticatedLayout>
   );

@@ -6,28 +6,41 @@ export const fetchCache = "force-no-store";
 export const runtime = "nodejs";
 
 import { useState, useEffect } from "react";
-import Link from "next/link";
-import { useSearchParams, useRouter } from "next/navigation";
 import { useAuth } from "@/components/auth";
-import AuthenticatedLayout from "@/components/auth/AuthenticatedLayout";
-import { supabase } from "@/lib/supabase";
-import { useProperty } from "@/lib/hooks/useProperty";
-import { ArrowLeft, Calendar, Check, X, ChevronRight } from "lucide-react";
+import Header from "@/components/layout/Header";
+import PageContainer from "@/components/layout/PageContainer";
+import StandardCard from "@/components/ui/StandardCard";
 
-export default function CleaningHistory() {
-  const { user } = useAuth();
-  const [loading, setLoading] = useState(true);
+export default function CleaningHistoryPage() {
+  const { user, loading } = useAuth();
 
-  useEffect(() => {
-    setLoading(false);
-  }, []);
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return null;
+  }
 
   return (
-    <AuthenticatedLayout>
-      <div className="p-6">
-        <h1 className="text-2xl font-bold">Cleaning History</h1>
-        <p>History content will go here</p>
-      </div>
-    </AuthenticatedLayout>
+    <div className="p-6">
+      <Header title="Cleaning History" />
+      <PageContainer>
+        <div className="space-y-6">
+          <StandardCard
+            title="Cleaning Records"
+            subtitle="View cleaning history and completed tasks"
+          >
+            <div className="space-y-6">
+              {/* Your existing cleaning history JSX goes here */}
+            </div>
+          </StandardCard>
+        </div>
+      </PageContainer>
+    </div>
   );
 }

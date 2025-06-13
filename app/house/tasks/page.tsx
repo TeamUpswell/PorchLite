@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useAuth } from "@/components/auth";
 import { useProperty } from "@/lib/hooks/useProperty";
 import { supabase } from "@/lib/supabase";
-import ProtectedPageWrapper from "@/components/layout/ProtectedPageWrapper";
+import Header from "@/components/layout/Header";
 import PageContainer from "@/components/layout/PageContainer";
 import StandardCard from "@/components/ui/StandardCard";
 import TaskCard from "@/components/tasks/TaskCard";
@@ -89,11 +89,11 @@ const TASK_STATUSES = [
 // ✅ ADD THIS RIGHT AFTER IMPORTS
 const isDev = process.env.NODE_ENV === "development";
 
-export default function TasksPage() {
+export default function HouseTasksPage() {
   // ✅ HOOKS FIRST - ALL hooks must be called before any early returns
   const { user, loading: authLoading } = useAuth();
   const { currentProperty, loading: propertyLoading } = useProperty();
-  
+
   const [tasks, setTasks] = useState<Task[]>([]);
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
@@ -107,7 +107,9 @@ export default function TasksPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [deletingTaskId, setDeletingTaskId] = useState<string | null>(null);
   const [cleaningIssues, setCleaningIssues] = useState([]);
-  const [initialTaskData, setInitialTaskData] = useState<Partial<Task> | null>(null);
+  const [initialTaskData, setInitialTaskData] = useState<Partial<Task> | null>(
+    null
+  );
 
   // ✅ FIXED: Define view mode variables (replacing useViewMode)
   const isManagerView = true; // Assume manager view for now
@@ -117,7 +119,10 @@ export default function TasksPage() {
   // Memoize property and user IDs to prevent unnecessary re-renders
   const propertyId = useMemo(() => currentProperty?.id, [currentProperty?.id]);
   const userId = useMemo(() => user?.id, [user?.id]);
-  const tenantId = useMemo(() => currentProperty?.tenant_id, [currentProperty?.tenant_id]);
+  const tenantId = useMemo(
+    () => currentProperty?.tenant_id,
+    [currentProperty?.tenant_id]
+  );
 
   // Load users
   const loadUsers = useCallback(async () => {
@@ -280,7 +285,10 @@ export default function TasksPage() {
   const loadUnresolvedCleaningIssues = useCallback(async () => {
     if (!currentProperty?.id) return;
 
-    debugLog("🔍 Loading unresolved cleaning issues for property:", currentProperty.id);
+    debugLog(
+      "🔍 Loading unresolved cleaning issues for property:",
+      currentProperty.id
+    );
 
     try {
       const { data } = await supabase
@@ -571,16 +579,9 @@ export default function TasksPage() {
   // ✅ EARLY RETURNS AFTER ALL HOOKS - This is the critical fix
   if (authLoading || propertyLoading) {
     return (
-      <ProtectedPageWrapper>
-        <PageContainer>
-          <StandardCard>
-            <div className="flex items-center justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-              <span className="ml-2">Loading...</span>
-            </div>
-          </StandardCard>
-        </PageContainer>
-      </ProtectedPageWrapper>
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+      </div>
     );
   }
 
@@ -590,9 +591,13 @@ export default function TasksPage() {
 
   if (!currentProperty) {
     return (
-      <ProtectedPageWrapper>
+      <div className="p-6">
+        <Header title="House Tasks" />
         <PageContainer>
-          <StandardCard>
+          <StandardCard
+            title="No Property Selected"
+            subtitle="Please select a property to view its tasks"
+          >
             <div className="text-center py-8">
               <CheckSquareIcon className="h-12 w-12 text-gray-300 mx-auto mb-3" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">
@@ -604,30 +609,37 @@ export default function TasksPage() {
             </div>
           </StandardCard>
         </PageContainer>
-      </ProtectedPageWrapper>
+      </div>
     );
   }
 
   if (loading) {
     return (
-      <ProtectedPageWrapper>
+      <div className="p-6">
+        <Header title="House Tasks" />
         <PageContainer>
-          <StandardCard>
+          <StandardCard
+            title="Loading Tasks"
+            subtitle="Please wait while we load your tasks"
+          >
             <div className="flex items-center justify-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
               <span className="ml-2">Loading tasks...</span>
             </div>
           </StandardCard>
         </PageContainer>
-      </ProtectedPageWrapper>
+      </div>
     );
   }
 
   return (
-    <ProtectedPageWrapper>
+    <div className="p-6">
+      <Header title="House Tasks" />
       <PageContainer>
         <div className="space-y-6">
           <StandardCard
+            title="House Management Tasks"
+            subtitle="Manage house-specific tasks and maintenance"
             headerActions={
               <div className="flex items-center gap-3">
                 <span className="text-xs text-gray-500">
@@ -658,51 +670,49 @@ export default function TasksPage() {
           >
             {/* Task cards */}
             {filteredTasks.length === 0 && filter === "open" ? (
-              <StandardCard>
-                <div className="text-center py-16">
-                  <div className="relative mb-6">
-                    <div className="w-24 h-24 bg-green-100 rounded-full mx-auto flex items-center justify-center">
-                      <CheckSquareIcon className="h-12 w-12 text-green-600" />
-                    </div>
-                    <div className="absolute -top-2 -right-2 w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
-                      <span className="text-white text-lg">✨</span>
-                    </div>
+              <div className="text-center py-16">
+                <div className="relative mb-6">
+                  <div className="w-24 h-24 bg-green-100 rounded-full mx-auto flex items-center justify-center">
+                    <CheckSquareIcon className="h-12 w-12 text-green-600" />
                   </div>
-                  <h3 className="text-2xl font-semibold text-gray-900 mb-3">
-                    All Clear! 🎉
-                  </h3>
-                  <p className="text-gray-500 mb-2 max-w-md mx-auto">
-                    No open tasks for <strong>{currentProperty.name}</strong>.
-                    Everything is running smoothly!
-                  </p>
-                  <p className="text-sm text-gray-400 mb-8">
-                    Check back later or create a new task if something needs
-                    attention.
-                  </p>
+                  <div className="absolute -top-2 -right-2 w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
+                    <span className="text-white text-lg">✨</span>
+                  </div>
+                </div>
+                <h3 className="text-2xl font-semibold text-gray-900 mb-3">
+                  All Clear! 🎉
+                </h3>
+                <p className="text-gray-500 mb-2 max-w-md mx-auto">
+                  No open tasks for <strong>{currentProperty.name}</strong>.
+                  Everything is running smoothly!
+                </p>
+                <p className="text-sm text-gray-400 mb-8">
+                  Check back later or create a new task if something needs
+                  attention.
+                </p>
 
-                  <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
+                <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
+                  <button
+                    onClick={() => setIsCreateModalOpen(true)}
+                    className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    <PlusIcon className="h-5 w-5 mr-2" />
+                    Create New Task
+                  </button>
+                  <button
+                    onClick={() => setFilter("completed")}
+                    className="inline-flex items-center px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    View Completed Tasks
+                  </button>
+                  {isManagerView && (
                     <button
-                      onClick={() => setIsCreateModalOpen(true)}
-                      className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                    >
-                      <PlusIcon className="h-5 w-5 mr-2" />
-                      Create New Task
-                    </button>
-                    <button
-                      onClick={() => setFilter("completed")}
+                      onClick={() => setFilter("all")}
                       className="inline-flex items-center px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
                     >
-                      View Completed Tasks
+                      View All Tasks
                     </button>
-                    {isManagerView && (
-                      <button
-                        onClick={() => setFilter("all")}
-                        className="inline-flex items-center px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                      >
-                        View All Tasks
-                      </button>
-                    )}
-                  </div>
+                  )}
                 </div>
 
                 {cleaningIssues.length > 0 && (
@@ -720,8 +730,8 @@ export default function TasksPage() {
                           className="flex items-center justify-between text-sm"
                         >
                           <span className="text-yellow-800">
-                            {issue.location}:{" "}
-                            {issue.description.substring(0, 50)}...
+                            {issue.location}: {issue.description.substring(0, 50)}
+                            ...
                           </span>
                           <button
                             onClick={() => createTaskFromCleaningIssue(issue)}
@@ -734,52 +744,50 @@ export default function TasksPage() {
                     </div>
                   </div>
                 )}
-              </StandardCard>
+              </div>
             ) : filteredTasks.length === 0 ? (
-              <StandardCard>
-                <div className="text-center py-12">
-                  <CheckSquareIcon className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                  <h3 className="text-xl font-medium text-gray-900 mb-2">
-                    No Tasks Found
-                  </h3>
-                  <p className="text-gray-500 mb-6">
-                    {filter === "completed"
-                      ? "No completed tasks found"
-                      : filter === "pending"
-                      ? "No pending tasks found"
-                      : filter === "in-progress"
-                      ? "No tasks in progress"
-                      : filter === "mine"
-                      ? "No tasks assigned to you"
-                      : filter === "created-by-me"
-                      ? "You haven't created any tasks yet"
-                      : `No tasks match the "${filter}" filter`}
-                  </p>
-                  <div className="flex gap-3 justify-center">
-                    {isManagerView && (
-                      <button
-                        onClick={() => setFilter("all")}
-                        className="inline-flex items-center px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
-                      >
-                        View All Tasks
-                      </button>
-                    )}
+              <div className="text-center py-12">
+                <CheckSquareIcon className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+                <h3 className="text-xl font-medium text-gray-900 mb-2">
+                  No Tasks Found
+                </h3>
+                <p className="text-gray-500 mb-6">
+                  {filter === "completed"
+                    ? "No completed tasks found"
+                    : filter === "pending"
+                    ? "No pending tasks found"
+                    : filter === "in-progress"
+                    ? "No tasks in progress"
+                    : filter === "mine"
+                    ? "No tasks assigned to you"
+                    : filter === "created-by-me"
+                    ? "You haven't created any tasks yet"
+                    : `No tasks match the "${filter}" filter`}
+                </p>
+                <div className="flex gap-3 justify-center">
+                  {isManagerView && (
                     <button
-                      onClick={() => setFilter("open")}
+                      onClick={() => setFilter("all")}
                       className="inline-flex items-center px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
                     >
-                      View Open Tasks
+                      View All Tasks
                     </button>
-                    <button
-                      onClick={() => setIsCreateModalOpen(true)}
-                      className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                    >
-                      <PlusIcon className="h-5 w-5 mr-2" />
-                      Create Task
-                    </button>
-                  </div>
+                  )}
+                  <button
+                    onClick={() => setFilter("open")}
+                    className="inline-flex items-center px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                  >
+                    View Open Tasks
+                  </button>
+                  <button
+                    onClick={() => setIsCreateModalOpen(true)}
+                    className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  >
+                    <PlusIcon className="h-5 w-5 mr-2" />
+                    Create Task
+                  </button>
                 </div>
-              </StandardCard>
+              </div>
             ) : (
               <div className="space-y-4">
                 {filteredTasks.map((task) => (
@@ -821,58 +829,58 @@ export default function TasksPage() {
                 )}
               </div>
             )}
-
-            {/* Modals */}
-            <CreateTaskModal
-              isOpen={isCreateModalOpen}
-              onClose={() => {
-                setIsCreateModalOpen(false);
-                setInitialTaskData(null);
-              }}
-              onTaskCreated={loadTasks}
-              users={users}
-              currentProperty={currentProperty}
-              currentUser={user}
-              initialData={initialTaskData}
-            />
-
-            <EditTaskModal
-              isOpen={isEditModalOpen}
-              onClose={() => {
-                setIsEditModalOpen(false);
-                setEditingTask(null);
-              }}
-              onTaskUpdated={loadTasks}
-              users={users}
-              currentProperty={currentProperty}
-              currentUser={user}
-              task={editingTask}
-            />
-
-            <PhotoViewer
-              photos={viewingPhotos || []}
-              isOpen={!!viewingPhotos}
-              onClose={() => setViewingPhotos(null)}
-            />
-
-            <DeleteTaskModal
-              isOpen={isDeleteModalOpen}
-              onClose={() => {
-                setIsDeleteModalOpen(false);
-                setTaskToDelete(null);
-              }}
-              onConfirm={confirmDeleteTask}
-              taskTitle={taskToDelete?.title || ""}
-              isDeleting={isDeleting}
-            />
-
-            <CreatePattern
-              onClick={() => setIsCreateModalOpen(true)}
-              label="Create Task"
-            />
           </StandardCard>
+
+          {/* Modals */}
+          <CreateTaskModal
+            isOpen={isCreateModalOpen}
+            onClose={() => {
+              setIsCreateModalOpen(false);
+              setInitialTaskData(null);
+            }}
+            onTaskCreated={loadTasks}
+            users={users}
+            currentProperty={currentProperty}
+            currentUser={user}
+            initialData={initialTaskData}
+          />
+
+          <EditTaskModal
+            isOpen={isEditModalOpen}
+            onClose={() => {
+              setIsEditModalOpen(false);
+              setEditingTask(null);
+            }}
+            onTaskUpdated={loadTasks}
+            users={users}
+            currentProperty={currentProperty}
+            currentUser={user}
+            task={editingTask}
+          />
+
+          <PhotoViewer
+            photos={viewingPhotos || []}
+            isOpen={!!viewingPhotos}
+            onClose={() => setViewingPhotos(null)}
+          />
+
+          <DeleteTaskModal
+            isOpen={isDeleteModalOpen}
+            onClose={() => {
+              setIsDeleteModalOpen(false);
+              setTaskToDelete(null);
+            }}
+            onConfirm={confirmDeleteTask}
+            taskTitle={taskToDelete?.title || ""}
+            isDeleting={isDeleting}
+          />
+
+          <CreatePattern
+            onClick={() => setIsCreateModalOpen(true)}
+            label="Create Task"
+          />
         </div>
       </PageContainer>
-    </ProtectedPageWrapper>
+    </div>
   );
 }

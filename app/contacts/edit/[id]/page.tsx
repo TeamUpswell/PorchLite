@@ -1,25 +1,19 @@
 "use client";
 
 import { useState, useEffect, FormEvent, ChangeEvent } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { useAuth } from "@/components/auth";
 import { supabase } from "@/lib/supabase";
 import { ArrowLeft, Save, Trash2 } from "lucide-react";
 import Link from "next/link";
-import ProtectedPageWrapper from "@/components/layout/ProtectedPageWrapper";
+import Header from "@/components/layout/Header";
 import PageContainer from "@/components/layout/PageContainer";
 import StandardCard from "@/components/ui/StandardCard";
 
-interface PageParams {
-  params: {
-    id: string;
-  };
-}
-
-export default function EditContactPage({ params }: PageParams) {
+export default function EditContactPage() {
   const router = useRouter();
-  const { user } = useAuth();
-  const [loading, setLoading] = useState(true);
+  const params = useParams(); // Added missing params
+  const { user, loading } = useAuth();
   const [error, setError] = useState("");
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [formData, setFormData] = useState({
@@ -78,8 +72,6 @@ export default function EditContactPage({ params }: PageParams) {
         const errorMessage =
           error instanceof Error ? error.message : "Failed to load contact";
         setError(errorMessage);
-      } finally {
-        setLoading(false);
       }
     }
 
@@ -98,7 +90,6 @@ export default function EditContactPage({ params }: PageParams) {
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setLoading(true);
     setError("");
 
     try {
@@ -125,14 +116,11 @@ export default function EditContactPage({ params }: PageParams) {
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error occurred";
       setError(errorMessage);
-    } finally {
-      setLoading(false);
     }
   };
 
   const handleDeleteContact = async () => {
     try {
-      setLoading(true);
       const { error } = await supabase
         .from("contacts")
         .delete()
@@ -147,48 +135,36 @@ export default function EditContactPage({ params }: PageParams) {
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error occurred";
       setError(errorMessage);
-    } finally {
-      setLoading(false);
     }
   };
 
-  if (loading && !formData.name) {
+  if (loading) {
     return (
-      <ProtectedPageWrapper>
-        <PageContainer>
-          <div className="flex items-center justify-center min-h-64">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-              <p className="mt-2 text-gray-600">Loading contact...</p>
-            </div>
-          </div>
-        </PageContainer>
-      </ProtectedPageWrapper>
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+      </div>
     );
   }
 
+  if (!user) {
+    return null; // Auth will redirect
+  }
+
   return (
-    <ProtectedPageWrapper>
+    <div className="p-6">
+      <Header title="Edit Contact" />
       <PageContainer>
         <div className="space-y-6">
-          {/* ✅ Header with back button */}
-          <div className="flex items-center gap-4">
-            <Link
-              href="/contacts"
-              className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
-            >
-              <ArrowLeft className="h-5 w-5 text-gray-600" />
-            </Link>
-            <h1 className="text-2xl font-bold text-gray-900">Edit Contact</h1>
-          </div>
-
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-              <p>{error}</p>
-            </div>
-          )}
-
-          <StandardCard className="p-6">
+          <StandardCard
+            title="Contact Information"
+            subtitle="Update contact details"
+          >
+            {error && (
+              <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-red-600">{error}</p>
+              </div>
+            )}
+            
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* ✅ Form fields with modern styling */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -340,66 +316,46 @@ export default function EditContactPage({ params }: PageParams) {
                   </Link>
                   <button
                     type="submit"
-                    disabled={loading}
-                    className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                    className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                   >
-                    {loading ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                        Saving...
-                      </>
-                    ) : (
-                      <>
-                        <Save className="h-4 w-4" />
-                        Save Changes
-                      </>
-                    )}
+                    <Save className="h-4 w-4" />
+                    Save Changes
                   </button>
                 </div>
               </div>
             </form>
           </StandardCard>
-        </div>
 
-        {/* ✅ Delete confirmation modal */}
-        {showDeleteModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">
-                Delete Contact
-              </h3>
-              <p className="text-gray-600 mb-6">
-                Are you sure you want to delete <strong>{formData.name}</strong>? This action cannot be undone.
-              </p>
-              <div className="flex gap-3 justify-end">
-                <button
-                  onClick={() => setShowDeleteModal(false)}
-                  className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleDeleteContact}
-                  disabled={loading}
-                  className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50"
-                >
-                  {loading ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                      Deleting...
-                    </>
-                  ) : (
-                    <>
-                      <Trash2 className="h-4 w-4" />
-                      Delete
-                    </>
-                  )}
-                </button>
+          {/* ✅ Delete confirmation modal */}
+          {showDeleteModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">
+                  Delete Contact
+                </h3>
+                <p className="text-gray-600 mb-6">
+                  Are you sure you want to delete <strong>{formData.name}</strong>? This action cannot be undone.
+                </p>
+                <div className="flex gap-3 justify-end">
+                  <button
+                    onClick={() => setShowDeleteModal(false)}
+                    className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleDeleteContact}
+                    className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Delete
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </PageContainer>
-    </ProtectedPageWrapper>
+    </div>
   );
 }

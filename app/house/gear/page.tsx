@@ -1,7 +1,8 @@
 "use client";
-import ProtectedPageWrapper from "@/components/layout/ProtectedPageWrapper";
-
-
+import { useState, useEffect } from "react";
+import { useAuth } from "@/components/auth";
+import Header from "@/components/layout/Header";
+import PageContainer from "@/components/layout/PageContainer";
 import StandardCard from "@/components/ui/StandardCard";
 import {
   Package,
@@ -12,7 +13,6 @@ import {
   ExternalLink,
 } from "lucide-react";
 import Link from "next/link";
-import { useState, useEffect } from "react";
 
 interface GearItem {
   id: string;
@@ -25,7 +25,8 @@ interface GearItem {
   condition: "excellent" | "good" | "fair" | "needs-repair";
 }
 
-export default function GearPage() {
+export default function HouseGearPage() {
+  const { user, loading: authLoading } = useAuth();
   const [gearItems, setGearItems] = useState<GearItem[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [loading, setLoading] = useState(true);
@@ -143,151 +144,149 @@ export default function GearPage() {
     }
   };
 
-  if (loading) {
+  if (authLoading) {
     return (
-      <ProtectedPageWrapper>
-        <div className="space-y-6">
-          <div className="flex items-center space-x-3">
-            <Package className="h-6 w-6 text-blue-600" />
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">House Gear</h1>
-              <p className="text-gray-600">Loading gear inventory...</p>
-            </div>
-          </div>
-          
-          <StandardCard>
-            <div className="flex items-center justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-              <span className="ml-2">Loading gear inventory...</span>
-            </div>
-          </StandardCard>
-        </div>
-      </ProtectedPageWrapper>
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+      </div>
     );
   }
 
+  if (!user) {
+    return null; // Auth will redirect
+  }
+
   return (
-    <ProtectedPageWrapper>
-      <div className="space-y-6">
-        {/* Breadcrumb */}
-        <nav className="flex text-sm text-gray-500">
-          <Link href="/house" className="hover:text-gray-700">The House</Link>
-          <span className="mx-2">/</span>
-          <span className="text-gray-900">Gear</span>
-        </nav>
+    <div className="p-6">
+      <Header title="House Gear" />
+      <PageContainer>
+        <div className="space-y-6">
+          <StandardCard
+            title="House Equipment & Gear"
+            subtitle="Manage house equipment and gear inventory"
+          >
+            {loading ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                <span className="ml-2">Loading gear inventory...</span>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {/* Breadcrumb */}
+                <nav className="flex text-sm text-gray-500">
+                  <Link href="/house" className="hover:text-gray-700">
+                    The House
+                  </Link>
+                  <span className="mx-2">/</span>
+                  <span className="text-gray-900">Gear</span>
+                </nav>
 
-        {/* Page Header */}
-        <div className="flex items-center space-x-3">
-          <Package className="h-6 w-6 text-blue-600" />
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">House Gear & Equipment</h1>
-            <p className="text-gray-600">Everything available for your stay</p>
-          </div>
-        </div>
+                {/* Category Filter */}
+                <StandardCard>
+                  <div className="flex flex-wrap gap-2">
+                    {categories.map((category) => {
+                      const IconComponent = category.icon;
+                      const isSelected = selectedCategory === category.id;
 
-        {/* Category Filter */}
-        <StandardCard>
-          <div className="flex flex-wrap gap-2">
-            {categories.map((category) => {
-              const IconComponent = category.icon;
-              const isSelected = selectedCategory === category.id;
-
-              return (
-                <button
-                  key={category.id}
-                  onClick={() => setSelectedCategory(category.id)}
-                  className={`flex items-center px-4 py-2 rounded-lg transition-colors ${
-                    isSelected
-                      ? "bg-blue-600 text-white"
-                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                  }`}
-                >
-                  <IconComponent className="h-4 w-4 mr-2" />
-                  {category.name}
-                </button>
-              );
-            })}
-          </div>
-        </StandardCard>
-
-        {/* Gear Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredGear.map((item) => (
-            <StandardCard key={item.id}>
-              <div className="space-y-4">
-                {/* Header */}
-                <div className="flex justify-between items-start">
-                  <h3 className="font-semibold text-gray-900">{item.name}</h3>
-                  <div className="flex flex-col items-end space-y-1">
-                    <span
-                      className={`px-2 py-1 text-xs rounded-full ${
-                        item.available
-                          ? "bg-green-100 text-green-800"
-                          : "bg-red-100 text-red-800"
-                      }`}
-                    >
-                      {item.available ? "Available" : "Unavailable"}
-                    </span>
-                    <span
-                      className={`px-2 py-1 text-xs rounded-full ${getConditionColor(
-                        item.condition
-                      )}`}
-                    >
-                      {item.condition.replace("-", " ")}
-                    </span>
+                      return (
+                        <button
+                          key={category.id}
+                          onClick={() => setSelectedCategory(category.id)}
+                          className={`flex items-center px-4 py-2 rounded-lg transition-colors ${
+                            isSelected
+                              ? "bg-blue-600 text-white"
+                              : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                          }`}
+                        >
+                          <IconComponent className="h-4 w-4 mr-2" />
+                          {category.name}
+                        </button>
+                      );
+                    })}
                   </div>
+                </StandardCard>
+
+                {/* Gear Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {filteredGear.map((item) => (
+                    <StandardCard key={item.id}>
+                      <div className="space-y-4">
+                        {/* Header */}
+                        <div className="flex justify-between items-start">
+                          <h3 className="font-semibold text-gray-900">{item.name}</h3>
+                          <div className="flex flex-col items-end space-y-1">
+                            <span
+                              className={`px-2 py-1 text-xs rounded-full ${
+                                item.available
+                                  ? "bg-green-100 text-green-800"
+                                  : "bg-red-100 text-red-800"
+                              }`}
+                            >
+                              {item.available ? "Available" : "Unavailable"}
+                            </span>
+                            <span
+                              className={`px-2 py-1 text-xs rounded-full ${getConditionColor(
+                                item.condition
+                              )}`}
+                            >
+                              {item.condition.replace("-", " ")}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Description */}
+                        <p className="text-gray-600 text-sm">{item.description}</p>
+
+                        {/* Location */}
+                        <div className="flex items-center text-sm text-gray-500">
+                          <MapPin className="h-4 w-4 mr-1" />
+                          {item.location}
+                        </div>
+
+                        {/* Instructions */}
+                        {item.instructions && (
+                          <div className="bg-blue-50 p-3 rounded-lg">
+                            <p className="text-xs text-blue-800">
+                              💡 {item.instructions}
+                            </p>
+                          </div>
+                        )}
+
+                        {/* Actions */}
+                        {item.available && (
+                          <div className="pt-2 border-t border-gray-200">
+                            <Link
+                              href={`/house/gear/${item.id}`}
+                              className="flex items-center text-sm text-blue-600 hover:text-blue-800"
+                            >
+                              View Details
+                              <ExternalLink className="h-3 w-3 ml-1" />
+                            </Link>
+                          </div>
+                        )}
+                      </div>
+                    </StandardCard>
+                  ))}
                 </div>
 
-                {/* Description */}
-                <p className="text-gray-600 text-sm">{item.description}</p>
-
-                {/* Location */}
-                <div className="flex items-center text-sm text-gray-500">
-                  <MapPin className="h-4 w-4 mr-1" />
-                  {item.location}
-                </div>
-
-                {/* Instructions */}
-                {item.instructions && (
-                  <div className="bg-blue-50 p-3 rounded-lg">
-                    <p className="text-xs text-blue-800">
-                      💡 {item.instructions}
-                    </p>
-                  </div>
-                )}
-
-                {/* Actions */}
-                {item.available && (
-                  <div className="pt-2 border-t border-gray-200">
-                    <Link
-                      href={`/house/gear/${item.id}`}
-                      className="flex items-center text-sm text-blue-600 hover:text-blue-800"
-                    >
-                      View Details
-                      <ExternalLink className="h-3 w-3 ml-1" />
-                    </Link>
-                  </div>
+                {filteredGear.length === 0 && (
+                  <StandardCard>
+                    <div className="text-center py-8">
+                      <Package className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">
+                        No gear found
+                      </h3>
+                      <p className="text-gray-500">
+                        No items available in the selected category.
+                      </p>
+                    </div>
+                  </StandardCard>
                 )}
               </div>
-            </StandardCard>
-          ))}
-        </div>
-
-        {filteredGear.length === 0 && (
-          <StandardCard>
-            <div className="text-center py-8">
-              <Package className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
-                No gear found
-              </h3>
-              <p className="text-gray-500">
-                No items available in the selected category.
-              </p>
-            </div>
+            )}
           </StandardCard>
-        )}
-      </div>
+        </div>
+      </PageContainer>
     </div>
-    </ProtectedPageWrapper>
   );
 }

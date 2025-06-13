@@ -9,6 +9,8 @@ import ProtectedPageWrapper from "@/components/layout/ProtectedPageWrapper";
 import { useAuth } from "@/components/auth";
 import { supabase } from "@/lib/supabase";
 import Image from "next/image";
+import Header from "@/components/layout/Header";
+import PageContainer from "@/components/layout/PageContainer";
 
 interface ManualItem {
   id: string;
@@ -27,12 +29,11 @@ interface ManualSection {
 }
 
 export default function ItemDetailPage() {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const params = useParams();
   const sectionId = params.id as string;
   const itemId = params.itemId as string;
 
-  const [loading, setLoading] = useState(true);
   const [item, setItem] = useState<ManualItem | null>(null);
   const [section, setSection] = useState<ManualSection | null>(null);
 
@@ -77,22 +78,19 @@ export default function ItemDetailPage() {
       setSection(sectionData);
     } catch (error) {
       console.error("Error loading data:", error);
-    } finally {
-      setLoading(false);
     }
   };
 
   if (loading) {
     return (
-      <ProtectedPageWrapper title="Loading...">
-        <StandardCard>
-          <div className="flex items-center justify-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            <span className="ml-2">Loading...</span>
-          </div>
-        </StandardCard>
-      </ProtectedPageWrapper>
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+      </div>
     );
+  }
+
+  if (!user) {
+    return null; // Auth will redirect
   }
 
   if (!item || !section) {
@@ -122,71 +120,81 @@ export default function ItemDetailPage() {
         { label: item?.title || "Loading..." },
       ]}
     >
-      <StandardCard>
-        <div className="space-y-6">
-          {/* Item Header */}
-          <div className="flex items-start justify-between">
-            <div className="flex-1">
-              <h1 className="text-2xl font-bold text-gray-900 mb-2">
-                {item.title}
-                {item.important && (
-                  <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                    Important
-                  </span>
-                )}
-              </h1>
-              <p className="text-sm text-gray-500">
-                Created {new Date(item.created_at).toLocaleDateString()}
+      <div className="p-6">
+        <Header title="Manual Section" />
+        <PageContainer>
+          <div className="space-y-6">
+            <StandardCard
+              title="Section Details"
+              subtitle="View and manage manual section content"
+            >
+              <div className="space-y-6">
+                {/* Item Header */}
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <h1 className="text-2xl font-bold text-gray-900 mb-2">
+                      {item.title}
+                      {item.important && (
+                        <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                          Important
+                        </span>
+                      )}
+                    </h1>
+                    <p className="text-sm text-gray-500">
+                      Created {new Date(item.created_at).toLocaleDateString()}
+                      {item.media_urls && item.media_urls.length > 0 && (
+                        <span className="ml-4">
+                          📸 {item.media_urls.length} photo
+                          {item.media_urls.length !== 1 ? "s" : ""}
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Content */}
+                <div className="prose prose-lg max-w-none text-gray-700">
+                  <div className="whitespace-pre-wrap leading-relaxed bg-gray-50 rounded-lg p-4 border">
+                    {item.content}
+                  </div>
+                </div>
+
+                {/* Photos */}
                 {item.media_urls && item.media_urls.length > 0 && (
-                  <span className="ml-4">
-                    📸 {item.media_urls.length} photo
-                    {item.media_urls.length !== 1 ? "s" : ""}
-                  </span>
-                )}
-              </p>
-            </div>
-          </div>
-
-          {/* Content */}
-          <div className="prose prose-lg max-w-none text-gray-700">
-            <div className="whitespace-pre-wrap leading-relaxed bg-gray-50 rounded-lg p-4 border">
-              {item.content}
-            </div>
-          </div>
-
-          {/* Photos */}
-          {item.media_urls && item.media_urls.length > 0 && (
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                Photos ({item.media_urls.length})
-              </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {item.media_urls.map((url, index) => (
-                  <a
-                    key={index}
-                    href={url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="group relative block"
-                  >
-                    <div className="relative aspect-video overflow-hidden rounded-lg border border-gray-200 group-hover:border-blue-300 transition-colors">
-                      <Image
-                        src={url}
-                        alt={`${item.title} - Image ${index + 1}`}
-                        fill
-                        className="object-cover group-hover:scale-105 transition-transform duration-200"
-                      />
-                      <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-colors flex items-center justify-center">
-                        <ExternalLink className="h-6 w-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
-                      </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                      Photos ({item.media_urls.length})
+                    </h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {item.media_urls.map((url, index) => (
+                        <a
+                          key={index}
+                          href={url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="group relative block"
+                        >
+                          <div className="relative aspect-video overflow-hidden rounded-lg border border-gray-200 group-hover:border-blue-300 transition-colors">
+                            <Image
+                              src={url}
+                              alt={`${item.title} - Image ${index + 1}`}
+                              fill
+                              className="object-cover group-hover:scale-105 transition-transform duration-200"
+                            />
+                            <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-colors flex items-center justify-center">
+                              <ExternalLink className="h-6 w-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </div>
+                          </div>
+                        </a>
+                      ))}
                     </div>
-                  </a>
-                ))}
+                  </div>
+                )}
               </div>
-            </div>
-          )}
-        </div>
-      </StandardCard>
+            </StandardCard>
+          </div>
+        </PageContainer>
+      </div>
 
       {/* Floating Action Buttons */}
       <div className="fixed bottom-6 right-6 z-40 flex flex-col space-y-3">

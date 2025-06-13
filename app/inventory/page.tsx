@@ -10,6 +10,8 @@ import {
   AlertTriangle,
   ShoppingCart,
 } from "lucide-react";
+import Header from "@/components/layout/Header";
+import PageContainer from "@/components/layout/PageContainer";
 import StandardCard from "@/components/ui/StandardCard";
 import InventoryFilters from "@/components/inventory/InventoryFilters";
 import InventoryTable from "@/components/inventory/InventoryTable";
@@ -20,11 +22,9 @@ import FloatingActionButton from "@/components/ui/FloatingActionButton";
 import { useInventory } from "@/components/inventory/hooks/useInventory";
 import { useProperty } from "@/lib/hooks/useProperty";
 import ProtectedPageWrapper from "@/components/layout/ProtectedPageWrapper";
-import PageContainer from "@/components/layout/PageContainer";
 import { debugLog, debugError } from "@/lib/utils/debug";
 import { supabase } from "@/lib/supabase"; // ✅ Add missing import
 import toast from "react-hot-toast"; // ✅ Add missing import
-import Header from "@/components/layout/Header";
 
 const isDev = process.env.NODE_ENV === "development";
 
@@ -359,128 +359,139 @@ export default function InventoryPage() {
       <Header title="Inventory" />
       <PageContainer>
         <div className="space-y-6">
-          {/* Stats Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <StandardCard padding="sm">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-green-600">
-                  {goodStockItems}
-                </div>
-                <div className="text-sm text-gray-600">Well Stocked</div>
-              </div>
-            </StandardCard>
-
-            <StandardCard padding="sm">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-yellow-600">
-                  {lowStockItems}
-                </div>
-                <div className="text-sm text-gray-600">Getting Low</div>
-              </div>
-            </StandardCard>
-
-            <StandardCard padding="sm">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-red-600">
-                  {outOfStockItems}
-                </div>
-                <div className="text-sm text-gray-600">Out of Stock</div>
-              </div>
-            </StandardCard>
-          </div>
-
-          {/* Filters */}
-          <StandardCard className="mb-6" padding="sm">
-            <InventoryFilters
-              items={inventoryHook.items}
-              setFilteredItems={inventoryHook.setFilteredItems}
-            />
-          </StandardCard>
-
-          {/* Main Inventory Table */}
           <StandardCard
-            title="Inventory Items"
-            subtitle={`${totalItems} items in inventory`}
-            headerActions={
-              <div className="flex items-center space-x-2">
-                <button
-                  onClick={() => setShowManageModal(true)}
-                  className="flex items-center gap-2 px-3 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  <Settings className="h-4 w-4" />
-                  <span className="hidden sm:inline">Manage</span>
-                </button>
-
-                {outOfStockItems > 0 && (
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                    <AlertTriangle className="h-3 w-3 mr-1" />
-                    {outOfStockItems} out of stock
-                  </span>
-                )}
-                {lowStockItems > 0 && (
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                    <AlertTriangle className="h-3 w-3 mr-1" />
-                    {lowStockItems} low stock
-                  </span>
-                )}
-              </div>
-            }
+            title="Property Inventory"
+            subtitle="Manage your property inventory and supplies"
           >
-            <InventoryTable
-              items={inventoryHook.filteredItems || []}
-              handleEdit={inventoryHook.handleEdit}
-              handleDelete={inventoryHook.handleDelete}
-              updateQuantity={inventoryHook.updateQuantity}
-              updateItemStatus={(itemId, status) => {
-                console.log(
-                  "🔄 Direct call to updateItemStatus:",
-                  itemId,
-                  status
-                );
-                return inventoryHook.updateItemStatus?.(itemId, status);
-              }}
-            />
-          </StandardCard>
+            {/* Move all existing inventory content here */}
+            <div className="space-y-6">
+              {/* Your existing inventory JSX goes here */}
+              {/* Stats Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <StandardCard padding="sm">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-green-600">
+                      {goodStockItems}
+                    </div>
+                    <div className="text-sm text-gray-600">Well Stocked</div>
+                  </div>
+                </StandardCard>
 
-          {/* Floating Action Buttons */}
-          <div className="fixed bottom-6 right-6 flex flex-col items-end space-y-3 z-50">
-            <FloatingActionButton
-              icon={Plus}
-              label="Add Item"
-              onClick={() => inventoryHook.setIsAddingItem(true)}
-              variant="primary"
-            />
+                <StandardCard padding="sm">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-yellow-600">
+                      {lowStockItems}
+                    </div>
+                    <div className="text-sm text-gray-600">Getting Low</div>
+                  </div>
+                </StandardCard>
 
-            <div className="relative">
-              <FloatingActionButton
-                icon={ShoppingCart}
-                label="Shopping List"
-                onClick={() => setShowShoppingListModal(true)}
-                variant={shoppingListItems.length > 0 ? "success" : "secondary"}
+                <StandardCard padding="sm">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-red-600">
+                      {outOfStockItems}
+                    </div>
+                    <div className="text-sm text-gray-600">Out of Stock</div>
+                  </div>
+                </StandardCard>
+              </div>
+
+              {/* Filters */}
+              <StandardCard className="mb-6" padding="sm">
+                <InventoryFilters
+                  items={inventoryHook.items}
+                  setFilteredItems={inventoryHook.setFilteredItems}
+                />
+              </StandardCard>
+
+              {/* Main Inventory Table */}
+              <StandardCard
+                title="Inventory Items"
+                subtitle={`${totalItems} items in inventory`}
+                headerActions={
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={() => setShowManageModal(true)}
+                      className="flex items-center gap-2 px-3 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                    >
+                      <Settings className="h-4 w-4" />
+                      <span className="hidden sm:inline">Manage</span>
+                    </button>
+
+                    {outOfStockItems > 0 && (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                        <AlertTriangle className="h-3 w-3 mr-1" />
+                        {outOfStockItems} out of stock
+                      </span>
+                    )}
+                    {lowStockItems > 0 && (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                        <AlertTriangle className="h-3 w-3 mr-1" />
+                        {lowStockItems} low stock
+                      </span>
+                    )}
+                  </div>
+                }
+              >
+                <InventoryTable
+                  items={inventoryHook.filteredItems || []}
+                  handleEdit={inventoryHook.handleEdit}
+                  handleDelete={inventoryHook.handleDelete}
+                  updateQuantity={inventoryHook.updateQuantity}
+                  updateItemStatus={(itemId, status) => {
+                    console.log(
+                      "🔄 Direct call to updateItemStatus:",
+                      itemId,
+                      status
+                    );
+                    return inventoryHook.updateItemStatus?.(itemId, status);
+                  }}
+                />
+              </StandardCard>
+
+              {/* Floating Action Buttons */}
+              <div className="fixed bottom-6 right-6 flex flex-col items-end space-y-3 z-50">
+                <FloatingActionButton
+                  icon={Plus}
+                  label="Add Item"
+                  onClick={() => inventoryHook.setIsAddingItem(true)}
+                  variant="primary"
+                />
+
+                <div className="relative">
+                  <FloatingActionButton
+                    icon={ShoppingCart}
+                    label="Shopping List"
+                    onClick={() => setShowShoppingListModal(true)}
+                    variant={
+                      shoppingListItems.length > 0 ? "success" : "secondary"
+                    }
+                  />
+
+                  {shoppingListItems.length > 0 && (
+                    <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-6 w-6 flex items-center justify-center font-bold shadow-lg ring-2 ring-white">
+                      {shoppingListItems.length > 99
+                        ? "99+"
+                        : shoppingListItems.length}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Modals */}
+              <ItemModal {...inventoryHook} />
+              <ManageItemsModal
+                isOpen={showManageModal}
+                onClose={handleModalClose}
+                inventoryHook={inventoryHook}
               />
-
-              {shoppingListItems.length > 0 && (
-                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-6 w-6 flex items-center justify-center font-bold shadow-lg ring-2 ring-white">
-                  {shoppingListItems.length > 99
-                    ? "99+"
-                    : shoppingListItems.length}
-                </span>
-              )}
+              <ShoppingListModal
+                isOpen={showShoppingListModal}
+                onClose={() => setShowShoppingListModal(false)}
+                items={shoppingListItems}
+              />
             </div>
-          </div>
-
-          {/* Modals */}
-          <ItemModal {...inventoryHook} />
-          <ManageItemsModal
-            isOpen={showManageModal}
-            onClose={handleModalClose}
-            inventoryHook={inventoryHook}
-          />
-          <ShoppingListModal
-            isOpen={showShoppingListModal}
-            onClose={() => setShowShoppingListModal(false)}
-            items={shoppingListItems}
-          />
+          </StandardCard>
         </div>
       </PageContainer>
     </div>
