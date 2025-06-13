@@ -10,133 +10,134 @@ import React, {
   useMemo,
 } from "react";
 import { useAuth } from "@/components/auth";
-import { supabase, debugSupabaseConfig } from "@/lib/supabase";
-import { debugLog, debugError } from "@/lib/utils/debug";
+import { supabase } from "@/lib/supabase";
+import { debugLog } from "@/lib/utils/debug";
 
-const isDev = process.env.NODE_ENV === "development";
+// Add missing Property interface
+interface Property {
+  id: string;
+  name: string;
+  address?: string;
+  created_by: string;
+  created_at: string;
+  [key: string]: any;
+}
+
+interface Tenant {
+  id: string;
+  user_id: string;
+  property_id: string;
+  role: string;
+  tenant_id: string;
+  [key: string]: any;
+}
 
 interface PropertyContextType {
-  currentProperty: any;
-  currentTenant: any;
-  userProperties: any[];
-  userTenants: any[];
+  currentProperty: Property | null;
+  currentTenant: Tenant | null;
+  userProperties: Property[];
+  userTenants: Tenant[];
   loading: boolean;
   error: string | null;
   hasInitialized: boolean;
-  setCurrentProperty: (property: any) => void;
-  setCurrentTenant: (tenant: any) => void;
+  setCurrentProperty: (property: Property | null) => void;
+  setCurrentTenant: (tenant: Tenant | null) => void;
   switchProperty: (propertyId: string) => Promise<void>;
   updateProperty: (propertyId: string, updates: any) => Promise<{ error: any }>;
   refreshProperty: () => Promise<void>;
-  updateCurrentProperty: (
-    propertyId: string,
-    updates: Partial<any>
-  ) => Promise<void>;
+  updateCurrentProperty: (propertyId: string, updates: Partial<Property>) => Promise<void>;
 }
 
-const PropertyContext = createContext<PropertyContextType | undefined>(
-  undefined
-);
+const PropertyContext = createContext<PropertyContextType | undefined>(undefined);
 
 export function PropertyProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
-  const [properties, setProperties] = useState<Property[]>([]);
+  
   const [currentProperty, setCurrentProperty] = useState<Property | null>(null);
-  const [currentTenant, setCurrentTenant] = useState(null);
-  const [userProperties, setUserProperties] = useState([]);
-  const [userTenants, setUserTenants] = useState([]);
+  const [currentTenant, setCurrentTenant] = useState<Tenant | null>(null);
+  const [userProperties, setUserProperties] = useState<Property[]>([]);
+  const [userTenants, setUserTenants] = useState<Tenant[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [hasInitialized, setHasInitialized] = useState(false);
 
-  const loadUserData = async () => {
+  console.log('🔍 PropertyProvider state:', {
+    user: user?.email,
+    loading,
+    hasInitialized,
+    currentProperty: currentProperty?.name,
+    userPropertiesCount: userProperties.length,
+    error
+  });
+
+  const loadUserData = useCallback(async () => {
     if (!user?.id) {
       console.log("❌ No user ID - exiting loadUserData");
+      setLoading(false);
+      setHasInitialized(true);
       return;
     }
 
-    console.log("🔍 === WORKING FRESH CLIENT VERSION ===");
+    console.log('🔍 Starting property lookup for user:', user.id);
     setLoading(true);
     setError(null);
 
     try {
-      // Create fresh client (this works!)
-      const { createClient } = await import("@supabase/supabase-js");
-
-      const supabaseUrl = "https://hkrgfqpshdoroimlulzw.supabase.co";
-      const supabaseKey =
-        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhrcmdmcXBzaGRvcm9pbWx1bHp3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY3NTk3MTMsImV4cCI6MjA2MjMzNTcxM30.Wt84o_Xcvdqp48qZVqYEmMLBY8VTvTsPBTysN3LvRm0";
-
-      const freshClient = createClient(supabaseUrl, supabaseKey, {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false,
-        },
-      });
-
-      console.log("🆕 Fresh client created successfully");
-
-      // Get user properties with fresh client
-      const { data: userProperties, error: propertiesError } = await freshClient
+      console.log('🔍 About to execute simple query...');
+      
+      // Simple, direct query without race conditions
+      const response = await supabase
         .from("properties")
         .select("*")
         .eq("created_by", user.id);
 
-      console.log("🏠 Fresh client properties result:", {
-        count: userProperties?.length,
-        data: userProperties,
-        error: propertiesError,
-      });
+      console.log("🏠 Raw response:", response);
+      console.log("🏠 Response data:", response.data);
+      console.log("🏠 Response error:", response.error);
 
-      if (propertiesError) {
-        throw new Error(`Properties query failed: ${propertiesError.message}`);
+      if (response.error) {
+        console.error('🚨 Supabase query error:', response.error);
+        throw new Error(`Properties query failed: ${response.error.message}`);
       }
 
-      // Check what state setters are actually available in your hook
-      console.log("🔍 Available setters check:", {
-        hasSetProperties: typeof setProperties !== "undefined",
-        hasSetCurrentProperty: typeof setCurrentProperty !== "undefined",
-        hasSetData: typeof setData !== "undefined",
-        hasSetProperty: typeof setProperty !== "undefined",
-      });
+      const propertiesData = response.data || [];
+      console.log('✅ Got properties data:', propertiesData.length, 'items');
 
-      // Try different possible setter names
-      if (typeof setProperties !== "undefined") {
-        console.log("✅ Using setProperties");
-        setProperties(userProperties || []);
-      } else if (typeof setData !== "undefined") {
-        console.log("✅ Using setData");
-        setData(userProperties || []);
+      // Set userProperties regardless of count
+      setUserProperties(propertiesData);
+
+      if (propertiesData.length > 0) {
+        // Use the first property (we know "Bend House Test" exists)
+        const selectedProperty = propertiesData[0];
+        setCurrentProperty(selectedProperty);
+        console.log("✅ SUCCESS! Set current property:", selectedProperty.name);
       } else {
-        console.log("❌ No properties setter found - will set manually in context");
+        console.log("📭 No properties found for user");
+        setCurrentProperty(null);
       }
 
-      if (
-        typeof setCurrentProperty !== "undefined" &&
-        userProperties &&
-        userProperties.length > 0
-      ) {
-        setCurrentProperty(userProperties[0]);
-        console.log("✅ SUCCESS! Set current property:", userProperties[0].name);
-      } else if (userProperties && userProperties.length > 0) {
-        console.log("✅ Property found but no setter:", userProperties[0].name);
-      }
+      setHasInitialized(true);
+      console.log("✅ Property initialization complete");
 
-      console.log("🎉 === FRESH CLIENT SUCCESS - DATA LOADED ===");
-    } catch (error) {
-      console.error("💥 Error:", error);
+    } catch (error: any) {
+      console.error("💥 Property loading error:", error);
+      console.error("💥 Error details:", {
+        name: error.name,
+        message: error.message,
+        stack: error.stack
+      });
       setError(`Failed to load properties: ${error.message}`);
+      setHasInitialized(true);
     } finally {
       setLoading(false);
+      console.log("🔄 Property loading finished");
     }
-  };
+  }, [user?.id]);
 
-  // 🔧 FIX: Remove circular dependency by only depending on user.id
   useEffect(() => {
     loadUserData();
-  }, [user?.id]); // 🔧 FIX: Only depend on user.id, not hasInitialized
+  }, [loadUserData]);
 
-  // Enhanced currentTenant with proper structure and better logging
   const enhancedCurrentTenant = useMemo(() => {
     debugLog("🔍 Enhanced tenant calculation:", {
       hasProperty: !!currentProperty,
@@ -165,14 +166,13 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
     return enhanced;
   }, [currentProperty, currentTenant]);
 
-  // Property management methods
   const switchProperty = useCallback(
     async (propertyId: string) => {
       const property = userProperties.find((p) => p.id === propertyId);
       if (property) {
         setCurrentProperty(property);
         localStorage.setItem("currentPropertyId", propertyId);
-        debugLog("✅ Switched to property:", property.name);
+        console.log("✅ Switched to property:", property.name);
       }
     },
     [userProperties]
@@ -216,7 +216,7 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
   }, [currentProperty?.id]);
 
   const updateCurrentProperty = useCallback(
-    async (propertyId: string, updates: Partial<any>) => {
+    async (propertyId: string, updates: Partial<Property>) => {
       setCurrentProperty((prev) =>
         prev?.id === propertyId ? { ...prev, ...updates } : prev
       );

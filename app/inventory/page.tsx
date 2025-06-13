@@ -47,7 +47,12 @@ interface InventoryItem {
 export default function InventoryPage() {
   // ✅ ALL HOOKS FIRST
   const { user, loading: authLoading } = useAuth();
-  const { currentProperty, currentTenant, loading: propertyLoading, error: propertyError } = useProperty();
+  const {
+    currentProperty,
+    currentTenant,
+    loading: propertyLoading,
+    error: propertyError,
+  } = useProperty();
   const inventoryHook = useInventory();
   const { isManagerView, isFamilyView, isGuestView } = useViewMode();
   const router = useRouter();
@@ -130,12 +135,18 @@ export default function InventoryPage() {
     debugLog("📦 Inventory Page Debug:", {
       propertyId: currentProperty?.id,
       propertyName: currentProperty?.name,
-      tenantRole: currentTenant?.role,
+      userOwnsProperty: currentProperty?.created_by === user?.id,
       isManagerView,
       isFamilyView,
       isGuestView,
     });
-  }, [currentProperty, currentTenant, isManagerView, isFamilyView, isGuestView]);
+  }, [
+    currentProperty,
+    user,
+    isManagerView,
+    isFamilyView,
+    isGuestView,
+  ]);
 
   // ✅ THRESHOLD ANALYSIS EFFECT
   useEffect(() => {
@@ -280,6 +291,34 @@ export default function InventoryPage() {
     );
   }
 
+  if (propertyError) {
+    return (
+      <div className="p-6">
+        <Header title="Inventory" />
+        <PageContainer>
+          <StandardCard
+            title="Property Access Error"
+            subtitle="Unable to load property information"
+          >
+            <div className="text-center py-8">
+              <AlertTriangle className="mx-auto h-12 w-12 text-red-500 mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                Property Access Error
+              </h3>
+              <p className="text-red-600 mb-4">{propertyError}</p>
+              <button
+                onClick={() => window.location.reload()}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Try Again
+              </button>
+            </div>
+          </StandardCard>
+        </PageContainer>
+      </div>
+    );
+  }
+
   if (!currentProperty) {
     return (
       <div className="p-6">
@@ -318,7 +357,10 @@ export default function InventoryPage() {
     );
   }
 
-  if (!currentTenant) {
+  // 🔧 FIX: Check if user owns the property instead of checking tenant
+  const userOwnsProperty = currentProperty?.created_by === user?.id;
+
+  if (!userOwnsProperty) {
     return (
       <div className="p-6">
         <Header title="Inventory" />
@@ -410,7 +452,10 @@ export default function InventoryPage() {
                     </div>
                     <div className="text-sm text-gray-600">Well Stocked</div>
                     <div className="text-xs text-gray-500 mt-1">
-                      {totalItems > 0 ? Math.round((goodStockItems / totalItems) * 100) : 0}% of inventory
+                      {totalItems > 0
+                        ? Math.round((goodStockItems / totalItems) * 100)
+                        : 0}
+                      % of inventory
                     </div>
                   </div>
                 </StandardCard>
@@ -434,7 +479,9 @@ export default function InventoryPage() {
                     </div>
                     <div className="text-sm text-gray-600">Out of Stock</div>
                     <div className="text-xs text-gray-500 mt-1">
-                      {outOfStockItems > 0 ? "Immediate attention needed" : "All good!"}
+                      {outOfStockItems > 0
+                        ? "Immediate attention needed"
+                        : "All good!"}
                     </div>
                   </div>
                 </StandardCard>
@@ -492,7 +539,7 @@ export default function InventoryPage() {
                       No inventory items found
                     </h3>
                     <p className="text-gray-600 mb-6">
-                      {totalItems === 0 
+                      {totalItems === 0
                         ? "Get started by adding your first inventory item."
                         : "Try adjusting your filters to see more items."}
                     </p>
@@ -543,9 +590,7 @@ export default function InventoryPage() {
               icon={ShoppingCart}
               label="Shopping List"
               onClick={() => setShowShoppingListModal(true)}
-              variant={
-                shoppingListItems.length > 0 ? "success" : "secondary"
-              }
+              variant={shoppingListItems.length > 0 ? "success" : "secondary"}
             />
 
             {shoppingListItems.length > 0 && (

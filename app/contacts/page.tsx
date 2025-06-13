@@ -1,721 +1,391 @@
 "use client";
 
 import { useViewMode } from "@/lib/hooks/useViewMode";
-import { useProperty } from "@/lib/hooks/useProperty";
 import { useState, useEffect } from "react";
-import {
-  Users,
-  Plus,
-  Phone,
-  Mail,
-  MapPin,
-  Edit,
-  Globe,
-  Search,
-  Filter,
-  Star,
-  Clock,
-  Building,
-  Crown,
-  Wrench,
-  AlertTriangle,
-  ExternalLink,
-  Eye,
-  X,
-} from "lucide-react";
+import { Users, Plus, Phone, Mail, MapPin, Edit } from "lucide-react";
 import Link from "next/link";
-import PageContainer from "@/components/layout/PageContainer";
-import Header from "@/components/layout/Header";
 import StandardCard from "@/components/ui/StandardCard";
 import { useAuth } from "@/components/auth";
+import { useProperty } from "@/lib/hooks/useProperty";
 import { supabase } from "@/lib/supabase";
-import AddContactModal from "@/components/modals/AddContactModal";
-import FloatingActionButton from "@/components/ui/FloatingActionButton";
 
 interface Contact {
   id: string;
   name: string;
   email?: string;
   phone?: string;
-  role: string;
+  category: string;
   address?: string;
-  description?: string;
-  website?: string;
-  priority?: number;
+  notes?: string;
+  property_id: string;
   created_at: string;
-  property_id?: string;
 }
 
 export default function ContactsPage() {
-  const { user, loading } = useAuth();
+  const { user } = useAuth();
+  const { currentProperty } = useProperty();
   const {
-    currentProperty: property,
-    currentTenant,
-    loading: propertyLoading,
-    error,
-  } = useProperty();
-  const { isManagerView, isFamilyView, isGuestView } = useViewMode();
+    isManagerView,
+    isFamilyView,
+    isGuestView,
+  } = useViewMode();
   const [contacts, setContacts] = useState<Contact[]>([]);
-  const [loadingContacts, setLoadingContacts] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("all");
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  // ✅ Enhanced categories following dashboard color standards
-  const categories = [
-    {
-      id: "owner",
-      name: "Owner",
-      icon: "👑",
-      color: "bg-yellow-100 text-yellow-800",
-      priority: 1,
-    },
-    {
-      id: "emergency",
-      name: "Emergency",
-      icon: "🚨",
-      color: "bg-red-100 text-red-800",
-      priority: 2,
-    },
-    {
-      id: "maintenance",
-      name: "Maintenance",
-      icon: "🔧",
-      color: "bg-purple-100 text-purple-800",
-      priority: 3,
-    },
-    {
-      id: "management",
-      name: "Management",
-      icon: "🏢",
-      color: "bg-blue-100 text-blue-800",
-      priority: 4,
-    },
-    {
-      id: "utility",
-      name: "Utility",
-      icon: "⚡",
-      color: "bg-orange-100 text-orange-800",
-      priority: 5,
-    },
-    {
-      id: "neighbor",
-      name: "Neighbor",
-      icon: "🏠",
-      color: "bg-green-100 text-green-800",
-      priority: 6,
-    },
-    {
-      id: "general",
-      name: "General",
-      icon: "📋",
-      color: "bg-gray-100 text-gray-800",
-      priority: 7,
-    },
-  ];
-
-  // ✅ Define fetchContacts function first
-  const fetchContacts = async () => {
-    if (!property?.id || !user) return;
-
-    try {
-      setLoadingContacts(true);
-      console.log("📞 Fetching contacts for property:", property.id);
-
-      const { data, error } = await supabase
-        .from("contacts")
-        .select(
-          "id, name, email, phone, role, address, description, website, priority, created_at, property_id"
-        )
-        .eq("property_id", property.id)
-        .order("priority", { ascending: true })
-        .limit(50);
-
-      if (error) {
-        console.error("Database error:", error);
-        throw error;
-      }
-
-      console.log("📞 Found contacts:", data?.length || 0);
-
-      const hasOwnerContact = data?.some(
-        (contact) => contact.role === "owner" || contact.email === user.email
-      );
-
-      let allContacts = data as Contact[];
-
-      // Auto-create owner contact if needed
-      if (!hasOwnerContact && currentTenant?.role === "owner") {
-        console.log("📞 Adding owner contact for user:", user.email);
-
-        const ownerContact = {
-          property_id: property.id,
-          name:
-            user.user_metadata?.full_name ||
-            user.email?.split("@")[0] ||
-            "Property Owner",
-          email: user.email,
-          phone: user.user_metadata?.phone || user.phone || null,
-          role: "owner",
-          description: "Property Owner & Manager",
-          priority: 1,
-          created_by: user.id,
-        };
-
-        const { data: insertedContact, error: insertError } = await supabase
-          .from("contacts")
-          .insert([ownerContact])
-          .select()
-          .single();
-
-        if (insertError) {
-          console.error("❌ Failed to insert owner contact:", insertError);
-          // Fallback to memory-only contact
-          allContacts.unshift({
-            id: `owner-${user.id}`,
-            name: ownerContact.name,
-            email: ownerContact.email,
-            phone: ownerContact.phone,
-            role: "owner",
-            description: "Property Owner & Manager",
-            priority: 1,
-            created_at: new Date().toISOString(),
-            property_id: property.id,
-          } as Contact);
-        } else {
-          console.log("✅ Owner contact added:", insertedContact);
-          allContacts.unshift(insertedContact as Contact);
-        }
-      }
-
-      // Sort by priority, then by name
-      allContacts.sort((a, b) => {
-        if (a.priority !== b.priority) {
-          return (a.priority || 99) - (b.priority || 99);
-        }
-        return a.name.localeCompare(b.name);
-      });
-
-      setContacts(allContacts);
-    } catch (error) {
-      console.error("Error fetching contacts:", error);
-      // Graceful fallback for owner
-      if (currentTenant?.role === "owner") {
-        const ownerContact: Contact = {
-          id: `owner-${user.id}`,
-          name:
-            user.user_metadata?.full_name ||
-            user.email?.split("@")[0] ||
-            "Property Owner",
-          email: user.email || "",
-          phone: user.user_metadata?.phone || user.phone || undefined,
-          role: "owner",
-          description: "Property Owner & Manager",
-          priority: 1,
-          created_at: new Date().toISOString(),
-          property_id: property?.id || "",
-        };
-        setContacts([ownerContact]);
-      } else {
-        setContacts([]);
-      }
-    } finally {
-      setLoadingContacts(false);
-    }
-  };
-
-  // ✅ Add refreshContacts function
-  const refreshContacts = async () => {
-    console.log("🔄 Refreshing contacts...");
-    await fetchContacts();
-  };
-
-  // ✅ useEffect to fetch contacts on mount
-  useEffect(() => {
-    fetchContacts();
-  }, [property?.id, user?.id, user?.email, currentTenant?.role]);
-
-  // ✅ Filter contacts with performance optimization
-  const filteredContacts = contacts.filter((contact) => {
-    const matchesSearch =
-      contact.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      contact.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      contact.phone?.includes(searchTerm);
-    const matchesCategory =
-      selectedCategory === "all" || contact.role === selectedCategory;
-    return matchesSearch && matchesCategory;
+  console.log('🔍 CONTACTS CLEAN VERSION:', {
+    user: user?.email,
+    currentProperty: currentProperty?.name,
+    propertyId: currentProperty?.id,
+    hasUser: !!user,
+    hasProperty: !!currentProperty
   });
 
-  // ✅ Get user avatar helper
-  const getUserAvatar = (contact: Contact) => {
-    if (contact.role === "owner" && contact.email === user?.email) {
-      return user?.user_metadata?.avatar_url || user?.user_metadata?.picture;
+  const categories = [
+    { id: "maintenance", name: "Maintenance", icon: "🔧" },
+    { id: "emergency", name: "Emergency", icon: "🚨" },
+    { id: "vendor", name: "Vendor", icon: "🏪" },
+    { id: "guest", name: "Guest", icon: "👤" },
+    { id: "contractor", name: "Contractor", icon: "👷" },
+    { id: "service", name: "Service", icon: "🛠️" },
+    { id: "property", name: "Property", icon: "🏠" },
+  ];
+
+  useEffect(() => {
+    async function fetchContacts() {
+      if (!currentProperty) {
+        console.log('📞 No property selected, skipping contact fetch');
+        setLoading(false);
+        return;
+      }
+
+      try {
+        setLoading(true);
+        console.log('📞 Fetching contacts for property:', currentProperty.id);
+        
+        const { data, error } = await supabase
+          .from("contacts")
+          .select("*")
+          .eq('property_id', currentProperty.id)
+          .order("name");
+
+        if (error) throw error;
+        
+        console.log('📞 Found contacts:', data?.length);
+        setContacts(data as Contact[]);
+      } catch (error) {
+        console.error("Error fetching contacts:", error);
+        
+        // Demo data for testing (with property_id)
+        const demoContacts = [
+          {
+            id: "1",
+            name: "John's Plumbing",
+            email: "john@plumbing.com",
+            phone: "(555) 123-4567",
+            category: "maintenance",
+            address: "123 Main St, City, ST 12345",
+            notes: "Available 24/7 for emergencies",
+            property_id: currentProperty.id,
+            created_at: new Date().toISOString(),
+          },
+          {
+            id: "2",
+            name: "Emergency Services",
+            phone: "911",
+            category: "emergency",
+            notes: "Police, Fire, Medical",
+            property_id: currentProperty.id,
+            created_at: new Date().toISOString(),
+          },
+          {
+            id: "3",
+            name: "ABC Cleaning Service",
+            email: "info@abccleaning.com",
+            phone: "(555) 987-6543",
+            category: "service",
+            address: "456 Oak Ave, City, ST 12345",
+            property_id: currentProperty.id,
+            created_at: new Date().toISOString(),
+          },
+        ];
+        setContacts(demoContacts);
+      } finally {
+        setLoading(false);
+      }
     }
-    return null;
+
+    if (user && currentProperty) {
+      fetchContacts();
+    }
+  }, [user, currentProperty]);
+
+  const getCategoryInfo = (categoryId: string) => {
+    return (
+      categories.find((cat) => cat.id === categoryId) || {
+        name: categoryId,
+        icon: "👤",
+      }
+    );
   };
 
-  // ✅ Contact Details Modal Component
-  const ContactDetailsModal = ({
-    contact,
-    onClose,
-  }: {
-    contact: Contact | null;
-    onClose: () => void;
-  }) => {
-    if (!contact) return null;
+  // Filter contacts based on view mode
+  const filteredContacts = contacts.filter((contact) => {
+    if (isGuestView) {
+      return contact.category === "emergency" || contact.is_public;
+    }
+    if (isFamilyView) {
+      return contact.category !== "vendor" && contact.category !== "financial";
+    }
+    return true; // Managers see all contacts
+  });
 
-    const category = categories.find((c) => c.id === contact.role);
-    const avatarUrl = getUserAvatar(contact);
+  // Show loading state if waiting for property
+  if (!currentProperty) {
+    return (
+      <div className="p-6 space-y-6">
+        <h1 className="text-2xl font-bold">Contacts</h1>
+        <StandardCard
+          title="Loading Property"
+          subtitle="Please wait while we load your property information"
+        >
+          <div className="flex flex-col items-center justify-center py-12">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
+            <p className="text-gray-600">Loading property information...</p>
+            <p className="text-sm text-gray-500 mt-2">
+              Contacts will appear once your property is loaded.
+            </p>
+          </div>
+        </StandardCard>
+      </div>
+    );
+  }
+
+  const ContactCard = ({ contact }: { contact: Contact }) => {
+    const categoryInfo = getCategoryInfo(contact.category);
 
     return (
-      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-        <div className="bg-white rounded-xl max-w-md w-full max-h-[80vh] overflow-y-auto">
-          {/* Header */}
-          <div className="p-6 border-b border-gray-100">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="relative">
-                  {avatarUrl ? (
-                    <img
-                      src={avatarUrl}
-                      alt={contact.name}
-                      className="w-16 h-16 rounded-full object-cover ring-2 ring-yellow-400"
-                    />
-                  ) : (
-                    <div
-                      className={`w-16 h-16 rounded-full flex items-center justify-center ${
-                        category?.color || "bg-gray-100 text-gray-600"
-                      }`}
-                    >
-                      <span className="text-2xl">{category?.icon || "👤"}</span>
-                    </div>
-                  )}
-                  {contact.priority && contact.priority <= 2 && (
-                    <div className="absolute -top-1 -right-1 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center">
-                      <Star className="h-4 w-4 text-white" />
-                    </div>
-                  )}
-                </div>
-                <div>
-                  <h3 className="text-xl font-bold text-gray-900">
-                    {contact.name}
-                  </h3>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span
-                      className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                        category?.color || "bg-gray-100 text-gray-800"
-                      }`}
-                    >
-                      {category?.name || contact.role}
-                    </span>
-                    {contact.role === "owner" && (
-                      <Crown className="h-4 w-4 text-yellow-500" />
-                    )}
-                  </div>
-                </div>
-              </div>
-              <button
-                onClick={onClose}
-                className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
+      <div className="border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow relative group">
+        <div className="p-4">
+          <div className="flex items-start justify-between mb-3">
+            <h3 className="font-semibold text-gray-900 text-lg pr-2">
+              {contact.name}
+            </h3>
+            <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded flex-shrink-0">
+              {categoryInfo.icon} {categoryInfo.name}
+            </span>
           </div>
 
-          {/* Contact Details */}
-          <div className="p-6 space-y-4">
-            {contact.phone && (
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-50 rounded-lg">
-                  <Phone className="h-5 w-5 text-blue-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Phone</p>
-                  <a
-                    href={`tel:${contact.phone}`}
-                    className="text-blue-600 hover:text-blue-700 font-medium"
-                  >
-                    {contact.phone}
-                  </a>
-                </div>
-              </div>
-            )}
-
+          <div className="space-y-2 text-sm">
             {contact.email && (
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-50 rounded-lg">
-                  <Mail className="h-5 w-5 text-blue-600" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm text-gray-500">Email</p>
-                  <a
-                    href={`mailto:${contact.email}`}
-                    className="text-blue-600 hover:text-blue-700 font-medium truncate block"
-                    title={contact.email}
-                  >
-                    {contact.email}
-                  </a>
-                </div>
+              <div className="flex items-center text-gray-600">
+                <Mail className="h-4 w-4 mr-2 flex-shrink-0" />
+                <a
+                  href={`mailto:${contact.email}`}
+                  className="hover:text-blue-600 truncate"
+                >
+                  {contact.email}
+                </a>
               </div>
             )}
 
-            {contact.website && (
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-50 rounded-lg">
-                  <Globe className="h-5 w-5 text-blue-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Website</p>
-                  <a
-                    href={
-                      contact.website.startsWith("http")
-                        ? contact.website
-                        : `https://${contact.website}`
-                    }
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
-                  >
-                    Visit Website
-                    <ExternalLink className="h-4 w-4" />
-                  </a>
-                </div>
+            {contact.phone && (
+              <div className="flex items-center text-gray-600">
+                <Phone className="h-4 w-4 mr-2 flex-shrink-0" />
+                <a
+                  href={`tel:${contact.phone}`}
+                  className="hover:text-blue-600"
+                >
+                  {contact.phone}
+                </a>
               </div>
             )}
 
             {contact.address && (
-              <div className="flex items-start gap-3">
-                <div className="p-2 bg-blue-50 rounded-lg">
-                  <MapPin className="h-5 w-5 text-blue-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Address</p>
-                  <p className="text-gray-900 leading-relaxed">
-                    {contact.address}
-                  </p>
-                </div>
+              <div className="flex items-center text-gray-600">
+                <MapPin className="h-4 w-4 mr-2 flex-shrink-0" />
+                <span className="truncate">{contact.address}</span>
               </div>
             )}
+          </div>
 
-            {contact.description && (
-              <div className="border-t border-gray-100 pt-4">
-                <p className="text-sm text-gray-500 mb-2">Description</p>
-                <p className="text-gray-900 leading-relaxed">
-                  {contact.description}
-                </p>
-              </div>
+          {contact.notes && (
+            <div className="mt-3 p-2 bg-gray-50 rounded-lg">
+              <p className="text-sm text-gray-600 line-clamp-2">
+                {contact.notes}
+              </p>
+            </div>
+          )}
+
+          <div className="mt-4 pt-3 border-t border-gray-100 flex justify-between items-center">
+            <span className="text-xs text-gray-500">
+              Added{" "}
+              {new Date(contact.created_at).toLocaleDateString("en-US", {
+                year: "numeric",
+                month: "short",
+                day: "numeric",
+              })}
+            </span>
+            {(isManagerView || isFamilyView) && (
+              <Link
+                href={`/contacts/edit/${contact.id}`}
+                className="flex items-center text-blue-600 hover:text-blue-800 text-sm font-medium"
+              >
+                <Edit className="h-3 w-3 mr-1" />
+                Edit
+              </Link>
             )}
-
-            <div className="border-t border-gray-100 pt-4 flex items-center justify-between">
-              <div className="flex items-center gap-1 text-sm text-gray-500">
-                <Clock className="h-4 w-4" />
-                <span>
-                  Added {new Date(contact.created_at).toLocaleDateString()}
-                </span>
-              </div>
-              {contact.priority && contact.priority <= 3 && (
-                <span className="text-xs px-2 py-1 bg-red-100 text-red-700 rounded-full font-medium">
-                  High Priority
-                </span>
-              )}
-            </div>
-
-            {/* Action Buttons */}
-            <div className="border-t border-gray-100 pt-4 flex gap-3">
-              {contact.phone && (
-                <a
-                  href={`tel:${contact.phone}`}
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-center font-medium"
-                >
-                  Call
-                </a>
-              )}
-              {contact.email && (
-                <a
-                  href={`mailto:${contact.email}`}
-                  className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-center font-medium"
-                >
-                  Email
-                </a>
-              )}
-              {isManagerView && (
-                <Link
-                  href={`/contacts/edit/${contact.id}`}
-                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  <Edit className="h-4 w-4" />
-                </Link>
-              )}
-            </div>
           </div>
         </div>
       </div>
     );
   };
 
-  // ✅ Loading state
-  if (loading || propertyLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
-
-  if (!user) {
-    return null; // Auth will redirect
-  }
-
-  // ✅ Error boundary
-  if (error || !property?.id || !currentTenant) {
-    return (
-      <div className="p-6">
-        <Header title="Contacts" />
-        <PageContainer>
-          <StandardCard
-            title="Error Loading Property"
-            subtitle="Unable to access property or tenant information"
-          >
-            <div className="text-center py-8">
-              <div className="max-w-md mx-auto">
-                <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">
-                  {error ? "Error Loading Property" : "No Property Access"}
-                </h3>
-                <p className="text-gray-600 mb-4">
-                  {error
-                    ? error
-                    : "You don't have access to this property or no property is selected."}
-                </p>
-                <button
-                  onClick={() => window.location.reload()}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  Try Again
-                </button>
-              </div>
-            </div>
-          </StandardCard>
-        </PageContainer>
-      </div>
-    );
-  }
+  const EmptyState = ({ 
+    title, 
+    description, 
+    buttonText, 
+    category 
+  }: { 
+    title: string; 
+    description: string; 
+    buttonText: string; 
+    category?: string; 
+  }) => (
+    <div className="text-center py-8 text-gray-500">
+      <Users className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+      <p className="font-medium">{title}</p>
+      <p className="text-sm mt-1 mb-4">{description}</p>
+      {(isManagerView || isFamilyView) && (
+        <Link
+          href={`/contacts/add${category ? `?category=${category}` : ''}`}
+          className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+        >
+          <Plus className="h-4 w-4 mr-2" />
+          {buttonText}
+        </Link>
+      )}
+    </div>
+  );
 
   return (
-    <div className="p-6">
-      <Header title="Contacts" />
-      <PageContainer>
-        <div className="space-y-6">
-          <StandardCard
-            title="Property Contacts"
-            subtitle="Manage your property contacts and vendors"
+    <div className="p-6 space-y-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-2xl font-bold">Contacts</h1>
+          <p className="text-gray-600 mt-1">
+            Property: <strong>{currentProperty.name}</strong>
+          </p>
+        </div>
+
+        {(isManagerView || isFamilyView) && (
+          <Link
+            href="/contacts/add"
+            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
-            <div className="space-y-6">
-              {/* Search and Filter Bar */}
-              <div className="flex flex-col sm:flex-row gap-4">
-                <div className="flex-1 relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-                  <input
-                    type="text"
-                    placeholder="Search contacts..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-                <div className="relative">
-                  <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-                  <select
-                    value={selectedCategory}
-                    onChange={(e) => setSelectedCategory(e.target.value)}
-                    className="pl-10 pr-8 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
-                  >
-                    <option value="all">All Categories</option>
-                    {categories.map((category) => (
-                      <option key={category.id} value={category.id}>
-                        {category.icon} {category.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Contact
+          </Link>
+        )}
+      </div>
 
-              {/* ✅ Compact Contact Cards */}
-              {loadingContacts ? (
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                  {[...Array(8)].map((_, i) => (
-                    <StandardCard key={i} className="p-4">
-                      <div className="animate-pulse">
-                        <div className="flex items-center gap-3 mb-3">
-                          <div className="w-10 h-10 bg-gray-200 rounded-full"></div>
-                          <div className="flex-1">
-                            <div className="h-3 bg-gray-200 rounded mb-1"></div>
-                            <div className="h-2 bg-gray-200 rounded w-2/3"></div>
-                          </div>
-                        </div>
-                        <div className="h-2 bg-gray-200 rounded"></div>
-                      </div>
-                    </StandardCard>
-                  ))}
-                </div>
-              ) : filteredContacts.length > 0 ? (
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                  {filteredContacts.map((contact) => {
-                    const category = categories.find(
-                      (c) => c.id === contact.role
-                    );
-                    const avatarUrl = getUserAvatar(contact);
-
-                    return (
-                      <StandardCard
-                        key={contact.id}
-                        className="p-4 hover:shadow-lg transition-all duration-200 cursor-pointer border-l-4 border-l-blue-500"
-                        onClick={() => setSelectedContact(contact)}
-                      >
-                        <div className="flex items-center gap-3 mb-3">
-                          <div className="relative">
-                            {avatarUrl ? (
-                              <img
-                                src={avatarUrl}
-                                alt={contact.name}
-                                className="w-10 h-10 rounded-full object-cover ring-2 ring-yellow-400"
-                              />
-                            ) : (
-                              <div
-                                className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                                  category?.color || "bg-gray-100 text-gray-600"
-                                }`}
-                              >
-                                <span className="text-lg">
-                                  {category?.icon || "👤"}
-                                </span>
-                              </div>
-                            )}
-                            {contact.priority && contact.priority <= 2 && (
-                              <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center">
-                                <Star className="h-2 w-2 text-white" />
-                              </div>
-                            )}
-                          </div>
-
-                          <div className="flex-1 min-w-0">
-                            <h3 className="font-semibold text-gray-900 truncate text-sm">
-                              {contact.name}
-                            </h3>
-                            <div className="flex items-center gap-1">
-                              <span
-                                className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium ${
-                                  category?.color || "bg-gray-100 text-gray-800"
-                                }`}
-                              >
-                                {category?.name || contact.role}
-                              </span>
-                              {contact.role === "owner" && (
-                                <Crown className="h-3 w-3 text-yellow-500" />
-                              )}
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-1">
-                            <Eye className="h-4 w-4 text-gray-400" />
-                            {isManagerView && (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  window.location.href = `/contacts/edit/${contact.id}`;
-                                }}
-                                className="p-1 text-gray-400 hover:text-blue-600 transition-colors rounded"
-                              >
-                                <Edit className="h-3 w-3" />
-                              </button>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* ✅ Compact contact info preview */}
-                        <div className="space-y-1 text-xs text-gray-600">
-                          {contact.phone && (
-                            <div className="flex items-center gap-2 truncate">
-                              <Phone className="h-3 w-3 text-gray-400 flex-shrink-0" />
-                              <span className="truncate">{contact.phone}</span>
-                            </div>
-                          )}
-                          {contact.email && (
-                            <div className="flex items-center gap-2 truncate">
-                              <Mail className="h-3 w-3 text-gray-400 flex-shrink-0" />
-                              <span className="truncate">{contact.email}</span>
-                            </div>
-                          )}
-                        </div>
-                      </StandardCard>
-                    );
-                  })}
-                </div>
-              ) : (
-                /* Empty State */
-                <StandardCard className="text-center py-16">
-                  <div className="max-w-md mx-auto">
-                    <Users className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">
-                      No contacts found
-                    </h3>
-                    <p className="text-gray-600 mb-6">
-                      {searchTerm || selectedCategory !== "all"
-                        ? "Try adjusting your search terms or filter settings."
-                        : "Add contacts for this property to keep important information organized and easily accessible."}
-                    </p>
-                    {(searchTerm || selectedCategory !== "all") && (
-                      <div className="flex gap-3 justify-center">
-                        <button
-                          onClick={() => setSearchTerm("")}
-                          className="px-4 py-2 text-blue-600 border border-blue-600 rounded-lg hover:bg-blue-50 transition-colors"
-                        >
-                          Clear Search
-                        </button>
-                        <button
-                          onClick={() => setSelectedCategory("all")}
-                          className="px-4 py-2 text-blue-600 border border-blue-600 rounded-lg hover:bg-blue-50 transition-colors"
-                        >
-                          Clear Filter
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </StandardCard>
-              )}
-            </div>
-          </StandardCard>
-        </div>
-      </PageContainer>
-
-      {/* Floating Action Button */}
-      {isManagerView && (
-        <div className="fixed bottom-6 right-6 z-50">
-          <FloatingActionButton
-            icon={Plus}
-            label="Add Contact"
-            onClick={() => setShowAddModal(true)}
-            variant="primary"
+      {/* Emergency contacts always visible */}
+      <StandardCard
+        title="Emergency Contacts"
+        subtitle="Always know who to call in case of an emergency"
+      >
+        {loading ? (
+          <div className="flex justify-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          </div>
+        ) : filteredContacts.filter((c) => c.category === "emergency").length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredContacts
+              .filter((c) => c.category === "emergency")
+              .map((contact) => (
+                <ContactCard key={contact.id} contact={contact} />
+              ))}
+          </div>
+        ) : (
+          <EmptyState
+            title="No emergency contacts found"
+            description="Add emergency contacts for quick access during urgent situations"
+            buttonText="Add Emergency Contact"
+            category="emergency"
           />
-        </div>
+        )}
+      </StandardCard>
+
+      {/* Property contacts for family+ */}
+      {!isGuestView && (
+        <StandardCard
+          title="Property Contacts"
+          subtitle="Contacts related to your property"
+        >
+          {loading ? (
+            <div className="flex justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            </div>
+          ) : filteredContacts.filter((c) => 
+              c.category === "property" || 
+              c.category === "maintenance" || 
+              c.category === "service"
+            ).length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredContacts
+                .filter((c) => 
+                  c.category === "property" || 
+                  c.category === "maintenance" || 
+                  c.category === "service"
+                )
+                .map((contact) => (
+                  <ContactCard key={contact.id} contact={contact} />
+                ))}
+            </div>
+          ) : (
+            <EmptyState
+              title="No property contacts found"
+              description="Add contacts for property management, maintenance, and services"
+              buttonText="Add Property Contact"
+              category="property"
+            />
+          )}
+        </StandardCard>
       )}
 
-      {/* Add Contact Modal */}
-      <AddContactModal
-        isOpen={showAddModal}
-        onClose={() => setShowAddModal(false)}
-        onContactAdded={refreshContacts}
-        propertyId={property.id}
-        userId={user.id}
-      />
-
-      {/* ✅ Contact Details Modal */}
-      <ContactDetailsModal
-        contact={selectedContact}
-        onClose={() => setSelectedContact(null)}
-      />
+      {/* Vendor contacts for managers only */}
+      {isManagerView && (
+        <StandardCard
+          title="Vendors & Services"
+          subtitle="Contacts for vendors and service providers"
+        >
+          {loading ? (
+            <div className="flex justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            </div>
+          ) : filteredContacts.filter((c) => 
+              c.category === "vendor" || 
+              c.category === "contractor"
+            ).length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredContacts
+                .filter((c) => 
+                  c.category === "vendor" || 
+                  c.category === "contractor"
+                )
+                .map((contact) => (
+                  <ContactCard key={contact.id} contact={contact} />
+                ))}
+            </div>
+          ) : (
+            <EmptyState
+              title="No vendor contacts found"
+              description="Add contacts for vendors, contractors, and service providers"
+              buttonText="Add Vendor Contact"
+              category="vendor"
+            />
+            )}
+        </StandardCard>
+      )}
     </div>
   );
 }
