@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
+import { cookies } from "next/headers";
 
 // Initialize Supabase with admin privileges using environment variables
 const supabaseAdmin = createClient(
@@ -8,18 +9,18 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY || ""
 );
 
-// Fix this line:
-const supabase = createRouteHandlerClient({ cookies });
-
-// ADD: Interface for type safety
+// Interface for type safety
 interface UserRoleRequest {
   userId: string;
   role: string;
   action: "add" | "remove";
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    // Create client inside the function
+    const supabase = createRouteHandlerClient({ cookies });
+    
     const { data, error } = await supabaseAdmin.auth.admin.listUsers();
 
     if (error) {
@@ -57,9 +58,9 @@ export async function GET() {
   }
 }
 
-// CHANGE: Add proper TypeScript typing
 export async function POST(request: NextRequest) {
   try {
+    const supabase = createRouteHandlerClient({ cookies });
     const { userId, role, action }: UserRoleRequest = await request.json();
 
     if (!userId || !role || !action) {
