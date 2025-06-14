@@ -628,7 +628,7 @@ export default function TasksPage() {
                       onEdit={editTask}
                       onDelete={deleteTask}
                       onViewPhotos={setViewingPhotos}
-                      layout="wide"
+                      layout="default" // Pass the layout prop here
                     />
                   ))}
 

@@ -30,6 +30,7 @@ import {
 import Link from "next/link";
 import { toast } from "react-hot-toast";
 import StandardCard from "@/components/ui/StandardCard";
+import GoogleMapComponent from "@/components/GoogleMapComponent";
 
 interface Property {
   id: string;
@@ -269,6 +270,21 @@ export default function PropertyDetailPage() {
               </div>
             </div>
           </StandardCard>
+
+          {/* Property Location - Google Map */}
+          {property.latitude && property.longitude && (
+            <StandardCard title="Location">
+              <div className="h-64 w-full">
+                <GoogleMapComponent
+                  latitude={property.latitude}
+                  longitude={property.longitude}
+                  address={property.address}
+                  zoom={16}
+                  className="border border-gray-200 rounded-lg"
+                />
+              </div>
+            </StandardCard>
+          )}
         </div>
       </PageContainer>
     </div>
