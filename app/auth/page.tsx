@@ -7,24 +7,25 @@ import { debugLog } from "@/lib/utils/debug";
 
 export default function AuthPage() {
   const router = useRouter();
-  const { user, signIn, signUp } = useAuth();
+  const { user, signIn, signUp, loading: authLoading } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [mode, setMode] = useState<"signin" | "signup">("signin");
 
   // Redirect if already logged in
   useEffect(() => {
     debugLog("🔍 Auth page loaded");
 
-    if (user) {
+    if (!authLoading && user) {
       const urlParams = new URLSearchParams(window.location.search);
-      const redirectTo = urlParams.get('redirectedFrom') || '/';
-      
+      const redirectTo = urlParams.get("redirectedFrom") || "/";
+
       debugLog("🔄 User already authenticated, redirecting to:", redirectTo);
       router.push(redirectTo);
     }
-  }, [user, router]);
+  }, [user, authLoading, router]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,103 +33,145 @@ export default function AuthPage() {
     setError("");
 
     try {
+      console.log("🔄 Attempting login for:", email);
       const result = await signIn(email, password);
+
       if (result.error) {
         throw new Error(result.error.message);
       }
-      router.push("/");
+
+      if (result.data?.user) {
+        console.log("✅ Login successful, redirecting...");
+
+        // Get redirect destination
+        const urlParams = new URLSearchParams(window.location.search);
+        const redirectTo = urlParams.get("redirectedFrom") || "/";
+
+        // Force redirect after successful login
+        router.push(redirectTo);
+        return;
+      }
     } catch (error) {
+      console.error("❌ Login error:", error);
       setError(error instanceof Error ? error.message : "An error occurred");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleQuickSignup = async () => {
+  const handleSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+
     try {
-      await signUp("test@example.com", "password123");
+      console.log("🔄 Attempting signup for:", email);
+      const result = await signUp(email, password);
+
+      if (result.error) {
+        throw new Error(result.error.message);
+      }
+
+      if (result.data?.user) {
+        console.log("✅ Signup successful");
+        setError("");
+        // Don't redirect immediately - user needs to verify email
+      }
     } catch (error) {
-      console.error("Signup error:", error);
+      console.error("❌ Signup error:", error);
+      setError(error instanceof Error ? error.message : "An error occurred");
+    } finally {
+      setLoading(false);
     }
   };
 
-  return (
-    <>
-      <div className="text-center mb-8">
-        <h2 className="text-3xl font-bold text-gray-900 mb-2">
-          Sign in to your account
-        </h2>
-        <p className="text-gray-600">Enter your credentials below</p>
+  // Don't show login form if user is already authenticated
+  if (!authLoading && user) {
+    return (
+      <div className="text-center">
+        <p>Redirecting...</p>
       </div>
+    );
+  }
 
-      {error && (
-        <div className="mb-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-          {error}
-        </div>
-      )}
-
-      <form onSubmit={handleLogin} className="space-y-6">
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full space-y-8">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Email
-          </label>
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            autoComplete="email"
-            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
-            placeholder="Enter your email"
-          />
+          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+            {mode === "signin"
+              ? "Sign in to your account"
+              : "Create your account"}
+          </h2>
         </div>
+        <form
+          className="mt-8 space-y-6"
+          onSubmit={mode === "signin" ? handleLogin : handleSignup}
+        >
+          {error && (
+            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+              {error}
+            </div>
+          )}
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Password
-          </label>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            autoComplete="current-password"
-            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
-            placeholder="Enter your password"
-          />
-        </div>
+          <div className="rounded-md shadow-sm -space-y-px">
+            <div>
+              <input
+                id="email-address"
+                name="email"
+                type="email"
+                autoComplete="email"
+                required
+                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                placeholder="Email address"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </div>
+            <div>
+              <input
+                id="password"
+                name="password"
+                type="password"
+                autoComplete="current-password"
+                required
+                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                placeholder="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </div>
+          </div>
 
-        <div className="space-y-3">
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-blue-600 text-white py-2.5 px-4 rounded-md hover:bg-blue-700 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors font-medium"
-          >
-            {loading ? "Signing in..." : "Sign In"}
-          </button>
-
-          <button
-            type="button"
-            onClick={handleQuickSignup}
-            disabled={loading}
-            className="w-full py-2.5 px-4 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 transition-colors font-medium"
-          >
-            Create Test Account
-          </button>
-        </div>
-
-        <div className="text-center mt-6">
-          <p className="text-sm text-gray-600">
-            Don&apos;t have an account?{" "}
-            <a
-              href="/auth/admin"
-              className="text-blue-600 hover:text-blue-700 font-medium"
+          <div>
+            <button
+              type="submit"
+              disabled={loading || authLoading}
+              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
             >
-              Contact your property manager
-            </a>
-          </p>
-        </div>
-      </form>
-    </>
+              {loading
+                ? "Processing..."
+                : mode === "signin"
+                ? "Sign in"
+                : "Sign up"}
+            </button>
+          </div>
+
+          <div className="text-center">
+            <button
+              type="button"
+              onClick={() =>
+                setMode(mode === "signin" ? "signup" : "signin")
+              }
+              className="text-indigo-600 hover:text-indigo-500"
+            >
+              {mode === "signin"
+                ? "Need an account? Sign up"
+                : "Already have an account? Sign in"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
   );
 }
