@@ -5,8 +5,8 @@ import { useAuth } from "@/components/auth";
 import { useProperty } from "@/lib/hooks/useProperty";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import { supabase } from "@/lib/supabase";
-import PageContainer from "@/components/layout/PageContainer";
 import Header from "@/components/layout/Header";
+import PageContainer from "@/components/layout/PageContainer";
 import StandardCard from "@/components/ui/StandardCard";
 import {
   ArrowRight,
@@ -39,28 +39,35 @@ interface GearItem {
 }
 
 export default function HousePage() {
-  const { user } = useAuth();
-  const { currentProperty } = useProperty();
+  const { user, loading: authLoading } = useAuth();
+  const { currentProperty, loading: propertyLoading } = useProperty();
   const { canManageProperty } = usePermissions();
   const [gearItems, setGearItems] = useState<GearItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [walkthroughExists, setWalkthroughExists] = useState<boolean | null>(
-    null
-  );
+  const [walkthroughExists, setWalkthroughExists] = useState<boolean | null>(null);
+
+  // ✅ DEBUG LOGS
+  console.log('🏠 HousePage render:', {
+    authLoading,
+    propertyLoading,
+    user: !!user,
+    currentProperty: !!currentProperty,
+    propertyName: currentProperty?.name,
+    loading
+  });
 
   // Mock data for now - you can replace with actual database calls
   useEffect(() => {
+    console.log('🔧 Setting up mock gear data...');
     const mockGearData: GearItem[] = [
       {
         id: "1",
         name: "Mountain Bikes",
         category: "bikes",
-        description:
-          "2 adult mountain bikes available for trails and town rides",
+        description: "2 adult mountain bikes available for trails and town rides",
         location: "Garage",
         available: true,
-        instructions:
-          "Helmets are in the hall closet. Please lock bikes when not in use.",
+        instructions: "Helmets are in the hall closet. Please lock bikes when not in use.",
       },
       {
         id: "2",
@@ -69,8 +76,7 @@ export default function HousePage() {
         description: "2 SUPs with paddles and life jackets",
         location: "Deck storage box",
         available: true,
-        instructions:
-          "Life jackets required. Check weather conditions before use.",
+        instructions: "Life jackets required. Check weather conditions before use.",
       },
       {
         id: "3",
@@ -93,16 +99,19 @@ export default function HousePage() {
 
     setGearItems(mockGearData);
     setLoading(false);
+    console.log('✅ Mock gear data loaded:', mockGearData.length, 'items');
   }, []);
 
   // Check if walkthrough exists
   useEffect(() => {
     const checkWalkthroughExists = async () => {
       if (!currentProperty?.id) {
+        console.log('🔍 No current property, skipping walkthrough check');
         setWalkthroughExists(null);
         return;
       }
 
+      console.log('🔍 Checking walkthrough for property:', currentProperty.name);
       try {
         const { data, error } = await supabase
           .from("walkthrough_sections")
@@ -111,9 +120,12 @@ export default function HousePage() {
           .limit(1);
 
         if (error) throw error;
-        setWalkthroughExists(data && data.length > 0);
+        
+        const exists = data && data.length > 0;
+        setWalkthroughExists(exists);
+        console.log('✅ Walkthrough check complete:', exists ? 'exists' : 'none found');
       } catch (error) {
-        console.error("Error checking walkthrough:", error);
+        console.error("❌ Error checking walkthrough:", error);
         setWalkthroughExists(false);
       }
     };
@@ -134,10 +146,12 @@ export default function HousePage() {
     }
   };
 
-  if (loading) {
+  // ✅ LOADING STATE - Wait for auth and property
+  if (authLoading || propertyLoading) {
+    console.log('⏳ HousePage showing loading state:', { authLoading, propertyLoading });
     return (
       <div className="p-6">
-        <Header title="The House" />
+        <Header title="House" />
         <PageContainer>
           <StandardCard>
             <div className="flex items-center justify-center py-8">
@@ -150,9 +164,40 @@ export default function HousePage() {
     );
   }
 
+  // ✅ NO PROPERTY STATE
+  if (!currentProperty) {
+    console.log('🚫 HousePage: No current property found');
+    return (
+      <div className="p-6">
+        <Header title="House" />
+        <PageContainer>
+          <StandardCard>
+            <div className="text-center py-12">
+              <Building2 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                No Property Selected
+              </h3>
+              <p className="text-gray-600 mb-4">
+                Please select a property to view house information.
+              </p>
+              <Link
+                href="/properties"
+                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                View Properties
+              </Link>
+            </div>
+          </StandardCard>
+        </PageContainer>
+      </div>
+    );
+  }
+
+  console.log('✅ HousePage: Rendering main content for:', currentProperty.name);
+
   return (
     <div className="p-6">
-      <Header title="The House" />
+      <Header title="House" />
       <PageContainer className="space-y-6">
         {/* Location Map - Moved to Top & Simplified */}
         {currentProperty &&
@@ -230,15 +275,15 @@ export default function HousePage() {
                 <div className="flex space-x-4">
                   {walkthroughExists && (
                     <Link
-                      href="/house/walkthrough"
+                      href="/house/instructions"
                       className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                     >
                       <Compass className="h-4 w-4 mr-2" />
-                      Take Walkthrough
+                      View Instructions
                     </Link>
                   )}
                   <Link
-                    href="/house/gear"
+                    href="/inventory"
                     className="flex items-center px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
                   >
                     <ExternalLink className="h-4 w-4 mr-2" />
@@ -252,59 +297,66 @@ export default function HousePage() {
 
         {/* Quick Access Gear Grid */}
         <StandardCard title="Available Gear & Amenities">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {gearItems.map((item) => {
-              const IconComponent = getCategoryIcon(item.category);
+          {loading ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+              <span className="ml-2">Loading gear...</span>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {gearItems.map((item) => {
+                const IconComponent = getCategoryIcon(item.category);
 
-              return (
-                <div
-                  key={item.id}
-                  className={`p-6 border rounded-lg transition-all hover:shadow-md ${
-                    item.available
-                      ? "border-gray-200 hover:border-blue-300"
-                      : "border-gray-200 bg-gray-50"
-                  }`}
-                >
-                  <div className="flex items-start justify-between mb-3">
-                    <IconComponent
-                      className={`h-8 w-8 ${
-                        item.available ? "text-blue-600" : "text-gray-400"
-                      }`}
-                    />
-                    <span
-                      className={`px-2 py-1 text-xs rounded-full ${
-                        item.available
-                          ? "bg-green-100 text-green-800"
-                          : "bg-red-100 text-red-800"
-                      }`}
-                    >
-                      {item.available ? "Available" : "Unavailable"}
-                    </span>
-                  </div>
-
-                  <h3 className="font-semibold text-gray-900 mb-2">
-                    {item.name}
-                  </h3>
-                  <p className="text-sm text-gray-600 mb-3">
-                    {item.description}
-                  </p>
-
-                  <div className="space-y-2">
-                    <div className="flex items-center text-sm text-gray-500">
-                      <MapPin className="h-4 w-4 mr-1" />
-                      {item.location}
+                return (
+                  <div
+                    key={item.id}
+                    className={`p-6 border rounded-lg transition-all hover:shadow-md ${
+                      item.available
+                        ? "border-gray-200 hover:border-blue-300"
+                        : "border-gray-200 bg-gray-50"
+                    }`}
+                  >
+                    <div className="flex items-start justify-between mb-3">
+                      <IconComponent
+                        className={`h-8 w-8 ${
+                          item.available ? "text-blue-600" : "text-gray-400"
+                        }`}
+                      />
+                      <span
+                        className={`px-2 py-1 text-xs rounded-full ${
+                          item.available
+                            ? "bg-green-100 text-green-800"
+                            : "bg-red-100 text-red-800"
+                        }`}
+                      >
+                        {item.available ? "Available" : "Unavailable"}
+                      </span>
                     </div>
 
-                    {item.instructions && (
-                      <p className="text-xs text-gray-500 bg-gray-50 p-2 rounded">
-                        💡 {item.instructions}
-                      </p>
-                    )}
+                    <h3 className="font-semibold text-gray-900 mb-2">
+                      {item.name}
+                    </h3>
+                    <p className="text-sm text-gray-600 mb-3">
+                      {item.description}
+                    </p>
+
+                    <div className="space-y-2">
+                      <div className="flex items-center text-sm text-gray-500">
+                        <MapPin className="h-4 w-4 mr-1" />
+                        {item.location}
+                      </div>
+
+                      {item.instructions && (
+                        <p className="text-xs text-gray-500 bg-gray-50 p-2 rounded">
+                          💡 {item.instructions}
+                        </p>
+                      )}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </StandardCard>
 
         {/* House Features */}
@@ -346,25 +398,24 @@ export default function HousePage() {
             {walkthroughExists ? (
               // Existing full walkthrough card for guests
               <StandardCard
-                title="House Walkthrough"
+                title="House Instructions"
                 description="Get familiar with your vacation home"
                 icon={<Compass className="h-6 w-6 text-blue-600" />}
               >
                 <div className="space-y-4">
                   <p className="text-gray-600">
-                    Take a guided tour through the house to learn about all the
-                    amenities, appliances, and important information for your
-                    stay.
+                    View detailed instructions and information about the house,
+                    amenities, appliances, and important details for your stay.
                   </p>
                   <div className="flex items-center justify-between">
                     <div className="text-sm text-gray-500">
-                      Interactive step-by-step guide
+                      Step-by-step house guide
                     </div>
                     <Link
-                      href="/house/walkthrough"
+                      href="/house/instructions"
                       className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                     >
-                      Start Walkthrough
+                      View Instructions
                       <ArrowRight className="h-4 w-4 ml-2" />
                     </Link>
                   </div>
@@ -380,7 +431,7 @@ export default function HousePage() {
                     </div>
                     <div>
                       <h3 className="font-medium text-gray-900">
-                        Create House Tour
+                        Create House Instructions
                       </h3>
                       <p className="text-sm text-gray-600">
                         Help guests get familiar with your home
@@ -388,11 +439,11 @@ export default function HousePage() {
                     </div>
                   </div>
                   <Link
-                    href="/house/walkthrough/manage"
+                    href="/house/instructions/manage"
                     className="inline-flex items-center px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
                   >
                     <Plus className="h-4 w-4 mr-1" />
-                    Setup Tour
+                    Setup Instructions
                   </Link>
                 </div>
               </StandardCard>

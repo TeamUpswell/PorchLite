@@ -11,6 +11,7 @@ import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import StandardCard from "@/components/ui/StandardCard";
 import { Home as HomeIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
+import GoogleMapComponent from "@/components/GoogleMapComponent";
 
 // Simplified interfaces
 interface UpcomingVisit {
@@ -152,79 +153,6 @@ export default function HomePage() {
     fetchDashboardData();
   }, [currentProperty?.id, user?.id, authLoading, propertyLoading]);
 
-  // Add this inside your main useEffect:
-  useEffect(() => {
-    const testPropertyData = async () => {
-      if (!user?.id) return;
-
-      console.log("🔍 Testing property data fetch...");
-
-      try {
-        // Test 1: Get user tenants
-        const { data: tenants, error: tenantsError } = await supabase
-          .from("tenants")
-          .select("*")
-          .eq("owner_user_id", user.id);
-
-        console.log("👥 User tenants:", tenants, tenantsError);
-
-        // Test 2: Get all properties for user
-        const { data: properties, error: propertiesError } = await supabase
-          .from("properties")
-          .select("*")
-          .eq("created_by", user.id);
-
-        console.log("🏠 User properties:", properties, propertiesError);
-
-        // Test 3: Get property tenants
-        if (tenants && tenants.length > 0) {
-          const { data: propTenants, error: propTenantsError } = await supabase
-            .from("property_tenants")
-            .select("*, properties(*)")
-            .eq("tenant_id", tenants[0].id);
-
-          console.log("🔗 Property tenants:", propTenants, propTenantsError);
-        }
-      } catch (error) {
-        console.error("💥 Property test failed:", error);
-      }
-    };
-
-    if (user?.id) {
-      testPropertyData();
-    }
-  }, [user?.id]);
-
-  // Add this useEffect temporarily to test from the dashboard:
-  useEffect(() => {
-    const quickPropertyTest = async () => {
-      if (!user?.id) return;
-
-      console.log("🏠 === DASHBOARD PROPERTY TEST ===");
-
-      try {
-        // Quick test - get any data at all
-        const { data: anyData, error } = await supabase
-          .from("properties")
-          .select("*")
-          .limit(5);
-
-        console.log("📊 Quick property test:", { anyData, error });
-
-        if (anyData && anyData.length > 0) {
-          console.log("✅ Database has properties!");
-          console.log("🔍 Sample property:", anyData[0]);
-        } else {
-          console.log("❌ No properties found in database");
-        }
-      } catch (err) {
-        console.error("💥 Quick test failed:", err);
-      }
-    };
-
-    quickPropertyTest();
-  }, [user?.id]);
-
   // Handle new reservation callback
   const handleAddReservation = () => {
     console.log("➕ Add reservation triggered");
@@ -247,21 +175,6 @@ export default function HomePage() {
     propertyLoading,
     currentProperty: currentProperty?.name || "none",
   });
-
-  // Add this useEffect at the top of your HomePage component, right after the existing useEffect blocks:
-  useEffect(() => {
-    console.log("🔧 === ENVIRONMENT DEBUG ===");
-    console.log(
-      "🔧 NEXT_PUBLIC_SUPABASE_URL:",
-      process.env.NEXT_PUBLIC_SUPABASE_URL
-    );
-    console.log(
-      "🔧 NEXT_PUBLIC_SUPABASE_ANON_KEY first 20:",
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.substring(0, 20)
-    );
-    console.log("🔧 Expected URL: https://hkrgfqpshdoroimlulzw.supabase.co");
-    console.log("🔧 Expected Key first 20: eyJhbGciOiJIUzI1NiIsI");
-  }, []);
 
   // Simplify your loading detection:
 
@@ -349,6 +262,21 @@ export default function HomePage() {
             showBanner={false} // Don't show DashboardLayout banner since we're using DashboardHeader
           />
         </div>
+
+        {/* Add a map section showing current property location */}
+        {currentProperty && currentProperty.latitude && currentProperty.longitude && (
+          <StandardCard title="Property Location" className="col-span-full">
+            <div className="h-64 w-full">
+              <GoogleMapComponent
+                latitude={currentProperty.latitude}
+                longitude={currentProperty.longitude}
+                address={currentProperty.address || currentProperty.name}
+                zoom={16}
+                className="border border-gray-200 rounded-lg"
+              />
+            </div>
+          </StandardCard>
+        )}
       </PageContainer>
     </div>
   );

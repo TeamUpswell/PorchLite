@@ -2,14 +2,16 @@
 
 export const dynamic = "force-dynamic";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { useTenant } from "@/lib/hooks/useTenant";
+import { useProperty } from "@/lib/hooks/useProperty";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/components/auth";
 import Header from "@/components/layout/Header";
 import PageContainer from "@/components/layout/PageContainer";
 import StandardCard from "@/components/ui/StandardCard";
+import GoogleMapComponent from "@/components/GoogleMapComponent";
+import { loadMapsApi } from "@/lib/googleMaps";
 import {
   MapPin,
   Check,
@@ -20,6 +22,12 @@ import {
 import toast from "react-hot-toast";
 
 // Google Places types
+declare global {
+  interface Window {
+    google: any;
+  }
+}
+
 interface PlaceResult {
   place_id: string;
   formatted_address: string;
@@ -39,13 +47,17 @@ interface PlaceResult {
 export default function CreatePropertyPage() {
   // ✅ ALL HOOKS FIRST
   const { user, loading: authLoading } = useAuth();
-  const { currentTenant, loading: tenantLoading } = useTenant();
+  const { currentTenant, loading: propertyLoading } = useProperty();
   const router = useRouter();
 
+  // Add ref for cleanup
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
   const [isMounted, setIsMounted] = useState(false);
+  const [mapsApiReady, setMapsApiReady] = useState(false); // ✅ FIXED: Better API ready tracking
   const [isLoading, setIsLoading] = useState(false);
   const [addressSuggestions, setAddressSuggestions] = useState<PlaceResult[]>([]);
-  const [selectedPlace, setSelectedPlace] = useState<PlaceResult | null>(null);
+  const [selectedPlace, setSelectedPlace] = useState<PlaceResult | null>(null); // ✅ FIXED: Added missing state
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [addressValidated, setAddressValidated] = useState(false);
 
@@ -62,95 +74,132 @@ export default function CreatePropertyPage() {
     country: "",
   });
 
-  // ✅ MOUNT EFFECT
+  // ✅ MOUNT EFFECT WITH API LOADING
   useEffect(() => {
     setIsMounted(true);
+    
+    // Load Maps API on mount
+    const initMapsApi = async () => {
+      try {
+        await loadMapsApi();
+        setMapsApiReady(true);
+      } catch (error) {
+        console.error("Failed to load Google Maps API:", error);
+      }
+    };
+    
+    initMapsApi();
+
+    return () => {
+      // Cleanup timeout on unmount
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
   }, []);
 
-  // ✅ DEBOUNCED ADDRESS SEARCH
-  const searchAddresses = useCallback(
-    async (query: string) => {
-      if (query.length < 3) {
-        setAddressSuggestions([]);
-        return;
+  // ✅ CLICK OUTSIDE TO CLOSE SUGGESTIONS
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (showSuggestions) {
+        setShowSuggestions(false);
       }
+    };
 
-      if (!window.google?.maps?.places) {
-        console.warn("Google Maps API not loaded yet");
-        return;
-      }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showSuggestions]);
 
-      try {
-        const service = new window.google.maps.places.AutocompleteService();
+  // ✅ FIXED ADDRESS SEARCH WITH PROPER DEBOUNCING
+  const searchAddresses = useCallback(async (query: string) => {
+    if (query.length < 3) {
+      setAddressSuggestions([]);
+      return;
+    }
 
-        service.getPlacePredictions(
-          {
-            input: query,
-            types: ["address"],
-            componentRestrictions: { country: "US" },
-          },
-          (predictions, status) => {
-            if (
-              status === window.google.maps.places.PlacesServiceStatus.OK &&
-              predictions
-            ) {
-              const detailedPlaces: PlaceResult[] = [];
+    if (!mapsApiReady) {
+      console.warn("Google Maps API not ready yet");
+      return;
+    }
 
-              predictions.forEach((prediction) => {
-                const service = new window.google.maps.places.PlacesService(
-                  document.createElement("div")
-                );
+    try {
+      const service = new window.google.maps.places.AutocompleteService();
 
-                service.getDetails(
-                  {
-                    placeId: prediction.place_id,
-                    fields: [
-                      "place_id",
-                      "formatted_address",
-                      "geometry",
-                      "address_components",
-                    ],
-                  },
-                  (place, status) => {
-                    if (
-                      status === window.google.maps.places.PlacesServiceStatus.OK &&
-                      place
-                    ) {
-                      detailedPlaces.push(place as PlaceResult);
+      service.getPlacePredictions(
+        {
+          input: query,
+          types: ["address"],
+          componentRestrictions: { country: "US" },
+        },
+        (predictions: any[], status: any) => {
+          if (
+            status === window.google.maps.places.PlacesServiceStatus.OK &&
+            predictions
+          ) {
+            const detailedPlaces: PlaceResult[] = [];
+            let completed = 0;
 
-                      if (detailedPlaces.length === predictions.length) {
-                        setAddressSuggestions(detailedPlaces);
-                      }
-                    }
+            predictions.forEach((prediction) => {
+              const service = new window.google.maps.places.PlacesService(
+                document.createElement("div")
+              );
+
+              service.getDetails(
+                {
+                  placeId: prediction.place_id,
+                  fields: [
+                    "place_id",
+                    "formatted_address",
+                    "geometry",
+                    "address_components",
+                  ],
+                },
+                (place: any, status: any) => {
+                  completed++;
+                  if (
+                    status === window.google.maps.places.PlacesServiceStatus.OK &&
+                    place
+                  ) {
+                    detailedPlaces.push(place as PlaceResult);
                   }
-                );
-              });
-            }
-          }
-        );
-      } catch (error) {
-        console.error("Error searching addresses:", error);
-        toast.error("Error searching addresses");
-      }
-    },
-    [setAddressSuggestions]
-  );
 
-  // ✅ HANDLE ADDRESS INPUT CHANGE
+                  // Update suggestions when all requests complete
+                  if (completed === predictions.length) {
+                    setAddressSuggestions(detailedPlaces);
+                  }
+                }
+              );
+            });
+          } else {
+            setAddressSuggestions([]);
+          }
+        }
+      );
+    } catch (error) {
+      console.error("Error searching addresses:", error);
+      toast.error("Error searching addresses");
+    }
+  }, [mapsApiReady]);
+
   const handleAddressChange = (value: string) => {
     setFormData({ ...formData, address: value });
     setAddressValidated(false);
     setSelectedPlace(null);
     setShowSuggestions(true);
 
-    const timeoutId = setTimeout(() => {
+    // Clear previous timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    // Set new timeout
+    searchTimeoutRef.current = setTimeout(() => {
       searchAddresses(value);
     }, 300);
-
-    return () => clearTimeout(timeoutId);
   };
 
-  // ✅ HANDLE ADDRESS SELECTION
   const handleAddressSelect = (place: PlaceResult) => {
     const addressComponents = place.address_components;
     const getComponent = (type: string) => {
@@ -184,11 +233,6 @@ export default function CreatePropertyPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!currentTenant) {
-      toast.error("Please select a property portfolio first");
-      return;
-    }
-
     if (!addressValidated) {
       toast.error("Please select a valid address from the suggestions");
       return;
@@ -207,11 +251,9 @@ export default function CreatePropertyPage() {
         state: formData.state,
         zip: formData.zip,
         country: formData.country,
-        tenant_id: currentTenant.id,
+        tenant_id: currentTenant?.tenant_id || null,
         created_by: user?.id,
       };
-
-      console.log("Creating property:", propertyData);
 
       const { data, error } = await supabase
         .from("properties")
@@ -224,10 +266,7 @@ export default function CreatePropertyPage() {
         throw error;
       }
 
-      console.log("Property created successfully:", data);
       toast.success(`Property "${formData.name}" created successfully!`);
-
-      // Navigate to the new property or properties list
       router.push(`/properties/${data.id}`);
     } catch (error: any) {
       console.error("Error creating property:", error);
@@ -238,7 +277,7 @@ export default function CreatePropertyPage() {
   };
 
   // ✅ EARLY RETURNS AFTER ALL HOOKS
-  if (authLoading || tenantLoading) {
+  if (authLoading || propertyLoading) {
     return (
       <div className="p-6">
         <Header title="Create Property" />
@@ -248,7 +287,7 @@ export default function CreatePropertyPage() {
               <div className="text-center">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-3"></div>
                 <p className="text-gray-600">
-                  {authLoading ? "Authenticating..." : "Loading tenant data..."}
+                  {authLoading ? "Authenticating..." : "Loading..."}
                 </p>
               </div>
             </div>
@@ -259,7 +298,7 @@ export default function CreatePropertyPage() {
   }
 
   if (!user) {
-    return null; // Auth will redirect
+    return null;
   }
 
   if (!isMounted) {
@@ -280,7 +319,6 @@ export default function CreatePropertyPage() {
     );
   }
 
-  // ✅ MAIN CREATE PROPERTY PAGE
   return (
     <div className="p-6">
       <Header
@@ -289,31 +327,20 @@ export default function CreatePropertyPage() {
         onBack={() => router.push("/properties")}
       />
       <PageContainer>
-        <div className="max-w-2xl mx-auto">
+        <div className="max-w-2xl mx-auto space-y-6">
           <StandardCard
             title="New Property Details"
             subtitle="Add a new property to your portfolio"
-            headerActions={
-              <button
-                onClick={() => router.push("/properties")}
-                className="inline-flex items-center px-3 py-2 text-sm text-gray-600 hover:text-gray-900 transition-colors"
-              >
-                <ArrowLeft className="h-4 w-4 mr-1" />
-                Back to Properties
-              </button>
-            }
           >
-            {!currentTenant && (
-              <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+            {/* ✅ ADDED: Maps API Loading Indicator */}
+            {!mapsApiReady && (
+              <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                 <div className="flex items-center">
-                  <AlertCircle className="h-5 w-5 text-yellow-600 mr-2" />
-                  <p className="text-yellow-800 font-medium">
-                    Please select a property portfolio first
+                  <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-blue-500 mr-2"></div>
+                  <p className="text-sm text-blue-800">
+                    Loading Google Maps... Address validation will be available shortly.
                   </p>
                 </div>
-                <p className="text-yellow-700 text-sm mt-1">
-                  You need to have an active tenant/portfolio to create properties.
-                </p>
               </div>
             )}
 
@@ -334,9 +361,6 @@ export default function CreatePropertyPage() {
                   required
                   maxLength={100}
                 />
-                <p className="text-xs text-gray-500 mt-1">
-                  Give your property a memorable name (max 100 characters)
-                </p>
               </div>
 
               {/* Property Address */}
@@ -357,6 +381,7 @@ export default function CreatePropertyPage() {
                     }`}
                     placeholder="Start typing the full property address..."
                     required
+                    disabled={!mapsApiReady} // ✅ FIXED: Better disabled check
                   />
 
                   {/* Validation indicator */}
@@ -393,7 +418,7 @@ export default function CreatePropertyPage() {
                 )}
 
                 {/* Validation messages */}
-                {formData.address && !addressValidated && (
+                {formData.address && !addressValidated && mapsApiReady && (
                   <p className="mt-2 text-sm text-yellow-600 flex items-center">
                     <AlertCircle className="h-4 w-4 mr-1" />
                     Please select an address from the suggestions for accurate location data
@@ -417,19 +442,24 @@ export default function CreatePropertyPage() {
                   </h3>
                   <div className="grid grid-cols-2 gap-3 text-sm">
                     <div className="text-green-700">
-                      <span className="font-medium">City:</span> {formData.city || "N/A"}
+                      <span className="font-medium">City:</span>{" "}
+                      {formData.city || "N/A"}
                     </div>
                     <div className="text-green-700">
-                      <span className="font-medium">State:</span> {formData.state || "N/A"}
+                      <span className="font-medium">State:</span>{" "}
+                      {formData.state || "N/A"}
                     </div>
                     <div className="text-green-700">
-                      <span className="font-medium">ZIP:</span> {formData.zip || "N/A"}
+                      <span className="font-medium">ZIP:</span>{" "}
+                      {formData.zip || "N/A"}
                     </div>
                     <div className="text-green-700">
-                      <span className="font-medium">Country:</span> {formData.country || "N/A"}
+                      <span className="font-medium">Country:</span>{" "}
+                      {formData.country || "N/A"}
                     </div>
                     <div className="col-span-2 text-xs text-green-600 font-mono">
-                      Coordinates: {formData.latitude.toFixed(6)}, {formData.longitude.toFixed(6)}
+                      Coordinates: {formData.latitude.toFixed(6)},{" "}
+                      {formData.longitude.toFixed(6)}
                     </div>
                   </div>
                 </div>
@@ -456,6 +486,24 @@ export default function CreatePropertyPage() {
                 </p>
               </div>
 
+              {/* Show map preview when address is validated */}
+              {addressValidated && formData.latitude && formData.longitude && (
+                <div className="space-y-4">
+                  <h3 className="text-sm font-medium text-gray-700">
+                    Location Preview
+                  </h3>
+                  <div className="h-48 w-full">
+                    <GoogleMapComponent
+                      latitude={formData.latitude}
+                      longitude={formData.longitude}
+                      address={formData.address}
+                      zoom={16}
+                      className="border border-gray-200 rounded-lg"
+                    />
+                  </div>
+                </div>
+              )}
+
               {/* Submit Button */}
               <div className="flex gap-3 pt-4">
                 <button
@@ -467,7 +515,9 @@ export default function CreatePropertyPage() {
                 </button>
                 <button
                   type="submit"
-                  disabled={isLoading || !currentTenant || !addressValidated || !formData.name.trim()}
+                  disabled={
+                    isLoading || !addressValidated || !formData.name.trim()
+                  }
                   className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors flex items-center justify-center"
                 >
                   {isLoading ? (
@@ -483,42 +533,10 @@ export default function CreatePropertyPage() {
                   )}
                 </button>
               </div>
-
-              {/* Validation Summary */}
-              {(!addressValidated || !formData.name.trim()) && (
-                <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
-                  <p className="text-sm text-gray-600 font-medium mb-2">
-                    Complete these steps to create your property:
-                  </p>
-                  <ul className="space-y-1 text-sm text-gray-600">
-                    {!formData.name.trim() && (
-                      <li className="flex items-center">
-                        <AlertCircle className="h-4 w-4 text-yellow-500 mr-2" />
-                        Enter a property name
-                      </li>
-                    )}
-                    {!addressValidated && (
-                      <li className="flex items-center">
-                        <AlertCircle className="h-4 w-4 text-yellow-500 mr-2" />
-                        Select a validated address from the suggestions
-                      </li>
-                    )}
-                  </ul>
-                </div>
-              )}
             </form>
           </StandardCard>
         </div>
       </PageContainer>
-
-      {/* Load Google Maps JavaScript API */}
-      {isMounted && (
-        <script
-          async
-          defer
-          src={`https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=places&loading=async`}
-        />
-      )}
     </div>
   );
 }

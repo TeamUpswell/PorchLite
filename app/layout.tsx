@@ -7,6 +7,7 @@ import { ThemeProvider } from "@/components/ThemeProvider";
 import { Toaster } from "react-hot-toast";
 import MainLayout from "@/components/layout/MainLayout";
 import { supabase } from '@/lib/supabase';
+import Script from 'next/script'
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -33,6 +34,10 @@ export default function RootLayout({
             </PropertyProvider>
           </AuthProvider>
         </ThemeProvider>
+        <Script
+          src={`https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=places&loading=async`}
+          strategy="lazyOnload"
+        />
       </body>
     </html>
   );

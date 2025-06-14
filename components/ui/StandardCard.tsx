@@ -3,35 +3,39 @@
 
 import * as React from "react";
 
-interface StandardCardProps extends React.HTMLAttributes<HTMLDivElement> {
+interface StandardCardProps {
   title?: string;
   subtitle?: string;
-  icon?: React.ReactNode;
+  children: React.ReactNode;
+  className?: string;
+  headerActions?: React.ReactNode; // ✅ Make sure this is here
 }
 
-const StandardCard = React.forwardRef<HTMLDivElement, StandardCardProps>(
-  ({ className = "", title, subtitle, icon, children, ...props }, ref) => (
+export default function StandardCard({
+  title,
+  subtitle,
+  children,
+  className = "",
+  headerActions, // ✅ Destructure this
+  ...restProps
+}: StandardCardProps) {
+  return (
     <div
-      ref={ref}
-      className={`rounded-lg border border-gray-200 bg-white shadow-sm ${className}`}
-      {...props}
+      className={`bg-white rounded-lg shadow-sm border border-gray-200 ${className}`}
+      {...restProps}
     >
-      {(title || subtitle || icon) && (
-        <div className="p-6 pb-4">
-          <div className="flex items-center space-x-2">
-            {icon && <div className="flex-shrink-0">{icon}</div>}
+      {(title || subtitle || headerActions) && (
+        <div className="px-6 py-4 border-b border-gray-200">
+          <div className="flex items-center justify-between">
             <div>
               {title && <h3 className="text-lg font-semibold text-gray-900">{title}</h3>}
-              {subtitle && <p className="text-sm text-gray-600">{subtitle}</p>}
+              {subtitle && <p className="mt-1 text-sm text-gray-600">{subtitle}</p>}
             </div>
+            {headerActions && <div>{headerActions}</div>}
           </div>
         </div>
       )}
-      <div className="p-6 pt-0">{children}</div>
+      <div className="p-6">{children}</div>
     </div>
-  )
-);
-
-StandardCard.displayName = "StandardCard";
-
-export default StandardCard;
+  );
+}
