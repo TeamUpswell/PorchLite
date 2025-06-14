@@ -121,14 +121,18 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
     setError(null);
 
     try {
-      // Ensure valid session before any database operations
-      await ensureValidSession();
+      // Add timeout to prevent hanging
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("Query timeout")), 10000)
+      );
 
-      const response = await supabase
+      const queryPromise = supabase
         .from("properties")
         .select("*")
         .eq("created_by", user.id)
         .order("created_at", { ascending: false });
+
+      const response = await Promise.race([queryPromise, timeoutPromise]);
 
       console.log("🏠 Raw response:", response);
 
@@ -143,7 +147,7 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
       setUserProperties(propertiesData);
 
       if (propertiesData.length > 0) {
-        const selectedProperty = propertiesData[0]; // Use the most recent property
+        const selectedProperty = propertiesData[0];
         setCurrentProperty(selectedProperty);
         console.log("✅ SUCCESS! Set current property:", selectedProperty.name);
       } else {
