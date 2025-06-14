@@ -65,6 +65,7 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [hasInitialized, setHasInitialized] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(false);
 
   console.log("🔍 PropertyProvider state:", {
     user: user?.email,
@@ -161,25 +162,11 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
   }, [user?.id, ensureValidSession]);
 
   useEffect(() => {
-    console.log("🔍 PropertyProvider useEffect triggered", {
-      user: user?.email || "none",
-      userId: user?.id || "none",
-      hasProperty: !!currentProperty,
-      loading,
-    });
-
-    if (user?.id && !currentProperty && !loading) {
-      console.log("🚀 Loading property data...");
-      loadUserData();
-    } else if (user === null) {
-      setCurrentProperty(null);
-      setUserProperties([]);
-      setLoading(false);
-      setHasInitialized(true);
-    } else if (currentProperty) {
-      console.log("✅ Property already loaded, skipping");
+    if (user && !hasInitialized && !isInitializing) {
+      setIsInitializing(true);
+      loadUserData().finally(() => setIsInitializing(false));
     }
-  }, [user?.id, currentProperty, loading, loadUserData]); // ✅ Watch currentProperty too
+  }, [user, hasInitialized, isInitializing, loadUserData]);
 
   const enhancedCurrentTenant = useMemo(() => {
     debugLog("🔍 Enhanced tenant calculation:", {
@@ -302,6 +289,19 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
       updateCurrentProperty,
     ]
   );
+
+  // Add this useEffect as an emergency override
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (loading && hasInitialized === false) {
+        console.log("🔧 EMERGENCY: Force setting loading to false");
+        setLoading(false);
+        setHasInitialized(true);
+      }
+    }, 3000);
+
+    return () => clearTimeout(timer);
+  }, [loading, hasInitialized]);
 
   return (
     <PropertyContext.Provider value={value}>
