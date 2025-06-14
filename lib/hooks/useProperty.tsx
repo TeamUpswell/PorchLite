@@ -8,6 +8,7 @@ import React, {
   ReactNode,
   useCallback,
   useMemo,
+  useRef,
 } from "react";
 import { useAuth } from "@/components/auth";
 import { supabase } from "@/lib/supabase";
@@ -65,7 +66,11 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [hasInitialized, setHasInitialized] = useState(false);
-  const [isInitializing, setIsInitializing] = useState(false);
+
+  // ✅ ADD: Prevent multiple simultaneous calls
+  const loadingRef = useRef(false);
+  const lastErrorTime = useRef(0);
+  const mountedRef = useRef(true);
 
   console.log("🔍 PropertyProvider state:", {
     user: user?.email,
@@ -76,38 +81,9 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
     error,
   });
 
-  const ensureValidSession = useCallback(async () => {
-    try {
-      const {
-        data: { session },
-        error,
-      } = await supabase.auth.getSession();
+  // ✅ REMOVE: ensureValidSession (causing unnecessary complexity)
 
-      if (error) throw error;
-      if (!session) throw new Error("No active session");
-
-      // Check if token is close to expiry (within 5 minutes)
-      if (session.expires_at) {
-        const expiryTime = session.expires_at * 1000;
-        const now = Date.now();
-        const timeUntilExpiry = expiryTime - now;
-
-        if (timeUntilExpiry < 300000) {
-          console.log("🔄 Refreshing session before query...");
-          const { data: refreshed, error: refreshError } =
-            await supabase.auth.refreshSession();
-          if (refreshError) throw refreshError;
-          return refreshed.session;
-        }
-      }
-
-      return session;
-    } catch (error) {
-      console.error("Session validation error:", error);
-      throw error;
-    }
-  }, []);
-
+  // ✅ FIXED: Stable loadUserData with proper error handling
   const loadUserData = useCallback(async () => {
     if (!user?.id) {
       console.log("❌ No user ID - exiting loadUserData");
@@ -116,16 +92,30 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    // ✅ Prevent simultaneous calls
+    if (loadingRef.current) {
+      console.log("🛑 loadUserData already in progress");
+      return;
+    }
+
+    // ✅ Check error cooldown
+    if (error && Date.now() - lastErrorTime.current < 10000) {
+      console.log("🛑 Recent error, cooling down...");
+      return;
+    }
+
+    loadingRef.current = true;
     console.log("🔍 Starting property lookup for user:", user.id);
-    setLoading(true);
-    setError(null);
 
     try {
-      // Increase timeout and add better error handling
+      setLoading(true);
+      setError(null);
+
+      // ✅ Shorter timeout
       const timeoutPromise = new Promise((_, reject) =>
         setTimeout(
-          () => reject(new Error("Request timeout after 15 seconds")),
-          15000
+          () => reject(new Error("Request timeout after 8 seconds")),
+          8000
         )
       );
 
@@ -138,10 +128,12 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
       console.log("📡 Executing Supabase query...");
       const response = await Promise.race([queryPromise, timeoutPromise]);
 
+      // ✅ Check if component is still mounted
+      if (!mountedRef.current) return;
+
       console.log("🏠 Raw Supabase response:", response);
 
       if (response.error) {
-        console.error("🚨 Supabase error:", response.error);
         throw new Error(`Query failed: ${response.error.message}`);
       }
 
@@ -158,40 +150,59 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
         console.log("📭 No properties found");
         setCurrentProperty(null);
       }
-
-      setHasInitialized(true);
     } catch (error: any) {
       console.error("💥 Property loading failed:", error);
-      console.error("💥 Error details:", JSON.stringify(error, null, 2));
+      lastErrorTime.current = Date.now(); // ✅ Track error time
 
-      // Don't fail completely - set a fallback state
+      // ✅ Set error but don't fail completely
       setError(`Failed to load properties: ${error.message}`);
       setUserProperties([]);
       setCurrentProperty(null);
-      setHasInitialized(true);
     } finally {
-      setLoading(false);
+      if (mountedRef.current) {
+        setLoading(false);
+        setHasInitialized(true);
+      }
+      loadingRef.current = false; // ✅ Reset loading flag
     }
-  }, [user?.id, ensureValidSession]);
+  }, [user?.id]); // ✅ REMOVED error from dependencies
 
+  // ✅ FIXED: useEffect with proper dependencies
   useEffect(() => {
     console.log(
       "🔄 useProperty useEffect triggered. User:",
       user?.id,
       "HasInitialized:",
-      hasInitialized
+      hasInitialized,
+      "LoadingRef:",
+      loadingRef.current
     );
 
-    if (user?.id && !hasInitialized) {
+    const conditions = {
+      hasUser: !!user?.id,
+      notInitialized: !hasInitialized,
+      notLoadingRef: !loadingRef.current,
+      shouldLoad: user?.id && !hasInitialized && !loadingRef.current,
+    };
+
+    console.log("🔄 Conditions:", conditions);
+
+    // ✅ FIX: Use loadingRef instead of loading state
+    if (user?.id && !hasInitialized && !loadingRef.current) {
       console.log("🚀 Calling loadUserData...");
       loadUserData();
-    } else if (!user?.id && hasInitialized) {
-      console.log("🧹 Clearing property data - user logged out");
-      setCurrentProperty(null);
-      setUserProperties([]);
-      setHasInitialized(false);
+    } else {
+      console.log("🛑 Not calling loadUserData - conditions not met");
     }
-  }, [user?.id, hasInitialized, loadUserData]);
+  }, [user?.id, hasInitialized, loadUserData]); // ✅ Remove 'loading' from dependencies
+
+  // ✅ Cleanup on unmount
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   const enhancedCurrentTenant = useMemo(() => {
     debugLog("🔍 Enhanced tenant calculation:", {
@@ -315,18 +326,7 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
     ]
   );
 
-  // Add this useEffect as an emergency override
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (loading && hasInitialized === false) {
-        console.log("🔧 EMERGENCY: Force setting loading to false");
-        setLoading(false);
-        setHasInitialized(true);
-      }
-    }, 3000);
-
-    return () => clearTimeout(timer);
-  }, [loading, hasInitialized]);
+  // ✅ REMOVED: Emergency timeout (no longer needed)
 
   return (
     <PropertyContext.Provider value={value}>
