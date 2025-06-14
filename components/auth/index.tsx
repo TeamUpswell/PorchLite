@@ -33,6 +33,20 @@ interface Tenant {
   tenant_id: string;
 }
 
+// ✅ ADD: Profile interface
+interface Profile {
+  id: string;
+  full_name?: string;
+  phone_number?: string;
+  email?: string;
+  avatar_url?: string;
+  address?: string;
+  show_in_contacts?: boolean;
+  role?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
 interface AuthContextType {
   user: User | null;
   session: Session | null;
@@ -41,6 +55,12 @@ interface AuthContextType {
   tenant: Tenant | null;
   contextVersion: number;
   userRole: string | null;
+  // ✅ ADD: Missing properties from your value object
+  loading: boolean;
+  hasInitialized: boolean;
+  profileData: Profile | null;
+  profileLoading: boolean;
+  checkAndRefreshSession: () => Promise<Session | null>;
   signIn: (
     email: string,
     password: string
@@ -96,10 +116,54 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [property, setProperty] = useState<Property | null>(null);
   const [tenant, setTenant] = useState<Tenant | null>(null);
 
+  // ✅ ADD: Profile state
+  const [profileData, setProfileData] = useState<Profile | null>(null);
+  const [profileLoading, setProfileLoading] = useState(false);
+
   // Add this to force re-renders when context changes
   const [contextVersion, setContextVersion] = useState(0);
 
   const router = useRouter();
+
+  // ✅ ADD: Function to fetch user profile
+  const fetchUserProfile = useCallback(async (userId: string) => {
+    // Don't fetch if already loading or if we have data for this user
+    if (profileLoading || (profileData?.id === userId)) {
+      return;
+    }
+
+    setProfileLoading(true);
+    try {
+      console.log("🔍 Fetching user profile for:", userId);
+      
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      if (error) {
+        console.log("⚠️ No profile found or error:", error.message);
+        // Create a minimal profile if none exists
+        setProfileData({
+          id: userId,
+          email: user?.email || '',
+        });
+      } else {
+        console.log("✅ Profile cached:", data);
+        setProfileData(data);
+      }
+    } catch (error) {
+      console.error("❌ Error fetching profile:", error);
+      // Set minimal profile on error
+      setProfileData({
+        id: userId,
+        email: user?.email || '',
+      });
+    } finally {
+      setProfileLoading(false);
+    }
+  }, [profileLoading, profileData?.id, user?.email]);
 
   // ✅ FIXED: Initialize auth without early errors
   const initializeAuth = async () => {
@@ -120,6 +184,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.log("✅ Found existing session for:", session.user.email);
         setSession(session);
         setUser(session.user);
+        // ✅ ADD: Fetch profile data
+        await fetchUserProfile(session.user.id);
         await loadUserData(session.user.id);
       } else {
         console.log("🔍 No existing session found - user needs to log in");
@@ -129,6 +195,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setSession(null);
         setProperty(null);
         setTenant(null);
+        // ✅ ADD: Clear profile data
+        setProfileData(null);
       }
     } catch (error) {
       console.log("❌ Auth initialization error:", error);
@@ -250,6 +318,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(session.user);
         setContextVersion((prev) => prev + 1);
 
+        // ✅ ADD: Fetch profile on auth state change
+        await fetchUserProfile(session.user.id);
+
         if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
           await loadUserData(session.user.id);
         }
@@ -259,13 +330,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(null);
         setProperty(null);
         setTenant(null);
+        // ✅ ADD: Clear profile data
+        setProfileData(null);
         setIsLoading(false);
         setContextVersion((prev) => prev + 1);
       }
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [fetchUserProfile]);
 
   // In components/auth/index.tsx - Add session refresh logic:
   const checkAndRefreshSession = useCallback(async () => {
@@ -314,6 +387,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (session?.user) {
           console.log("✅ Valid session found:", session.user.email);
           setUser(session.user);
+          // ✅ ADD: Fetch profile during initialization
+          await fetchUserProfile(session.user.id);
         } else {
           console.log("❌ No valid session");
           setUser(null); // ✅ Explicitly set to null
@@ -328,7 +403,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     initializeAuth();
-  }, [checkAndRefreshSession]);
+  }, [checkAndRefreshSession, fetchUserProfile]);
 
   // ✅ ADD these missing functions before the value object:
   const signIn = async (email: string, password: string) => {
@@ -385,6 +460,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSession(null);
       setProperty(null);
       setTenant(null);
+      // ✅ ADD: Clear profile data on sign out
+      setProfileData(null);
       setContextVersion((prev) => prev + 1);
 
       // Optional: redirect to sign in page
@@ -447,6 +524,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     userRole,
     checkAndRefreshSession,
     hasInitialized,
+    // ✅ ADD: Profile data to context
+    profileData,
+    profileLoading,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

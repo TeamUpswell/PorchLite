@@ -21,7 +21,6 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useState, useRef, useEffect } from "react";
-import { supabase } from "@/lib/supabase";
 
 const accountSection = {
   category: "Account",
@@ -109,8 +108,7 @@ const pageInfo: Record<
   },
 };
 
-// Replace the UserAvatar component with this updated version:
-
+// ✅ Updated UserAvatar component with cached profile data
 function UserAvatar({
   user,
   className = "w-8 h-8",
@@ -119,49 +117,13 @@ function UserAvatar({
   className?: string;
 }) {
   const [showFallback, setShowFallback] = useState(false);
-  const [profileAvatar, setProfileAvatar] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
   const { theme } = useTheme();
+  const { profileData, profileLoading } = useAuth(); // ✅ Get cached profile data
   const isDarkMode = theme === "dark";
 
-  // Fetch avatar from profiles table
-  useEffect(() => {
-    const fetchProfileAvatar = async () => {
-      if (!user?.id) {
-        setLoading(false);
-        return;
-      }
-
-      try {
-        console.log("🔍 Fetching profile avatar for user:", user.id);
-
-        const { data, error } = await supabase
-          .from("profiles")
-          .select("avatar_url")
-          .eq("id", user.id)
-          .single();
-
-        if (error) {
-          console.log("⚠️ No profile found or error:", error.message);
-        } else if (data?.avatar_url) {
-          console.log("✅ Profile avatar found:", data.avatar_url);
-          setProfileAvatar(data.avatar_url);
-        } else {
-          console.log("📭 No avatar_url in profile");
-        }
-      } catch (error) {
-        console.error("❌ Error fetching profile avatar:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchProfileAvatar();
-  }, [user?.id]);
-
-  // Check for avatar URL from various sources, prioritizing the profiles table
+  // ✅ Use cached profile data from AuthProvider (no more useEffect!)
   const avatarUrl =
-    profileAvatar ||
+    profileData?.avatar_url ||
     user?.user_metadata?.avatar_url ||
     user?.user_metadata?.picture ||
     user?.user_metadata?.image ||
@@ -172,6 +134,7 @@ function UserAvatar({
     user?.image;
 
   const userName =
+    profileData?.full_name ||
     user?.user_metadata?.name ||
     user?.user_metadata?.full_name ||
     user?.email?.split("@")[0] ||
@@ -196,8 +159,8 @@ function UserAvatar({
     return colors[Math.abs(hash) % colors.length];
   };
 
-  // Show loading state briefly
-  if (loading) {
+  // ✅ Show loading only when profile is loading from AuthProvider
+  if (profileLoading) {
     return (
       <div
         className={`${className} rounded-full bg-gray-200 dark:bg-gray-600 animate-pulse`}
@@ -238,7 +201,7 @@ function UserAvatar({
 }
 
 export default function Header() {
-  const { user, signOut } = useAuth();
+  const { user, signOut, profileData } = useAuth(); // ✅ Get profile data for user info
   const { actualTheme } = useTheme();
   const pathname = usePathname();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -282,7 +245,9 @@ export default function Header() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // ✅ Use profile data for display name, fallback to user metadata
   const userName =
+    profileData?.full_name ||
     user?.user_metadata?.name ||
     user?.user_metadata?.full_name ||
     user?.email?.split("@")[0] ||
