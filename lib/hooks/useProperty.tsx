@@ -121,9 +121,12 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
     setError(null);
 
     try {
-      // Add timeout to prevent hanging
+      // Increase timeout and add better error handling
       const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error("Query timeout")), 10000)
+        setTimeout(
+          () => reject(new Error("Request timeout after 15 seconds")),
+          15000
+        )
       );
 
       const queryPromise = supabase
@@ -132,33 +135,39 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
         .eq("created_by", user.id)
         .order("created_at", { ascending: false });
 
+      console.log("📡 Executing Supabase query...");
       const response = await Promise.race([queryPromise, timeoutPromise]);
 
-      console.log("🏠 Raw response:", response);
+      console.log("🏠 Raw Supabase response:", response);
 
       if (response.error) {
-        console.error("🚨 Query error:", response.error);
-        throw new Error(`Properties query failed: ${response.error.message}`);
+        console.error("🚨 Supabase error:", response.error);
+        throw new Error(`Query failed: ${response.error.message}`);
       }
 
       const propertiesData = response.data || [];
-      console.log("✅ Got properties data:", propertiesData.length, "items");
+      console.log("✅ Properties found:", propertiesData.length);
 
       setUserProperties(propertiesData);
 
       if (propertiesData.length > 0) {
         const selectedProperty = propertiesData[0];
         setCurrentProperty(selectedProperty);
-        console.log("✅ SUCCESS! Set current property:", selectedProperty.name);
+        console.log("✅ Set current property:", selectedProperty.name);
       } else {
-        console.log("📭 No properties found for user");
+        console.log("📭 No properties found");
         setCurrentProperty(null);
       }
 
       setHasInitialized(true);
     } catch (error: any) {
-      console.error("💥 Property loading error:", error);
+      console.error("💥 Property loading failed:", error);
+      console.error("💥 Error details:", JSON.stringify(error, null, 2));
+
+      // Don't fail completely - set a fallback state
       setError(`Failed to load properties: ${error.message}`);
+      setUserProperties([]);
+      setCurrentProperty(null);
       setHasInitialized(true);
     } finally {
       setLoading(false);
@@ -166,8 +175,13 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
   }, [user?.id, ensureValidSession]);
 
   useEffect(() => {
-    console.log("🔄 useProperty useEffect triggered. User:", user?.id, "HasInitialized:", hasInitialized);
-    
+    console.log(
+      "🔄 useProperty useEffect triggered. User:",
+      user?.id,
+      "HasInitialized:",
+      hasInitialized
+    );
+
     if (user?.id && !hasInitialized) {
       console.log("🚀 Calling loadUserData...");
       loadUserData();
