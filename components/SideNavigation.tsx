@@ -17,7 +17,7 @@ import {
   Users as UserGroupIcon,
   Settings as CogIcon,
   ChevronRight,
-  ChevronLeft, // Add this import
+  ChevronLeft,
   FileText as DocumentTextIcon,
   User as UserIcon,
   Plus,
@@ -28,7 +28,7 @@ import {
   CheckSquare as CheckSquareIcon,
   LogOut,
   Building2 as HouseIcon,
-  Heart as HeartIcon, // Add this import
+  Heart as HeartIcon,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import Image from "next/image";
@@ -51,15 +51,6 @@ interface NavigationItem {
 interface NavigationSection {
   category: string;
   items: NavigationItem[];
-}
-
-interface User {
-  id: string;
-  email?: string;
-  user_metadata?: {
-    name?: string;
-    role?: string;
-  };
 }
 
 interface SideNavigationProps {
@@ -120,9 +111,29 @@ export default function SideNavigation({
   const { currentProperty, loading: propertyLoading } = useProperty();
   const { theme } = useTheme();
 
-  // ✅ Mobile menu state management
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  // ✅ FIX: Proper state management
   const [isCollapsedState, setIsCollapsed] = useState(isCollapsed);
+  const [expandedCategories, setExpandedCategories] = useState({
+    General: true,
+    Account: false,
+  });
+
+  // ✅ FIX: Use consistent mobile menu state
+  const mobileMenuOpen = isMobileMenuOpen;
+  const setMobileMenuOpen = setIsMobileMenuOpen || (() => {});
+
+  // ✅ FIX: Add missing hasPermission function
+  const hasPermission = (requiredRole: string) => {
+    // Simple permission check - you can make this more sophisticated
+    const userRole =
+      propUser?.user_metadata?.role || authUser?.user_metadata?.role || "family";
+
+    // Manager has access to everything
+    if (userRole === "manager" || userRole === "owner") return true;
+
+    // Add your role logic here
+    return requiredRole === "family";
+  };
 
   // ✅ Handle mobile menu toggle
   const toggleMobileMenu = () => {
@@ -132,9 +143,6 @@ export default function SideNavigation({
   // ✅ Close mobile menu on navigation
   const handleLinkClick = () => {
     setMobileMenuOpen(false);
-    if (setIsMobileMenuOpen) {
-      setIsMobileMenuOpen(false);
-    }
   };
 
   // ✅ Close mobile menu on outside click
@@ -156,7 +164,7 @@ export default function SideNavigation({
 
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [mobileMenuOpen]);
+  }, [mobileMenuOpen, setMobileMenuOpen]);
 
   // Use either the passed user or the auth user
   const user = propUser || authUser;
@@ -169,11 +177,8 @@ export default function SideNavigation({
   const toggleSidebar = () => {
     const newCollapsedState = !isCollapsedState;
     setIsCollapsed(newCollapsedState);
-
-    // Notify parent component of the state change
     onCollapseChange?.(newCollapsedState);
 
-    // Close all expanded categories when collapsing
     if (!newCollapsedState) {
       setExpandedCategories({
         General: false,
@@ -188,7 +193,7 @@ export default function SideNavigation({
   };
 
   const toggleCategory = (category: string) => {
-    if (isCollapsedState) return; // Don't allow category expansion when collapsed
+    if (isCollapsedState) return;
     setExpandedCategories({
       ...expandedCategories,
       [category]: !expandedCategories[category],
@@ -202,6 +207,9 @@ export default function SideNavigation({
     (theme === "system" &&
       typeof window !== "undefined" &&
       window.matchMedia("(prefers-color-scheme: dark)").matches);
+
+  // ✅ FIX: Combine all sections
+  const allSections = [...navigationStructure, accountSection];
 
   return (
     <>
@@ -241,7 +249,6 @@ export default function SideNavigation({
           }
         `}
       >
-        {/* ✅ Your existing sidebar content remains exactly the same */}
         <div className="h-full flex flex-col">
           {/* Header with logo */}
           <div
@@ -251,17 +258,16 @@ export default function SideNavigation({
                 : "border-gray-200 bg-white"
             }`}
           >
-            {/* Logo content - adaptive to collapsed state */}
             <div className="rounded-lg p-4 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 relative overflow-hidden">
               <div className="absolute inset-0 bg-gradient-radial from-amber-500/20 via-transparent to-transparent"></div>
 
               <Link
                 href="/"
+                onClick={handleLinkClick}
                 className={`flex items-center ${
-                  isCollapsed ? "justify-center" : "space-x-3"
+                  isCollapsedState ? "justify-center" : "space-x-3"
                 } relative z-10`}
               >
-                {/* Logo with glow effect */}
                 <div className="relative">
                   <div className="absolute inset-0 bg-amber-400 rounded-full blur-md opacity-30"></div>
                   <Image
@@ -274,8 +280,7 @@ export default function SideNavigation({
                   />
                 </div>
 
-                {/* Hide text when collapsed */}
-                {!isCollapsed && (
+                {!isCollapsedState && (
                   <div>
                     <h1 className="text-lg font-bold text-white">PorchLite</h1>
                     <p className="text-xs text-amber-200">Always Welcome</p>
@@ -287,8 +292,7 @@ export default function SideNavigation({
 
           {/* Navigation items */}
           <div className="flex-1 overflow-y-auto">
-            {navigationStructure.map((section) => {
-              // Always show General section expanded, only allow Account to collapse
+            {allSections.map((section) => {
               const isExpanded =
                 section.category === "General"
                   ? true
@@ -297,7 +301,7 @@ export default function SideNavigation({
               return (
                 <div key={section.category} className="space-y-1.5">
                   {/* Category header - hide when collapsed, and don't show toggle for General */}
-                  {!isCollapsed && section.category !== "General" && (
+                  {!isCollapsedState && section.category !== "General" && (
                     <button
                       onClick={() => toggleCategory(section.category)}
                       className={`w-full flex items-center justify-between text-left text-sm font-medium px-4 py-2 ${
@@ -316,7 +320,7 @@ export default function SideNavigation({
                   )}
 
                   {/* Show General category label when not collapsed */}
-                  {!isCollapsed && section.category === "General" && (
+                  {!isCollapsedState && section.category === "General" && (
                     <div
                       className={`text-sm font-medium px-4 py-2 ${
                         isDarkMode ? "text-gray-300" : "text-gray-600"
@@ -327,8 +331,8 @@ export default function SideNavigation({
                   )}
 
                   {/* Navigation items */}
-                  {(isExpanded || isCollapsed) && (
-                    <div className={`space-y-1 ${!isCollapsed ? "pl-1" : ""}`}>
+                  {(isExpanded || isCollapsedState) && (
+                    <div className={`space-y-1 ${!isCollapsedState ? "pl-1" : ""}`}>
                       {section.items.map((item) => {
                         if (
                           item.requiredRole &&
@@ -343,29 +347,29 @@ export default function SideNavigation({
                           <Link
                             key={item.name}
                             href={item.href}
-                            onClick={handleLinkClick} // ✅ Add this
+                            onClick={handleLinkClick}
                             className={`flex items-center ${
-                              isCollapsed ? "justify-center px-2" : "px-4"
+                              isCollapsedState ? "justify-center px-2" : "px-4"
                             } py-2 text-sm rounded-md group relative ${
                               isActive(item.href)
                                 ? "bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
                                 : "text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"
                             }`}
-                            title={isCollapsed ? item.name : undefined}
+                            title={isCollapsedState ? item.name : undefined}
                           >
                             <IconComponent
                               className={`${
-                                isCollapsed ? "" : "mr-3"
+                                isCollapsedState ? "" : "mr-3"
                               } flex-shrink-0 h-5 w-5 ${
                                 isActive(item.href)
                                   ? "text-gray-500"
                                   : "text-gray-400 group-hover:text-gray-500"
                               }`}
                             />
-                            {!isCollapsed && item.name}
+                            {!isCollapsedState && item.name}
 
                             {/* Tooltip for collapsed state */}
-                            {isCollapsed && (
+                            {isCollapsedState && (
                               <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-sm rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
                                 {item.name}
                               </div>
@@ -380,13 +384,13 @@ export default function SideNavigation({
             })}
           </div>
 
-          {/* ✅ Your existing footer */}
+          {/* Footer */}
           <div
             className={`border-t ${
               isDarkMode ? "border-gray-800" : "border-gray-200"
             } px-3 py-2 text-center`}
           >
-            {!isCollapsed && (
+            {!isCollapsedState && (
               <p
                 className={`text-xs ${
                   isDarkMode ? "text-gray-500" : "text-gray-400"
