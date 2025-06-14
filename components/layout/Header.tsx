@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useState, useRef, useEffect } from "react";
+import { supabase } from "@/lib/supabase";
 
 const accountSection = {
   category: "Account",
@@ -108,7 +109,7 @@ const pageInfo: Record<
   },
 };
 
-// Alternative version with name-based colors:
+// Replace the UserAvatar component with this updated version:
 
 function UserAvatar({
   user,
@@ -118,15 +119,54 @@ function UserAvatar({
   className?: string;
 }) {
   const [showFallback, setShowFallback] = useState(false);
+  const [profileAvatar, setProfileAvatar] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
   const { theme } = useTheme();
   const isDarkMode = theme === "dark";
 
-  // Check for avatar URL from various sources
+  // Fetch avatar from profiles table
+  useEffect(() => {
+    const fetchProfileAvatar = async () => {
+      if (!user?.id) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        console.log("🔍 Fetching profile avatar for user:", user.id);
+
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("avatar_url")
+          .eq("id", user.id)
+          .single();
+
+        if (error) {
+          console.log("⚠️ No profile found or error:", error.message);
+        } else if (data?.avatar_url) {
+          console.log("✅ Profile avatar found:", data.avatar_url);
+          setProfileAvatar(data.avatar_url);
+        } else {
+          console.log("📭 No avatar_url in profile");
+        }
+      } catch (error) {
+        console.error("❌ Error fetching profile avatar:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProfileAvatar();
+  }, [user?.id]);
+
+  // Check for avatar URL from various sources, prioritizing the profiles table
   const avatarUrl =
-    user?.profile?.avatar_url ||
+    profileAvatar ||
     user?.user_metadata?.avatar_url ||
     user?.user_metadata?.picture ||
     user?.user_metadata?.image ||
+    user?.identities?.[0]?.identity_data?.avatar_url ||
+    user?.identities?.[0]?.identity_data?.picture ||
     user?.avatar_url ||
     user?.picture ||
     user?.image;
@@ -156,6 +196,15 @@ function UserAvatar({
     return colors[Math.abs(hash) % colors.length];
   };
 
+  // Show loading state briefly
+  if (loading) {
+    return (
+      <div
+        className={`${className} rounded-full bg-gray-200 dark:bg-gray-600 animate-pulse`}
+      />
+    );
+  }
+
   // If no avatar URL or we should show fallback, show initials
   if (!avatarUrl || showFallback) {
     const gradientClass = getGradientFromName(userName);
@@ -180,7 +229,10 @@ function UserAvatar({
       src={avatarUrl}
       alt={userName}
       className={`${className} rounded-full object-cover shadow-lg ring-2 ring-white/20`}
-      onError={() => setShowFallback(true)}
+      onError={() => {
+        console.log("❌ Avatar image failed to load:", avatarUrl);
+        setShowFallback(true);
+      }}
     />
   );
 }
