@@ -1,20 +1,30 @@
-import { createClient } from "@supabase/supabase-js";
+import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+// Environment variables
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
+// Validation
 if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error("Missing Supabase environment variables");
+  throw new Error(
+    'Missing Supabase environment variables. Check NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in your .env.local file'
+  )
 }
 
-// Create and export the main Supabase client
+// Create and export the main client
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: true,
   },
-});
+})
+
+// TypeScript types
+export type SupabaseError = {
+  error: string;
+  data: null;
+}
 
 // Legacy function for backwards compatibility
 export function getSupabase() {
@@ -27,7 +37,7 @@ export function getSupabaseClient() {
 }
 
 // Error handling helper function
-export function handleSupabaseError(error: any) {
+export function handleSupabaseError(error: any): SupabaseError {
   console.error("Supabase error:", error);
   return {
     error: error.message || "An unexpected error occurred",
@@ -96,7 +106,7 @@ export async function testSupabaseConnection() {
   }
 }
 
-// Debug function - add this
+// Debug function
 export function debugSupabaseConfig() {
   console.log("🔧 === SUPABASE CONFIG DEBUG ===");
   console.log("🔧 URL from env:", process.env.NEXT_PUBLIC_SUPABASE_URL);
@@ -114,5 +124,7 @@ export function debugSupabaseConfig() {
   };
 }
 
-// Call the debug function immediately
-debugSupabaseConfig();
+// Only call debug in development
+if (process.env.NODE_ENV === 'development') {
+  debugSupabaseConfig();
+}
