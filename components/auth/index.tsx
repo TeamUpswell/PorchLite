@@ -270,30 +270,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // In components/auth/index.tsx - Add session refresh logic:
   const checkAndRefreshSession = useCallback(async () => {
     try {
-      const { data: { session }, error } = await supabase.auth.getSession();
-      
+      const {
+        data: { session },
+        error,
+      } = await supabase.auth.getSession();
+
       if (error) {
-        console.error('Session check error:', error);
+        console.error("Session check error:", error);
         return null;
       }
-      
+
       // If session exists but is close to expiry, refresh it
       if (session && session.expires_at) {
         const expiryTime = session.expires_at * 1000; // Convert to milliseconds
         const now = Date.now();
         const timeUntilExpiry = expiryTime - now;
-        
+
         // Refresh if expiring in next 5 minutes
-        if (timeUntilExpiry < 300000) { 
-          console.log('🔄 Session close to expiry, refreshing...');
-          const { data: refreshedSession } = await supabase.auth.refreshSession();
+        if (timeUntilExpiry < 300000) {
+          console.log("🔄 Session close to expiry, refreshing...");
+          const { data: refreshedSession } =
+            await supabase.auth.refreshSession();
           return refreshedSession.session;
         }
       }
-      
+
       return session;
     } catch (error) {
-      console.error('Session refresh error:', error);
+      console.error("Session refresh error:", error);
       return null;
     }
   }, []);
@@ -301,21 +305,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Call this before setting user
   useEffect(() => {
     const initializeAuth = async () => {
-      console.log('🔍 Checking initial auth session...');
+      console.log("🔍 Checking initial auth session...");
       setLoading(true); // ✅ Ensure loading starts true
-      
+
       try {
         const session = await checkAndRefreshSession();
-        
+
         if (session?.user) {
-          console.log('✅ Valid session found:', session.user.email);
+          console.log("✅ Valid session found:", session.user.email);
           setUser(session.user);
         } else {
-          console.log('❌ No valid session');
+          console.log("❌ No valid session");
           setUser(null); // ✅ Explicitly set to null
         }
       } catch (error) {
-        console.error('❌ Auth initialization error:', error);
+        console.error("❌ Auth initialization error:", error);
         setUser(null); // ✅ Explicitly set to null on error
       } finally {
         setLoading(false);
@@ -445,11 +449,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     hasInitialized,
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export const useAuth = () => {
