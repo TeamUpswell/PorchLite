@@ -4,6 +4,11 @@ import { useAuth } from "@/components/auth";
 import { usePathname } from "next/navigation";
 import { useTheme } from "@/components/ThemeProvider";
 import {
+  getUserRole,
+  canManageProperties,
+  canManageUsers,
+} from "@/lib/utils/roles";
+import {
   User as UserIcon,
   Settings as CogIcon,
   Users as UserGroupIcon,
@@ -30,13 +35,13 @@ const accountSection = {
       name: "Property Settings",
       href: "/account/properties",
       icon: CogIcon,
-      requiredRole: "manager",
+      permissionCheck: (user: any) => canManageProperties(user),
     },
     {
       name: "User Management",
       href: "/account/users",
       icon: UserGroupIcon,
-      requiredRole: "manager",
+      permissionCheck: (user: any) => canManageUsers(user),
     },
   ],
 };
@@ -209,27 +214,6 @@ export default function Header() {
 
   const isDarkMode = actualTheme === "dark";
 
-  // Simple permission checker
-  const hasPermission = (requiredRole: string) => {
-    if (!user) return false;
-    if (!requiredRole) return true;
-
-    const userRole = user.user_metadata?.role || "family";
-    const roleHierarchy = {
-      owner: 4,
-      manager: 3,
-      family: 2,
-      friend: 1,
-    };
-
-    const userLevel =
-      roleHierarchy[userRole as keyof typeof roleHierarchy] || 1;
-    const requiredLevel =
-      roleHierarchy[requiredRole as keyof typeof roleHierarchy] || 1;
-
-    return userLevel >= requiredLevel;
-  };
-
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -253,7 +237,7 @@ export default function Header() {
     user?.email?.split("@")[0] ||
     "User";
 
-  const userRole = user?.user_metadata?.role || "family";
+  const userRole = getUserRole(user);
 
   // Get current page info
   const currentPage = pageInfo[pathname] || { title: "Page", icon: HomeIcon };
@@ -361,7 +345,8 @@ export default function Header() {
               `}
               >
                 {accountSection.items.map((item) => {
-                  if (item.requiredRole && !hasPermission(item.requiredRole)) {
+                  // ✅ Use our centralized permission checking
+                  if (item.permissionCheck && !item.permissionCheck(user)) {
                     return null;
                   }
 

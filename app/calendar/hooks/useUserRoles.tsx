@@ -1,95 +1,101 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/components/auth";
-import { roleHierarchy, UserRole } from "../types";
+import {
+  getUserRole,
+  canManageProperties,
+  canManageUsers,
+} from "@/lib/utils/roles";
 
 export const useUserRoles = () => {
-  const { user, fetchUserRoles } = useAuth();
-  const [userRoles, setUserRoles] = useState<string[]>([]);
+  const { user } = useAuth();
 
-  const getUserRoles = async () => {
-    if (!user?.id) {
-      console.log("🔍 No user ID available");
-      return [];
-    }
+  // ✅ Use centralized role checking instead of fetching separate roles
+  const getUserRoles = () => {
+    if (!user) return [];
 
-    try {
-      const roles = await fetchUserRoles(user.id);
-      console.log("🔍 Fetched roles from database:", roles);
-      setUserRoles(roles);
-      return roles;
-    } catch (error) {
-      console.error("🔍 Error fetching user roles:", error);
-      return [];
-    }
+    const role = getUserRole(user);
+    // Return as array for backward compatibility
+    return [role];
   };
 
-  const hasPermission = (requiredRole: UserRole) => {
-    if (!user || !userRoles || userRoles.length === 0) {
-      return false;
-    }
+  const hasPermission = (requiredRole: string) => {
+    if (!user) return false;
 
-    const userHighestLevel = Math.min(
-      ...userRoles
-        .filter((role) => role in roleHierarchy)
-        .map((role) => roleHierarchy[role as UserRole])
-    );
+    const userRole = getUserRole(user);
 
-    const requiredLevel = roleHierarchy[requiredRole];
-    return userHighestLevel <= requiredLevel;
+    // Define role hierarchy levels (lower number = higher privilege)
+    const roleHierarchy: Record<string, number> = {
+      owner: 6,
+      admin: 5,
+      manager: 4,
+      staff: 3,
+      family: 2,
+      friend: 1,
+      guest: 0,
+    };
+
+    const userLevel = roleHierarchy[userRole] || 0;
+    const requiredLevel = roleHierarchy[requiredRole] || 0;
+
+    return userLevel >= requiredLevel;
   };
 
   const canAutoApprove = () => {
-    if (!userRoles || userRoles.length === 0) return false;
+    if (!user) return false;
 
-    const autoApprovalRoles = [
-      "owner",
-      "property_manager",
-      "family",
-      "friends",
-    ];
-    return userRoles.some((role) => autoApprovalRoles.includes(role));
+    const userRole = getUserRole(user);
+    const autoApprovalRoles = ["owner", "admin", "manager", "family", "friend"];
+
+    return autoApprovalRoles.includes(userRole);
   };
 
   const canApproveOthers = () => {
-    if (!userRoles || userRoles.length === 0) return false;
-    const approverRoles = ["owner", "property_manager"];
-    return userRoles.some((role) => approverRoles.includes(role));
+    if (!user) return false;
+
+    // ✅ Use our centralized permission checking
+    return canManageProperties(user) || canManageUsers(user);
   };
 
   const determineReservationStatus = (isEditingExisting: boolean = false) => {
-    if (!userRoles || userRoles.length === 0) return "pending approval";
+    if (!user) return "pending approval";
 
     if (isEditingExisting && !canApproveOthers()) {
       return null;
     }
 
-    if (userRoles.includes("owner")) return "confirmed";
-    if (userRoles.includes("property_manager")) return "confirmed";
-    if (userRoles.includes("family")) return "confirmed";
-    if (userRoles.includes("friends")) return "confirmed";
+    const userRole = getUserRole(user);
+
+    // Owner, admin, manager, family, and friends get auto-confirmation
+    const autoConfirmRoles = ["owner", "admin", "manager", "family", "friend"];
+
+    if (autoConfirmRoles.includes(userRole)) {
+      return "confirmed";
+    }
 
     return "pending approval";
   };
 
   const debugUserRoles = () => {
+    const userRole = getUserRole(user);
+    const userRoles = getUserRoles();
+
     console.log("🔍 User Role Debug:");
     console.log("- User object:", user);
     console.log("- User ID:", user?.id);
-    console.log("- UserRoles state:", userRoles);
+    console.log("- User role:", userRole);
+    console.log("- UserRoles (array):", userRoles);
     console.log("- Can auto approve:", canAutoApprove());
     console.log("- Can approve others:", canApproveOthers());
+    console.log("- Can manage properties:", canManageProperties(user));
+    console.log("- Can manage users:", canManageUsers(user));
   };
 
-  useEffect(() => {
-    if (user?.id) {
-      getUserRoles();
-    } else {
-      setUserRoles([]);
-    }
-  }, [user?.id]);
+  // ✅ Get current user roles for backward compatibility
+  const userRoles = getUserRoles();
 
   return {
-    userRoles,
+    userRoles, // Array format for backward compatibility
+    userRole: getUserRole(user), // Single role format
     hasPermission,
     canAutoApprove,
     canApproveOthers,

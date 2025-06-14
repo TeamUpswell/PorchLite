@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from "react";
 import { useAuth } from "@/components/auth";
-import { usePermissions } from "@/lib/hooks/usePermissions"; // ADD: Import permissions
+import { canManageProperties, canManageUsers } from "@/lib/utils/roles";
 import Header from "@/components/layout/Header";
 import PageContainer from "@/components/layout/PageContainer";
 import StandardCard from "@/components/ui/StandardCard";
@@ -21,8 +21,7 @@ import {
 import Link from "next/link";
 
 export default function AccountPage() {
-  const { user } = useAuth();
-  const { canManageProperties, canManageUsers } = usePermissions(); // ADD: Get permissions
+  const { user, loading: authLoading } = useAuth();
 
   const accountSections = [
     {
@@ -63,7 +62,7 @@ export default function AccountPage() {
       href: "/account/properties",
       icon: Building,
       color: "text-red-600",
-      show: canManageProperties(), // CHANGE: Only show if user can manage properties
+      show: canManageProperties(user), // Use role utility
     },
     {
       title: "Users",
@@ -71,12 +70,33 @@ export default function AccountPage() {
       href: "/account/users",
       icon: Users,
       color: "text-indigo-600",
-      show: canManageUsers(), // CHANGE: Only show if user can manage users
+      show: canManageUsers(user), // Use role utility
     },
   ];
 
-  // CHANGE: Filter sections based on permissions
+  // Filter sections based on permissions
   const visibleSections = accountSections.filter((section) => section.show);
+
+  // Show loading while auth is initializing
+  if (authLoading) {
+    return (
+      <div className="p-6">
+        <Header title="Account Settings" />
+        <PageContainer>
+          <StandardCard>
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              <span className="ml-2">Loading...</span>
+            </div>
+          </StandardCard>
+        </PageContainer>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return null; // Auth will redirect
+  }
 
   return (
     <div className="p-6">
@@ -146,6 +166,83 @@ export default function AccountPage() {
                 </StandardCard>
               );
             })}
+          </div>
+
+          {/* Role-based Quick Actions */}
+          {(canManageProperties(user) || canManageUsers(user)) && (
+            <StandardCard title="Quick Actions">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {canManageProperties(user) && (
+                  <Link
+                    href="/account/properties"
+                    className="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    <Building className="h-8 w-8 text-red-600 mr-3" />
+                    <div>
+                      <h4 className="font-medium text-gray-900">
+                        Manage Properties
+                      </h4>
+                      <p className="text-sm text-gray-600">
+                        Add or edit properties
+                      </p>
+                    </div>
+                  </Link>
+                )}
+                {canManageUsers(user) && (
+                  <Link
+                    href="/account/users"
+                    className="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    <Users className="h-8 w-8 text-indigo-600 mr-3" />
+                    <div>
+                      <h4 className="font-medium text-gray-900">
+                        Manage Users
+                      </h4>
+                      <p className="text-sm text-gray-600">
+                        Add or edit user accounts
+                      </p>
+                    </div>
+                  </Link>
+                )}
+              </div>
+            </StandardCard>
+          )}
+
+          {/* Account Statistics */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <StandardCard>
+              <div className="text-center p-4">
+                <Shield className="h-8 w-8 text-green-600 mx-auto mb-2" />
+                <div className="text-2xl font-bold text-gray-900">
+                  {user?.user_metadata?.role?.charAt(0).toUpperCase() +
+                    user?.user_metadata?.role?.slice(1) || "Guest"}
+                </div>
+                <div className="text-sm text-gray-600">Account Role</div>
+              </div>
+            </StandardCard>
+            <StandardCard>
+              <div className="text-center p-4">
+                <User className="h-8 w-8 text-blue-600 mx-auto mb-2" />
+                <div className="text-2xl font-bold text-gray-900">
+                  {user?.created_at
+                    ? Math.floor(
+                        (Date.now() - new Date(user.created_at).getTime()) /
+                          (1000 * 60 * 60 * 24)
+                      )
+                    : 0}
+                </div>
+                <div className="text-sm text-gray-600">Days Active</div>
+              </div>
+            </StandardCard>
+            <StandardCard>
+              <div className="text-center p-4">
+                <Bell className="h-8 w-8 text-purple-600 mx-auto mb-2" />
+                <div className="text-2xl font-bold text-gray-900">
+                  {visibleSections.length}
+                </div>
+                <div className="text-sm text-gray-600">Available Sections</div>
+              </div>
+            </StandardCard>
           </div>
         </div>
       </PageContainer>

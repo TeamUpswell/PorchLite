@@ -12,6 +12,7 @@ import {
   Settings,
   MapPin,
   Calendar,
+  Shield,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -19,8 +20,8 @@ import Header from "@/components/layout/Header";
 import PageContainer from "@/components/layout/PageContainer";
 import StandardCard from "@/components/ui/StandardCard";
 import { useAuth } from "@/components/auth";
+import { canManageProperties } from "@/lib/utils/roles";
 import { useProperty } from "@/lib/hooks/useProperty";
-import { usePermissions } from "@/lib/hooks/usePermissions";
 import { supabase } from "@/lib/supabase";
 
 interface Property {
@@ -40,77 +41,86 @@ interface PropertyStats {
 }
 
 export default function AdminPropertyPage() {
-  const { user } = useAuth();
-  const { currentProperty, properties, setCurrentProperty } = useProperty();
-  const { canManageProperties } = usePermissions();
+  const { user, loading: authLoading } = useAuth();
+  const {
+    currentProperty,
+    userProperties,
+    setCurrentProperty,
+    loading: propertyLoading,
+    refreshProperties,
+  } = useProperty();
+
   const [loading, setLoading] = useState(true);
-  const [allProperties, setAllProperties] = useState<Property[]>([]);
   const [propertyStats, setPropertyStats] = useState<
     Record<string, PropertyStats>
   >({});
   const [showCreateModal, setShowCreateModal] = useState(false);
 
-  // Check if user has admin access
-  const hasAccess = () => {
-    if (!user) return false;
-    const role = user.user_metadata?.role;
-    return ["admin", "owner"].includes(role?.toLowerCase()) || canManageProperties();
-  };
+  // Check if user has access
+  const hasAccess = canManageProperties(user);
 
   useEffect(() => {
-    if (hasAccess()) {
-      fetchPropertyData();
-    } else {
+    if (!authLoading && hasAccess && userProperties.length > 0) {
+      fetchPropertyStats();
+    } else if (!authLoading) {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, userProperties, authLoading, hasAccess]);
 
-  async function fetchPropertyData() {
+  async function fetchPropertyStats() {
+    if (userProperties.length === 0) {
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
 
-      // Fetch all properties
-      const { data: propertiesData, error: propertiesError } = await supabase
-        .from("properties")
-        .select("*")
-        .order("created_at", { ascending: false });
-
-      if (propertiesError) throw propertiesError;
-
-      setAllProperties(propertiesData || []);
-
       // Fetch stats for each property
       const stats: Record<string, PropertyStats> = {};
-      for (const property of propertiesData || []) {
-        // Get room count
-        const { count: roomCount } = await supabase
-          .from("rooms")
-          .select("*", { count: "exact", head: true })
-          .eq("property_id", property.id);
+      for (const property of userProperties) {
+        try {
+          // Get room count
+          const { count: roomCount } = await supabase
+            .from("rooms")
+            .select("*", { count: "exact", head: true })
+            .eq("property_id", property.id);
 
-        // Get reservation count
-        const { count: reservationCount } = await supabase
-          .from("reservations")
-          .select("*", { count: "exact", head: true })
-          .eq("property_id", property.id);
+          // Get reservation count
+          const { count: reservationCount } = await supabase
+            .from("reservations")
+            .select("*", { count: "exact", head: true })
+            .eq("property_id", property.id);
 
-        // Get user count (simplified - you might have a different user-property relationship)
-        const { count: userCount } = await supabase
-          .from("user_properties")
-          .select("*", { count: "exact", head: true })
-          .eq("property_id", property.id);
+          // Get user count from tenants table
+          const { count: userCount } = await supabase
+            .from("tenants")
+            .select("*", { count: "exact", head: true })
+            .eq("tenant_id", property.id);
 
-        stats[property.id] = {
-          totalRooms: roomCount || 0,
-          totalReservations: reservationCount || 0,
-          totalUsers: userCount || 0,
-          lastActivity: property.updated_at,
-        };
+          stats[property.id] = {
+            totalRooms: roomCount || 0,
+            totalReservations: reservationCount || 0,
+            totalUsers: userCount || 0,
+            lastActivity: property.updated_at,
+          };
+        } catch (error) {
+          console.error(
+            `Error fetching stats for property ${property.id}:`,
+            error
+          );
+          stats[property.id] = {
+            totalRooms: 0,
+            totalReservations: 0,
+            totalUsers: 0,
+            lastActivity: property.updated_at,
+          };
+        }
       }
 
       setPropertyStats(stats);
     } catch (error) {
-      console.error("Error loading property data:", error);
+      console.error("Error loading property stats:", error);
     } finally {
       setLoading(false);
     }
@@ -133,20 +143,22 @@ export default function AdminPropertyPage() {
 
       if (error) throw error;
 
-      // Update local state
-      setAllProperties((prev) => prev.filter((p) => p.id !== propertyId));
+      // Refresh properties from PropertyProvider
+      await refreshProperties();
 
       // If the deleted property was the current one, clear it
       if (currentProperty?.id === propertyId) {
         setCurrentProperty(null);
       }
+
+      alert("Property deleted successfully");
     } catch (error) {
       console.error("Error deleting property:", error);
       alert("Failed to delete property");
     }
   };
 
-  const totalProperties = allProperties.length;
+  const totalProperties = userProperties.length;
   const totalRooms = Object.values(propertyStats).reduce(
     (sum, stats) => sum + stats.totalRooms,
     0
@@ -160,40 +172,65 @@ export default function AdminPropertyPage() {
     0
   );
 
-  // Access denied for non-admin users
-  if (!hasAccess()) {
+  // Show loading while auth is initializing
+  if (authLoading) {
     return (
       <div className="p-6">
         <Header title="Property Management" />
         <PageContainer>
-          <div className="space-y-6">
-            {/* Page Header */}
-            <div className="flex items-center space-x-3">
-              <Building className="h-6 w-6 text-blue-600" />
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">
-                  Property Management
-                </h1>
-                <p className="text-gray-600">Access restricted</p>
+          <StandardCard>
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              <span className="ml-2">Loading...</span>
+            </div>
+          </StandardCard>
+        </PageContainer>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return null; // Auth will redirect
+  }
+
+  // Access denied for non-admin users
+  if (!hasAccess) {
+    return (
+      <div className="p-6">
+        <Header title="Property Management" />
+        <PageContainer>
+          <StandardCard>
+            <div className="text-center py-8">
+              <Shield className="mx-auto h-12 w-12 text-gray-400" />
+              <h3 className="mt-2 text-sm font-medium text-gray-900">
+                Access Denied
+              </h3>
+              <p className="mt-1 text-sm text-gray-500">
+                You don't have permission to manage properties.
+              </p>
+              <div className="text-xs text-gray-400 mt-4 p-2 bg-gray-50 rounded">
+                <p>Role: {user?.user_metadata?.role || "undefined"}</p>
+                <p>Required: Manager or above</p>
               </div>
             </div>
+          </StandardCard>
+        </PageContainer>
+      </div>
+    );
+  }
 
-            <StandardCard>
-              <div className="p-8 text-center">
-                <Building className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">
-                  Access Restricted
-                </h3>
-                <p className="text-gray-500 mb-4">
-                  You don't have permission to manage properties.
-                </p>
-                <div className="text-xs text-gray-400 mt-4 p-2 bg-gray-50 rounded">
-                  <p>Debug: Role = {user?.user_metadata?.role || "undefined"}</p>
-                  <p>User ID = {user?.id || "undefined"}</p>
-                </div>
-              </div>
-            </StandardCard>
-          </div>
+  // Show loading state
+  if (propertyLoading || loading) {
+    return (
+      <div className="p-6">
+        <Header title="Property Management" />
+        <PageContainer>
+          <StandardCard>
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              <span className="ml-2">Loading properties...</span>
+            </div>
+          </StandardCard>
         </PageContainer>
       </div>
     );
@@ -213,7 +250,7 @@ export default function AdminPropertyPage() {
                   Property Management
                 </h1>
                 <p className="text-gray-600">
-                  Manage properties and their settings
+                  Manage your properties and their settings
                 </p>
               </div>
             </div>
@@ -232,7 +269,7 @@ export default function AdminPropertyPage() {
               <div className="text-2xl font-bold text-blue-600 mb-1">
                 {totalProperties}
               </div>
-              <p className="text-gray-600 text-sm">Total Properties</p>
+              <p className="text-gray-600 text-sm">Your Properties</p>
             </StandardCard>
 
             <StandardCard className="text-center" hover>
@@ -281,7 +318,9 @@ export default function AdminPropertyPage() {
                     {currentProperty.address && (
                       <div className="flex items-center text-gray-600 mb-2">
                         <MapPin className="h-4 w-4 mr-1" />
-                        <span className="text-sm">{currentProperty.address}</span>
+                        <span className="text-sm">
+                          {currentProperty.address}
+                        </span>
                       </div>
                     )}
                     {currentProperty.description && (
@@ -340,16 +379,12 @@ export default function AdminPropertyPage() {
 
           {/* All Properties List */}
           <StandardCard
-            title="All Properties"
-            subtitle={`${allProperties.length} properties in the system`}
+            title="Your Properties"
+            subtitle={`${userProperties.length} properties available`}
           >
-            {loading ? (
-              <div className="flex justify-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-              </div>
-            ) : allProperties.length > 0 ? (
+            {userProperties.length > 0 ? (
               <div className="space-y-4">
-                {allProperties.map((property) => {
+                {userProperties.map((property) => {
                   const stats = propertyStats[property.id];
                   const isCurrentProperty = currentProperty?.id === property.id;
 
@@ -478,8 +513,8 @@ export default function AdminPropertyPage() {
           {showCreateModal && (
             <CreatePropertyModal
               onClose={() => setShowCreateModal(false)}
-              onCreated={(newProperty) => {
-                setAllProperties((prev) => [newProperty, ...prev]);
+              onCreated={async (newProperty) => {
+                await refreshProperties();
                 setShowCreateModal(false);
               }}
             />
@@ -498,6 +533,7 @@ function CreatePropertyModal({
   onClose: () => void;
   onCreated: (property: Property) => void;
 }) {
+  const { user } = useAuth();
   const [name, setName] = useState("");
   const [address, setAddress] = useState("");
   const [description, setDescription] = useState("");
@@ -505,7 +541,7 @@ function CreatePropertyModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) return;
+    if (!name.trim() || !user) return;
 
     try {
       setLoading(true);
@@ -517,6 +553,7 @@ function CreatePropertyModal({
             name: name.trim(),
             address: address.trim() || null,
             description: description.trim() || null,
+            created_by: user.id,
           },
         ])
         .select()

@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/components/auth";
 import { useProperty } from "@/lib/hooks/useProperty";
-import { usePermissions } from "@/lib/hooks/usePermissions";
+import { canManageProperty } from "@/lib/utils/roles";
 import { supabase } from "@/lib/supabase";
 import Header from "@/components/layout/Header";
 import PageContainer from "@/components/layout/PageContainer";
@@ -41,33 +41,40 @@ interface GearItem {
 export default function HousePage() {
   const { user, loading: authLoading } = useAuth();
   const { currentProperty, loading: propertyLoading } = useProperty();
-  const { canManageProperty } = usePermissions();
   const [gearItems, setGearItems] = useState<GearItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [walkthroughExists, setWalkthroughExists] = useState<boolean | null>(null);
+  const [walkthroughExists, setWalkthroughExists] = useState<boolean | null>(
+    null
+  );
+
+  // Check if user can manage this property
+  const userCanManageProperty = canManageProperty(user);
 
   // ✅ DEBUG LOGS
-  console.log('🏠 HousePage render:', {
+  console.log("🏠 HousePage render:", {
     authLoading,
     propertyLoading,
     user: !!user,
     currentProperty: !!currentProperty,
     propertyName: currentProperty?.name,
-    loading
+    userCanManageProperty,
+    loading,
   });
 
   // Mock data for now - you can replace with actual database calls
   useEffect(() => {
-    console.log('🔧 Setting up mock gear data...');
+    console.log("🔧 Setting up mock gear data...");
     const mockGearData: GearItem[] = [
       {
         id: "1",
         name: "Mountain Bikes",
         category: "bikes",
-        description: "2 adult mountain bikes available for trails and town rides",
+        description:
+          "2 adult mountain bikes available for trails and town rides",
         location: "Garage",
         available: true,
-        instructions: "Helmets are in the hall closet. Please lock bikes when not in use.",
+        instructions:
+          "Helmets are in the hall closet. Please lock bikes when not in use.",
       },
       {
         id: "2",
@@ -76,7 +83,8 @@ export default function HousePage() {
         description: "2 SUPs with paddles and life jackets",
         location: "Deck storage box",
         available: true,
-        instructions: "Life jackets required. Check weather conditions before use.",
+        instructions:
+          "Life jackets required. Check weather conditions before use.",
       },
       {
         id: "3",
@@ -99,19 +107,22 @@ export default function HousePage() {
 
     setGearItems(mockGearData);
     setLoading(false);
-    console.log('✅ Mock gear data loaded:', mockGearData.length, 'items');
+    console.log("✅ Mock gear data loaded:", mockGearData.length, "items");
   }, []);
 
   // Check if walkthrough exists
   useEffect(() => {
     const checkWalkthroughExists = async () => {
       if (!currentProperty?.id) {
-        console.log('🔍 No current property, skipping walkthrough check');
+        console.log("🔍 No current property, skipping walkthrough check");
         setWalkthroughExists(null);
         return;
       }
 
-      console.log('🔍 Checking walkthrough for property:', currentProperty.name);
+      console.log(
+        "🔍 Checking walkthrough for property:",
+        currentProperty.name
+      );
       try {
         const { data, error } = await supabase
           .from("walkthrough_sections")
@@ -120,10 +131,13 @@ export default function HousePage() {
           .limit(1);
 
         if (error) throw error;
-        
+
         const exists = data && data.length > 0;
         setWalkthroughExists(exists);
-        console.log('✅ Walkthrough check complete:', exists ? 'exists' : 'none found');
+        console.log(
+          "✅ Walkthrough check complete:",
+          exists ? "exists" : "none found"
+        );
       } catch (error) {
         console.error("❌ Error checking walkthrough:", error);
         setWalkthroughExists(false);
@@ -148,7 +162,10 @@ export default function HousePage() {
 
   // ✅ LOADING STATE - Wait for auth and property
   if (authLoading || propertyLoading) {
-    console.log('⏳ HousePage showing loading state:', { authLoading, propertyLoading });
+    console.log("⏳ HousePage showing loading state:", {
+      authLoading,
+      propertyLoading,
+    });
     return (
       <div className="p-6">
         <Header title="House" />
@@ -166,7 +183,7 @@ export default function HousePage() {
 
   // ✅ NO PROPERTY STATE
   if (!currentProperty) {
-    console.log('🚫 HousePage: No current property found');
+    console.log("🚫 HousePage: No current property found");
     return (
       <div className="p-6">
         <Header title="House" />
@@ -193,7 +210,10 @@ export default function HousePage() {
     );
   }
 
-  console.log('✅ HousePage: Rendering main content for:', currentProperty.name);
+  console.log(
+    "✅ HousePage: Rendering main content for:",
+    currentProperty.name
+  );
 
   return (
     <div className="p-6">
@@ -251,7 +271,7 @@ export default function HousePage() {
           )}
 
         {/* House Overview Card - Only show if walkthrough exists OR user can't manage */}
-        {(walkthroughExists || !canManageProperty()) && (
+        {(walkthroughExists || !userCanManageProperty) && (
           <StandardCard title="House Overview">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               <div>
@@ -421,7 +441,7 @@ export default function HousePage() {
                   </div>
                 </div>
               </StandardCard>
-            ) : canManageProperty() ? (
+            ) : userCanManageProperty ? (
               // Compact setup section for owners/managers
               <StandardCard>
                 <div className="flex items-center justify-between p-4">

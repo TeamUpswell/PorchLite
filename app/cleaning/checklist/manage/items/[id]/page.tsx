@@ -3,6 +3,7 @@
 import { useState, useEffect, FormEvent, ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/auth";
+import { canManageCleaning } from "@/lib/utils/roles";
 import { supabase } from "@/lib/supabase";
 import {
   ArrowLeft,
@@ -14,8 +15,8 @@ import {
   MoveDown,
   GripVertical,
   Edit,
+  Shield,
 } from "lucide-react";
-import PermissionGate from "@/components/PermissionGate";
 import Link from "next/link";
 import {
   DndContext,
@@ -32,6 +33,9 @@ import {
 } from "@dnd-kit/sortable";
 import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
 import { ActionButton } from "@/components/ui/Icons";
+import Header from "@/components/layout/Header";
+import PageContainer from "@/components/layout/PageContainer";
+import StandardCard from "@/components/ui/StandardCard";
 
 // Define interfaces for our data structures
 interface ChecklistItem {
@@ -71,11 +75,11 @@ function SortableItem({ item, onEdit, onDelete }: SortableItemProps) {
     <div
       ref={setNodeRef}
       style={style}
-      className="flex items-center justify-between bg-white dark:bg-gray-800 p-3 border border-gray-200 dark:border-gray-700 rounded-md mb-2"
+      className="flex items-center justify-between bg-white dark:bg-gray-800 p-4 border border-gray-200 dark:border-gray-700 rounded-lg mb-3 hover:shadow-sm transition-shadow"
     >
-      <div className="flex items-center">
+      <div className="flex items-center flex-1">
         <button
-          className="cursor-grab mr-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+          className="cursor-grab mr-3 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 p-1"
           {...attributes}
           {...listeners}
           aria-label="Drag to reorder"
@@ -83,12 +87,12 @@ function SortableItem({ item, onEdit, onDelete }: SortableItemProps) {
         >
           <GripVertical size={18} />
         </button>
-        <span>{item.text}</span>
+        <span className="text-gray-900 dark:text-gray-100">{item.text}</span>
       </div>
-      <div className="flex space-x-1">
+      <div className="flex space-x-2">
         <button
           onClick={() => onEdit(item)}
-          className="p-1 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+          className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors dark:text-blue-400 dark:hover:text-blue-300"
           aria-label="Edit item"
           title="Edit item"
         >
@@ -96,7 +100,7 @@ function SortableItem({ item, onEdit, onDelete }: SortableItemProps) {
         </button>
         <button
           onClick={() => onDelete(item)}
-          className="p-1 text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
+          className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-colors dark:text-red-400 dark:hover:text-red-300"
           aria-label="Delete item"
           title="Delete item"
         >
@@ -117,7 +121,7 @@ interface PageParams {
 export default function ChecklistItemsPage({ params }: PageParams) {
   const router = useRouter();
   const { id } = params;
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [checklist, setChecklist] = useState<Checklist | null>(null);
   const [items, setItems] = useState<ChecklistItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -127,6 +131,9 @@ export default function ChecklistItemsPage({ params }: PageParams) {
   const [editingItem, setEditingItem] = useState<ChecklistItem | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<ChecklistItem | null>(null);
+
+  // Check if user has access
+  const hasAccess = canManageCleaning(user);
 
   // Configure DnD sensors
   const sensors = useSensors(
@@ -141,7 +148,10 @@ export default function ChecklistItemsPage({ params }: PageParams) {
   // Fetch checklist and items
   useEffect(() => {
     async function fetchChecklist() {
-      if (!user || !id) return;
+      if (!user || !id || !hasAccess) {
+        setLoading(false);
+        return;
+      }
 
       try {
         const { data: checklistData, error: checklistError } = await supabase
@@ -172,8 +182,10 @@ export default function ChecklistItemsPage({ params }: PageParams) {
       }
     }
 
-    fetchChecklist();
-  }, [user, id]);
+    if (!authLoading) {
+      fetchChecklist();
+    }
+  }, [user, id, hasAccess, authLoading]);
 
   // Add new item
   const addItem = async (e: FormEvent<HTMLFormElement>) => {
@@ -325,10 +337,77 @@ export default function ChecklistItemsPage({ params }: PageParams) {
     }
   };
 
+  // Helper function for delete handling
+  const handleDeleteItem = (item: ChecklistItem) => {
+    setItemToDelete(item);
+    setShowDeleteModal(true);
+  };
+
+  // Show loading while auth is initializing
+  if (authLoading) {
+    return (
+      <div className="p-6">
+        <Header title="Manage Checklist Items" />
+        <PageContainer>
+          <StandardCard>
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              <span className="ml-2">Loading...</span>
+            </div>
+          </StandardCard>
+        </PageContainer>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return null; // Auth will redirect
+  }
+
+  if (!hasAccess) {
+    return (
+      <div className="p-6">
+        <Header title="Manage Checklist Items" />
+        <PageContainer>
+          <StandardCard>
+            <div className="text-center py-8">
+              <Shield className="mx-auto h-12 w-12 text-gray-400" />
+              <h3 className="mt-2 text-sm font-medium text-gray-900">
+                Access Denied
+              </h3>
+              <p className="mt-1 text-sm text-gray-500">
+                You don't have permission to manage checklist items.
+              </p>
+              <div className="text-xs text-gray-400 mt-4 p-2 bg-gray-50 rounded">
+                <p>Role: {user?.user_metadata?.role || "undefined"}</p>
+                <p>Required: Manager or above</p>
+              </div>
+              <Link
+                href="/cleaning/checklist/manage"
+                className="mt-4 inline-flex items-center px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+              >
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back to Checklists
+              </Link>
+            </div>
+          </StandardCard>
+        </PageContainer>
+      </div>
+    );
+  }
+
   if (loading) {
     return (
-      <div className="p-6 flex justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      <div className="p-6">
+        <Header title="Manage Checklist Items" />
+        <PageContainer>
+          <StandardCard>
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              <span className="ml-2">Loading checklist...</span>
+            </div>
+          </StandardCard>
+        </PageContainer>
       </div>
     );
   }
@@ -336,209 +415,190 @@ export default function ChecklistItemsPage({ params }: PageParams) {
   if (!checklist) {
     return (
       <div className="p-6">
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-          Checklist not found
-        </div>
-        <Link
-          href="/cleaning/checklist/manage"
-          className="text-blue-600 hover:text-blue-800 flex items-center"
-        >
-          <ArrowLeft size={16} className="mr-1" />
-          Back to checklists
-        </Link>
+        <Header title="Manage Checklist Items" />
+        <PageContainer>
+          <StandardCard>
+            <div className="text-center py-8">
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                Checklist Not Found
+              </h3>
+              <p className="text-gray-500 mb-4">
+                The checklist you're looking for doesn't exist.
+              </p>
+              <Link
+                href="/cleaning/checklist/manage"
+                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+              >
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back to Checklists
+              </Link>
+            </div>
+          </StandardCard>
+        </PageContainer>
       </div>
     );
   }
 
   return (
-    <PermissionGate
-      requiredRole="manager"
-      fallback={
-        <div className="p-6">
-          You don&apos;t have permission to manage checklist items.
-        </div>
-      }
-    >
-      <div className="p-6">
-        <div className="flex items-center mb-6">
-          <Link
-            href="/cleaning/checklist/manage"
-            className="text-blue-600 hover:text-blue-800 flex items-center mr-4"
-          >
-            <ArrowLeft size={20} className="mr-1" />
-            Back
-          </Link>
-          <h1 className="text-2xl font-bold">Manage Items: {checklist.name}</h1>
-        </div>
-
-        {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-            {error}
-          </div>
-        )}
-
-        {success && (
-          <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
-            {success}
-          </div>
-        )}
-
-        {/* Add new item form */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-6">
-          <h2 className="text-lg font-semibold mb-4">Add New Item</h2>
-          <form onSubmit={addItem} className="flex items-end gap-2">
-            <div className="flex-grow">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Item Text
-              </label>
-              <input
-                type="text"
-                value={newItem}
-                onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                  setNewItem(e.target.value)
-                }
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md"
-                placeholder="e.g., Clean window sills"
-              />
-            </div>
-            <button
-              type="submit"
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 flex items-center"
+    <div className="p-6">
+      <Header title={`Manage Items: ${checklist.name}`} />
+      <PageContainer>
+        <div className="space-y-6">
+          {/* Navigation */}
+          <div className="flex items-center space-x-4">
+            <Link
+              href="/cleaning/checklist/manage"
+              className="inline-flex items-center text-blue-600 hover:text-blue-800 transition-colors"
             >
-              <Plus size={18} className="mr-1" />
-              Add
-            </button>
-          </form>
-        </div>
+              <ArrowLeft size={20} className="mr-2" />
+              Back to Checklists
+            </Link>
+          </div>
 
-        {/* Checklist items */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold mb-4">Checklist Items</h2>
-
-          {items.length === 0 ? (
-            <p className="text-gray-500 dark:text-gray-400">
-              No items in this checklist yet.
-            </p>
-          ) : (
-            <div>
-              {editingItem ? (
-                <form onSubmit={updateItem} className="mb-4">
-                  <div className="flex items-end gap-2">
-                    <div className="flex-grow">
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Edit Item
-                      </label>
-                      <input
-                        type="text"
-                        value={editingItem?.text || ""}
-                        onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                          setEditingItem(
-                            editingItem
-                              ? { ...editingItem, text: e.target.value }
-                              : null
-                          )
-                        }
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md"
-                        aria-label="Edit item text"
-                        placeholder="Enter item text"
-                      />
-                    </div>
-                    <button
-                      type="submit"
-                      className="px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
-                      aria-label="Save changes"
-                      title="Save changes"
-                    >
-                      <Check size={18} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setEditingItem(null)}
-                      className="px-3 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
-                      aria-label="Cancel editing"
-                      title="Cancel editing"
-                    >
-                      <X size={18} />
-                    </button>
-                  </div>
-                </form>
-              ) : (
-                <DndContext
-                  sensors={sensors}
-                  collisionDetection={closestCenter}
-                  onDragEnd={handleDragEnd}
-                  modifiers={[restrictToVerticalAxis]}
-                >
-                  <p className="text-sm text-gray-500 mb-3">
-                    Drag items to reorder. Click &quot;Edit&quot; to modify or
-                    &quot;Delete&quot; to remove an item.
-                  </p>
-                  <SortableContext
-                    items={items.map((item) => item.id)}
-                    strategy={verticalListSortingStrategy}
-                  >
-                    {items.map((item) => (
-                      <div
-                        key={item.id}
-                        className="bg-white rounded-lg shadow-sm border p-4"
-                      >
-                        <div className="flex justify-between items-center">
-                          <div className="flex-1">
-                            {editingItem?.id === item.id ? (
-                              // Edit form
-                              <div className="flex items-center space-x-2">
-                                <input
-                                  value={editingItem?.text || ""}
-                                  onChange={(e) =>
-                                    editingItem &&
-                                    setEditingItem({
-                                      ...editingItem,
-                                      text: e.target.value,
-                                    })
-                                  }
-                                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md"
-                                />
-                                <button
-                                  onClick={updateItem}
-                                  className="px-3 py-1 bg-blue-600 text-white rounded-md"
-                                >
-                                  Save
-                                </button>
-                                <button
-                                  onClick={() => setEditingItem(null)}
-                                  className="px-3 py-1 bg-gray-300 text-gray-700 rounded-md"
-                                >
-                                  Cancel
-                                </button>
-                              </div>
-                            ) : (
-                              <span className="text-gray-900">{item.text}</span>
-                            )}
-                          </div>
-                          {editingItem?.id !== item.id && (
-                            <div className="flex space-x-2 ml-4">
-                              <ActionButton
-                                onClick={() => setEditingItem(item)}
-                                title="Edit item"
-                                variant="edit"
-                              />
-                              <ActionButton
-                                onClick={() => handleDeleteItem(item.id)}
-                                title="Delete item"
-                                variant="delete"
-                              />
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </SortableContext>
-                </DndContext>
-              )}
+          {/* Status Messages */}
+          {error && (
+            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+              {error}
             </div>
           )}
+
+          {success && (
+            <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded">
+              {success}
+            </div>
+          )}
+
+          {/* Checklist Info */}
+          <StandardCard title={checklist.name}>
+            {checklist.description && (
+              <p className="text-gray-600 mb-4">{checklist.description}</p>
+            )}
+            <div className="text-sm text-gray-500">
+              {items.length} items • Created{" "}
+              {checklist.created_at
+                ? new Date(checklist.created_at).toLocaleDateString()
+                : "Unknown"}
+            </div>
+          </StandardCard>
+
+          {/* Add new item form */}
+          <StandardCard title="Add New Item">
+            <form onSubmit={addItem} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Item Text
+                </label>
+                <input
+                  type="text"
+                  value={newItem}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                    setNewItem(e.target.value)
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="e.g., Clean window sills"
+                />
+              </div>
+              <button
+                type="submit"
+                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+              >
+                <Plus size={18} className="mr-2" />
+                Add Item
+              </button>
+            </form>
+          </StandardCard>
+
+          {/* Checklist items */}
+          <StandardCard title="Checklist Items">
+            {items.length === 0 ? (
+              <div className="text-center py-12">
+                <Edit className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  No Items Yet
+                </h3>
+                <p className="text-gray-500">
+                  Add your first checklist item to get started.
+                </p>
+              </div>
+            ) : (
+              <div>
+                {editingItem ? (
+                  <form
+                    onSubmit={updateItem}
+                    className="mb-6 p-4 bg-blue-50 rounded-lg"
+                  >
+                    <div className="flex items-end gap-3">
+                      <div className="flex-grow">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Edit Item
+                        </label>
+                        <input
+                          type="text"
+                          value={editingItem?.text || ""}
+                          onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                            setEditingItem(
+                              editingItem
+                                ? { ...editingItem, text: e.target.value }
+                                : null
+                            )
+                          }
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          aria-label="Edit item text"
+                          placeholder="Enter item text"
+                        />
+                      </div>
+                      <button
+                        type="submit"
+                        className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors"
+                        aria-label="Save changes"
+                        title="Save changes"
+                      >
+                        <Check size={18} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditingItem(null)}
+                        className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors"
+                        aria-label="Cancel editing"
+                        title="Cancel editing"
+                      >
+                        <X size={18} />
+                      </button>
+                    </div>
+                  </form>
+                ) : (
+                  <div>
+                    <p className="text-sm text-gray-500 mb-4">
+                      💡 Drag items to reorder. Click "Edit" to modify or
+                      "Delete" to remove an item.
+                    </p>
+                    <DndContext
+                      sensors={sensors}
+                      collisionDetection={closestCenter}
+                      onDragEnd={handleDragEnd}
+                      modifiers={[restrictToVerticalAxis]}
+                    >
+                      <SortableContext
+                        items={items.map((item) => item.id)}
+                        strategy={verticalListSortingStrategy}
+                      >
+                        {items.map((item) => (
+                          <SortableItem
+                            key={item.id}
+                            item={item}
+                            onEdit={setEditingItem}
+                            onDelete={handleDeleteItem}
+                          />
+                        ))}
+                      </SortableContext>
+                    </DndContext>
+                  </div>
+                )}
+              </div>
+            )}
+          </StandardCard>
         </div>
-      </div>
+      </PageContainer>
 
       {/* Delete confirmation modal */}
       {showDeleteModal && (
@@ -552,13 +612,13 @@ export default function ChecklistItemsPage({ params }: PageParams) {
             <div className="flex justify-end space-x-3">
               <button
                 onClick={() => setShowDeleteModal(false)}
-                className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700"
+                className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={deleteItem}
-                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors"
               >
                 Delete
               </button>
@@ -566,6 +626,6 @@ export default function ChecklistItemsPage({ params }: PageParams) {
           </div>
         </div>
       )}
-    </PermissionGate>
+    </div>
   );
 }

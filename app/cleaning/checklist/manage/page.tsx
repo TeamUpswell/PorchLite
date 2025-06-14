@@ -5,9 +5,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/auth";
+import { canManageCleaning } from "@/lib/utils/roles";
 import { supabase } from "@/lib/supabase";
-import PermissionGate from "@/components/PermissionGate";
-import SideNavigation from "@/components/SideNavigation";
 import {
   ClipboardList,
   Settings,
@@ -18,8 +17,8 @@ import {
   X,
   MoveUp,
   MoveDown,
+  Shield,
 } from "lucide-react";
-import Image from "next/image";
 import { ActionButton } from "@/components/ui/Icons";
 import Header from "@/components/layout/Header";
 import PageContainer from "@/components/layout/PageContainer";
@@ -43,23 +42,9 @@ interface Checklist {
   cleaning_checklist_items: ChecklistItem[];
 }
 
-// For user with metadata
-interface ExtendedUser {
-  id: string;
-  email?: string;
-  roles: string[];
-  isAdmin: boolean;
-  isFamily: boolean;
-  isManager: boolean;
-  user_metadata?: {
-    role?: string;
-    [key: string]: any;
-  };
-}
-
 export default function ManageCleaningChecklistPage() {
   const router = useRouter();
-  const { user, loading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const pathname = usePathname();
   const [checklists, setChecklists] = useState<Checklist[]>([]);
   const [editingChecklist, setEditingChecklist] = useState<Checklist | null>(
@@ -75,25 +60,12 @@ export default function ManageCleaningChecklistPage() {
   );
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (user) {
-      // Cast user to ExtendedUser to access user_metadata
-      const extendedUser = user as unknown as ExtendedUser;
-      console.log("Current user:", extendedUser);
-      console.log("User role:", extendedUser.user_metadata?.role);
+  // Check if user has access
+  const hasAccess = canManageCleaning(user);
 
-      // Check if user has the required role
-      if (
-        extendedUser.user_metadata?.role !== "manager" &&
-        extendedUser.user_metadata?.role !== "owner"
-      ) {
-        setError("You don't have permission to manage checklists");
-      }
-    }
-  }, [user]);
-
-  // Define navigation items (same as in main cleaning page)
+  // Define navigation items
   const cleaningNavItems = [
     { name: "Cleaning Schedule", href: "/cleaning", icon: ClipboardList },
     {
@@ -107,7 +79,10 @@ export default function ManageCleaningChecklistPage() {
   // Fetch checklists
   useEffect(() => {
     async function fetchChecklists() {
-      if (!user) return;
+      if (!user || !hasAccess) {
+        setLoading(false);
+        return;
+      }
 
       try {
         console.log("Fetching checklists...");
@@ -128,11 +103,15 @@ export default function ManageCleaningChecklistPage() {
         const errorMessage =
           error instanceof Error ? error.message : "Unknown error";
         setError(`Failed to load checklists: ${errorMessage}`);
+      } finally {
+        setLoading(false);
       }
     }
 
-    fetchChecklists();
-  }, [user]);
+    if (!authLoading) {
+      fetchChecklists();
+    }
+  }, [user, hasAccess, authLoading]);
 
   // Create new checklist
   const createChecklist = async (e: FormEvent<HTMLFormElement>) => {
@@ -277,10 +256,19 @@ export default function ManageCleaningChecklistPage() {
     router.push(`/cleaning/checklist/manage/items/${checklist.id}`);
   };
 
-  if (loading) {
+  // Show loading while auth is initializing
+  if (authLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+      <div className="p-6">
+        <Header title="Manage Cleaning Checklists" />
+        <PageContainer>
+          <StandardCard>
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              <span className="ml-2">Loading...</span>
+            </div>
+          </StandardCard>
+        </PageContainer>
       </div>
     );
   }
@@ -289,262 +277,284 @@ export default function ManageCleaningChecklistPage() {
     return null; // Auth will redirect
   }
 
-  return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <SideNavigation user={user} />
-      <div className="lg:pl-64 flex flex-col flex-1">
-        <main className="flex-1">
-          <PermissionGate
-            requiredRole="manager"
-            fallback={
-              <div className="p-6">
-                You don&apos;t have permission to manage checklists.
+  if (!hasAccess) {
+    return (
+      <div className="p-6">
+        <Header title="Manage Cleaning Checklists" />
+        <PageContainer>
+          <StandardCard>
+            <div className="text-center py-8">
+              <Shield className="mx-auto h-12 w-12 text-gray-400" />
+              <h3 className="mt-2 text-sm font-medium text-gray-900">
+                Access Denied
+              </h3>
+              <p className="mt-1 text-sm text-gray-500">
+                You don't have permission to manage cleaning checklists.
+              </p>
+              <div className="text-xs text-gray-400 mt-4 p-2 bg-gray-50 rounded">
+                <p>Role: {user?.user_metadata?.role || "undefined"}</p>
+                <p>Required: Manager or above</p>
               </div>
-            }
-          >
-            <div className="px-4 py-8">
-              <Header title="Manage Cleaning Checklist" />
-              <PageContainer>
-                <div className="space-y-6">
-                  <StandardCard
-                    title="Checklist Management"
-                    subtitle="Edit and manage your cleaning checklist items"
+            </div>
+          </StandardCard>
+        </PageContainer>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-6">
+      <Header title="Manage Cleaning Checklists" />
+      <PageContainer>
+        <div className="space-y-6">
+          {/* Tab-style navigation */}
+          <div className="border-b border-gray-200 dark:border-gray-700">
+            <nav className="flex -mb-px space-x-8">
+              {cleaningNavItems.map((item) => {
+                const isActive = pathname
+                  ? item.href === "/cleaning"
+                    ? pathname === item.href
+                    : pathname.startsWith(item.href)
+                  : false;
+                const IconComponent = item.icon;
+
+                return (
+                  <Link
+                    key={item.name}
+                    href={item.href}
+                    className={`flex items-center py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
+                      isActive
+                        ? "border-blue-500 text-blue-600 dark:text-blue-400"
+                        : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300"
+                    }`}
                   >
-                    {/* Move all existing cleaning checklist manage content here */}
-                    <div className="space-y-6">
-                      {/* Your existing cleaning checklist manage JSX goes here */}
+                    <IconComponent
+                      className={`mr-2 h-4 w-4 ${
+                        isActive
+                          ? "text-blue-500 dark:text-blue-400"
+                          : "text-gray-400"
+                      }`}
+                    />
+                    {item.name}
+                  </Link>
+                );
+              })}
+            </nav>
+          </div>
 
-                      {/* Tab-style navigation - directly in the page */}
-                      <div className="border-b border-gray-200 dark:border-gray-700 mb-6">
-                        <nav className="flex -mb-px space-x-8">
-                          {cleaningNavItems.map((item) => {
-                            const isActive = pathname
-                              ? item.href === "/cleaning"
-                                ? pathname === item.href
-                                : pathname.startsWith(item.href)
-                              : false;
-                            const IconComponent = item.icon;
+          <StandardCard
+            title="Checklist Management"
+            subtitle="Create and manage your cleaning checklists"
+          >
+            <div className="space-y-6">
+              {error && (
+                <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+                  {error}
+                </div>
+              )}
 
-                            // Wrap with PermissionGate if required role is specified
-                            const linkElement = (
-                              <Link
-                                key={item.name}
-                                href={item.href}
-                                className={`flex items-center py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
-                                  isActive
-                                    ? "border-blue-500 text-blue-600 dark:text-blue-400"
-                                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300"
-                                }`}
+              {success && (
+                <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded">
+                  {success}
+                </div>
+              )}
+
+              {/* Create new checklist form */}
+              <StandardCard title="Create New Checklist">
+                <form onSubmit={createChecklist} className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Checklist Name
+                    </label>
+                    <input
+                      type="text"
+                      value={newChecklist.name}
+                      onChange={(e) =>
+                        setNewChecklist({
+                          ...newChecklist,
+                          name: e.target.value,
+                        })
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="e.g., Garage Cleaning"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Description (Optional)
+                    </label>
+                    <textarea
+                      value={newChecklist.description}
+                      onChange={(e) =>
+                        setNewChecklist({
+                          ...newChecklist,
+                          description: e.target.value,
+                        })
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      rows={3}
+                      placeholder="Brief description of this checklist"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+                  >
+                    <Plus size={18} className="mr-2" />
+                    Create Checklist
+                  </button>
+                </form>
+              </StandardCard>
+
+              {/* Existing checklists */}
+              <StandardCard title="Existing Checklists">
+                {loading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                    <span className="ml-2">Loading checklists...</span>
+                  </div>
+                ) : checklists.length === 0 ? (
+                  <div className="text-center py-12">
+                    <ClipboardList className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">
+                      No Checklists Yet
+                    </h3>
+                    <p className="text-gray-500 mb-4">
+                      Create your first cleaning checklist to get started.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {checklists.map((checklist) => (
+                      <div
+                        key={checklist.id}
+                        className="border border-gray-200 rounded-lg p-6 hover:shadow-sm transition-shadow"
+                      >
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1">
+                            {editingChecklist?.id === checklist.id ? (
+                              <form
+                                onSubmit={updateChecklist}
+                                className="space-y-4"
                               >
-                                <IconComponent
-                                  className={`mr-2 h-4 w-4 ${
-                                    isActive
-                                      ? "text-blue-500 dark:text-blue-400"
-                                      : "text-gray-400"
-                                  }`}
+                                <input
+                                  value={editingChecklist?.name || ""}
+                                  onChange={(e) =>
+                                    editingChecklist &&
+                                    setEditingChecklist({
+                                      ...editingChecklist,
+                                      name: e.target.value,
+                                    })
+                                  }
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                  placeholder="Checklist name"
                                 />
-                                {item.name}
-                              </Link>
-                            );
-
-                            // If item requires specific role, wrap with PermissionGate
-                            if (item.requiredRole) {
-                              return (
-                                <PermissionGate
-                                  key={item.name}
-                                  requiredRole={item.requiredRole}
-                                >
-                                  {linkElement}
-                                </PermissionGate>
-                              );
-                            }
-
-                            return linkElement;
-                          })}
-                        </nav>
-                      </div>
-
-                      {/* Rest of your manage checklists content */}
-                      <h2 className="text-xl font-bold mb-6">
-                        Manage Cleaning Checklists
-                      </h2>
-
-                      {error && (
-                        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-                          {error}
-                        </div>
-                      )}
-
-                      {success && (
-                        <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
-                          {success}
-                        </div>
-                      )}
-
-                      {/* Create new checklist form */}
-                      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-6">
-                        <h2 className="text-xl font-semibold mb-4">
-                          Create New Checklist
-                        </h2>
-                        <form onSubmit={createChecklist} className="space-y-4">
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                              Checklist Name
-                            </label>
-                            <input
-                              type="text"
-                              value={newChecklist.name}
-                              onChange={(e) =>
-                                setNewChecklist({
-                                  ...newChecklist,
-                                  name: e.target.value,
-                                })
-                              }
-                              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md"
-                              placeholder="e.g., Garage Cleaning"
-                            />
-                          </div>
-
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                              Description (Optional)
-                            </label>
-                            <textarea
-                              value={newChecklist.description}
-                              onChange={(e) =>
-                                setNewChecklist({
-                                  ...newChecklist,
-                                  description: e.target.value,
-                                })
-                              }
-                              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md"
-                              rows={3}
-                              placeholder="Brief description of this checklist"
-                            />
-                          </div>
-
-                          <div>
-                            <button
-                              type="submit"
-                              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 flex items-center"
-                            >
-                              <Plus size={18} className="mr-1" />
-                              Create Checklist
-                            </button>
-                          </div>
-                        </form>
-                      </div>
-
-                      {/* Existing checklists */}
-                      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-                        <h2 className="text-xl font-semibold mb-4">
-                          Existing Checklists
-                        </h2>
-
-                        {checklists.length === 0 ? (
-                          <p className="text-gray-500 dark:text-gray-400">
-                            No checklists created yet.
-                          </p>
-                        ) : (
-                          <div className="space-y-4">
-                            {checklists.map((checklist) => (
-                              <div
-                                key={checklist.id}
-                                className="bg-white rounded-lg shadow-sm border p-6"
-                              >
-                                <div className="flex justify-between items-start mb-4">
-                                  <div>
-                                    {editingChecklist?.id === checklist.id ? (
-                                      // Edit form content...
-                                      <div className="space-y-4">
-                                        <input
-                                          value={editingChecklist?.name || ""}
-                                          onChange={(e) =>
-                                            editingChecklist &&
-                                            setEditingChecklist({
-                                              ...editingChecklist,
-                                              name: e.target.value,
-                                            })
-                                          }
-                                          className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                                        />
-                                        <textarea
-                                          value={
-                                            editingChecklist?.description || ""
-                                          }
-                                          onChange={(e) =>
-                                            editingChecklist &&
-                                            setEditingChecklist({
-                                              ...editingChecklist,
-                                              description: e.target.value,
-                                            })
-                                          }
-                                          className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                                        />
-                                        <div className="flex space-x-2">
-                                          <button
-                                            onClick={updateChecklist}
-                                            className="px-4 py-2 bg-blue-600 text-white rounded-md"
-                                          >
-                                            Save
-                                          </button>
-                                          <button
-                                            onClick={() => setEditingChecklist(null)}
-                                            className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md"
-                                          >
-                                            Cancel
-                                          </button>
-                                        </div>
-                                      </div>
-                                    ) : (
-                                      <>
-                                        <h3 className="text-lg font-semibold">
-                                          {checklist.name}
-                                        </h3>
-                                        <p className="text-gray-600">
-                                          {checklist.description}
-                                        </p>
-                                      </>
-                                    )}
-                                  </div>
-                                  {editingChecklist?.id !== checklist.id && (
-                                    <div className="flex space-x-2">
-                                      <ActionButton
-                                        onClick={() => setEditingChecklist(checklist)}
-                                        title="Edit checklist"
-                                        variant="edit"
-                                      />
-                                      <ActionButton
-                                        onClick={() => {
-                                          setChecklistToDelete(checklist);
-                                          setShowDeleteModal(true);
-                                        }}
-                                        title="Delete checklist"
-                                        variant="delete"
-                                      />
-                                    </div>
+                                <textarea
+                                  value={editingChecklist?.description || ""}
+                                  onChange={(e) =>
+                                    editingChecklist &&
+                                    setEditingChecklist({
+                                      ...editingChecklist,
+                                      description: e.target.value,
+                                    })
+                                  }
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                  placeholder="Description"
+                                  rows={3}
+                                />
+                                <div className="flex space-x-2">
+                                  <button
+                                    type="submit"
+                                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                                  >
+                                    Save
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setEditingChecklist(null)}
+                                    className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 transition-colors"
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              </form>
+                            ) : (
+                              <>
+                                <div className="flex items-center space-x-3 mb-2">
+                                  <ClipboardList className="h-5 w-5 text-blue-600" />
+                                  <h3 className="text-lg font-semibold text-gray-900">
+                                    {checklist.name}
+                                  </h3>
+                                </div>
+                                {checklist.description && (
+                                  <p className="text-gray-600 mb-2">
+                                    {checklist.description}
+                                  </p>
+                                )}
+                                <div className="text-sm text-gray-500">
+                                  {checklist.cleaning_checklist_items?.length ||
+                                    0}{" "}
+                                  items
+                                  {checklist.created_at && (
+                                    <span className="ml-2">
+                                      • Created{" "}
+                                      {new Date(
+                                        checklist.created_at
+                                      ).toLocaleDateString()}
+                                    </span>
                                   )}
                                 </div>
-                              </div>
-                            ))}
+                              </>
+                            )}
                           </div>
-                        )}
+                          {editingChecklist?.id !== checklist.id && (
+                            <div className="flex space-x-2 ml-4">
+                              <button
+                                onClick={() => handleEditItems(checklist)}
+                                className="px-3 py-2 text-sm bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors"
+                              >
+                                View Items
+                              </button>
+                              <ActionButton
+                                onClick={() => setEditingChecklist(checklist)}
+                                title="Edit checklist"
+                                variant="edit"
+                              />
+                              <ActionButton
+                                onClick={() => {
+                                  setChecklistToDelete(checklist);
+                                  setShowDeleteModal(true);
+                                }}
+                                title="Delete checklist"
+                                variant="delete"
+                              />
+                            </div>
+                          )}
+                        </div>
                       </div>
+                    ))}
+                  </div>
+                )}
+              </StandardCard>
 
-                      <div className="mt-8 text-gray-500 dark:text-gray-400 text-sm">
-                        <p>
-                          Click &quot;View Items&quot; to manage checklist items or
-                          &quot;Edit&quot; to modify checklist details.
-                        </p>
-                      </div>
-                    </div>
-                  </StandardCard>
-                </div>
-              </PageContainer>
+              <div className="text-gray-500 dark:text-gray-400 text-sm bg-gray-50 rounded-lg p-4">
+                <p className="mb-2">
+                  💡 <strong>Tips:</strong>
+                </p>
+                <ul className="space-y-1">
+                  <li>
+                    • Click "View Items" to manage individual checklist tasks
+                  </li>
+                  <li>• Use descriptive names to easily identify checklists</li>
+                  <li>• Group related tasks into separate checklists</li>
+                </ul>
+              </div>
             </div>
-          </PermissionGate>
-        </main>
-      </div>
+          </StandardCard>
+        </div>
+      </PageContainer>
 
       {/* Delete confirmation modal */}
       {showDeleteModal && (
@@ -559,13 +569,13 @@ export default function ManageCleaningChecklistPage() {
             <div className="flex justify-end space-x-3">
               <button
                 onClick={() => setShowDeleteModal(false)}
-                className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700"
+                className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={deleteChecklist}
-                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors"
               >
                 Delete
               </button>

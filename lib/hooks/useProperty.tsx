@@ -6,15 +6,11 @@ import React, {
   useState,
   useEffect,
   ReactNode,
-  useCallback,
-  useMemo,
   useRef,
 } from "react";
 import { useAuth } from "@/components/auth";
 import { supabase } from "@/lib/supabase";
-import { debugLog } from "@/lib/utils/debug";
 
-// Add missing Property interface
 interface Property {
   id: string;
   name: string;
@@ -24,32 +20,14 @@ interface Property {
   [key: string]: any;
 }
 
-interface Tenant {
-  id: string;
-  user_id: string;
-  property_id: string;
-  role: string;
-  tenant_id: string;
-  [key: string]: any;
-}
-
 interface PropertyContextType {
   currentProperty: Property | null;
-  currentTenant: Tenant | null;
   userProperties: Property[];
-  userTenants: Tenant[];
   loading: boolean;
   error: string | null;
   hasInitialized: boolean;
   setCurrentProperty: (property: Property | null) => void;
-  setCurrentTenant: (tenant: Tenant | null) => void;
-  switchProperty: (propertyId: string) => Promise<void>;
-  updateProperty: (propertyId: string, updates: any) => Promise<{ error: any }>;
-  refreshProperty: () => Promise<void>;
-  updateCurrentProperty: (
-    propertyId: string,
-    updates: Partial<Property>
-  ) => Promise<void>;
+  refreshProperties: () => Promise<void>;
 }
 
 const PropertyContext = createContext<PropertyContextType | undefined>(
@@ -57,276 +35,111 @@ const PropertyContext = createContext<PropertyContextType | undefined>(
 );
 
 export function PropertyProvider({ children }: { children: ReactNode }) {
-  const { user } = useAuth();
-
+  const { user, loading: authLoading } = useAuth();
   const [currentProperty, setCurrentProperty] = useState<Property | null>(null);
-  const [currentTenant, setCurrentTenant] = useState<Tenant | null>(null);
   const [userProperties, setUserProperties] = useState<Property[]>([]);
-  const [userTenants, setUserTenants] = useState<Tenant[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasInitialized, setHasInitialized] = useState(false);
 
-  // ✅ ADD: Prevent multiple simultaneous calls
   const loadingRef = useRef(false);
-  const lastErrorTime = useRef(0);
-  const mountedRef = useRef(true);
 
-  console.log("🔍 PropertyProvider state:", {
-    user: user?.email,
-    loading,
-    hasInitialized,
-    currentProperty: currentProperty?.name,
-    userPropertiesCount: userProperties.length,
-    error,
-  });
-
-  // ✅ REMOVE: ensureValidSession (causing unnecessary complexity)
-
-  // ✅ FIXED: Stable loadUserData with proper error handling
-  const loadUserData = useCallback(async () => {
-    if (!user?.id) {
-      console.log("❌ No user ID - exiting loadUserData");
-      setLoading(false);
-      setHasInitialized(true);
-      return;
-    }
-
-    // ✅ Prevent simultaneous calls
-    if (loadingRef.current) {
-      console.log("🛑 loadUserData already in progress");
-      return;
-    }
-
-    // ✅ Check error cooldown
-    if (error && Date.now() - lastErrorTime.current < 10000) {
-      console.log("🛑 Recent error, cooling down...");
-      return;
-    }
+  const loadUserProperties = async (userId: string) => {
+    if (loadingRef.current) return;
 
     loadingRef.current = true;
-    console.log("🔍 Starting property lookup for user:", user.id);
+    setLoading(true);
+    setError(null);
 
     try {
-      setLoading(true);
-      setError(null);
+      console.log("🏠 Property: Loading properties for user:", userId);
 
-      // ✅ Shorter timeout
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(
-          () => reject(new Error("Request timeout after 8 seconds")),
-          8000
-        )
-      );
+      // Get user's tenant relationships
+      const { data: userTenants, error: tenantError } = await supabase
+        .from("tenants")
+        .select("tenant_id")
+        .eq("user_id", userId);
 
-      const queryPromise = supabase
+      const tenantIds = userTenants?.map((t) => t.tenant_id) || [];
+      console.log("🔍 Property: User tenant IDs:", tenantIds);
+
+      // Get owned properties
+      const { data: ownedProperties, error: ownedError } = await supabase
         .from("properties")
         .select("*")
-        .eq("created_by", user.id)
-        .order("created_at", { ascending: false });
+        .eq("created_by", userId);
 
-      console.log("📡 Executing Supabase query...");
-      const response = await Promise.race([queryPromise, timeoutPromise]);
-
-      // ✅ Check if component is still mounted
-      if (!mountedRef.current) return;
-
-      console.log("🏠 Raw Supabase response:", response);
-
-      if (response.error) {
-        throw new Error(`Query failed: ${response.error.message}`);
-      }
-
-      const propertiesData = response.data || [];
-      console.log("✅ Properties found:", propertiesData.length);
-
-      setUserProperties(propertiesData);
-
-      if (propertiesData.length > 0) {
-        const selectedProperty = propertiesData[0];
-        setCurrentProperty(selectedProperty);
-        console.log("✅ Set current property:", selectedProperty.name);
-      } else {
-        console.log("📭 No properties found");
-        setCurrentProperty(null);
-      }
-    } catch (error: any) {
-      console.error("💥 Property loading failed:", error);
-      lastErrorTime.current = Date.now(); // ✅ Track error time
-
-      // ✅ Set error but don't fail completely
-      setError(`Failed to load properties: ${error.message}`);
-      setUserProperties([]);
-      setCurrentProperty(null);
-    } finally {
-      if (mountedRef.current) {
-        setLoading(false);
-        setHasInitialized(true);
-      }
-      loadingRef.current = false; // ✅ Reset loading flag
-    }
-  }, [user?.id]); // ✅ REMOVED error from dependencies
-
-  // ✅ FIXED: useEffect with proper dependencies
-  useEffect(() => {
-    console.log(
-      "🔄 useProperty useEffect triggered. User:",
-      user?.id,
-      "HasInitialized:",
-      hasInitialized,
-      "LoadingRef:",
-      loadingRef.current
-    );
-
-    const conditions = {
-      hasUser: !!user?.id,
-      notInitialized: !hasInitialized,
-      notLoadingRef: !loadingRef.current,
-      shouldLoad: user?.id && !hasInitialized && !loadingRef.current,
-    };
-
-    console.log("🔄 Conditions:", conditions);
-
-    // ✅ FIX: Use loadingRef instead of loading state
-    if (user?.id && !hasInitialized && !loadingRef.current) {
-      console.log("🚀 Calling loadUserData...");
-      loadUserData();
-    } else {
-      console.log("🛑 Not calling loadUserData - conditions not met");
-    }
-  }, [user?.id, hasInitialized, loadUserData]); // ✅ Remove 'loading' from dependencies
-
-  // ✅ Cleanup on unmount
-  useEffect(() => {
-    mountedRef.current = true;
-    return () => {
-      mountedRef.current = false;
-    };
-  }, []);
-
-  const enhancedCurrentTenant = useMemo(() => {
-    debugLog("🔍 Enhanced tenant calculation:", {
-      hasProperty: !!currentProperty,
-      hasTenant: !!currentTenant,
-      propertyId: currentProperty?.id,
-      tenantId: currentTenant?.id,
-    });
-
-    if (!currentProperty || !currentTenant) {
-      debugLog("🔍 No enhanced tenant: missing property or tenant", {
-        hasProperty: !!currentProperty,
-        hasTenant: !!currentTenant,
-      });
-      return null;
-    }
-
-    const enhanced = {
-      id: currentTenant.id,
-      user_id: currentTenant.user_id,
-      property_id: currentProperty.id,
-      role: currentTenant.role,
-      tenant_id: currentTenant.tenant_id,
-    };
-
-    debugLog("✅ Enhanced tenant created:", enhanced);
-    return enhanced;
-  }, [currentProperty, currentTenant]);
-
-  const switchProperty = useCallback(
-    async (propertyId: string) => {
-      const property = userProperties.find((p) => p.id === propertyId);
-      if (property) {
-        setCurrentProperty(property);
-        localStorage.setItem("currentPropertyId", propertyId);
-        console.log("✅ Switched to property:", property.name);
-      }
-    },
-    [userProperties]
-  );
-
-  const updateProperty = useCallback(
-    async (propertyId: string, updates: any) => {
-      const { error } = await supabase
+      // Get tenant properties
+      const { data: tenantProperties, error: tenantError2 } = await supabase
         .from("properties")
-        .update(updates)
-        .eq("id", propertyId);
+        .select("*")
+        .in("id", tenantIds);
 
-      if (!error) {
-        setCurrentProperty((prev) =>
-          prev?.id === propertyId ? { ...prev, ...updates } : prev
-        );
-        setUserProperties((prev) =>
-          prev.map((prop) =>
-            prop.id === propertyId ? { ...prop, ...updates } : prop
-          )
-        );
+      if (ownedError) {
+        throw new Error(`Owned properties error: ${ownedError.message}`);
       }
 
-      return { error };
-    },
-    []
-  );
+      // Combine and deduplicate
+      const allProperties = [
+        ...(ownedProperties || []),
+        ...(tenantProperties || []),
+      ];
 
-  const refreshProperty = useCallback(async () => {
-    if (!currentProperty?.id) return;
+      const uniqueProperties = allProperties.filter(
+        (prop, index, self) => index === self.findIndex((p) => p.id === prop.id)
+      );
 
-    const { data, error } = await supabase
-      .from("properties")
-      .select("*")
-      .eq("id", currentProperty.id)
-      .single();
+      console.log("✅ Property: Found properties:", uniqueProperties.length);
 
-    if (data && !error) {
-      setCurrentProperty(data);
+      setUserProperties(uniqueProperties);
+
+      if (uniqueProperties.length > 0 && !currentProperty) {
+        setCurrentProperty(uniqueProperties[0]);
+        console.log(
+          "✅ Property: Set current property:",
+          uniqueProperties[0].name
+        );
+      }
+    } catch (err) {
+      console.error("❌ Property: Error loading properties:", err);
+      setError(
+        err instanceof Error ? err.message : "Failed to load properties"
+      );
+    } finally {
+      setLoading(false);
+      setHasInitialized(true);
+      loadingRef.current = false;
     }
-  }, [currentProperty?.id]);
+  };
 
-  const updateCurrentProperty = useCallback(
-    async (propertyId: string, updates: Partial<Property>) => {
-      setCurrentProperty((prev) =>
-        prev?.id === propertyId ? { ...prev, ...updates } : prev
-      );
-      setUserProperties((prev) =>
-        prev.map((prop) =>
-          prop.id === propertyId ? { ...prop, ...updates } : prop
-        )
-      );
-    },
-    []
-  );
+  const refreshProperties = async () => {
+    if (user?.id) {
+      loadingRef.current = false; // Reset to allow refresh
+      await loadUserProperties(user.id);
+    }
+  };
 
-  const value = useMemo(
-    () => ({
-      currentProperty,
-      currentTenant: enhancedCurrentTenant,
-      userProperties,
-      userTenants,
-      loading,
-      error,
-      hasInitialized,
-      setCurrentProperty,
-      setCurrentTenant,
-      switchProperty,
-      updateProperty,
-      refreshProperty,
-      updateCurrentProperty,
-    }),
-    [
-      currentProperty,
-      enhancedCurrentTenant,
-      userProperties,
-      userTenants,
-      loading,
-      error,
-      hasInitialized,
-      switchProperty,
-      updateProperty,
-      refreshProperty,
-      updateCurrentProperty,
-    ]
-  );
+  useEffect(() => {
+    if (!authLoading && user?.id && !hasInitialized) {
+      loadUserProperties(user.id);
+    } else if (!user && !authLoading) {
+      // User logged out
+      setCurrentProperty(null);
+      setUserProperties([]);
+      setHasInitialized(true);
+      setLoading(false);
+    }
+  }, [user, authLoading, hasInitialized]);
 
-  // ✅ REMOVED: Emergency timeout (no longer needed)
+  const value = {
+    currentProperty,
+    userProperties,
+    loading,
+    error,
+    hasInitialized,
+    setCurrentProperty,
+    refreshProperties,
+  };
 
   return (
     <PropertyContext.Provider value={value}>
@@ -335,10 +148,10 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
   );
 }
 
-export function useProperty() {
+export const useProperty = () => {
   const context = useContext(PropertyContext);
-  if (context === undefined) {
+  if (!context) {
     throw new Error("useProperty must be used within a PropertyProvider");
   }
   return context;
-}
+};

@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/components/auth";
 import { useProperty } from "@/lib/hooks/useProperty";
 import { useTheme } from "@/components/ThemeProvider";
+import { getUserRole } from "@/lib/utils/roles";
 import {
   Home as HomeIcon,
   Calendar as CalendarIcon,
@@ -44,7 +45,8 @@ interface NavigationItem {
       titleId?: string | undefined;
     } & React.RefAttributes<SVGSVGElement>
   >;
-  requiredRole?: "family" | "owner" | "manager" | "friend";
+  // ✅ Updated to use permission check function instead of role string
+  permissionCheck?: (user: any) => boolean;
   permissions?: string[];
 }
 
@@ -60,6 +62,25 @@ interface SideNavigationProps {
   isMobileMenuOpen?: boolean;
   setIsMobileMenuOpen?: (open: boolean) => void;
 }
+
+// ✅ Helper function for basic role checking (for items that need simple role checks)
+const hasMinimumRole = (user: any, minRole: string) => {
+  const userRole = getUserRole(user);
+  const roleHierarchy = {
+    guest: 0,
+    friend: 1,
+    family: 2,
+    staff: 3,
+    manager: 4,
+    admin: 5,
+    owner: 6,
+  };
+
+  const userLevel = roleHierarchy[userRole as keyof typeof roleHierarchy] || 0;
+  const minLevel = roleHierarchy[minRole as keyof typeof roleHierarchy] || 0;
+
+  return userLevel >= minLevel;
+};
 
 // Navigation structure
 const navigationStructure: NavigationSection[] = [
@@ -99,15 +120,6 @@ export default function SideNavigation({
     General: true,
     Account: false,
   });
-
-  // ✅ RESTORED: Missing hasPermission function
-  const hasPermission = (requiredRole: string) => {
-    const userRole =
-      propUser?.user_metadata?.role || authUser?.user_metadata?.role || "family";
-
-    if (userRole === "manager" || userRole === "owner") return true;
-    return requiredRole === "family";
-  };
 
   // Mobile menu handlers
   const toggleMobileMenu = () => {
@@ -204,10 +216,10 @@ export default function SideNavigation({
           onClick={toggleMobileMenu}
           className="p-2 bg-white dark:bg-gray-800 shadow-lg rounded-lg border border-gray-200 dark:border-gray-700"
           style={{
-            WebkitTapHighlightColor: 'transparent',
-            touchAction: 'manipulation',
-            minHeight: '44px',
-            minWidth: '44px',
+            WebkitTapHighlightColor: "transparent",
+            touchAction: "manipulation",
+            minHeight: "44px",
+            minWidth: "44px",
           }}
         >
           {mobileMenuOpen ? (
@@ -224,8 +236,8 @@ export default function SideNavigation({
           className="lg:hidden fixed inset-0 bg-black/50 z-40"
           onClick={() => handleLinkClick()}
           style={{
-            WebkitTapHighlightColor: 'transparent',
-            touchAction: 'none',
+            WebkitTapHighlightColor: "transparent",
+            touchAction: "none",
           }}
         />
       )}
@@ -268,8 +280,8 @@ export default function SideNavigation({
                   isCollapsedState ? "justify-center" : "space-x-3"
                 } relative z-10`}
                 style={{
-                  WebkitTapHighlightColor: 'transparent',
-                  touchAction: 'manipulation',
+                  WebkitTapHighlightColor: "transparent",
+                  touchAction: "manipulation",
                 }}
               >
                 <div className="relative">
@@ -297,7 +309,7 @@ export default function SideNavigation({
           {/* Navigation items */}
           <div
             className="flex-1 overflow-y-auto"
-            style={{ WebkitOverflowScrolling: 'touch' }}
+            style={{ WebkitOverflowScrolling: "touch" }}
           >
             {navigationStructure.map((section) => {
               const isExpanded =
@@ -338,11 +350,14 @@ export default function SideNavigation({
 
                   {/* Navigation items */}
                   {(isExpanded || isCollapsedState) && (
-                    <div className={`space-y-1 ${!isCollapsedState ? "pl-1" : ""}`}>
+                    <div
+                      className={`space-y-1 ${!isCollapsedState ? "pl-1" : ""}`}
+                    >
                       {section.items.map((item) => {
+                        // ✅ Use centralized permission checking
                         if (
-                          item.requiredRole &&
-                          !hasPermission(item.requiredRole)
+                          item.permissionCheck &&
+                          !item.permissionCheck(user)
                         ) {
                           return null;
                         }
@@ -366,9 +381,9 @@ export default function SideNavigation({
                             }`}
                             title={isCollapsedState ? item.name : undefined}
                             style={{
-                              WebkitTapHighlightColor: 'transparent',
-                              touchAction: 'manipulation',
-                              minHeight: '44px',
+                              WebkitTapHighlightColor: "transparent",
+                              touchAction: "manipulation",
+                              minHeight: "44px",
                             }}
                           >
                             <IconComponent

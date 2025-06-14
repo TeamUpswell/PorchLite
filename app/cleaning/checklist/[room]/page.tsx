@@ -10,6 +10,7 @@ import { useProperty } from "@/lib/hooks/useProperty";
 import { ArrowLeft, Plus, History, Calendar } from "lucide-react";
 import TaskItem from "../../components/TaskItem";
 import { toast } from "react-hot-toast";
+import { canManageCleaning } from "@/lib/utils/roles";
 
 // Room icons mapping for header icons
 import { Home, Utensils, Bath } from "lucide-react";
@@ -290,8 +291,7 @@ export default function RoomChecklist() {
                 <p className="text-gray-500 mb-4">
                   No tasks defined for this room yet.
                 </p>
-                {(user?.roles?.includes("owner") ||
-                  user?.roles?.includes("manager")) && (
+                {canManageCleaning(user) && (
                   <Link href={`/cleaning/tasks/create?room=${roomId}`}>
                     <button className="flex items-center mx-auto px-4 py-2 bg-blue-600 text-white rounded-md">
                       <Plus className="h-4 w-4 mr-2" /> Add First Task
@@ -312,17 +312,15 @@ export default function RoomChecklist() {
               </div>
             )}
 
-            {tasks.length > 0 &&
-              (user?.roles?.includes("owner") ||
-                user?.roles?.includes("manager")) && (
-                <div className="mt-6 pt-4 border-t border-gray-200">
-                  <Link href={`/cleaning/tasks/create?room=${roomId}`}>
-                    <button className="flex items-center px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-md text-gray-700">
-                      <Plus className="h-4 w-4 mr-2" /> Add New Task
-                    </button>
-                  </Link>
-                </div>
-              )}
+            {tasks.length > 0 && canManageCleaning(user) && (
+              <div className="mt-6 pt-4 border-t border-gray-200">
+                <Link href={`/cleaning/tasks/create?room=${roomId}`}>
+                  <button className="flex items-center px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-md text-gray-700">
+                    <Plus className="h-4 w-4 mr-2" /> Add New Task
+                  </button>
+                </Link>
+              </div>
+            )}
           </div>
         )}
       </div>
