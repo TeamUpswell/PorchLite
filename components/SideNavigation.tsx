@@ -2,7 +2,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation"; // Add useRouter
+import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/components/auth";
 import { useProperty } from "@/lib/hooks/useProperty";
 import { useTheme } from "@/components/ThemeProvider";
@@ -45,7 +45,7 @@ interface NavigationItem {
     } & React.RefAttributes<SVGSVGElement>
   >;
   requiredRole?: "family" | "owner" | "manager" | "friend";
-  permissions?: string[]; // Add permissions field
+  permissions?: string[];
 }
 
 interface NavigationSection {
@@ -61,7 +61,7 @@ interface SideNavigationProps {
   setIsMobileMenuOpen?: (open: boolean) => void;
 }
 
-// ✅ UPDATE: Navigation structure - add The House section
+// Navigation structure
 const navigationStructure: NavigationSection[] = [
   {
     category: "General",
@@ -71,7 +71,7 @@ const navigationStructure: NavigationSection[] = [
       { name: "The House", href: "/house", icon: HouseIcon },
       { name: "Instructions", href: "/manual", icon: BookOpenIcon },
       { name: "Tasks", href: "/tasks", icon: CheckSquareIcon },
-      { name: "Guest Book", href: "/guest-book", icon: HeartIcon }, // Add this line
+      { name: "Guest Book", href: "/guest-book", icon: HeartIcon },
       { name: "Nearby Places", href: "/recommendations", icon: StarIcon },
       { name: "Inventory", href: "/inventory", icon: PackageIcon },
       { name: "Contacts", href: "/contacts", icon: PhoneIcon },
@@ -87,46 +87,39 @@ export default function SideNavigation({
   setIsMobileMenuOpen,
 }: SideNavigationProps) {
   const pathname = usePathname();
-  const router = useRouter(); // ✅ ADD THIS LINE
+  const router = useRouter();
   const { user: authUser, signOut } = useAuth();
   const { currentProperty, loading: propertyLoading } = useProperty();
   const { theme } = useTheme();
 
-  // ✅ FIX: Proper state management
+  // ✅ RESTORED: Missing state variables
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isCollapsedState, setIsCollapsed] = useState(isCollapsed);
   const [expandedCategories, setExpandedCategories] = useState({
     General: true,
     Account: false,
   });
 
-  // ✅ FIX: Use consistent mobile menu state
-  const mobileMenuOpen = isMobileMenuOpen;
-  const setMobileMenuOpen = setIsMobileMenuOpen || (() => {});
-
-  // ✅ FIX: Add missing hasPermission function
+  // ✅ RESTORED: Missing hasPermission function
   const hasPermission = (requiredRole: string) => {
-    // Simple permission check - you can make this more sophisticated
     const userRole =
       propUser?.user_metadata?.role || authUser?.user_metadata?.role || "family";
 
-    // Manager has access to everything
     if (userRole === "manager" || userRole === "owner") return true;
-
-    // Add your role logic here
     return requiredRole === "family";
   };
 
-  // ✅ Handle mobile menu toggle
+  // Mobile menu handlers
   const toggleMobileMenu = () => {
     setMobileMenuOpen(!mobileMenuOpen);
   };
 
-  // ✅ Close mobile menu on navigation
   const handleLinkClick = (href?: string) => {
-    console.log('🔍 Mobile nav click:', href); // Debug log
     setMobileMenuOpen(false);
-    
-    // If href is provided, navigate programmatically (better for Safari mobile)
+    if (setIsMobileMenuOpen) {
+      setIsMobileMenuOpen(false);
+    }
+
     if (href) {
       setTimeout(() => {
         router.push(href);
@@ -134,9 +127,9 @@ export default function SideNavigation({
     }
   };
 
-  // ✅ Close mobile menu on outside click
+  // Close mobile menu on outside click
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent | TouchEvent) => { // ✅ ADD TouchEvent
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
       const sidebar = document.getElementById("mobile-sidebar");
       const menuButton = document.getElementById("mobile-menu-button");
 
@@ -152,21 +145,22 @@ export default function SideNavigation({
     };
 
     document.addEventListener("mousedown", handleClickOutside);
-    document.addEventListener("touchstart", handleClickOutside); // ✅ ADD THIS LINE
+    document.addEventListener("touchstart", handleClickOutside);
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
-      document.removeEventListener("touchstart", handleClickOutside); // ✅ ADD THIS LINE
+      document.removeEventListener("touchstart", handleClickOutside);
     };
-  }, [mobileMenuOpen, setMobileMenuOpen]);
+  }, [mobileMenuOpen]);
 
   // Use either the passed user or the auth user
   const user = propUser || authUser;
 
-  // ✅ Don't render navigation until auth is ready
+  // Don't render navigation until auth is ready
   if (!user) {
     return null;
   }
 
+  // ✅ RESTORED: Missing toggle functions
   const toggleSidebar = () => {
     const newCollapsedState = !isCollapsedState;
     setIsCollapsed(newCollapsedState);
@@ -201,18 +195,15 @@ export default function SideNavigation({
       typeof window !== "undefined" &&
       window.matchMedia("(prefers-color-scheme: dark)").matches);
 
-  // ✅ FIX: Combine all sections
-  const allSections = navigationStructure;
-
   return (
     <>
-      {/* ✅ Mobile Menu Button */}
+      {/* Mobile Menu Button */}
       <div className="lg:hidden fixed top-4 left-4 z-50">
         <button
           id="mobile-menu-button"
           onClick={toggleMobileMenu}
           className="p-2 bg-white dark:bg-gray-800 shadow-lg rounded-lg border border-gray-200 dark:border-gray-700"
-          style={{ // ✅ ADD THESE STYLES
+          style={{
             WebkitTapHighlightColor: 'transparent',
             touchAction: 'manipulation',
             minHeight: '44px',
@@ -227,19 +218,19 @@ export default function SideNavigation({
         </button>
       </div>
 
-      {/* ✅ Mobile Overlay */}
+      {/* Mobile Overlay */}
       {mobileMenuOpen && (
-        <div 
-          className="lg:hidden fixed inset-0 bg-black/50 z-40" 
-          onClick={() => handleLinkClick()} // ✅ UPDATE THIS
-          style={{ // ✅ ADD THESE STYLES
+        <div
+          className="lg:hidden fixed inset-0 bg-black/50 z-40"
+          onClick={() => handleLinkClick()}
+          style={{
             WebkitTapHighlightColor: 'transparent',
             touchAction: 'none',
           }}
         />
       )}
 
-      {/* ✅ Sidebar */}
+      {/* Sidebar */}
       <div
         id="mobile-sidebar"
         className={`
@@ -269,14 +260,14 @@ export default function SideNavigation({
 
               <Link
                 href="/"
-                onClick={(e) => { // ✅ UPDATE THIS FUNCTION
+                onClick={(e) => {
                   e.preventDefault();
                   handleLinkClick("/");
                 }}
                 className={`flex items-center ${
                   isCollapsedState ? "justify-center" : "space-x-3"
                 } relative z-10`}
-                style={{ // ✅ ADD THESE STYLES
+                style={{
                   WebkitTapHighlightColor: 'transparent',
                   touchAction: 'manipulation',
                 }}
@@ -304,11 +295,11 @@ export default function SideNavigation({
           </div>
 
           {/* Navigation items */}
-          <div 
+          <div
             className="flex-1 overflow-y-auto"
-            style={{ WebkitOverflowScrolling: 'touch' }} // ✅ ADD THIS
+            style={{ WebkitOverflowScrolling: 'touch' }}
           >
-            {allSections.map((section) => {
+            {navigationStructure.map((section) => {
               const isExpanded =
                 section.category === "General"
                   ? true
@@ -316,7 +307,7 @@ export default function SideNavigation({
 
               return (
                 <div key={section.category} className="space-y-1.5">
-                  {/* Category header - hide when collapsed, and don't show toggle for General */}
+                  {/* Category header */}
                   {!isCollapsedState && section.category !== "General" && (
                     <button
                       onClick={() => toggleCategory(section.category)}
@@ -335,7 +326,6 @@ export default function SideNavigation({
                     </button>
                   )}
 
-                  {/* Show General category label when not collapsed */}
                   {!isCollapsedState && section.category === "General" && (
                     <div
                       className={`text-sm font-medium px-4 py-2 ${
@@ -363,7 +353,7 @@ export default function SideNavigation({
                           <Link
                             key={item.name}
                             href={item.href}
-                            onClick={(e) => { // ✅ UPDATE THIS FUNCTION
+                            onClick={(e) => {
                               e.preventDefault();
                               handleLinkClick(item.href);
                             }}
@@ -375,7 +365,7 @@ export default function SideNavigation({
                                 : "text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"
                             }`}
                             title={isCollapsedState ? item.name : undefined}
-                            style={{ // ✅ ADD THESE STYLES
+                            style={{
                               WebkitTapHighlightColor: 'transparent',
                               touchAction: 'manipulation',
                               minHeight: '44px',
@@ -392,7 +382,6 @@ export default function SideNavigation({
                             />
                             {!isCollapsedState && item.name}
 
-                            {/* Tooltip for collapsed state */}
                             {isCollapsedState && (
                               <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-sm rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
                                 {item.name}
