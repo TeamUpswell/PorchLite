@@ -166,11 +166,18 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
   }, [user?.id, ensureValidSession]);
 
   useEffect(() => {
-    if (user && !hasInitialized && !isInitializing) {
-      setIsInitializing(true);
-      loadUserData().finally(() => setIsInitializing(false));
+    console.log("🔄 useProperty useEffect triggered. User:", user?.id, "HasInitialized:", hasInitialized);
+    
+    if (user?.id && !hasInitialized) {
+      console.log("🚀 Calling loadUserData...");
+      loadUserData();
+    } else if (!user?.id && hasInitialized) {
+      console.log("🧹 Clearing property data - user logged out");
+      setCurrentProperty(null);
+      setUserProperties([]);
+      setHasInitialized(false);
     }
-  }, [user, hasInitialized, isInitializing, loadUserData]);
+  }, [user?.id, hasInitialized, loadUserData]);
 
   const enhancedCurrentTenant = useMemo(() => {
     debugLog("🔍 Enhanced tenant calculation:", {
