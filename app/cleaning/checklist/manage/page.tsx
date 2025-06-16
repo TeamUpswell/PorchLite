@@ -23,6 +23,7 @@ import { ActionButton } from "@/components/ui/Icons";
 import Header from "@/components/layout/Header";
 import PageContainer from "@/components/layout/PageContainer";
 import StandardCard from "@/components/ui/StandardCard";
+import Button from "@/components/ui/button";
 
 // Type definitions
 interface ChecklistItem {
@@ -511,15 +512,18 @@ export default function ManageCleaningChecklistPage() {
                           </div>
                           {editingChecklist?.id !== checklist.id && (
                             <div className="flex space-x-2 ml-4">
-                              <button
+                              <Button
                                 onClick={() => handleEditItems(checklist)}
-                                className="px-3 py-2 text-sm bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors"
+                                variant="secondary"
+                                size="sm"
+                                aria-label={`View items in ${checklist.name} checklist`}
                               >
                                 View Items
-                              </button>
+                              </Button>
                               <ActionButton
                                 onClick={() => setEditingChecklist(checklist)}
                                 title="Edit checklist"
+                                aria-label={`Edit ${checklist.name} checklist`}
                                 variant="edit"
                               />
                               <ActionButton
@@ -528,6 +532,7 @@ export default function ManageCleaningChecklistPage() {
                                   setShowDeleteModal(true);
                                 }}
                                 title="Delete checklist"
+                                aria-label={`Delete ${checklist.name} checklist`}
                                 variant="delete"
                               />
                             </div>
