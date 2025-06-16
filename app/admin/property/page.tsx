@@ -2,19 +2,18 @@
 
 export const dynamic = "force-dynamic";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Building,
   Plus,
   Edit,
   Trash2,
-  Users,
   Settings,
   MapPin,
-  Calendar,
   Shield,
 } from "lucide-react";
 import Link from "next/link";
+import { toast } from "react-hot-toast";
 
 import Header from "@/components/layout/Header";
 import PageContainer from "@/components/layout/PageContainer";
@@ -23,15 +22,24 @@ import { useAuth } from "@/components/auth";
 import { canManageProperties } from "@/lib/utils/roles";
 import { useProperty } from "@/lib/hooks/useProperty";
 import { supabase } from "@/lib/supabase";
+import { Database } from "@/lib/database.types";
 
-interface Property {
-  id: string;
-  name: string;
-  address?: string;
-  description?: string;
-  created_at: string;
-  updated_at: string;
-}
+type Property = Database["public"]["Tables"]["properties"]["Row"];
+
+// ✅ Fix: Debug utility with proper ESLint handling
+const debug = (message: string, ...args: any[]) => {
+  if (process.env.NODE_ENV === "development") {
+    // eslint-disable-next-line no-console
+    console.log(message, ...args);
+  }
+};
+
+const debugError = (message: string, error: any) => {
+  if (process.env.NODE_ENV === "development") {
+    // eslint-disable-next-line no-console
+    console.error(message, error);
+  }
+};
 
 interface PropertyStats {
   totalRooms: number;
@@ -50,133 +58,165 @@ export default function AdminPropertyPage() {
     refreshProperties,
   } = useProperty();
 
-  const [loading, setLoading] = useState(true);
+  const [statsLoading, setStatsLoading] = useState(false);
   const [propertyStats, setPropertyStats] = useState<
     Record<string, PropertyStats>
   >({});
   const [showCreateModal, setShowCreateModal] = useState(false);
 
-  // Check if user has access
+  // ✅ Fix: Add confirm dialog state
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean;
+    propertyId: string | null;
+    propertyName: string;
+  }>({
+    isOpen: false,
+    propertyId: null,
+    propertyName: "",
+  });
+
   const hasAccess = canManageProperties(user);
 
-  useEffect(() => {
-    if (!authLoading && hasAccess && userProperties.length > 0) {
-      fetchPropertyStats();
-    } else if (!authLoading) {
-      setLoading(false);
-    }
-  }, [user, userProperties, authLoading, hasAccess]);
-
-  async function fetchPropertyStats() {
-    if (userProperties.length === 0) {
-      setLoading(false);
-      return;
-    }
+  const fetchPropertyStats = useCallback(async () => {
+    if (userProperties.length === 0) return;
 
     try {
-      setLoading(true);
+      setStatsLoading(true);
 
-      // Fetch stats for each property
-      const stats: Record<string, PropertyStats> = {};
-      for (const property of userProperties) {
-        try {
-          // Get room count
-          const { count: roomCount } = await supabase
-            .from("rooms")
-            .select("*", { count: "exact", head: true })
-            .eq("property_id", property.id);
+      const propertyIds = userProperties.map((p) => p.id);
 
-          // Get reservation count
-          const { count: reservationCount } = await supabase
+      // Batch query all stats at once
+      const [roomsData, reservationsData, usersData] = await Promise.allSettled(
+        [
+          supabase
+            .from("cleaning_rooms")
+            .select("property_id")
+            .in("property_id", propertyIds),
+
+          supabase
             .from("reservations")
-            .select("*", { count: "exact", head: true })
-            .eq("property_id", property.id);
+            .select("property_id")
+            .in("property_id", propertyIds),
 
-          // Get user count from tenants table
-          const { count: userCount } = await supabase
+          supabase
             .from("tenants")
-            .select("*", { count: "exact", head: true })
-            .eq("tenant_id", property.id);
+            .select("property_id")
+            .in("property_id", propertyIds),
+        ]
+      );
 
-          stats[property.id] = {
-            totalRooms: roomCount || 0,
-            totalReservations: reservationCount || 0,
-            totalUsers: userCount || 0,
-            lastActivity: property.updated_at,
-          };
-        } catch (error) {
-          console.error(
-            `Error fetching stats for property ${property.id}:`,
-            error
-          );
-          stats[property.id] = {
-            totalRooms: 0,
-            totalReservations: 0,
-            totalUsers: 0,
-            lastActivity: property.updated_at,
-          };
-        }
-      }
+      // Process results
+      const stats: Record<string, PropertyStats> = {};
+
+      userProperties.forEach((property) => {
+        const roomCount =
+          roomsData.status === "fulfilled"
+            ? roomsData.value.data?.filter((r) => r.property_id === property.id)
+                .length || 0
+            : 0;
+
+        const reservationCount =
+          reservationsData.status === "fulfilled"
+            ? reservationsData.value.data?.filter(
+                (r) => r.property_id === property.id
+              ).length || 0
+            : 0;
+
+        const userCount =
+          usersData.status === "fulfilled"
+            ? usersData.value.data?.filter((u) => u.property_id === property.id)
+                .length || 0
+            : 0;
+
+        stats[property.id] = {
+          totalRooms: roomCount,
+          totalReservations: reservationCount,
+          totalUsers: userCount,
+          lastActivity: property.updated_at,
+        };
+      });
 
       setPropertyStats(stats);
     } catch (error) {
-      console.error("Error loading property stats:", error);
+      debugError("Error loading property stats:", error);
+      toast.error("Failed to load property statistics");
     } finally {
-      setLoading(false);
+      setStatsLoading(false);
     }
-  }
+  }, [userProperties]);
 
-  const handleDeleteProperty = async (propertyId: string) => {
+  useEffect(() => {
     if (
-      !confirm(
-        "Are you sure you want to delete this property? This action cannot be undone."
-      )
+      !authLoading &&
+      !propertyLoading &&
+      hasAccess &&
+      userProperties.length > 0
     ) {
-      return;
+      fetchPropertyStats();
     }
+  }, [
+    userProperties,
+    authLoading,
+    propertyLoading,
+    hasAccess,
+    fetchPropertyStats,
+  ]);
+
+  // ✅ Fix: Replace confirm() with custom dialog
+  const handleDeleteProperty = (propertyId: string) => {
+    const property = userProperties.find((p) => p.id === propertyId);
+    setConfirmDialog({
+      isOpen: true,
+      propertyId,
+      propertyName: property?.name || "this property",
+    });
+  };
+
+  // ✅ Fix: Actual delete function
+  const confirmDeleteProperty = async () => {
+    if (!confirmDialog.propertyId) return;
 
     try {
       const { error } = await supabase
         .from("properties")
         .delete()
-        .eq("id", propertyId);
+        .eq("id", confirmDialog.propertyId);
 
       if (error) throw error;
 
-      // Refresh properties from PropertyProvider
       await refreshProperties();
 
-      // If the deleted property was the current one, clear it
-      if (currentProperty?.id === propertyId) {
+      if (currentProperty?.id === confirmDialog.propertyId) {
         setCurrentProperty(null);
       }
 
-      alert("Property deleted successfully");
+      toast.success("Property deleted successfully");
     } catch (error) {
-      console.error("Error deleting property:", error);
-      alert("Failed to delete property");
+      debugError("Error deleting property:", error);
+      toast.error("Failed to delete property");
     }
   };
 
+  // Safe aggregation with proper null checks
   const totalProperties = userProperties.length;
   const totalRooms = Object.values(propertyStats).reduce(
-    (sum, stats) => sum + stats.totalRooms,
+    (sum, stats) => sum + (stats?.totalRooms || 0),
     0
   );
   const totalReservations = Object.values(propertyStats).reduce(
-    (sum, stats) => sum + stats.totalReservations,
+    (sum, stats) => sum + (stats?.totalReservations || 0),
     0
   );
   const totalUsers = Object.values(propertyStats).reduce(
-    (sum, stats) => sum + stats.totalUsers,
+    (sum, stats) => sum + (stats?.totalUsers || 0),
     0
   );
 
-  // Show loading while auth is initializing
+  // Loading states
   if (authLoading) {
     return (
       <div className="p-6">
-        <Header title="Property Management" />
+        <Header />
         <PageContainer>
           <StandardCard>
             <div className="flex items-center justify-center py-12">
@@ -190,14 +230,13 @@ export default function AdminPropertyPage() {
   }
 
   if (!user) {
-    return null; // Auth will redirect
+    return null;
   }
 
-  // Access denied for non-admin users
   if (!hasAccess) {
     return (
       <div className="p-6">
-        <Header title="Property Management" />
+        <Header />
         <PageContainer>
           <StandardCard>
             <div className="text-center py-8">
@@ -206,7 +245,7 @@ export default function AdminPropertyPage() {
                 Access Denied
               </h3>
               <p className="mt-1 text-sm text-gray-500">
-                You don't have permission to manage properties.
+                You don&apos;t have permission to manage properties.
               </p>
               <div className="text-xs text-gray-400 mt-4 p-2 bg-gray-50 rounded">
                 <p>Role: {user?.user_metadata?.role || "undefined"}</p>
@@ -219,11 +258,10 @@ export default function AdminPropertyPage() {
     );
   }
 
-  // Show loading state
-  if (propertyLoading || loading) {
+  if (propertyLoading) {
     return (
       <div className="p-6">
-        <Header title="Property Management" />
+        <Header />
         <PageContainer>
           <StandardCard>
             <div className="flex items-center justify-center py-12">
@@ -238,68 +276,61 @@ export default function AdminPropertyPage() {
 
   return (
     <div className="p-6">
-      <Header title="Property Management" />
+      <Header />
       <PageContainer>
         <div className="space-y-6">
-          {/* Page Header */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <Building className="h-6 w-6 text-blue-600" />
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">
-                  Property Management
-                </h1>
-                <p className="text-gray-600">
-                  Manage your properties and their settings
-                </p>
+          {/* Page Header using StandardCard */}
+          <StandardCard
+            title="Property Management"
+            subtitle="Manage your properties and their settings"
+            icon={<Building className="h-6 w-6" />}
+            headerActions={
+              <button
+                onClick={() => setShowCreateModal(true)}
+                className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Add Property
+              </button>
+            }
+          >
+            {/* Overview Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              <div className="text-center p-4 bg-blue-50 rounded-lg">
+                <div className="text-2xl font-bold text-blue-600 mb-1">
+                  {totalProperties}
+                </div>
+                <p className="text-gray-600 text-sm">Your Properties</p>
+              </div>
+
+              <div className="text-center p-4 bg-green-50 rounded-lg">
+                <div className="text-2xl font-bold text-green-600 mb-1">
+                  {statsLoading ? "..." : totalRooms}
+                </div>
+                <p className="text-gray-600 text-sm">Total Rooms</p>
+              </div>
+
+              <div className="text-center p-4 bg-purple-50 rounded-lg">
+                <div className="text-2xl font-bold text-purple-600 mb-1">
+                  {statsLoading ? "..." : totalReservations}
+                </div>
+                <p className="text-gray-600 text-sm">Total Reservations</p>
+              </div>
+
+              <div className="text-center p-4 bg-orange-50 rounded-lg">
+                <div className="text-2xl font-bold text-orange-600 mb-1">
+                  {statsLoading ? "..." : totalUsers}
+                </div>
+                <p className="text-gray-600 text-sm">Total Users</p>
               </div>
             </div>
-            <button
-              onClick={() => setShowCreateModal(true)}
-              className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Add Property
-            </button>
-          </div>
-
-          {/* Overview Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <StandardCard className="text-center" hover>
-              <div className="text-2xl font-bold text-blue-600 mb-1">
-                {totalProperties}
-              </div>
-              <p className="text-gray-600 text-sm">Your Properties</p>
-            </StandardCard>
-
-            <StandardCard className="text-center" hover>
-              <div className="text-2xl font-bold text-green-600 mb-1">
-                {totalRooms}
-              </div>
-              <p className="text-gray-600 text-sm">Total Rooms</p>
-            </StandardCard>
-
-            <StandardCard className="text-center" hover>
-              <div className="text-2xl font-bold text-purple-600 mb-1">
-                {totalReservations}
-              </div>
-              <p className="text-gray-600 text-sm">Total Reservations</p>
-            </StandardCard>
-
-            <StandardCard className="text-center" hover>
-              <div className="text-2xl font-bold text-orange-600 mb-1">
-                {totalUsers}
-              </div>
-              <p className="text-gray-600 text-sm">Total Users</p>
-            </StandardCard>
-          </div>
+          </StandardCard>
 
           {/* Current Property Info */}
           {currentProperty && (
             <StandardCard
               title="Current Property"
               subtitle="Currently selected property"
-              className="mb-6"
               headerActions={
                 <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                   Active
@@ -477,6 +508,7 @@ export default function AdminPropertyPage() {
                             <Edit className="h-4 w-4" />
                           </Link>
 
+                          {/* ✅ Fix: Use custom delete handler */}
                           <button
                             onClick={() => handleDeleteProperty(property.id)}
                             className="p-1.5 text-gray-400 hover:text-red-600 transition-colors"
@@ -516,8 +548,44 @@ export default function AdminPropertyPage() {
               onCreated={async (newProperty) => {
                 await refreshProperties();
                 setShowCreateModal(false);
+                toast.success("Property created successfully!");
               }}
             />
+          )}
+
+          {/* ✅ Fix: Add ConfirmDialog */}
+          {/* Confirm Delete Dialog */}
+          {confirmDialog.isOpen && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">
+                  Delete Property
+                </h2>
+                <p className="text-gray-600 mb-6">
+                  Are you sure you want to delete &quot;{confirmDialog.propertyName}&quot;? This action cannot be undone and will remove all associated data including rooms, reservations, and inventory.
+                </p>
+                <div className="flex justify-end space-x-3">
+                  <button
+                    onClick={() =>
+                      setConfirmDialog({
+                        isOpen: false,
+                        propertyId: null,
+                        propertyName: "",
+                      })
+                    }
+                    className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={confirmDeleteProperty}
+                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                  >
+                    Delete Property
+                  </button>
+                </div>
+              </div>
+            </div>
           )}
         </div>
       </PageContainer>
@@ -564,7 +632,7 @@ function CreatePropertyModal({
       onCreated(data);
     } catch (error) {
       console.error("Error creating property:", error);
-      alert("Failed to create property");
+      toast.error("Failed to create property");
     } finally {
       setLoading(false);
     }

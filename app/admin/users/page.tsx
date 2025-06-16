@@ -21,7 +21,7 @@ import PageContainer from "@/components/layout/PageContainer";
 import StandardCard from "@/components/ui/StandardCard";
 import { useAuth } from "@/components/auth";
 import { canManageUsers } from "@/lib/utils/roles";
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@supabase/supabase-js";
 import CreateUserModal from "@/components/admin/CreateUserModal";
 import toast from "react-hot-toast";
 
@@ -36,6 +36,12 @@ interface User {
   role?: string;
   last_sign_in?: string;
 }
+
+// Initialize Supabase client
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 export default function UsersPage() {
   const { user: currentUser, loading: authLoading } = useAuth();

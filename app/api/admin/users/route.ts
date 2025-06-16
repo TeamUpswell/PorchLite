@@ -1,6 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
-import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { cookies } from "next/headers";
 
 // Initialize Supabase with admin privileges using environment variables
@@ -19,8 +18,11 @@ interface UserRoleRequest {
 export async function GET(request: NextRequest) {
   try {
     // Create client inside the function
-    const supabase = createRouteHandlerClient({ cookies });
-    
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    );
+
     const { data, error } = await supabaseAdmin.auth.admin.listUsers();
 
     if (error) {
@@ -60,7 +62,10 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createRouteHandlerClient({ cookies });
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    );
     const { userId, role, action }: UserRoleRequest = await request.json();
 
     if (!userId || !role || !action) {

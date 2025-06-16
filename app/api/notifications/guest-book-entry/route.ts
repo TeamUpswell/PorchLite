@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+)
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,8 +17,6 @@ export async function POST(request: NextRequest) {
       hasRecommendations, 
       numberOfNights 
     } = await request.json();
-    
-    const supabase = createRouteHandlerClient({ cookies });
     
     // Get property owner email
     const { data: property, error: propertyError } = await supabase

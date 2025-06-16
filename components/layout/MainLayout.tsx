@@ -3,7 +3,8 @@
 import { useState, useEffect } from "react";
 import { Menu, X } from "lucide-react";
 import { useAuth } from "@/components/auth";
-import { useProperty } from "@/lib/hooks/useProperty";
+import { useProperty } from "@/lib/hooks/useProperty"; // 🔑 ADD THIS
+import { PropertySwitcher } from "@/components/property/PropertySwitcher"; // 🔑 ADD THIS
 import SideNavigation from "@/components/SideNavigation";
 import { usePathname } from "next/navigation";
 import { supabase } from "@/lib/supabase";
@@ -14,6 +15,7 @@ interface MainLayoutProps {
 
 export default function MainLayout({ children }: MainLayoutProps) {
   const { user } = useAuth();
+  const { userProperties } = useProperty(); // 🔑 ADD THIS
   const pathname = usePathname();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -74,7 +76,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
 
         {/* ✅ Main Content Area */}
         <div className="flex-1 flex flex-col min-w-0">
-          {/* Mobile Header - Show menu button */}
+          {/* 🔑 ENHANCED Mobile Header with PropertySwitcher */}
           <div className="lg:hidden flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
             <button
               onClick={() => setIsMobileMenuOpen(true)}
@@ -82,13 +84,20 @@ export default function MainLayout({ children }: MainLayoutProps) {
             >
               <Menu className="h-6 w-6" />
             </button>
-            <h1 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-              PorchLite
-            </h1>
-            <div className="w-10" /> {/* Spacer for centering */}
+
+            <div className="flex-1 flex justify-center">
+              <h1 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                PorchLite
+              </h1>
+            </div>
+
+            {/* 🔑 Mobile PropertySwitcher (only if multiple properties) */}
+            <div className="w-32">
+              {userProperties.length > 1 && <PropertySwitcher />}
+            </div>
           </div>
 
-          {/* ✅ Page Content - This is where smooth transitions happen */}
+          {/* ✅ Page Content */}
           <main className="flex-1 overflow-auto">{children}</main>
         </div>
       </div>

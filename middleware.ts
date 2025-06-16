@@ -1,66 +1,115 @@
-import { createMiddlewareClient } from "@supabase/auth-helpers-nextjs";
+import { createServerClient } from "@supabase/ssr";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function middleware(request: NextRequest) {
-  const res = NextResponse.next();
-  const pathname = request.nextUrl.pathname;
+  let response = NextResponse.next({
+    request: {
+      headers: request.headers,
+    },
+  });
 
-  console.log("🔍 Middleware running on:", pathname);
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return request.cookies.get(name)?.value;
+        },
+        set(name: string, value: string, options: any) {
+          request.cookies.set({
+            name,
+            value,
+            ...options,
+          });
+          response = NextResponse.next({
+            request: {
+              headers: request.headers,
+            },
+          });
+          response.cookies.set({
+            name,
+            value,
+            ...options,
+          });
+        },
+        remove(name: string, options: any) {
+          request.cookies.set({
+            name,
+            value: "",
+            ...options,
+          });
+          response = NextResponse.next({
+            request: {
+              headers: request.headers,
+            },
+          });
+          response.cookies.set({
+            name,
+            value: "",
+            ...options,
+          });
+        },
+      },
+    }
+  );
 
-  // Define public routes that don't need authentication
+  // Refresh session if expired - required for Server Components
+  await supabase.auth.getUser();
+
+  // Check auth for protected routes
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  // Public routes that don't require authentication
   const publicRoutes = [
-    "/",
     "/auth",
-    "/auth/register",
-    "/auth/forgot-password",
-    "/auth/reset-password",
-    "/login",
-    "/signup",
-    "/.well-known",
+    "/auth/login",
+    "/auth/signup",
+    "/auth/callback",
+    "/",
     "/images",
     "/favicon.ico",
     "/_next",
+    "/.well-known", // Add this for browser dev tools
   ];
-
-  // Check if current path is public
   const isPublicRoute = publicRoutes.some((route) =>
-    pathname.startsWith(route)
+    request.nextUrl.pathname.startsWith(route)
   );
 
+  console.log("🔍 Middleware running on:", request.nextUrl.pathname);
+
   if (isPublicRoute) {
-    console.log("✅ Public route detected:", pathname);
-    return res;
+    console.log("✅ Public route detected:", request.nextUrl.pathname);
+    return response;
   }
 
-  // For protected routes, check authentication
-  console.log("🔒 Protected route detected:", pathname);
-
-  const supabase = createMiddlewareClient({ req: request, res });
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-
-  console.log("🔑 Session check result:", !!session);
-
-  if (!session) {
-    console.log("❌ No session, redirecting to auth");
-    const redirectUrl = new URL("/auth", request.url);
-    redirectUrl.searchParams.set("redirectedFrom", request.nextUrl.pathname);
+  // Redirect to login if not authenticated
+  if (!user) {
+    console.log(
+      "🚫 No user found, redirecting to login from:",
+      request.nextUrl.pathname
+    );
+    const redirectUrl = new URL("/auth/login", request.url);
+    redirectUrl.searchParams.set("redirectTo", request.nextUrl.pathname);
     return NextResponse.redirect(redirectUrl);
   }
 
-  console.log("✅ Session valid, allowing access");
-
-  // If attempting to access the problematic route
-  if (request.nextUrl.pathname === "/properties/create") {
-    // Redirect to a temporary page that explains
-    return NextResponse.redirect(new URL("/account/properties", request.url));
-  }
-
-  // Continue processing other routes
-  return res;
+  console.log("✅ User authenticated:", user.email);
+  return response;
 }
 
 export const config = {
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
+  matcher: [
+    /*
+     * Match all request paths except for the ones starting with:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * - public folder
+     * - api routes that handle their own auth
+     */
+    "/((?!_next/static|_next/image|favicon.ico|api|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+  ],
 };

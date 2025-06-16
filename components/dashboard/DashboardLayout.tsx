@@ -1,71 +1,19 @@
-"use client";
-
-import StatsOverview from "./StatsOverview";
-import UpcomingVisits from "./UpcomingVisits";
-import InventoryAlerts from "./InventoryAlerts";
-import TaskAlerts from "./TaskAlerts";
-
 interface DashboardLayoutProps {
-  stats: {
-    upcomingVisits: any[];
-    inventoryAlerts: any[];
-    maintenanceAlerts: any[];
-    totalInventoryCount: number;
-  };
-  loading?: {
-    visits: boolean;
-    inventory: boolean;
-    tasks: boolean;
-  };
-  onAddReservation: () => void;
-  enabledComponents?: string[];
-  showBanner?: boolean;
+  children: React.ReactNode;
+  className?: string;
 }
 
-export default function DashboardLayout({
-  stats,
-  loading = { visits: false, inventory: false, tasks: false },
-  onAddReservation,
-  enabledComponents = ['stats', 'visits', 'inventory', 'tasks'],
-  showBanner = false
+export default function DashboardLayout({ 
+  children, 
+  className = "" 
 }: DashboardLayoutProps) {
   return (
-    <div className="space-y-6">
-      {/* Stats Overview */}
-      {enabledComponents.includes('stats') && (
-        <StatsOverview {...stats} />
-      )}
-
-      {/* Dashboard Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column */}
-        <div className="lg:col-span-2 space-y-6">
-          {enabledComponents.includes('visits') && (
-            <UpcomingVisits
-              visits={stats.upcomingVisits}
-              onAddReservation={onAddReservation}
-              loading={loading.visits}
-            />
-          )}
+    <div className={`min-h-screen bg-gray-50 ${className}`}>
+      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+        <div className="px-4 py-6 sm:px-0">
+          {children}
         </div>
-
-        {/* Right Column */}
-        <div className="space-y-6">
-          {enabledComponents.includes('inventory') && (
-            <InventoryAlerts 
-              alerts={stats.inventoryAlerts} 
-              loading={loading.inventory}
-            />
-          )}
-          
-          {enabledComponents.includes('tasks') && (
-            <TaskAlerts 
-              alerts={stats.maintenanceAlerts}
-              loading={loading.tasks}
-            />
-          )}
-        </div>
-      </div>
+      </main>
     </div>
   );
 }

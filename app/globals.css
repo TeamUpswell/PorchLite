@@ -182,3 +182,56 @@ select:disabled {
 .space-y-3 > * {
   @apply mb-3;
 }
+
+/* globals.css - Add these dark theme utilities */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /* Dark theme body background */
+  .dark-theme {
+    @apply bg-gray-900;
+  }
+
+  /* Ensure proper text contrast on dark backgrounds */
+  .dark-theme .card-content {
+    @apply bg-white text-gray-900;
+  }
+}
+
+@layer components {
+  /* Consistent card styling for dark theme */
+  .standard-card-dark {
+    @apply bg-white border border-gray-200 rounded-lg shadow-sm;
+  }
+
+  /* Header styling for dark theme */
+  .header-dark {
+    @apply bg-gray-800 border-gray-700 text-white;
+  }
+}
+
+@layer utilities {
+  /* Strengthen text shadow utilities for better readability */
+  .text-shadow-sm {
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+  }
+
+  .text-shadow-md {
+    text-shadow: 0 3px 6px rgba(0, 0, 0, 0.9);
+  }
+
+  .text-shadow-lg {
+    text-shadow: 0 4px 8px rgba(0, 0, 0, 0.9), 0 2px 4px rgba(0, 0, 0, 0.8);
+  }
+
+  /* Add text stroke utility for extra contrast */
+  .text-stroke {
+    -webkit-text-stroke: 1px rgba(0, 0, 0, 0.8);
+  }
+
+  .text-stroke-2 {
+    -webkit-text-stroke: 2px rgba(0, 0, 0, 0.6);
+  }
+}

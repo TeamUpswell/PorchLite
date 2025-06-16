@@ -1,11 +1,53 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, MapPin, Star, Trash2, Search, MessageCircle, Users, Clock } from "lucide-react";
+import {
+  Plus,
+  MapPin,
+  Star,
+  Trash2,
+  Search,
+  MessageCircle,
+  Users,
+  Clock,
+} from "lucide-react";
 import GooglePlacesSearch, {
   useGooglePlacesSearch,
 } from "@/components/ui/GooglePlacesSearch";
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createBrowserClient } from "@supabase/ssr";
+
+// ✅ Fix: Debug utility with proper ESLint handling
+const debug = (message: string, ...args: any[]) => {
+  if (process.env.NODE_ENV === 'development') {
+    // eslint-disable-next-line no-console
+    console.log(message, ...args);
+  }
+};
+
+// Unified interface that matches Google Maps API structure
+interface PlaceResult {
+  place_id: string;
+  name: string;
+  formatted_address?: string; // Optional like Google Maps
+  vicinity?: string;
+  geometry?: {
+    location?: {
+      lat: number;
+      lng: number;
+    };
+  };
+  types?: string[];
+  rating?: number;
+  website?: string;
+  formatted_phone_number?: string;
+  international_phone_number?: string;
+  // Custom properties for your app
+  category?: string;
+  guest_rating?: number;
+  guest_notes?: string;
+  existing_recommendation_id?: string;
+  is_new_recommendation?: boolean;
+}
 
 interface ExistingRecommendation {
   id: string;
@@ -52,12 +94,20 @@ export default function RecommendationsStep({
   updateFormData,
   property,
 }: RecommendationsStepProps) {
-  const { selectedPlace, setSelectedPlace, clearSelection } = useGooglePlacesSearch();
-  const [existingRecommendation, setExistingRecommendation] = useState<ExistingRecommendation | null>(null);
+  const { selectedPlace, setSelectedPlace, clearSelection } =
+    useGooglePlacesSearch();
+  const [existingRecommendation, setExistingRecommendation] =
+    useState<ExistingRecommendation | null>(null);
   const [checkingExisting, setCheckingExisting] = useState(false);
   const [guestRating, setGuestRating] = useState(5);
   const [guestNotes, setGuestNotes] = useState("");
-  const supabase = createClientComponentClient();
+  const [recommendations, setRecommendations] = useState<GuestRecommendation[]>([]);
+
+  // Create Supabase client using new @supabase/ssr package
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
 
   const categories = [
     { id: "restaurant", name: "Restaurants", icon: "🍽️" },
@@ -70,16 +120,42 @@ export default function RecommendationsStep({
     { id: "emergency", name: "Emergency", icon: "🚨" },
   ];
 
-  // Check for existing recommendations when a place is selected from Google
-  const checkForExistingRecommendation = async (placeId: string, placeName: string) => {
-    if (!property?.id) return null;
+  // ✅ Fix: Helper function to convert Google Maps result to LocalPlaceResult
+  const convertGooglePlaceToLocal = (googlePlace: any): PlaceResult => {
+    const location = googlePlace.geometry?.location;
     
+    return {
+      place_id: googlePlace.place_id || '',
+      name: googlePlace.name || '',
+      formatted_address: googlePlace.formatted_address, // Keep as optional
+      vicinity: googlePlace.vicinity,
+      rating: googlePlace.rating,
+      website: googlePlace.website,
+      formatted_phone_number: googlePlace.formatted_phone_number,
+      international_phone_number: googlePlace.international_phone_number,
+      types: googlePlace.types || [],
+      geometry: location ? {
+        location: {
+          lat: typeof location.lat === 'function' ? location.lat() : location.lat,
+          lng: typeof location.lng === 'function' ? location.lng() : location.lng,
+        }
+      } : undefined,
+    };
+  };
+
+  // Check for existing recommendations when a place is selected from Google
+  const checkForExistingRecommendation = async (
+    placeId: string,
+    placeName: string
+  ) => {
+    if (!property?.id) return null;
+
     setCheckingExisting(true);
     try {
-      // Build the base query
-      let query = supabase
-        .from('recommendations')
-        .select(`
+      const query = supabase
+        .from("recommendations")
+        .select(
+          `
           id,
           name,
           category,
@@ -95,47 +171,56 @@ export default function RecommendationsStep({
               visit_date
             )
           )
-        `)
-        .eq('property_id', property.id)
-        .eq('is_recommended', true);
+        `
+        )
+        .eq("property_id", property.id)
+        .eq("is_recommended", true);
 
-      // First try to find by place_id if available
       if (placeId) {
-        const { data: placeIdData, error: placeIdError } = await query.eq('place_id', placeId);
-        
+        const { data: placeIdData, error: placeIdError } = await query.eq(
+          "place_id",
+          placeId
+        );
+
         if (!placeIdError && placeIdData && placeIdData.length > 0) {
           return processRecommendationData(placeIdData[0]);
         }
       }
 
-      // If no place_id match, try name similarity
-      const { data: nameData, error: nameError } = await query.ilike('name', `%${placeName}%`);
-      
+      const { data: nameData, error: nameError } = await query.ilike(
+        "name",
+        `%${placeName}%`
+      );
+
       if (!nameError && nameData && nameData.length > 0) {
         return processRecommendationData(nameData[0]);
       }
 
       return null;
     } catch (error) {
-      console.error('Error checking existing recommendations:', error);
+      debug("Error checking existing recommendations:", error);
       return null;
     } finally {
       setCheckingExisting(false);
     }
   };
 
-  // Helper function to process recommendation data
   const processRecommendationData = (rec: any): ExistingRecommendation => {
-    const guestReviews = rec.guest_recommendations?.map((gr: any) => ({
-      guest_name: gr.guest_book_entries?.guest_name || 'Anonymous',
-      guest_rating: gr.guest_rating,
-      guest_notes: gr.guest_notes,
-      visit_date: gr.guest_book_entries?.visit_date || '',
-    })) || [];
+    const guestReviews =
+      rec.guest_recommendations?.map((gr: any) => ({
+        guest_name: gr.guest_book_entries?.guest_name || "Anonymous",
+        guest_rating: gr.guest_rating,
+        guest_notes: gr.guest_notes,
+        visit_date: gr.guest_book_entries?.visit_date || "",
+      })) || [];
 
-    const avgRating = guestReviews.length > 0 
-      ? guestReviews.reduce((sum: number, review: any) => sum + review.guest_rating, 0) / guestReviews.length
-      : 0;
+    const avgRating =
+      guestReviews.length > 0
+        ? guestReviews.reduce(
+            (sum: number, review: any) => sum + review.guest_rating,
+            0
+          ) / guestReviews.length
+        : 0;
 
     return {
       id: rec.id,
@@ -151,7 +236,6 @@ export default function RecommendationsStep({
     };
   };
 
-  // Enhanced category detection
   const getCategoryFromTypes = (types: string[]): string => {
     const typeMap: Record<string, string> = {
       restaurant: "restaurant",
@@ -193,19 +277,22 @@ export default function RecommendationsStep({
     return "services";
   };
 
+  // ✅ Fix: Updated to handle the type conversion properly
   const handleGooglePlaceSelect = async (place: any) => {
-    console.log('Selected place from Google:', place); // Debug log
-    
-    // Set the selected place immediately to show in UI
-    setSelectedPlace(place);
-    
-    // Check for existing recommendation in our database
-    const existing = await checkForExistingRecommendation(place.place_id, place.name);
-    console.log('Existing recommendation found:', existing); // Debug log
-    
-    setExistingRecommendation(existing);
+    debug("Selected place from Google:", place);
 
-    // Reset guest input
+    // Convert Google place to local format
+    const localPlace = convertGooglePlaceToLocal(place);
+    setSelectedPlace(localPlace);
+
+    // Check for existing recommendation
+    const existing = await checkForExistingRecommendation(
+      localPlace.place_id,
+      localPlace.name
+    );
+    debug("Existing recommendation found:", existing);
+
+    setExistingRecommendation(existing);
     setGuestRating(5);
     setGuestNotes("");
   };
@@ -213,32 +300,38 @@ export default function RecommendationsStep({
   const addRecommendation = () => {
     if (!selectedPlace) return;
     if (!guestNotes.trim()) {
-      alert("Please add your experience or notes about this place");
       return;
     }
 
     const detectedCategory = getCategoryFromTypes(selectedPlace.types || []);
-    
+
     const newRecommendation = {
       name: selectedPlace.name,
       category: detectedCategory,
-      address: selectedPlace.formatted_address || selectedPlace.vicinity || '',
+      address: selectedPlace.formatted_address || selectedPlace.vicinity || "",
       coordinates: {
         lat: selectedPlace.geometry?.location?.lat || 0,
-        lng: selectedPlace.geometry?.location?.lng || 0
+        lng: selectedPlace.geometry?.location?.lng || 0,
       },
-      description: existingRecommendation 
-        ? `Google Place: ${selectedPlace.types?.slice(0, 3).join(", ") || ""}` 
-        : `Found via Google Places - ${selectedPlace.types?.slice(0, 3).join(", ") || ""}`,
+      description: existingRecommendation
+        ? `Google Place: ${selectedPlace.types?.slice(0, 3).join(", ") || ""}`
+        : `Found via Google Places - ${
+            selectedPlace.types?.slice(0, 3).join(", ") || ""
+          }`,
       rating: selectedPlace.rating || 0,
       website: selectedPlace.website || "",
-      phone_number: selectedPlace.formatted_phone_number || selectedPlace.international_phone_number || "",
+      phone_number:
+        selectedPlace.formatted_phone_number ||
+        selectedPlace.international_phone_number ||
+        "",
       place_id: selectedPlace.place_id,
       guest_rating: guestRating,
       guest_notes: guestNotes,
       existing_recommendation_id: existingRecommendation?.id,
       is_new_recommendation: !existingRecommendation,
     };
+
+    setRecommendations(prev => [...prev, newRecommendation]);
 
     updateFormData({
       recommendations: [...formData.recommendations, newRecommendation],
@@ -260,9 +353,9 @@ export default function RecommendationsStep({
   const renderStars = (
     rating: number,
     onRatingChange?: (rating: number) => void,
-    size: 'sm' | 'md' = 'sm'
+    size: "sm" | "md" = "sm"
   ) => {
-    const starSize = size === 'sm' ? 'h-4 w-4' : 'h-5 w-5';
+    const starSize = size === "sm" ? "h-4 w-4" : "h-5 w-5";
     return Array.from({ length: 5 }, (_, i) => (
       <button
         key={i}
@@ -272,6 +365,8 @@ export default function RecommendationsStep({
           i < rating ? "text-yellow-400" : "text-gray-300"
         }`}
         disabled={!onRatingChange}
+        title={`Rate ${i + 1} star${i + 1 !== 1 ? 's' : ''}`}
+        aria-label={`Rate ${i + 1} star${i + 1 !== 1 ? 's' : ''}`}
       >
         <Star className={`${starSize} ${i < rating ? "fill-current" : ""}`} />
       </button>
@@ -279,10 +374,10 @@ export default function RecommendationsStep({
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric'
+    return new Date(dateString).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
     });
   };
 
@@ -314,86 +409,87 @@ export default function RecommendationsStep({
             onPlaceSelect={handleGooglePlaceSelect}
             placeholder="Search for restaurants, shops, attractions, etc..."
             propertyLocation={property?.coordinates || property?.address}
-            radius={50000} // 50km radius
+            radius={50000}
             showDetails={true}
-            types={['establishment']} // Only show business establishments
             excludeTypes={[
-              'street_address',
-              'route',
-              'postal_code',
-              'country',
-              'administrative_area_level_1',
-              'administrative_area_level_2',
-              'locality',
-              'sublocality',
-              'neighborhood',
-              'premise',
-              'subpremise',
-              'natural_feature',
-              'political'
+              "street_address",
+              "route",
+              "postal_code",
+              "country",
+              "administrative_area_level_1",
+              "administrative_area_level_2",
+              "locality",
+              "sublocality",
+              "neighborhood",
+              "premise",
+              "subpremise",
+              "natural_feature",
+              "political",
             ]}
             searchOptions={{
               strictBounds: false,
               locationBias: property?.coordinates || property?.address,
-              types: ['establishment'], // Enforce establishment type
             }}
-            filterResults={(results) => {
-              // Additional filtering to exclude residential addresses
-              return results.filter(place => {
+            filterResults={(results: any[]) => {
+              return results.filter((place: any) => {
                 const types = place.types || [];
-                
-                // Exclude if it contains residential/address types
+
                 const excludeTypes = [
-                  'street_address',
-                  'route', 
-                  'postal_code',
-                  'country',
-                  'administrative_area_level_1',
-                  'administrative_area_level_2', 
-                  'locality',
-                  'sublocality',
-                  'neighborhood',
-                  'premise',
-                  'subpremise',
-                  'natural_feature',
-                  'political'
+                  "street_address",
+                  "route",
+                  "postal_code",
+                  "country",
+                  "administrative_area_level_1",
+                  "administrative_area_level_2",
+                  "locality",
+                  "sublocality",
+                  "neighborhood",
+                  "premise",
+                  "subpremise",
+                  "natural_feature",
+                  "political",
                 ];
-                
-                const hasExcludedType = types.some(type => excludeTypes.includes(type));
+
+                const hasExcludedType = types.some((type: string) =>
+                  excludeTypes.includes(type)
+                );
                 if (hasExcludedType) return false;
-                
-                // Only include if it has business/POI types
+
                 const businessTypes = [
-                  'establishment',
-                  'point_of_interest', 
-                  'store',
-                  'restaurant',
-                  'food',
-                  'lodging',
-                  'tourist_attraction',
-                  'shopping_mall',
-                  'hospital',
-                  'school',
-                  'bank',
-                  'gas_station'
+                  "establishment",
+                  "point_of_interest",
+                  "store",
+                  "restaurant",
+                  "food",
+                  "lodging",
+                  "tourist_attraction",
+                  "shopping_mall",
+                  "hospital",
+                  "school",
+                  "bank",
+                  "gas_station",
                 ];
-                
-                const hasBusinessType = types.some(type => businessTypes.includes(type));
-                
-                // Also exclude if the name matches the property name/address to avoid showing the property itself
-                const propertyName = property?.name?.toLowerCase() || '';
-                const propertyAddress = property?.address?.toLowerCase() || '';
-                const placeName = place.name?.toLowerCase() || '';
-                const placeAddress = place.formatted_address?.toLowerCase() || '';
-                
-                if (propertyName && placeName.includes(propertyName)) return false;
-                if (propertyAddress && placeAddress === propertyAddress) return false;
-                
+
+                const hasBusinessType = types.some((type: string) =>
+                  businessTypes.includes(type)
+                );
+
+                const propertyName = property?.name?.toLowerCase() || "";
+                const propertyAddress = property?.address?.toLowerCase() || "";
+                const placeName = place.name?.toLowerCase() || "";
+                const placeAddress =
+                  place.formatted_address?.toLowerCase() || "";
+
+                if (propertyName && placeName.includes(propertyName))
+                  return false;
+                if (propertyAddress && placeAddress === propertyAddress)
+                  return false;
+
                 return hasBusinessType;
               });
             }}
           />
-          
+
           {checkingExisting && (
             <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-sm text-blue-800">
               🔍 Checking if this place has been recommended before...
@@ -409,19 +505,27 @@ export default function RecommendationsStep({
                     This place has been recommended before!
                   </h4>
                   <p className="text-sm text-blue-700">
-                    {existingRecommendation.total_reviews} guest{existingRecommendation.total_reviews !== 1 ? 's have' : ' has'} recommended this place
+                    {existingRecommendation.total_reviews} guest
+                    {existingRecommendation.total_reviews !== 1
+                      ? "s have"
+                      : " has"}{" "}
+                    recommended this place
                   </p>
                   <p className="text-xs text-blue-600 flex items-center mt-1">
                     <Clock className="h-3 w-3 mr-1" />
-                    First recommended {formatDate(existingRecommendation.created_at)}
+                    First recommended{" "}
+                    {formatDate(existingRecommendation.created_at)}
                   </p>
                 </div>
                 {existingRecommendation.average_guest_rating > 0 && (
                   <div className="text-right">
                     <div className="flex items-center">
-                      {renderStars(Math.round(existingRecommendation.average_guest_rating))}
+                      {renderStars(
+                        Math.round(existingRecommendation.average_guest_rating)
+                      )}
                       <span className="ml-1 text-sm text-blue-700">
-                        {existingRecommendation.average_guest_rating.toFixed(1)}/5
+                        {existingRecommendation.average_guest_rating.toFixed(1)}
+                        /5
                       </span>
                     </div>
                     <p className="text-xs text-blue-600">Guest average</p>
@@ -429,31 +533,48 @@ export default function RecommendationsStep({
                 )}
               </div>
 
-              {/* Show recent guest reviews */}
-              {existingRecommendation.guest_reviews && existingRecommendation.guest_reviews.length > 0 && (
-                <div className="space-y-2">
-                  <h5 className="text-sm font-medium text-blue-900">Recent guest comments:</h5>
-                  {existingRecommendation.guest_reviews.slice(0, 3).map((review, idx) => (
-                    <div key={idx} className="bg-white p-2 rounded border border-blue-200">
-                      <div className="flex justify-between items-start mb-1">
-                        <span className="text-xs font-medium text-gray-700">{review.guest_name}</span>
-                        <div className="flex items-center">
-                          {renderStars(review.guest_rating)}
-                          <span className="ml-1 text-xs text-gray-600">{review.guest_rating}/5</span>
+              {existingRecommendation.guest_reviews &&
+                existingRecommendation.guest_reviews.length > 0 && (
+                  <div className="space-y-2">
+                    <h5 className="text-sm font-medium text-blue-900">
+                      Recent guest comments:
+                    </h5>
+                    {existingRecommendation.guest_reviews
+                      .slice(0, 3)
+                      .map((review, idx) => (
+                        <div
+                          key={idx}
+                          className="bg-white p-2 rounded border border-blue-200"
+                        >
+                          <div className="flex justify-between items-start mb-1">
+                            <span className="text-xs font-medium text-gray-700">
+                              {review.guest_name}
+                            </span>
+                            <div className="flex items-center">
+                              {renderStars(review.guest_rating)}
+                              <span className="ml-1 text-xs text-gray-600">
+                                {review.guest_rating}/5
+                              </span>
+                            </div>
+                          </div>
+                          {review.guest_notes && (
+                            <p className="text-xs text-gray-600 italic">
+                              &ldquo;{review.guest_notes}&rdquo;
+                            </p>
+                          )}
                         </div>
-                      </div>
-                      {review.guest_notes && (
-                        <p className="text-xs text-gray-600 italic">"{review.guest_notes}"</p>
-                      )}
-                    </div>
-                  ))}
-                  {existingRecommendation.guest_reviews.length > 3 && (
-                    <p className="text-xs text-blue-600">
-                      ...and {existingRecommendation.guest_reviews.length - 3} more review{existingRecommendation.guest_reviews.length - 3 !== 1 ? 's' : ''}
-                    </p>
-                  )}
-                </div>
-              )}
+                      ))}
+                    {existingRecommendation.guest_reviews.length > 3 && (
+                      <p className="text-xs text-blue-600">
+                        ...and {existingRecommendation.guest_reviews.length - 3}{" "}
+                        more review
+                        {existingRecommendation.guest_reviews.length - 3 !== 1
+                          ? "s"
+                          : ""}
+                      </p>
+                    )}
+                  </div>
+                )}
 
               <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded">
                 <p className="text-sm text-green-800 font-medium">
@@ -470,17 +591,23 @@ export default function RecommendationsStep({
             <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded text-sm">
               <div className="flex items-start justify-between">
                 <div>
-                  <p className="font-medium text-green-800">✓ New place discovered!</p>
+                  <p className="font-medium text-green-800">
+                    ✓ New place discovered!
+                  </p>
                   <p className="text-green-700">{selectedPlace.name}</p>
-                  <p className="text-green-600">{selectedPlace.formatted_address || selectedPlace.vicinity}</p>
+                  <p className="text-green-600">
+                    {selectedPlace.formatted_address || selectedPlace.vicinity}
+                  </p>
                   {selectedPlace.rating && (
-                    <p className="text-green-600">Google Rating: {selectedPlace.rating}★</p>
+                    <p className="text-green-600">
+                      Google Rating: {selectedPlace.rating}★
+                    </p>
                   )}
                 </div>
               </div>
               <div className="mt-2 p-2 bg-white border border-green-200 rounded">
                 <p className="text-xs text-green-700 font-medium">
-                  You'll be the first guest to recommend this place! 🎉
+                  You&apos;ll be the first guest to recommend this place! 🎉
                 </p>
               </div>
             </div>
@@ -495,7 +622,7 @@ export default function RecommendationsStep({
                 Your Rating
               </label>
               <div className="flex items-center space-x-1">
-                {renderStars(guestRating, setGuestRating, 'md')}
+                {renderStars(guestRating, setGuestRating, "md")}
                 <span className="ml-2 text-sm text-gray-600">
                   {guestRating} star{guestRating !== 1 ? "s" : ""}
                 </span>
@@ -504,7 +631,9 @@ export default function RecommendationsStep({
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                {existingRecommendation ? "Add Your Experience" : "Your Experience & Tips"}
+                {existingRecommendation
+                  ? "Add Your Experience"
+                  : "Your Experience & Tips"}
               </label>
               <textarea
                 value={guestNotes}
@@ -512,21 +641,29 @@ export default function RecommendationsStep({
                 rows={3}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder={
-                  existingRecommendation 
+                  existingRecommendation
                     ? "What was your experience like? Any tips to add to this recommendation?"
                     : "What made this place special? Any tips for future guests?"
                 }
                 required
               />
+              {!guestNotes.trim() && (
+                <p className="mt-1 text-sm text-red-600">
+                  Please add your experience or notes about this place
+                </p>
+              )}
             </div>
 
             <button
               onClick={addRecommendation}
               disabled={!selectedPlace || !guestNotes.trim()}
               className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center"
+              title={!guestNotes.trim() ? "Please add your experience first" : undefined}
             >
               <Plus className="h-4 w-4 mr-2" />
-              {existingRecommendation ? "Add Your Review" : "Add Recommendation"}
+              {existingRecommendation
+                ? "Add Your Review"
+                : "Add Recommendation"}
             </button>
           </>
         )}
@@ -567,6 +704,8 @@ export default function RecommendationsStep({
                 <button
                   onClick={() => removeRecommendation(index)}
                   className="text-red-600 hover:text-red-800"
+                  title="Remove recommendation"
+                  aria-label="Remove recommendation"
                 >
                   <Trash2 className="h-4 w-4" />
                 </button>
@@ -595,7 +734,7 @@ export default function RecommendationsStep({
 
               {rec.guest_notes && (
                 <p className="text-sm text-gray-700 bg-gray-50 p-2 rounded">
-                  "{rec.guest_notes}"
+                  &ldquo;{rec.guest_notes}&rdquo;
                 </p>
               )}
             </div>

@@ -1,3 +1,19 @@
 {
-  "extends": "next/core-web-vitals"
+  "extends": [
+    "next/core-web-vitals"
+  ],
+  "rules": {
+    // Catch hook violations - these are critical for React
+    "react-hooks/rules-of-hooks": "error",
+    "react-hooks/exhaustive-deps": "error",
+    
+    // Security and best practices
+    "no-console": ["warn", { "allow": ["warn", "error"] }],
+    "no-alert": "error",
+    
+    // Code quality improvements
+    "prefer-const": "error",
+    "no-var": "error",
+    "eqeqeq": ["error", "always"]
+  }
 }

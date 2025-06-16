@@ -1,4 +1,4 @@
-// components/layout/SideNavigation.tsx
+// components/SideNavigation.tsx
 "use client";
 
 import Link from "next/link";
@@ -15,25 +15,17 @@ import {
   BookOpen as BookOpenIcon,
   Star as StarIcon,
   Phone as PhoneIcon,
-  Users as UserGroupIcon,
-  Settings as CogIcon,
   ChevronRight,
   ChevronLeft,
   FileText as DocumentTextIcon,
-  User as UserIcon,
-  Plus,
   Menu,
   X,
-  Activity,
-  AlertTriangle,
   CheckSquare as CheckSquareIcon,
-  LogOut,
   Building2 as HouseIcon,
   Heart as HeartIcon,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import Image from "next/image";
-import { supabase } from "@/lib/supabase";
 
 // Define interfaces for navigation items
 interface NavigationItem {
@@ -45,7 +37,6 @@ interface NavigationItem {
       titleId?: string | undefined;
     } & React.RefAttributes<SVGSVGElement>
   >;
-  // ✅ Updated to use permission check function instead of role string
   permissionCheck?: (user: any) => boolean;
   permissions?: string[];
 }
@@ -61,9 +52,10 @@ interface SideNavigationProps {
   isCollapsed?: boolean;
   isMobileMenuOpen?: boolean;
   setIsMobileMenuOpen?: (open: boolean) => void;
+  standalone?: boolean; // ✅ NEW: Toggle between standalone and integrated mode
 }
 
-// ✅ Helper function for basic role checking (for items that need simple role checks)
+// Helper function for basic role checking
 const hasMinimumRole = (user: any, minRole: string) => {
   const userRole = getUserRole(user);
   const roleHierarchy = {
@@ -82,7 +74,7 @@ const hasMinimumRole = (user: any, minRole: string) => {
   return userLevel >= minLevel;
 };
 
-// Navigation structure
+// Simplified navigation structure - Only General section
 const navigationStructure: NavigationSection[] = [
   {
     category: "General",
@@ -106,24 +98,35 @@ export default function SideNavigation({
   isCollapsed = false,
   isMobileMenuOpen = false,
   setIsMobileMenuOpen,
+  standalone = true, // ✅ NEW: Default to standalone for backward compatibility
 }: SideNavigationProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const { user: authUser, signOut } = useAuth();
+  const { user: authUser } = useAuth();
   const { currentProperty, loading: propertyLoading } = useProperty();
   const { theme } = useTheme();
 
-  // ✅ RESTORED: Missing state variables
+  // State variables - Simplified to only track General
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isCollapsedState, setIsCollapsed] = useState(isCollapsed);
-  const [expandedCategories, setExpandedCategories] = useState({
+  const [expandedCategories, setExpandedCategories] = useState<
+    Record<string, boolean>
+  >({
     General: true,
-    Account: false,
   });
+
+  // Sync external isCollapsed prop with internal state
+  useEffect(() => {
+    setIsCollapsed(isCollapsed);
+  }, [isCollapsed]);
 
   // Mobile menu handlers
   const toggleMobileMenu = () => {
-    setMobileMenuOpen(!mobileMenuOpen);
+    const newState = !mobileMenuOpen;
+    setMobileMenuOpen(newState);
+    if (setIsMobileMenuOpen) {
+      setIsMobileMenuOpen(newState);
+    }
   };
 
   const handleLinkClick = (href?: string) => {
@@ -153,6 +156,9 @@ export default function SideNavigation({
         !menuButton.contains(event.target as Node)
       ) {
         setMobileMenuOpen(false);
+        if (setIsMobileMenuOpen) {
+          setIsMobileMenuOpen(false);
+        }
       }
     };
 
@@ -162,7 +168,7 @@ export default function SideNavigation({
       document.removeEventListener("mousedown", handleClickOutside);
       document.removeEventListener("touchstart", handleClickOutside);
     };
-  }, [mobileMenuOpen]);
+  }, [mobileMenuOpen, setIsMobileMenuOpen]);
 
   // Use either the passed user or the auth user
   const user = propUser || authUser;
@@ -172,31 +178,31 @@ export default function SideNavigation({
     return null;
   }
 
-  // ✅ RESTORED: Missing toggle functions
+  // Toggle functions
   const toggleSidebar = () => {
     const newCollapsedState = !isCollapsedState;
     setIsCollapsed(newCollapsedState);
     onCollapseChange?.(newCollapsedState);
 
-    if (!newCollapsedState) {
+    if (newCollapsedState) {
+      // When collapsing, close all categories
       setExpandedCategories({
         General: false,
-        Account: false,
       });
     } else {
+      // When expanding, open General by default
       setExpandedCategories({
         General: true,
-        Account: false,
       });
     }
   };
 
   const toggleCategory = (category: string) => {
     if (isCollapsedState) return;
-    setExpandedCategories({
-      ...expandedCategories,
-      [category]: !expandedCategories[category],
-    });
+    setExpandedCategories((prev) => ({
+      ...prev,
+      [category]: !prev[category],
+    }));
   };
 
   const isActive = (href: string) => pathname === href;
@@ -209,26 +215,28 @@ export default function SideNavigation({
 
   return (
     <>
-      {/* Mobile Menu Button */}
-      <div className="lg:hidden fixed top-4 left-4 z-50">
-        <button
-          id="mobile-menu-button"
-          onClick={toggleMobileMenu}
-          className="p-2 bg-white dark:bg-gray-800 shadow-lg rounded-lg border border-gray-200 dark:border-gray-700"
-          style={{
-            WebkitTapHighlightColor: "transparent",
-            touchAction: "manipulation",
-            minHeight: "44px",
-            minWidth: "44px",
-          }}
-        >
-          {mobileMenuOpen ? (
-            <X className="h-6 w-6 text-gray-600 dark:text-gray-300" />
-          ) : (
-            <Menu className="h-6 w-6 text-gray-600 dark:text-gray-300" />
-          )}
-        </button>
-      </div>
+      {/* ✅ Mobile Menu Button - only show in standalone mode */}
+      {standalone && (
+        <div className="lg:hidden fixed top-4 left-4 z-50">
+          <button
+            id="mobile-menu-button"
+            onClick={toggleMobileMenu}
+            className="p-2 bg-white dark:bg-gray-800 shadow-lg rounded-lg border border-gray-200 dark:border-gray-700"
+            style={{
+              WebkitTapHighlightColor: "transparent",
+              touchAction: "manipulation",
+              minHeight: "44px",
+              minWidth: "44px",
+            }}
+          >
+            {mobileMenuOpen ? (
+              <X className="h-6 w-6 text-gray-600 dark:text-gray-300" />
+            ) : (
+              <Menu className="h-6 w-6 text-gray-600 dark:text-gray-300" />
+            )}
+          </button>
+        </div>
+      )}
 
       {/* Mobile Overlay */}
       {mobileMenuOpen && (
@@ -242,11 +250,15 @@ export default function SideNavigation({
         />
       )}
 
-      {/* Sidebar */}
+      {/* ✅ Sidebar - conditional positioning */}
       <div
         id="mobile-sidebar"
         className={`
-          fixed lg:static top-0 left-0 z-40 h-screen
+          ${standalone ? "fixed" : "relative"} lg:${
+          standalone ? "fixed" : "static"
+        } 
+          ${standalone ? "top-0 left-0 z-40" : ""} 
+          h-screen
           ${isCollapsedState ? "w-16" : "w-64"}
           ${isDarkMode ? "bg-gray-900" : "bg-white"}
           border-r ${isDarkMode ? "border-gray-800" : "border-gray-200"}
@@ -254,7 +266,9 @@ export default function SideNavigation({
           ${
             mobileMenuOpen
               ? "translate-x-0"
-              : "-translate-x-full lg:translate-x-0"
+              : standalone
+              ? "-translate-x-full lg:translate-x-0"
+              : ""
           }
         `}
       >
@@ -304,57 +318,62 @@ export default function SideNavigation({
                 )}
               </Link>
             </div>
+
+            {/* Desktop collapse toggle */}
+            <div className="hidden lg:block mt-3">
+              <button
+                onClick={toggleSidebar}
+                className={`w-full flex items-center justify-center p-2 rounded-md ${
+                  isDarkMode
+                    ? "hover:bg-gray-800 text-gray-400"
+                    : "hover:bg-gray-100 text-gray-600"
+                } transition-colors duration-200`}
+              >
+                {isCollapsedState ? (
+                  <ChevronRight className="h-4 w-4" />
+                ) : (
+                  <ChevronLeft className="h-4 w-4" />
+                )}
+              </button>
+            </div>
           </div>
 
           {/* Navigation items */}
           <div
-            className="flex-1 overflow-y-auto"
+            className="flex-1 overflow-y-auto p-2"
             style={{ WebkitOverflowScrolling: "touch" }}
           >
             {navigationStructure.map((section) => {
-              const isExpanded =
-                section.category === "General"
-                  ? true
-                  : expandedCategories[section.category] ?? true;
+              const isExpanded = expandedCategories[section.category] ?? true;
 
               return (
-                <div key={section.category} className="space-y-1.5">
+                <div key={section.category} className="mb-4">
                   {/* Category header */}
-                  {!isCollapsedState && section.category !== "General" && (
+                  {!isCollapsedState && (
                     <button
                       onClick={() => toggleCategory(section.category)}
-                      className={`w-full flex items-center justify-between text-left text-sm font-medium px-4 py-2 ${
+                      className={`w-full flex items-center justify-between text-left text-sm font-medium px-3 py-2 rounded-md ${
                         isDarkMode
-                          ? "text-gray-300 hover:text-white"
-                          : "text-gray-600 hover:text-gray-900"
-                      } mb-1 transition-colors duration-200`}
+                          ? "text-gray-300 hover:text-white hover:bg-gray-800"
+                          : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                      } transition-colors duration-200`}
                     >
                       <span>{section.category}</span>
                       <ChevronRight
-                        className={`h-4 w-4 transition-transform ${
+                        className={`h-4 w-4 transition-transform duration-200 ${
                           isExpanded ? "rotate-90" : ""
                         }`}
                       />
                     </button>
                   )}
 
-                  {!isCollapsedState && section.category === "General" && (
-                    <div
-                      className={`text-sm font-medium px-4 py-2 ${
-                        isDarkMode ? "text-gray-300" : "text-gray-600"
-                      } mb-1`}
-                    >
-                      <span>{section.category}</span>
-                    </div>
-                  )}
-
                   {/* Navigation items */}
                   {(isExpanded || isCollapsedState) && (
                     <div
-                      className={`space-y-1 ${!isCollapsedState ? "pl-1" : ""}`}
+                      className={`space-y-1 ${!isCollapsedState ? "mt-2" : ""}`}
                     >
                       {section.items.map((item) => {
-                        // ✅ Use centralized permission checking
+                        // Check permissions
                         if (
                           item.permissionCheck &&
                           !item.permissionCheck(user)
@@ -373,8 +392,8 @@ export default function SideNavigation({
                               handleLinkClick(item.href);
                             }}
                             className={`flex items-center ${
-                              isCollapsedState ? "justify-center px-2" : "px-4"
-                            } py-2 text-sm rounded-md group relative ${
+                              isCollapsedState ? "justify-center px-2" : "px-3"
+                            } py-2.5 text-sm rounded-md group relative transition-colors duration-200 ${
                               isActive(item.href)
                                 ? "bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
                                 : "text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"
@@ -391,14 +410,17 @@ export default function SideNavigation({
                                 isCollapsedState ? "" : "mr-3"
                               } flex-shrink-0 h-5 w-5 ${
                                 isActive(item.href)
-                                  ? "text-gray-500"
-                                  : "text-gray-400 group-hover:text-gray-500"
+                                  ? "text-blue-600 dark:text-blue-400"
+                                  : "text-gray-400 group-hover:text-gray-500 dark:group-hover:text-gray-300"
                               }`}
                             />
-                            {!isCollapsedState && item.name}
+                            {!isCollapsedState && (
+                              <span className="truncate">{item.name}</span>
+                            )}
 
+                            {/* Tooltip for collapsed state */}
                             {isCollapsedState && (
-                              <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-sm rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
+                              <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 dark:bg-gray-700 text-white text-sm rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
                                 {item.name}
                               </div>
                             )}
@@ -432,59 +454,4 @@ export default function SideNavigation({
       </div>
     </>
   );
-}
-
-// Standard fix pattern for any page:
-export function PageName() {
-  const { user, loading: authLoading } = useAuth();
-  const { currentProperty, loading: propertyLoading } = useProperty();
-  const [dataLoading, setDataLoading] = useState(true);
-
-  // Early return for loading states
-  if (authLoading || propertyLoading) {
-    return (
-      <ProtectedPageWrapper>
-        <PageContainer>
-          <div className="flex items-center justify-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            <span className="ml-2">Loading...</span>
-          </div>
-        </PageContainer>
-      </ProtectedPageWrapper>
-    );
-  }
-
-  // Early return for no user
-  if (!user) {
-    return null;
-  }
-
-  // Early return for no property (if property is required)
-  if (!currentProperty) {
-    return (
-      <ProtectedPageWrapper>
-        <PageContainer>
-          <div className="text-center py-8">
-            <h3 className="text-lg font-medium text-gray-900">
-              No Property Selected
-            </h3>
-            <p className="text-gray-500">
-              Please select a property to continue.
-            </p>
-          </div>
-        </PageContainer>
-      </ProtectedPageWrapper>
-    );
-  }
-
-  // Data fetching useEffect
-  useEffect(() => {
-    if (authLoading || propertyLoading || !user?.id || !currentProperty?.id) {
-      return;
-    }
-
-    fetchData();
-  }, [user?.id, currentProperty?.id, authLoading, propertyLoading]);
-
-  // Rest of component...
 }

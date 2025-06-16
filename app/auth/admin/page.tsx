@@ -1,3 +1,5 @@
+/* eslint-disable no-console */
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -47,9 +49,8 @@ export default function AdminDiagnosticsPage() {
         }
 
         setUserData(user);
-        setIsAuthorized(true); // For development, assume authorized
+        setIsAuthorized(true);
 
-        // Get environment info
         setSystemInfo({
           nodeEnv: process.env.NODE_ENV || "unknown",
           supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL || "not set",
@@ -57,7 +58,6 @@ export default function AdminDiagnosticsPage() {
           buildTime: new Date().toISOString(),
         });
 
-        // Initial connection test
         testConnections();
       } catch (err: any) {
         console.error("Auth check failed:", err);
@@ -91,7 +91,6 @@ export default function AdminDiagnosticsPage() {
       // Test database connection
       const startDbTime = performance.now();
       try {
-        // Simple query to test database access
         const { data: dbData, error: dbError } = await supabase
           .from("profiles")
           .select("count")
@@ -179,7 +178,7 @@ export default function AdminDiagnosticsPage() {
   if (loading) {
     return (
       <div className="p-6">
-        <Header title="Admin Diagnostics" />
+        <Header />
         <PageContainer>
           <div className="flex items-center justify-center min-h-[60vh]">
             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-600"></div>
@@ -191,7 +190,7 @@ export default function AdminDiagnosticsPage() {
 
   return (
     <div className="p-6">
-      <Header title="Admin Diagnostics" />
+      <Header />
       <PageContainer>
         <div className="max-w-7xl mx-auto space-y-6">
           {/* Page Header */}
@@ -293,7 +292,7 @@ export default function AdminDiagnosticsPage() {
             <div className="space-y-4">
               {Object.keys(connectionStatus).length === 0 ? (
                 <div className="text-sm text-gray-500 italic">
-                  Click "Test Connections" to run diagnostics
+                  Click &quot;Test Connections&quot; to run diagnostics
                 </div>
               ) : (
                 <div className="space-y-3">

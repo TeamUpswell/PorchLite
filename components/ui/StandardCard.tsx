@@ -1,41 +1,48 @@
 // components/ui/StandardCard.tsx
 "use client";
 
-import * as React from "react";
+import React from "react";
 
-interface StandardCardProps {
+export interface StandardCardProps {
   title?: string;
   subtitle?: string;
+  icon?: React.ReactNode;
+  headerActions?: React.ReactNode; // ✅ Add this
   children: React.ReactNode;
   className?: string;
-  headerActions?: React.ReactNode; // ✅ Make sure this is here
+  hover?: boolean; // ✅ Add hover effect support
 }
 
 export default function StandardCard({
   title,
   subtitle,
+  icon,
+  headerActions, // ✅ Add this parameter
   children,
   className = "",
-  headerActions, // ✅ Destructure this
-  ...restProps
+  hover = false, // ✅ Add hover parameter
 }: StandardCardProps) {
   return (
     <div
-      className={`bg-white rounded-lg shadow-sm border border-gray-200 ${className}`}
-      {...restProps}
+      className={`bg-white rounded-lg shadow p-6 ${
+        hover ? "hover:shadow-md transition-shadow duration-200" : ""
+      } ${className}`}
     >
       {(title || subtitle || headerActions) && (
-        <div className="px-6 py-4 border-b border-gray-200">
-          <div className="flex items-center justify-between">
-            <div>
-              {title && <h3 className="text-lg font-semibold text-gray-900">{title}</h3>}
-              {subtitle && <p className="mt-1 text-sm text-gray-600">{subtitle}</p>}
+        <div className="mb-4">
+          <div className="flex items-center justify-between mb-1">
+            <div className="flex items-center space-x-2">
+              {icon && <span className="text-blue-600">{icon}</span>}
+              <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
             </div>
-            {headerActions && <div>{headerActions}</div>}
+            {headerActions && (
+              <div className="flex items-center space-x-2">{headerActions}</div>
+            )}
           </div>
+          {subtitle && <p className="text-sm text-gray-500">{subtitle}</p>}
         </div>
       )}
-      <div className="p-6">{children}</div>
+      <div>{children}</div>
     </div>
   );
 }

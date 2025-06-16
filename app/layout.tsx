@@ -1,13 +1,11 @@
-// app/layout.tsx
+// app/layout.tsx - SHOULD ONLY LOOK LIKE THIS
 import "./globals.css";
 import { Inter } from "next/font/google";
 import { AuthProvider } from "@/components/auth";
 import { PropertyProvider } from "@/lib/hooks/useProperty";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { Toaster } from "react-hot-toast";
-import MainLayout from "@/components/layout/MainLayout";
-import { supabase } from '@/lib/supabase';
-import Script from 'next/script'
+import Script from "next/script";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -23,13 +21,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={inter.className}>
+      <body className={`${inter.className} bg-gray-900`}>
         <ThemeProvider>
           <AuthProvider>
             <PropertyProvider>
-              {/* ✅ Use your existing MainLayout - it handles everything */}
-              <MainLayout>{children}</MainLayout>
-
+              {children} {/* ✅ ONLY THIS - NO OTHER COMPONENTS */}
               <Toaster position="top-right" />
             </PropertyProvider>
           </AuthProvider>

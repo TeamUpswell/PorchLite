@@ -1,28 +1,25 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { PropertySwitcher } from "@/components/property/PropertySwitcher";
+import { useProperty } from "@/lib/hooks/useProperty";
+import { useAuth } from "@/components/auth";
 import {
+  Home as HomeIcon,
   Camera,
-  Upload,
-  Check,
-  X,
-  Lock,
   Cloud,
   Sun,
   CloudRain,
   Wind,
   Thermometer,
-} from "lucide-react";
-import Image from "next/image";
-import { toast } from "react-hot-toast";
-import { supabase } from "@/lib/supabase";
-import { useProperty } from "@/lib/hooks/useProperty";
-import { useAuth } from "@/components/auth";
+} from "lucide-react"; // ✅ Add missing icons
+import { useState, useEffect } from "react";
 import HeaderImageManager from "./HeaderImageManager";
+import { debug } from "@/lib/utils/debug";
 
 // Enhanced interface with weather support
 interface DashboardHeaderProps {
-  children: React.ReactNode;
+  title?: string;
+  subtitle?: string;
   weather?: {
     current: {
       temp: number;
@@ -43,12 +40,13 @@ interface DashboardHeaderProps {
 }
 
 export default function DashboardHeader({
-  children,
+  title = "Dashboard",
+  subtitle,
   weather,
   showWeather = true,
 }: DashboardHeaderProps) {
   const { user } = useAuth();
-  const { currentProperty, tenant } = useProperty();
+  const { currentProperty } = useProperty(); // ✅ Removed tenant from destructuring
   const [showImageManager, setShowImageManager] = useState(false);
   const [loadingRole, setLoadingRole] = useState(true);
   const [userRole, setUserRole] = useState<string | null>(null);
@@ -60,32 +58,27 @@ export default function DashboardHeader({
 
   // Enhanced role checking with debug logs
   useEffect(() => {
-    console.log("🔐 DashboardHeader - tenant:", tenant);
-    console.log("🔐 DashboardHeader - user:", user);
+    debug.log("🔐 DashboardHeader - user:", user);
 
-    if (tenant?.role) {
-      console.log("🔐 Setting role from tenant:", tenant.role);
-      setUserRole(tenant.role);
-      setLoadingRole(false);
-    } else if (user?.id) {
-      // Fallback: assume owner if user exists but no tenant role
-      console.log("🔐 No tenant role, assuming owner for user:", user.id);
+    if (user?.id) {
+      // ✅ Simplified: assume owner if user exists
+      debug.log("🔐 Setting role to owner for user:", user.id);
       setUserRole("owner");
       setLoadingRole(false);
     } else {
-      console.log("🔐 No user or tenant, setting timeout fallback");
+      debug.log("🔐 No user, setting timeout fallback");
       // Timeout fallback to prevent infinite loading
       setTimeout(() => {
         setLoadingRole(false);
         setUserRole("owner"); // Default to owner for testing
       }, 3000);
     }
-  }, [tenant, user]);
+  }, [user]);
 
   const canEdit =
     userRole && ["owner", "manager", "admin"].includes(userRole.toLowerCase());
 
-  console.log(
+  debug.log(
     "🔐 Final state - canEdit:",
     canEdit,
     "loadingRole:",
@@ -98,15 +91,17 @@ export default function DashboardHeader({
     window.location.reload();
   };
 
+  const defaultSubtitle = currentProperty
+    ? `Managing ${currentProperty.name}`
+    : "Property Overview";
+
   return (
     <>
-      <div className="relative h-64 rounded-lg overflow-hidden group">
-        <Image
+      <div className="relative h-64 rounded-lg overflow-hidden group mb-6">
+        <img
           src={currentHeaderImage}
           alt="Property header"
-          fill
-          className="object-cover"
-          priority
+          className="object-cover w-full h-full"
           onError={(e) => {
             e.currentTarget.src = "/images/headers/presets/modern-house.jpg";
           }}
@@ -116,20 +111,22 @@ export default function DashboardHeader({
         <div className="absolute inset-0 bg-black/15" />
 
         {/* Manage Photo Button - Subtle Design */}
-        <button
-          onClick={() => {
-            console.log("🖼️ Manage Photo clicked!");
-            setShowImageManager(true);
-          }}
-          className="absolute top-4 left-4 bg-black/50 hover:bg-black/70 text-white px-3 py-2 rounded-lg transition-all duration-200 z-20 flex items-center shadow-md border border-white/20 opacity-0 group-hover:opacity-100"
-          title="Change header image"
-        >
-          <Camera className="h-4 w-4 mr-2" />
-          <span className="hidden sm:inline text-sm font-medium">
-            Manage Photo
-          </span>
-          <span className="sm:hidden text-sm font-medium">Photo</span>
-        </button>
+        {canEdit && (
+          <button
+            onClick={() => {
+              debug.log("🖼️ Manage Photo clicked!");
+              setShowImageManager(true);
+            }}
+            className="absolute top-4 left-4 bg-black/50 hover:bg-black/70 text-white px-3 py-2 rounded-lg transition-all duration-200 z-20 flex items-center shadow-md border border-white/20 opacity-0 group-hover:opacity-100"
+            title="Change header image"
+          >
+            <Camera className="h-4 w-4 mr-2" />
+            <span className="hidden sm:inline text-sm font-medium">
+              Manage Photo
+            </span>
+            <span className="sm:hidden text-sm font-medium">Photo</span>
+          </button>
+        )}
 
         {/* Weather Widget - Top Right (Desktop) */}
         {weather && showWeather && (
@@ -195,7 +192,10 @@ export default function DashboardHeader({
         {/* Property Title - Lower Left Corner (Desktop) */}
         <div className="hidden md:block absolute bottom-6 left-6 max-w-lg">
           <div className="bg-black/40 backdrop-blur-sm rounded-xl px-6 py-3 border border-white/10 shadow-xl">
-            <div className="text-white">{children}</div>
+            <div className="text-white">{title}</div>
+            <div className="text-white text-sm opacity-80">
+              {subtitle || defaultSubtitle}
+            </div>
           </div>
         </div>
 
@@ -203,7 +203,10 @@ export default function DashboardHeader({
         <div className="md:hidden absolute bottom-4 left-4 right-4 space-y-3">
           {/* Property Title - Mobile */}
           <div className="bg-black/40 backdrop-blur-sm rounded-xl px-4 py-3 border border-white/10 shadow-xl">
-            <div className="text-white">{children}</div>
+            <div className="text-white">{title}</div>
+            <div className="text-white text-sm opacity-80">
+              {subtitle || defaultSubtitle}
+            </div>
           </div>
 
           {/* Weather Widget - Mobile (below title) */}

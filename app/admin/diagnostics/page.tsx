@@ -7,7 +7,14 @@ import { useAuth } from "@/components/auth";
 import Header from "@/components/layout/Header";
 import PageContainer from "@/components/layout/PageContainer";
 import StandardCard from "@/components/ui/StandardCard";
-import { Shield, AlertTriangle, Database, Settings, Terminal } from "lucide-react";
+import StandardCardProps from "@/components/ui/StandardCard";
+import {
+  Shield,
+  AlertTriangle,
+  Database,
+  Settings,
+  Terminal,
+} from "lucide-react";
 import Link from "next/link";
 
 // 🔒 DEVELOPMENT TEAM EMAIL WHITELIST
@@ -20,37 +27,45 @@ const DEVELOPMENT_TEAM_EMAILS = [
 // 🔒 Check if user is part of development team
 const isDevelopmentTeam = (user: any): boolean => {
   if (!user?.email) {
-    console.log("❌ No user email found");
+    debug("❌ No user email found");
     return false;
   }
 
   const userEmail = user.email.toLowerCase();
-  console.log("🔍 Checking dev team access for:", userEmail);
-  console.log("🔍 Whitelist emails:", DEVELOPMENT_TEAM_EMAILS);
+  debug("🔍 Checking dev team access for:", userEmail);
+  debug("🔍 Whitelist emails:", DEVELOPMENT_TEAM_EMAILS);
 
   // Check against whitelist
   if (DEVELOPMENT_TEAM_EMAILS.includes(userEmail)) {
-    console.log("✅ Email found in whitelist");
+    debug("✅ Email found in whitelist");
     return true;
   }
 
   // Additional check: user must have system_admin role in user_metadata
   if (user.user_metadata?.system_role === "system_admin") {
-    console.log("✅ Found system_admin in user_metadata");
+    debug("✅ Found system_admin in user_metadata");
     return true;
   }
 
   // Additional check: app_metadata for super admin
   if (user.app_metadata?.system_admin === true) {
-    console.log("✅ Found system_admin in app_metadata");
+    debug("✅ Found system_admin in app_metadata");
     return true;
   }
 
-  console.log("❌ No dev team access found");
-  console.log("User metadata:", user.user_metadata);
-  console.log("App metadata:", user.app_metadata);
+  debug("❌ No dev team access found");
+  debug("User metadata:", user.user_metadata);
+  debug("App metadata:", user.app_metadata);
 
   return false;
+};
+
+// Add at the top after imports
+const debug = (message: string, ...args: any[]) => {
+  if (process.env.NODE_ENV === "development") {
+    // eslint-disable-next-line no-console
+    console.log(message, ...args);
+  }
 };
 
 export default function DiagnosticsPage() {
@@ -64,7 +79,7 @@ export default function DiagnosticsPage() {
   if (loading) {
     return (
       <div className="p-6">
-        <Header title="System Diagnostics" />
+        <Header />
         <PageContainer>
           <StandardCard>
             <div className="flex items-center justify-center py-8">
@@ -81,7 +96,7 @@ export default function DiagnosticsPage() {
   if (!user) {
     return (
       <div className="p-6">
-        <Header title="System Diagnostics" />
+        <Header />
         <PageContainer>
           <StandardCard>
             <div className="p-8 text-center">
@@ -107,7 +122,7 @@ export default function DiagnosticsPage() {
   if (!isDevelopmentTeam(user)) {
     return (
       <div className="p-6">
-        <Header title="System Diagnostics" />
+        <Header />
         <PageContainer>
           <StandardCard>
             <div className="p-8 text-center max-w-md mx-auto">
@@ -118,7 +133,8 @@ export default function DiagnosticsPage() {
                 🚫 Access Denied
               </h3>
               <p className="text-gray-600 mb-4">
-                System diagnostics are restricted to development team members only.
+                System diagnostics are restricted to development team members
+                only.
               </p>
               <div className="bg-gray-50 p-4 rounded-lg text-left border">
                 <p className="text-sm text-gray-700 mb-2">
@@ -126,7 +142,8 @@ export default function DiagnosticsPage() {
                   {user.email}
                 </p>
                 <p className="text-sm text-gray-700">
-                  <strong className="text-gray-900">Access Level:</strong> Regular User
+                  <strong className="text-gray-900">Access Level:</strong>{" "}
+                  Regular User
                 </p>
               </div>
               <div className="mt-6">
@@ -150,7 +167,7 @@ export default function DiagnosticsPage() {
 
   return (
     <div className="p-6">
-      <Header title="System Diagnostics" />
+      <Header />
       <PageContainer>
         <div className="space-y-6">
           {/* 🔒 DEVELOPMENT TEAM HEADER */}
@@ -158,7 +175,9 @@ export default function DiagnosticsPage() {
             <div className="flex items-center">
               <Shield className="h-5 w-5 text-red-600 mr-2" />
               <div>
-                <h4 className="font-semibold text-red-800">Development Team Access</h4>
+                <h4 className="font-semibold text-red-800">
+                  Development Team Access
+                </h4>
                 <p className="text-sm text-red-700">
                   Logged in as:{" "}
                   <code className="bg-red-100 px-1 rounded text-red-800 font-medium">
@@ -174,8 +193,12 @@ export default function DiagnosticsPage() {
             <div className="flex items-center space-x-3">
               <Terminal className="h-6 w-6 text-blue-600" />
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">System Diagnostics</h1>
-                <p className="text-gray-600">Development team tools and system health</p>
+                <h1 className="text-2xl font-bold text-gray-900">
+                  System Diagnostics
+                </h1>
+                <p className="text-gray-600">
+                  Development team tools and system health
+                </p>
               </div>
             </div>
             <Link
@@ -189,30 +212,31 @@ export default function DiagnosticsPage() {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Quick Database Health */}
-            <StandardCard 
-              title="Quick Database Check" 
+            <StandardCard
+              title="Quick Database Check"
               icon={<Database className="h-5 w-5 text-gray-600" />}
             >
-              <DatabaseDiagnostics
-                showAdvanced={true}
-                showSeeding={true}
-              />
+              <DatabaseDiagnostics showAdvanced={true} showSeeding={true} />
             </StandardCard>
 
             {/* Environment Configuration */}
-            <StandardCard 
+            <StandardCard
               title="Environment Configuration"
               icon={<Settings className="h-5 w-5 text-gray-600" />}
             >
               <div className="space-y-3">
                 <div>
-                  <span className="font-semibold text-gray-900">Supabase URL: </span>
+                  <span className="font-semibold text-gray-900">
+                    Supabase URL:{" "}
+                  </span>
                   <code className="bg-gray-100 px-2 py-1 rounded text-sm text-gray-800 font-medium">
                     {config.supabaseUrl}
                   </code>
                 </div>
                 <div>
-                  <span className="font-semibold text-gray-900">Supabase Key: </span>
+                  <span className="font-semibold text-gray-900">
+                    Supabase Key:{" "}
+                  </span>
                   <span
                     className={`px-2 py-1 rounded text-sm font-medium ${
                       config.keyIsMasked
@@ -224,7 +248,9 @@ export default function DiagnosticsPage() {
                   </span>
                 </div>
                 <div>
-                  <span className="font-semibold text-gray-900">Environment: </span>
+                  <span className="font-semibold text-gray-900">
+                    Environment:{" "}
+                  </span>
                   <span className="px-2 py-1 rounded text-sm font-medium bg-yellow-100 text-yellow-800">
                     {process.env.NODE_ENV || "unknown"}
                   </span>
@@ -234,7 +260,7 @@ export default function DiagnosticsPage() {
           </div>
 
           {/* Development Tools */}
-          <StandardCard 
+          <StandardCard
             title="Development Tools"
             subtitle="Quick access to development utilities"
           >
@@ -255,7 +281,9 @@ export default function DiagnosticsPage() {
                   href="/auth/diagnose"
                   className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-gray-300 text-center transition-colors"
                 >
-                  <h3 className="font-semibold text-gray-900">Auth Diagnosis</h3>
+                  <h3 className="font-semibold text-gray-900">
+                    Auth Diagnosis
+                  </h3>
                   <p className="text-sm text-gray-600 mt-1">
                     User & auth debugging
                   </p>
@@ -265,7 +293,9 @@ export default function DiagnosticsPage() {
                 href="/admin/system-dashboard"
                 className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-gray-300 text-center transition-colors"
               >
-                <h3 className="font-semibold text-gray-900">Full System Health</h3>
+                <h3 className="font-semibold text-gray-900">
+                  Full System Health
+                </h3>
                 <p className="text-sm text-gray-600 mt-1">
                   Complete diagnostic dashboard
                 </p>
@@ -274,7 +304,7 @@ export default function DiagnosticsPage() {
           </StandardCard>
 
           {/* Current User Debug Info */}
-          <StandardCard 
+          <StandardCard
             title="Current User Debug Info"
             subtitle="Development debugging information"
           >

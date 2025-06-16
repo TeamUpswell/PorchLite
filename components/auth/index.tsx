@@ -24,6 +24,7 @@ interface AuthContextType {
   user: (User & { user_metadata?: any }) | null;
   session: Session | null;
   loading: boolean;
+  initialized: boolean; // 🔑 CRITICAL: Add initialization flag
   profileData: Profile | null;
   signIn: (
     email: string,
@@ -44,6 +45,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [initialized, setInitialized] = useState(false); // 🔑 CRITICAL: Add this
   const [profileData, setProfileData] = useState<Profile | null>(null);
 
   const initializationRef = useRef(false);
@@ -113,6 +115,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setProfileData(null);
       } finally {
         setLoading(false);
+        setInitialized(true); // 🔑 CRITICAL: Set initialized after first load
         console.log("✅ Auth: Initialization complete");
       }
     };
@@ -123,11 +126,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log("🔄 Auth: State changed:", event);
 
-      // Don't set loading during initialization
-      if (initializationRef.current && loading) {
-        setLoading(true);
-      }
-
+      // 🔑 FIXED: Don't mess with loading during state changes
       try {
         if (session?.user) {
           setSession(session);
@@ -145,12 +144,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       } catch (error) {
         console.error("❌ Auth: State change error:", error);
-      } finally {
-        // Always ensure loading is false after auth state changes
-        if (initializationRef.current) {
-          setLoading(false);
-        }
       }
+      // 🔑 REMOVED: Don't set loading to false here - it causes races
     });
 
     initializeAuth();
@@ -158,43 +153,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => {
       subscription.unsubscribe();
     };
-  }, []); // Remove loading dependency
-
-  // Add safety timeout to prevent infinite loading
-  useEffect(() => {
-    const timeout = setTimeout(() => {
-      if (loading) {
-        console.log("⚠️ Auth: Safety timeout - forcing loading to false");
-        setLoading(false);
-      }
-    }, 10000); // 10 second safety timeout
-
-    return () => clearTimeout(timeout);
-  }, [loading]);
+  }, []); // 🔑 Clean dependency array
 
   const signIn = async (email: string, password: string) => {
     try {
-      setLoading(true);
+      // 🔑 DON'T set loading here - auth state change will handle it
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
-
-      if (!error && data.user) {
-        // Profile will be loaded by the auth state change listener
-      }
-
       return { data, error };
     } catch (error) {
       return { error };
-    } finally {
-      setLoading(false);
     }
   };
 
   const signUp = async (email: string, password: string) => {
     try {
-      setLoading(true);
+      // 🔑 DON'T set loading here - auth state change will handle it
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -202,22 +178,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { data, error };
     } catch (error) {
       return { error };
-    } finally {
-      setLoading(false);
     }
   };
 
   const signOut = async () => {
     try {
-      setLoading(true);
       await supabase.auth.signOut();
-      setUser(null);
-      setSession(null);
-      setProfileData(null);
+      // 🔑 State will be cleared by auth state change listener
     } catch (error) {
       console.error("Sign out error:", error);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -225,6 +194,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     user,
     session,
     loading,
+    initialized, // 🔑 CRITICAL: Expose initialization state
     profileData,
     signIn,
     signUp,

@@ -13,8 +13,7 @@ import {
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { useAuth } from "@/components/auth";
-import PageContainer from "@/components/layout/PageContainer";
-import Header from "@/components/layout/Header";
+import StandardPageLayout from "@/components/layout/StandardPageLayout";
 import StandardCard from "@/components/ui/StandardCard";
 import { useProperty } from "@/lib/hooks/useProperty";
 import { supabase } from "@/lib/supabase";
@@ -39,7 +38,7 @@ export default function ManualPage() {
   const [loading, setLoading] = useState(true);
   const [hasInitialized, setHasInitialized] = useState(false);
 
-  // ✅ FIXED: Function to create default cleaning section with proper timing
+  // ✅ Function to create default cleaning section
   const createDefaultCleaningSection = async () => {
     if (!currentProperty?.id || !user?.id) {
       console.log(
@@ -115,7 +114,6 @@ export default function ManualPage() {
           insertData: insertData,
         });
 
-        // ✅ FIXED: Don't show toast error immediately
         console.error(`Database error: ${createError.message}`);
         return null;
       }
@@ -158,7 +156,6 @@ export default function ManualPage() {
 
       if (error) {
         console.error("❌ Error fetching instruction sections:", error);
-        // ✅ FIXED: Only show toast error after component is mounted
         if (hasInitialized) {
           toast.error("Failed to load instruction sections");
         }
@@ -185,7 +182,6 @@ export default function ManualPage() {
       }
     } catch (error) {
       console.error("❌ Unexpected error in fetchSections:", error);
-      // ✅ FIXED: Only show toast error after component is mounted
       if (hasInitialized) {
         toast.error("Failed to load instruction sections");
       }
@@ -194,7 +190,7 @@ export default function ManualPage() {
     }
   };
 
-  // ✅ FIXED: Effect with immediate banner render
+  // ✅ Effect with data fetching
   useEffect(() => {
     // Don't fetch if still loading auth/property
     if (authLoading || propertyLoading) {
@@ -204,7 +200,7 @@ export default function ManualPage() {
     // Don't fetch if no user or property
     if (!user?.id || !currentProperty?.id) {
       console.log("⏳ Waiting for user and property to load...");
-      setLoading(false); // ✅ Set loading false immediately for banner
+      setLoading(false);
       setHasInitialized(true);
       return;
     }
@@ -215,7 +211,7 @@ export default function ManualPage() {
     );
     setHasInitialized(true);
 
-    // ✅ FIXED: Don't block rendering - fetch in background
+    // Fetch data in background
     const fetchData = async () => {
       try {
         // Create cleaning section if needed (background operation)
@@ -267,7 +263,6 @@ export default function ManualPage() {
       }
     };
 
-    // ✅ Don't await - let it run in background
     fetchData();
   }, [currentProperty?.id, user?.id, authLoading, propertyLoading]);
 
@@ -292,20 +287,19 @@ export default function ManualPage() {
     }
   };
 
-  // ✅ Simplified early returns
+  // ✅ Loading states using StandardPageLayout
   if (authLoading || propertyLoading) {
     return (
-      <div className="p-6">
-        <Header title="Property Manual" />
-        <PageContainer>
+      <StandardPageLayout theme="dark" showHeader={false}>
+        <StandardCard>
           <div className="flex items-center justify-center min-h-[400px]">
             <div className="text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
               <p className="text-gray-600">Loading manual...</p>
             </div>
           </div>
-        </PageContainer>
-      </div>
+        </StandardCard>
+      </StandardPageLayout>
     );
   }
 
@@ -315,32 +309,28 @@ export default function ManualPage() {
 
   if (!currentProperty) {
     return (
-      <div className="p-6">
-        <Header title="Property Manual" />
-        <PageContainer>
-          <StandardCard>
-            <div className="text-center py-8">
-              <BookOpen className="mx-auto h-12 w-12 text-gray-400" />
-              <h3 className="mt-2 text-sm font-medium text-gray-900">
-                No Property Selected
-              </h3>
-              <p className="mt-1 text-sm text-gray-500">
-                Please select a property to view instructions.
-              </p>
-            </div>
-          </StandardCard>
-        </PageContainer>
-      </div>
+      <StandardPageLayout theme="dark" showHeader={false}>
+        <StandardCard>
+          <div className="text-center py-8">
+            <BookOpen className="mx-auto h-12 w-12 text-gray-400" />
+            <h3 className="mt-2 text-sm font-medium text-gray-900">
+              No Property Selected
+            </h3>
+            <p className="mt-1 text-sm text-gray-500">
+              Please select a property to view instructions.
+            </p>
+          </div>
+        </StandardCard>
+      </StandardPageLayout>
     );
   }
 
-  // ✅ Clean page content - no wrapper needed
+  // ✅ Main content using StandardPageLayout
   return (
-    <div className="p-6">
-      <Header title="Property Manual" />
-      <PageContainer className="space-y-6">
+    <StandardPageLayout theme="dark" showHeader={false}>
+      <div className="space-y-6">
         {loading ? (
-          // ✅ Show loading state for content only
+          // Show loading state for content only
           <StandardCard>
             <div className="flex items-center justify-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
@@ -348,7 +338,7 @@ export default function ManualPage() {
             </div>
           </StandardCard>
         ) : (
-          // ✅ Content renders after loading
+          // Content renders after loading
           <div className="space-y-8">
             {/* Priority Sections - with cleaning first */}
             {sections.filter((section) => section.is_priority).length > 0 && (
@@ -390,22 +380,24 @@ export default function ManualPage() {
 
             {/* Empty state - only show if NO sections at all */}
             {sections.length === 0 && (
-              <div className="text-center py-12">
-                <BookOpen className="mx-auto h-12 w-12 text-gray-400" />
-                <h3 className="mt-2 text-sm font-medium text-gray-900">
-                  No instruction sections yet
-                </h3>
-                <p className="mt-1 text-sm text-gray-500">
-                  Get started by creating your first instruction section.
-                </p>
-              </div>
+              <StandardCard>
+                <div className="text-center py-12">
+                  <BookOpen className="mx-auto h-12 w-12 text-gray-400" />
+                  <h3 className="mt-2 text-sm font-medium text-gray-900">
+                    No instruction sections yet
+                  </h3>
+                  <p className="mt-1 text-sm text-gray-500">
+                    Get started by creating your first instruction section.
+                  </p>
+                </div>
+              </StandardCard>
             )}
           </div>
         )}
 
         <CreatePattern href="/manual/sections/new" label="Add Instructions" />
-      </PageContainer>
-    </div>
+      </div>
+    </StandardPageLayout>
   );
 }
 
@@ -489,106 +481,7 @@ function PrioritySectionCard({
   );
 }
 
-// Full Width Section Card Component - WITH PIN TOGGLE
-function FullWidthSectionCard({
-  section,
-  onTogglePin,
-}: {
-  section: ManualSection;
-  onTogglePin: (sectionId: string, isPriority: boolean) => void;
-}) {
-  const [isToggling, setIsToggling] = useState(false);
-
-  const handlePinToggle = async (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-
-    setIsToggling(true);
-    await onTogglePin(section.id, !section.is_priority);
-    setIsToggling(false);
-  };
-
-  return (
-    <Link href={`/manual/sections/${section.id}`}>
-      <StandardCard className="hover:shadow-md transition-shadow">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <div className="flex-shrink-0">
-              {/* Display the icon from database or fallback to BookOpen */}
-              {section.icon ? (
-                <div className="w-12 h-12 rounded-lg bg-blue-50 flex items-center justify-center">
-                  <span className="text-2xl">{section.icon}</span>
-                </div>
-              ) : (
-                <div className="w-12 h-12 rounded-lg bg-blue-50 flex items-center justify-center">
-                  <BookOpen className="h-6 w-6 text-blue-600" />
-                </div>
-              )}
-            </div>
-
-            <div className="flex-1 min-w-0">
-              <h3 className="text-lg font-semibold text-gray-900 mb-1">
-                {section.title}
-              </h3>
-              {section.description && (
-                <p className="text-gray-600 line-clamp-2">
-                  {section.description}
-                </p>
-              )}
-              <div className="flex items-center space-x-4 mt-2 text-sm text-gray-500">
-                <span>
-                  {section._count?.items || 0} item{" "}
-                  {section._count?.items !== 1 ? "s" : ""}
-                </span>
-                <span>
-                  Created{" "}
-                  {new Date(section.created_at).toLocaleDateString("en-US", {
-                    year: "numeric",
-                    month: "short",
-                    day: "numeric",
-                  })}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-center space-x-2">
-            {/* Pin Toggle Button */}
-            <button
-              onClick={handlePinToggle}
-              disabled={isToggling}
-              className={`p-2 rounded-lg transition-colors ${
-                section.is_priority
-                  ? "text-yellow-600 bg-yellow-50 hover:bg-yellow-100"
-                  : "text-gray-400 hover:text-yellow-600 hover:bg-yellow-50"
-              } ${isToggling ? "opacity-50" : ""}`}
-              title={
-                section.is_priority ? "Remove from priority" : "Add to priority"
-              }
-            >
-              <Pin className="h-4 w-4" />
-            </button>
-
-            {/* Edit Button */}
-            <button
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                window.location.href = `/manual/sections/${section.id}/edit`;
-              }}
-              className="p-2 text-gray-400 hover:text-blue-600 transition-colors"
-              title="Edit section"
-            >
-              <Edit className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-      </StandardCard>
-    </Link>
-  );
-}
-
-// ✅ ADD: Special card component for cleaning section
+// ✅ Special card component for cleaning section
 function CleaningSectionCard({
   section,
   onTogglePin,
@@ -629,7 +522,7 @@ function CleaningSectionCard({
 
         <div className="flex items-start justify-between mb-4 pr-8 pt-6">
           <div className="flex items-center">
-            {/* ✅ UPDATED: Use Sparkles icon with gradient background */}
+            {/* Use Sparkles icon with gradient background */}
             <div className="w-12 h-12 rounded-full bg-gradient-to-br from-green-100 to-blue-100 flex items-center justify-center mr-3 border-2 border-green-200">
               <Sparkles className="h-6 w-6 text-green-600" />
             </div>
@@ -648,7 +541,7 @@ function CleaningSectionCard({
             "Manage all your cleaning tasks and procedures"}
         </p>
 
-        {/* ✅ UPDATED: Quick actions with sparkle theme */}
+        {/* Quick actions with sparkle theme */}
         <div className="flex items-center space-x-2 text-xs">
           <span className="bg-green-100 text-green-800 px-2 py-1 rounded flex items-center">
             <Sparkles className="h-3 w-3 mr-1" />
@@ -670,7 +563,7 @@ function CleaningSectionCard({
   );
 }
 
-// ✅ ADD: Missing SectionCard component for regular sections
+// ✅ SectionCard component for regular sections
 function SectionCard({ section }: { section: ManualSection }) {
   return (
     <Link href={`/manual/sections/${section.id}`}>

@@ -1,6 +1,8 @@
 "use client";
 
 import { useAuth } from "@/components/auth";
+import { useProperty } from "@/lib/hooks/useProperty"; // 🔑 ADD THIS IMPORT
+import { PropertySwitcher } from "@/components/property/PropertySwitcher"; // 🔑 ADD THIS IMPORT
 import { usePathname } from "next/navigation";
 import { useTheme } from "@/components/ThemeProvider";
 import {
@@ -23,6 +25,7 @@ import {
   Star as StarIcon,
   Package as PackageIcon,
   Phone as PhoneIcon,
+  Building2 as Building2Icon, // 🔑 ADD FOR PROPERTY INDICATOR
 } from "lucide-react";
 import Link from "next/link";
 import { useState, useRef, useEffect } from "react";
@@ -206,7 +209,8 @@ function UserAvatar({
 }
 
 export default function Header() {
-  const { user, signOut, profileData } = useAuth(); // ✅ Get profile data for user info
+  const { user, signOut, profileData } = useAuth();
+  const { currentProperty, userProperties } = useProperty(); // 🔑 ADD PROPERTY CONTEXT
   const { actualTheme } = useTheme();
   const pathname = usePathname();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -284,8 +288,44 @@ export default function Header() {
           </div>
         </div>
 
+        {/* 🔑 CENTER - Property Context (Desktop) */}
+        <div className="hidden lg:flex items-center justify-center flex-1 max-w-sm mx-8">
+          {currentProperty && (
+            <div className="flex items-center space-x-4">
+              {/* Current Property Indicator */}
+              <div className="flex items-center space-x-2 text-sm">
+                <Building2Icon
+                  className={`h-4 w-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
+                />
+                <span className={isDarkMode ? 'text-gray-300' : 'text-gray-600'}>
+                  Current:
+                </span>
+                <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                  {currentProperty.name}
+                </span>
+              </div>
+
+              {/* Property Switcher (only if multiple properties) */}
+              {userProperties.length > 1 && (
+                <div className="w-48">
+                  <PropertySwitcher />
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
         {/* Right side - User menu */}
         <div className="flex items-center gap-4">
+          {/* 🔑 MOBILE Property Switcher */}
+          <div className="lg:hidden">
+            {userProperties.length > 1 && (
+              <div className="w-40">
+                <PropertySwitcher />
+              </div>
+            )}
+          </div>
+
           <div className="relative" ref={dropdownRef}>
             <button
               onClick={() => setIsDropdownOpen(!isDropdownOpen)}
@@ -331,11 +371,11 @@ export default function Header() {
               />
             </button>
 
-            {/* Dropdown Menu */}
+            {/* 🔑 ENHANCED Dropdown Menu with Property Info */}
             {isDropdownOpen && (
               <div
                 className={`
-                absolute right-0 top-full mt-2 w-48 rounded-lg shadow-lg py-2 z-50
+                absolute right-0 top-full mt-2 w-56 rounded-lg shadow-lg py-2 z-50
                 border transition-colors duration-200
                 ${
                   isDarkMode
@@ -344,8 +384,27 @@ export default function Header() {
                 }
               `}
               >
+                {/* 🔑 ADD Property Info Section (Mobile) */}
+                <div className="lg:hidden px-4 py-2 border-b border-gray-200 dark:border-gray-700">
+                  {currentProperty && (
+                    <div className="space-y-2">
+                      <div className="flex items-center space-x-2">
+                        <Building2Icon className="h-4 w-4 text-gray-400" />
+                        <span className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                          {currentProperty.name}
+                        </span>
+                      </div>
+                      {userProperties.length > 1 && (
+                        <div className="w-full">
+                          <PropertySwitcher />
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Existing Account Items */}
                 {accountSection.items.map((item) => {
-                  // ✅ Use our centralized permission checking
                   if (item.permissionCheck && !item.permissionCheck(user)) {
                     return null;
                   }

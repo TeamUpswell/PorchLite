@@ -1,19 +1,18 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/components/auth";
 import { useProperty } from "@/lib/hooks/useProperty";
 import { supabase } from "@/lib/supabase";
-import Header from "@/components/layout/Header";
-import PageContainer from "@/components/layout/PageContainer";
-import DashboardHeader from "@/components/dashboard/DashboardHeader"; // ✅ Add back banner
-import DashboardLayout from "@/components/dashboard/DashboardLayout";
+import StandardPageLayout from "@/components/layout/StandardPageLayout";
+import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import StandardCard from "@/components/ui/StandardCard";
 import { Home as HomeIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import GoogleMapComponent from "@/components/GoogleMapComponent";
+import { debug } from "@/lib/utils/debug";
 
-// Simplified interfaces
+// Keep all your existing interfaces and state...
 interface UpcomingVisit {
   id: string;
   title: string;
@@ -37,9 +36,7 @@ export default function HomePage() {
   const [taskAlerts, setTaskAlerts] = useState<any[]>([]);
   const [totalInventoryCount, setTotalInventoryCount] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [hasFetchedData, setHasFetchedData] = useState(false);
 
-  // Loading states for individual components
   const [componentLoading, setComponentLoading] = useState({
     visits: true,
     inventory: true,
@@ -48,7 +45,6 @@ export default function HomePage() {
 
   const router = useRouter();
 
-  // Mock weather data (you can replace with real API)
   const mockWeather = {
     current: {
       temp: 72,
@@ -70,14 +66,14 @@ export default function HomePage() {
     ],
   };
 
-  // Fetch dashboard data function
-  const fetchDashboardData = async () => {
+  // ✅ Restore your original fetchDashboardData with correct supabase import
+  const fetchDashboardData = useCallback(async () => {
     if (!currentProperty?.id) {
-      console.log("❌ No current property, skipping dashboard fetch");
+      debug.log("❌ No current property, skipping dashboard fetch");
       return;
     }
 
-    console.log("🔍 Fetching dashboard data for property:", currentProperty.id);
+    debug.log("🔍 Fetching dashboard data for property:", currentProperty.id);
     setLoading(true);
 
     try {
@@ -103,9 +99,16 @@ export default function HomePage() {
         .eq("is_active", true);
 
       const inventoryItems = inventoryData.data || [];
-      const lowStockItems = inventoryItems.filter(
-        (item) => item.quantity !== null && item.quantity < 5
-      );
+      const lowStockItems = inventoryItems
+        .filter((item) => item.quantity !== null && item.quantity < 5)
+        .map((item) => ({
+          ...item,
+          status: (item.quantity === 0
+            ? "critical"
+            : item.quantity < 2
+            ? "critical"
+            : "low") as "good" | "low" | "critical",
+        }));
 
       setInventoryAlerts(lowStockItems);
       setTotalInventoryCount(inventoryItems.length);
@@ -124,148 +127,331 @@ export default function HomePage() {
       setTaskAlerts(tasksData.data || []);
       setComponentLoading((prev) => ({ ...prev, tasks: false }));
 
-      console.log("✅ Dashboard data fetched successfully");
+      debug.log("✅ Dashboard data fetched successfully");
     } catch (error) {
-      console.error("❌ Error fetching dashboard data:", error);
+      debug.error("❌ Error fetching dashboard data:", error);
       setComponentLoading({ visits: false, inventory: false, tasks: false });
     } finally {
       setLoading(false);
-      setHasFetchedData(true);
     }
-  };
+  }, [currentProperty?.id]);
 
-  // ✅ Effect with proper timing
+  // Keep all your existing useEffect hooks...
   useEffect(() => {
     if (authLoading || propertyLoading) {
       return;
     }
 
     if (!user?.id || !currentProperty?.id) {
-      console.log("⏳ Waiting for user and property to load...");
+      debug.log("⏳ Waiting for user and property to load...");
       setLoading(false);
       return;
     }
 
-    console.log(
+    debug.log(
       "🏠 Property and user loaded, fetching dashboard:",
       currentProperty.name
     );
     fetchDashboardData();
-  }, [currentProperty?.id, user?.id, authLoading, propertyLoading]);
+  }, [
+    currentProperty?.id,
+    currentProperty?.name,
+    user?.id,
+    authLoading,
+    propertyLoading,
+    fetchDashboardData,
+  ]);
 
-  // Handle new reservation callback
   const handleAddReservation = () => {
-    console.log("➕ Add reservation triggered");
-    // You can add navigation to calendar page or open a modal here
-    window.location.href = "/calendar";
+    debug.log("➕ Add reservation triggered");
+    router.push("/calendar");
   };
 
-  // Redirect to auth if no user
   useEffect(() => {
     if (!authLoading && !user) {
-      console.log("🔄 No user found, redirecting to auth...");
+      debug.log("🔄 No user found, redirecting to auth...");
       router.push("/auth");
     }
   }, [user, authLoading, router]);
 
-  // Add this at the top of your HomePage component
-  console.log("🏠 HomePage render - Auth state:", {
-    user: user?.email || "none",
-    authLoading,
-    propertyLoading,
-    currentProperty: currentProperty?.name || "none",
-  });
+  useEffect(() => {
+    if (process.env.NODE_ENV === "development") {
+      debug.log("🏠 HomePage render - Auth state:", {
+        user: user?.email || "none",
+        authLoading,
+        propertyLoading,
+        currentProperty: currentProperty?.name || "none",
+      });
+    }
+  }, [user?.email, authLoading, propertyLoading, currentProperty?.name]);
 
-  // Simplify your loading detection:
-
-  // Show auth spinner
+  // ✅ Loading states - remove page titles
   if (authLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
+      <StandardPageLayout theme="dark" showHeader={false}>
+        <StandardCard>
+          <div className="flex items-center justify-center py-12">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          </div>
+        </StandardCard>
+      </StandardPageLayout>
     );
   }
 
-  // Show property loading (only if we have a user)
   if (user && propertyLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p>Loading your property...</p>
-        </div>
-      </div>
+      <StandardPageLayout theme="dark" showHeader={false}>
+        <StandardCard>
+          <div className="flex items-center justify-center py-12">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+              <p>Loading your property...</p>
+            </div>
+          </div>
+        </StandardCard>
+      </StandardPageLayout>
     );
   }
-
-  // Rest of your component...
 
   if (!user) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div>Redirecting to login...</div>
-      </div>
+      <StandardPageLayout theme="dark" showHeader={false}>
+        <StandardCard>
+          <div className="flex items-center justify-center py-12">
+            <div>Redirecting to login...</div>
+          </div>
+        </StandardCard>
+      </StandardPageLayout>
     );
   }
 
   if (!currentProperty) {
     return (
-      <div className="p-6">
-        <Header title="Dashboard" />
-        <PageContainer>
-          <StandardCard>
-            <div className="text-center py-8">
-              <HomeIcon className="mx-auto h-12 w-12 text-gray-400" />
-              <h3 className="mt-2 text-sm font-medium text-gray-900">
-                No Property Selected
-              </h3>
-              <p className="mt-1 text-sm text-gray-500">
-                Please select a property to view your dashboard.
-              </p>
-            </div>
-          </StandardCard>
-        </PageContainer>
-      </div>
+      <StandardPageLayout theme="dark" showHeader={false}>
+        <StandardCard>
+          <div className="text-center py-8">
+            <HomeIcon className="mx-auto h-12 w-12 text-gray-400" />
+            <h3 className="mt-2 text-sm font-medium text-gray-900">
+              No Property Selected
+            </h3>
+            <p className="mt-1 text-sm text-gray-500">
+              Please select a property to view your dashboard.
+            </p>
+          </div>
+        </StandardCard>
+      </StandardPageLayout>
     );
   }
 
-  // ✅ Main dashboard with BOTH Header and DashboardHeader
+  // ✅ Main dashboard - remove page title section, keep beautiful DashboardHeader
   return (
-    <div className="p-6">
-      <Header title="Dashboard" />
+    <StandardPageLayout theme="dark" showHeader={false}>
+      {/* ✅ Keep your beautiful DashboardHeader outside the layout */}
+      <div className="mb-6">
+        <DashboardHeader weather={mockWeather} showWeather={true}>
+          <h1 className="text-3xl md:text-4xl font-bold mb-1 text-white drop-shadow-lg tracking-tight">
+            {currentProperty.name}
+          </h1>
+          <p className="text-white/90 text-lg md:text-xl drop-shadow-md font-light tracking-wide">
+            {currentProperty.address || "Your beautiful property"}
+          </p>
+        </DashboardHeader>
+      </div>
 
-      {/* ✅ Beautiful banner with weather and property info */}
-      <DashboardHeader weather={mockWeather} showWeather={true}>
-        <h1 className="text-3xl md:text-4xl font-bold mb-1 text-white drop-shadow-lg tracking-tight">
-          {currentProperty.name}
-        </h1>
-        <p className="text-white/90 text-lg md:text-xl drop-shadow-md font-light tracking-wide">
-          {currentProperty.address}
-        </p>
-      </DashboardHeader>
+      <div className="space-y-6">
+        {/* Keep all your existing dashboard content... */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <StandardCard>
+            <div className="flex items-center">
+              <div className="p-2 bg-blue-100 rounded-lg">
+                <svg
+                  className="w-6 h-6 text-blue-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                  />
+                </svg>
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">
+                  Upcoming Visits
+                </p>
+                <p className="text-2xl font-semibold text-gray-900">
+                  {componentLoading.visits ? "..." : upcomingVisits.length}
+                </p>
+              </div>
+            </div>
+          </StandardCard>
 
-      <PageContainer>
-        <div className="mt-6">
-          {" "}
-          {/* Add margin top for spacing after banner */}
-          <DashboardLayout
-            stats={{
-              upcomingVisits,
-              inventoryAlerts,
-              maintenanceAlerts: taskAlerts,
-              totalInventoryCount,
-            }}
-            loading={componentLoading}
-            onAddReservation={handleAddReservation}
-            enabledComponents={["stats", "visits", "inventory", "tasks"]}
-            showBanner={false} // Don't show DashboardLayout banner since we're using DashboardHeader
-          />
+          <StandardCard>
+            <div className="flex items-center">
+              <div className="p-2 bg-green-100 rounded-lg">
+                <svg
+                  className="w-6 h-6 text-green-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+                  />
+                </svg>
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">
+                  Total Inventory
+                </p>
+                <p className="text-2xl font-semibold text-gray-900">
+                  {componentLoading.inventory ? "..." : totalInventoryCount}
+                </p>
+              </div>
+            </div>
+          </StandardCard>
+
+          <StandardCard>
+            <div className="flex items-center">
+              <div className="p-2 bg-yellow-100 rounded-lg">
+                <svg
+                  className="w-6 h-6 text-yellow-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"
+                  />
+                </svg>
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">
+                  Low Stock Alerts
+                </p>
+                <p className="text-2xl font-semibold text-gray-900">
+                  {componentLoading.inventory ? "..." : inventoryAlerts.length}
+                </p>
+              </div>
+            </div>
+          </StandardCard>
+
+          <StandardCard>
+            <div className="flex items-center">
+              <div className="p-2 bg-red-100 rounded-lg">
+                <svg
+                  className="w-6 h-6 text-red-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                  />
+                </svg>
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">
+                  Pending Tasks
+                </p>
+                <p className="text-2xl font-semibold text-gray-900">
+                  {componentLoading.tasks ? "..." : taskAlerts.length}
+                </p>
+              </div>
+            </div>
+          </StandardCard>
         </div>
 
-        {/* Add a map section showing current property location */}
-        {currentProperty && currentProperty.latitude && currentProperty.longitude && (
-          <StandardCard title="Property Location" className="col-span-full">
+        <StandardCard title="Quick Actions">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <button
+              onClick={handleAddReservation}
+              className="p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors"
+            >
+              <div className="text-center">
+                <svg
+                  className="mx-auto h-8 w-8 text-gray-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                  />
+                </svg>
+                <span className="mt-2 block text-sm font-medium text-gray-900">
+                  Add Reservation
+                </span>
+              </div>
+            </button>
+
+            <button
+              onClick={() => router.push("/inventory")}
+              className="p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-green-300 hover:bg-green-50 transition-colors"
+            >
+              <div className="text-center">
+                <svg
+                  className="mx-auto h-8 w-8 text-gray-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+                  />
+                </svg>
+                <span className="mt-2 block text-sm font-medium text-gray-900">
+                  Manage Inventory
+                </span>
+              </div>
+            </button>
+
+            <button
+              onClick={() => router.push("/tasks")}
+              className="p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-purple-300 hover:bg-purple-50 transition-colors"
+            >
+              <div className="text-center">
+                <svg
+                  className="mx-auto h-8 w-8 text-gray-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                  />
+                </svg>
+                <span className="mt-2 block text-sm font-medium text-gray-900">
+                  Create Task
+                </span>
+              </div>
+            </button>
+          </div>
+        </StandardCard>
+
+        {currentProperty?.latitude && currentProperty?.longitude && (
+          <StandardCard title="Property Location">
             <div className="h-64 w-full">
               <GoogleMapComponent
                 latitude={currentProperty.latitude}
@@ -277,7 +463,7 @@ export default function HomePage() {
             </div>
           </StandardCard>
         )}
-      </PageContainer>
-    </div>
+      </div>
+    </StandardPageLayout>
   );
 }

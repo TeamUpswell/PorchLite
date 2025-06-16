@@ -23,22 +23,22 @@ import { CreatePattern } from "@/components/ui/FloatingActionPresets";
 interface Property {
   id: string;
   name: string;
-  description?: string;
-  address?: string;
-  city?: string;
-  state?: string;
-  zip?: string;
-  latitude?: number;
-  longitude?: number;
-  main_photo_url?: string;
-  contact_info?: string;
+  description?: string | null;
+  address?: string | null;
+  city?: string | null;
+  state?: string | null;
+  zip?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  main_photo_url?: string | null;
+  contact_info?: string | null;
   created_at: string;
   updated_at: string;
 }
 
 export default function PropertiesPage() {
   const { user, loading: authLoading } = useAuth();
-  const { currentTenant, userProperties, propertyLoading } = useProperty();
+  const { userProperties, loading: propertyLoading } = useProperty();
   const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -60,7 +60,6 @@ export default function PropertiesPage() {
   // Handler for add property
   const handleAddProperty = () => {
     // TODO: Implement add property modal or navigation
-    console.log("Add property clicked");
   };
 
   const handleEditProperty = (propertyId: string) => {
@@ -77,7 +76,7 @@ export default function PropertiesPage() {
   if (authLoading) {
     return (
       <div className="p-6">
-        <Header title="Property Settings" />
+        <Header />
         <PageContainer>
           <StandardCard>
             <div className="flex items-center justify-center py-12">
@@ -93,7 +92,7 @@ export default function PropertiesPage() {
   if (!hasAccess) {
     return (
       <div className="p-6">
-        <Header title="Property Settings" />
+        <Header />
         <PageContainer>
           <StandardCard>
             <div className="text-center py-8">
@@ -102,7 +101,7 @@ export default function PropertiesPage() {
                 Access Denied
               </h3>
               <p className="mt-1 text-sm text-gray-500">
-                You don't have permission to manage properties.
+                You don&apos;t have permission to manage properties.
               </p>
               <div className="text-xs text-gray-400 mt-4 p-2 bg-gray-50 rounded">
                 <p>Role: {user?.user_metadata?.role || "undefined"}</p>
@@ -119,7 +118,7 @@ export default function PropertiesPage() {
   if (isLoading) {
     return (
       <div className="p-6">
-        <Header title="Property Settings" />
+        <Header />
         <PageContainer>
           <StandardCard>
             <div className="flex items-center justify-center py-8">
@@ -134,7 +133,7 @@ export default function PropertiesPage() {
 
   return (
     <div className="p-6">
-      <Header title="Property Settings" />
+      <Header />
       <PageContainer>
         <div className="space-y-6">
           {/* Page Header */}
@@ -275,7 +274,7 @@ export default function PropertiesPage() {
                   No Properties Found
                 </h3>
                 <p className="text-gray-500 mb-6">
-                  You haven't added any properties yet. Get started by adding
+                  You haven&apos;t added any properties yet. Get started by adding
                   your first property.
                 </p>
                 <button
