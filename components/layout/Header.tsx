@@ -33,7 +33,7 @@ import { useState, useRef, useEffect } from "react";
 const accountSection = {
   category: "Account",
   items: [
-    { name: "Profile", href: "/profile", icon: UserIcon },
+    { name: "Account", href: "/account", icon: UserIcon },
     {
       name: "Property Settings",
       href: "/account/properties",
@@ -99,10 +99,10 @@ const pageInfo: Record<
     icon: PhoneIcon,
     description: "Important contact information",
   },
-  "/profile": {
-    title: "Profile",
+  "/account": {
+    title: "Account",
     icon: UserIcon,
-    description: "Your account settings",
+    description: "Account settings and preferences",
   },
   "/account/properties": {
     title: "Property Settings",

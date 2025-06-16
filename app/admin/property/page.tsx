@@ -15,8 +15,7 @@ import {
 import Link from "next/link";
 import { toast } from "react-hot-toast";
 
-import Header from "@/components/layout/Header";
-import PageContainer from "@/components/layout/PageContainer";
+import StandardPageLayout from "@/components/layout/StandardPageLayout";
 import StandardCard from "@/components/ui/StandardCard";
 import { useAuth } from "@/components/auth";
 import { canManageProperties } from "@/lib/utils/roles";
@@ -26,7 +25,7 @@ import { Database } from "@/lib/database.types";
 
 type Property = Database["public"]["Tables"]["properties"]["Row"];
 
-// ✅ Fix: Debug utility with proper ESLint handling
+// Debug utility with proper ESLint handling
 const debug = (message: string, ...args: any[]) => {
   if (process.env.NODE_ENV === "development") {
     // eslint-disable-next-line no-console
@@ -64,7 +63,7 @@ export default function AdminPropertyPage() {
   >({});
   const [showCreateModal, setShowCreateModal] = useState(false);
 
-  // ✅ Fix: Add confirm dialog state
+  // Add confirm dialog state
   const [confirmDialog, setConfirmDialog] = useState<{
     isOpen: boolean;
     propertyId: string | null;
@@ -162,7 +161,7 @@ export default function AdminPropertyPage() {
     fetchPropertyStats,
   ]);
 
-  // ✅ Fix: Replace confirm() with custom dialog
+  // Replace confirm() with custom dialog
   const handleDeleteProperty = (propertyId: string) => {
     const property = userProperties.find((p) => p.id === propertyId);
     setConfirmDialog({
@@ -172,7 +171,7 @@ export default function AdminPropertyPage() {
     });
   };
 
-  // ✅ Fix: Actual delete function
+  // Actual delete function
   const confirmDeleteProperty = async () => {
     if (!confirmDialog.propertyId) return;
 
@@ -215,17 +214,14 @@ export default function AdminPropertyPage() {
   // Loading states
   if (authLoading) {
     return (
-      <div className="p-6">
-        <Header />
-        <PageContainer>
-          <StandardCard>
-            <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-              <span className="ml-2">Loading...</span>
-            </div>
-          </StandardCard>
-        </PageContainer>
-      </div>
+      <StandardPageLayout>
+        <StandardCard>
+          <div className="flex items-center justify-center py-12">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <span className="ml-2">Loading...</span>
+          </div>
+        </StandardCard>
+      </StandardPageLayout>
     );
   }
 
@@ -235,361 +231,351 @@ export default function AdminPropertyPage() {
 
   if (!hasAccess) {
     return (
-      <div className="p-6">
-        <Header />
-        <PageContainer>
-          <StandardCard>
-            <div className="text-center py-8">
-              <Shield className="mx-auto h-12 w-12 text-gray-400" />
-              <h3 className="mt-2 text-sm font-medium text-gray-900">
-                Access Denied
-              </h3>
-              <p className="mt-1 text-sm text-gray-500">
-                You don&apos;t have permission to manage properties.
-              </p>
-              <div className="text-xs text-gray-400 mt-4 p-2 bg-gray-50 rounded">
-                <p>Role: {user?.user_metadata?.role || "undefined"}</p>
-                <p>Required: Manager or above</p>
-              </div>
+      <StandardPageLayout>
+        <StandardCard>
+          <div className="text-center py-8">
+            <Shield className="mx-auto h-12 w-12 text-gray-400" />
+            <h3 className="mt-2 text-sm font-medium text-gray-900">
+              Access Denied
+            </h3>
+            <p className="mt-1 text-sm text-gray-500">
+              You don&apos;t have permission to manage properties.
+            </p>
+            <div className="text-xs text-gray-400 mt-4 p-2 bg-gray-50 rounded">
+              <p>Role: {user?.user_metadata?.role || "undefined"}</p>
+              <p>Required: Manager or above</p>
             </div>
-          </StandardCard>
-        </PageContainer>
-      </div>
+          </div>
+        </StandardCard>
+      </StandardPageLayout>
     );
   }
 
   if (propertyLoading) {
     return (
-      <div className="p-6">
-        <Header />
-        <PageContainer>
-          <StandardCard>
-            <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-              <span className="ml-2">Loading properties...</span>
-            </div>
-          </StandardCard>
-        </PageContainer>
-      </div>
+      <StandardPageLayout>
+        <StandardCard>
+          <div className="flex items-center justify-center py-12">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <span className="ml-2">Loading properties...</span>
+          </div>
+        </StandardCard>
+      </StandardPageLayout>
     );
   }
 
   return (
-    <div className="p-6">
-      <Header />
-      <PageContainer>
-        <div className="space-y-6">
-          {/* Page Header using StandardCard */}
+    <StandardPageLayout>
+      <div className="space-y-6">
+        {/* Page Header using StandardCard */}
+        <StandardCard
+          title="Property Management"
+          subtitle="Manage your properties and their settings"
+          icon={<Building className="h-6 w-6" />}
+          headerActions={
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Add Property
+            </button>
+          }
+        >
+          {/* Overview Stats */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div className="text-center p-4 bg-blue-50 rounded-lg">
+              <div className="text-2xl font-bold text-blue-600 mb-1">
+                {totalProperties}
+              </div>
+              <p className="text-gray-600 text-sm">Your Properties</p>
+            </div>
+
+            <div className="text-center p-4 bg-green-50 rounded-lg">
+              <div className="text-2xl font-bold text-green-600 mb-1">
+                {statsLoading ? "..." : totalRooms}
+              </div>
+              <p className="text-gray-600 text-sm">Total Rooms</p>
+            </div>
+
+            <div className="text-center p-4 bg-purple-50 rounded-lg">
+              <div className="text-2xl font-bold text-purple-600 mb-1">
+                {statsLoading ? "..." : totalReservations}
+              </div>
+              <p className="text-gray-600 text-sm">Total Reservations</p>
+            </div>
+
+            <div className="text-center p-4 bg-orange-50 rounded-lg">
+              <div className="text-2xl font-bold text-orange-600 mb-1">
+                {statsLoading ? "..." : totalUsers}
+              </div>
+              <p className="text-gray-600 text-sm">Total Users</p>
+            </div>
+          </div>
+        </StandardCard>
+
+        {/* Current Property Info */}
+        {currentProperty && (
           <StandardCard
-            title="Property Management"
-            subtitle="Manage your properties and their settings"
-            icon={<Building className="h-6 w-6" />}
+            title="Current Property"
+            subtitle="Currently selected property"
             headerActions={
-              <button
-                onClick={() => setShowCreateModal(true)}
-                className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Add Property
-              </button>
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                Active
+              </span>
             }
           >
-            {/* Overview Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              <div className="text-center p-4 bg-blue-50 rounded-lg">
-                <div className="text-2xl font-bold text-blue-600 mb-1">
-                  {totalProperties}
+            <div className="flex items-start justify-between">
+              <div className="flex items-start space-x-4">
+                <div className="p-3 bg-blue-50 rounded-lg">
+                  <Building className="h-8 w-8 text-blue-600" />
                 </div>
-                <p className="text-gray-600 text-sm">Your Properties</p>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-1">
+                    {currentProperty.name}
+                  </h3>
+                  {currentProperty.address && (
+                    <div className="flex items-center text-gray-600 mb-2">
+                      <MapPin className="h-4 w-4 mr-1" />
+                      <span className="text-sm">{currentProperty.address}</span>
+                    </div>
+                  )}
+                  {currentProperty.description && (
+                    <p className="text-gray-600 text-sm">
+                      {currentProperty.description}
+                    </p>
+                  )}
+                </div>
               </div>
 
-              <div className="text-center p-4 bg-green-50 rounded-lg">
-                <div className="text-2xl font-bold text-green-600 mb-1">
-                  {statsLoading ? "..." : totalRooms}
-                </div>
-                <p className="text-gray-600 text-sm">Total Rooms</p>
-              </div>
-
-              <div className="text-center p-4 bg-purple-50 rounded-lg">
-                <div className="text-2xl font-bold text-purple-600 mb-1">
-                  {statsLoading ? "..." : totalReservations}
-                </div>
-                <p className="text-gray-600 text-sm">Total Reservations</p>
-              </div>
-
-              <div className="text-center p-4 bg-orange-50 rounded-lg">
-                <div className="text-2xl font-bold text-orange-600 mb-1">
-                  {statsLoading ? "..." : totalUsers}
-                </div>
-                <p className="text-gray-600 text-sm">Total Users</p>
+              <div className="flex items-center space-x-2">
+                <Link
+                  href={`/admin/property/${currentProperty.id}/settings`}
+                  className="p-2 text-gray-400 hover:text-blue-600 transition-colors"
+                  title="Property Settings"
+                >
+                  <Settings className="h-4 w-4" />
+                </Link>
+                <Link
+                  href={`/admin/property/${currentProperty.id}/edit`}
+                  className="p-2 text-gray-400 hover:text-blue-600 transition-colors"
+                  title="Edit Property"
+                >
+                  <Edit className="h-4 w-4" />
+                </Link>
               </div>
             </div>
-          </StandardCard>
 
-          {/* Current Property Info */}
-          {currentProperty && (
-            <StandardCard
-              title="Current Property"
-              subtitle="Currently selected property"
-              headerActions={
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                  Active
-                </span>
-              }
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex items-start space-x-4">
-                  <div className="p-3 bg-blue-50 rounded-lg">
-                    <Building className="h-8 w-8 text-blue-600" />
+            {/* Current Property Stats */}
+            {propertyStats[currentProperty.id] && (
+              <div className="mt-4 pt-4 border-t border-gray-100">
+                <div className="grid grid-cols-3 gap-4 text-center">
+                  <div>
+                    <div className="text-lg font-semibold text-blue-600">
+                      {propertyStats[currentProperty.id].totalRooms}
+                    </div>
+                    <p className="text-xs text-gray-600">Rooms</p>
                   </div>
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-1">
-                      {currentProperty.name}
-                    </h3>
-                    {currentProperty.address && (
-                      <div className="flex items-center text-gray-600 mb-2">
-                        <MapPin className="h-4 w-4 mr-1" />
-                        <span className="text-sm">
-                          {currentProperty.address}
-                        </span>
-                      </div>
-                    )}
-                    {currentProperty.description && (
-                      <p className="text-gray-600 text-sm">
-                        {currentProperty.description}
-                      </p>
-                    )}
+                    <div className="text-lg font-semibold text-green-600">
+                      {propertyStats[currentProperty.id].totalReservations}
+                    </div>
+                    <p className="text-xs text-gray-600">Reservations</p>
+                  </div>
+                  <div>
+                    <div className="text-lg font-semibold text-purple-600">
+                      {propertyStats[currentProperty.id].totalUsers}
+                    </div>
+                    <p className="text-xs text-gray-600">Users</p>
                   </div>
                 </div>
-
-                <div className="flex items-center space-x-2">
-                  <Link
-                    href={`/admin/property/${currentProperty.id}/settings`}
-                    className="p-2 text-gray-400 hover:text-blue-600 transition-colors"
-                    title="Property Settings"
-                  >
-                    <Settings className="h-4 w-4" />
-                  </Link>
-                  <Link
-                    href={`/admin/property/${currentProperty.id}/edit`}
-                    className="p-2 text-gray-400 hover:text-blue-600 transition-colors"
-                    title="Edit Property"
-                  >
-                    <Edit className="h-4 w-4" />
-                  </Link>
-                </div>
-              </div>
-
-              {/* Current Property Stats */}
-              {propertyStats[currentProperty.id] && (
-                <div className="mt-4 pt-4 border-t border-gray-100">
-                  <div className="grid grid-cols-3 gap-4 text-center">
-                    <div>
-                      <div className="text-lg font-semibold text-blue-600">
-                        {propertyStats[currentProperty.id].totalRooms}
-                      </div>
-                      <p className="text-xs text-gray-600">Rooms</p>
-                    </div>
-                    <div>
-                      <div className="text-lg font-semibold text-green-600">
-                        {propertyStats[currentProperty.id].totalReservations}
-                      </div>
-                      <p className="text-xs text-gray-600">Reservations</p>
-                    </div>
-                    <div>
-                      <div className="text-lg font-semibold text-purple-600">
-                        {propertyStats[currentProperty.id].totalUsers}
-                      </div>
-                      <p className="text-xs text-gray-600">Users</p>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </StandardCard>
-          )}
-
-          {/* All Properties List */}
-          <StandardCard
-            title="Your Properties"
-            subtitle={`${userProperties.length} properties available`}
-          >
-            {userProperties.length > 0 ? (
-              <div className="space-y-4">
-                {userProperties.map((property) => {
-                  const stats = propertyStats[property.id];
-                  const isCurrentProperty = currentProperty?.id === property.id;
-
-                  return (
-                    <div
-                      key={property.id}
-                      className={`border rounded-lg p-4 transition-all ${
-                        isCurrentProperty
-                          ? "border-blue-200 bg-blue-50"
-                          : "border-gray-200 hover:shadow-md"
-                      }`}
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-start space-x-3">
-                          <div
-                            className={`p-2 rounded-lg ${
-                              isCurrentProperty ? "bg-blue-100" : "bg-gray-100"
-                            }`}
-                          >
-                            <Building
-                              className={`h-5 w-5 ${
-                                isCurrentProperty
-                                  ? "text-blue-600"
-                                  : "text-gray-600"
-                              }`}
-                            />
-                          </div>
-                          <div>
-                            <div className="flex items-center space-x-2 mb-1">
-                              <h3 className="font-medium text-gray-900">
-                                {property.name}
-                              </h3>
-                              {isCurrentProperty && (
-                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
-                                  Current
-                                </span>
-                              )}
-                            </div>
-
-                            {property.address && (
-                              <div className="flex items-center text-gray-600 mb-1">
-                                <MapPin className="h-3 w-3 mr-1" />
-                                <span className="text-sm">
-                                  {property.address}
-                                </span>
-                              </div>
-                            )}
-
-                            {property.description && (
-                              <p className="text-gray-600 text-sm mb-2">
-                                {property.description}
-                              </p>
-                            )}
-
-                            {/* Property Stats */}
-                            {stats && (
-                              <div className="flex items-center space-x-4 text-xs text-gray-500">
-                                <span>{stats.totalRooms} rooms</span>
-                                <span>
-                                  {stats.totalReservations} reservations
-                                </span>
-                                <span>{stats.totalUsers} users</span>
-                                <span>
-                                  Updated{" "}
-                                  {new Date(
-                                    stats.lastActivity
-                                  ).toLocaleDateString()}
-                                </span>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Actions */}
-                        <div className="flex items-center space-x-2">
-                          {!isCurrentProperty && (
-                            <button
-                              onClick={() => setCurrentProperty(property)}
-                              className="px-3 py-1 text-xs font-medium text-blue-600 hover:text-blue-800 border border-blue-200 rounded hover:bg-blue-50 transition-colors"
-                            >
-                              Select
-                            </button>
-                          )}
-
-                          <Link
-                            href={`/admin/property/${property.id}/edit`}
-                            className="p-1.5 text-gray-400 hover:text-blue-600 transition-colors"
-                            title="Edit"
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Link>
-
-                          {/* ✅ Fix: Use custom delete handler */}
-                          <button
-                            onClick={() => handleDeleteProperty(property.id)}
-                            className="p-1.5 text-gray-400 hover:text-red-600 transition-colors"
-                            title="Delete"
-                            disabled={isCurrentProperty}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="text-center py-8 text-gray-500">
-                <Building className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-                <p>No properties found</p>
-                <p className="text-sm mt-1 mb-4">
-                  Create your first property to get started
-                </p>
-                <button
-                  onClick={() => setShowCreateModal(true)}
-                  className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Create First Property
-                </button>
               </div>
             )}
           </StandardCard>
+        )}
 
-          {/* Create Property Modal */}
-          {showCreateModal && (
-            <CreatePropertyModal
-              onClose={() => setShowCreateModal(false)}
-              onCreated={async (newProperty) => {
-                await refreshProperties();
-                setShowCreateModal(false);
-                toast.success("Property created successfully!");
-              }}
-            />
-          )}
+        {/* All Properties List */}
+        <StandardCard
+          title="Your Properties"
+          subtitle={`${userProperties.length} properties available`}
+        >
+          {userProperties.length > 0 ? (
+            <div className="space-y-4">
+              {userProperties.map((property) => {
+                const stats = propertyStats[property.id];
+                const isCurrentProperty = currentProperty?.id === property.id;
 
-          {/* ✅ Fix: Add ConfirmDialog */}
-          {/* Confirm Delete Dialog */}
-          {confirmDialog.isOpen && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-              <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                  Delete Property
-                </h2>
-                <p className="text-gray-600 mb-6">
-                  Are you sure you want to delete &quot;{confirmDialog.propertyName}&quot;? This action cannot be undone and will remove all associated data including rooms, reservations, and inventory.
-                </p>
-                <div className="flex justify-end space-x-3">
-                  <button
-                    onClick={() =>
-                      setConfirmDialog({
-                        isOpen: false,
-                        propertyId: null,
-                        propertyName: "",
-                      })
-                    }
-                    className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                return (
+                  <div
+                    key={property.id}
+                    className={`border rounded-lg p-4 transition-all ${
+                      isCurrentProperty
+                        ? "border-blue-200 bg-blue-50"
+                        : "border-gray-200 hover:shadow-md"
+                    }`}
                   >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={confirmDeleteProperty}
-                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-                  >
-                    Delete Property
-                  </button>
-                </div>
-              </div>
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-start space-x-3">
+                        <div
+                          className={`p-2 rounded-lg ${
+                            isCurrentProperty ? "bg-blue-100" : "bg-gray-100"
+                          }`}
+                        >
+                          <Building
+                            className={`h-5 w-5 ${
+                              isCurrentProperty
+                                ? "text-blue-600"
+                                : "text-gray-600"
+                            }`}
+                          />
+                        </div>
+                        <div>
+                          <div className="flex items-center space-x-2 mb-1">
+                            <h3 className="font-medium text-gray-900">
+                              {property.name}
+                            </h3>
+                            {isCurrentProperty && (
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                                Current
+                              </span>
+                            )}
+                          </div>
+
+                          {property.address && (
+                            <div className="flex items-center text-gray-600 mb-1">
+                              <MapPin className="h-3 w-3 mr-1" />
+                              <span className="text-sm">
+                                {property.address}
+                              </span>
+                            </div>
+                          )}
+
+                          {property.description && (
+                            <p className="text-gray-600 text-sm mb-2">
+                              {property.description}
+                            </p>
+                          )}
+
+                          {/* Property Stats */}
+                          {stats && (
+                            <div className="flex items-center space-x-4 text-xs text-gray-500">
+                              <span>{stats.totalRooms} rooms</span>
+                              <span>
+                                {stats.totalReservations} reservations
+                              </span>
+                              <span>{stats.totalUsers} users</span>
+                              <span>
+                                Updated{" "}
+                                {new Date(
+                                  stats.lastActivity
+                                ).toLocaleDateString()}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex items-center space-x-2">
+                        {!isCurrentProperty && (
+                          <button
+                            onClick={() => setCurrentProperty(property)}
+                            className="px-3 py-1 text-xs font-medium text-blue-600 hover:text-blue-800 border border-blue-200 rounded hover:bg-blue-50 transition-colors"
+                          >
+                            Select
+                          </button>
+                        )}
+
+                        <Link
+                          href={`/admin/property/${property.id}/edit`}
+                          className="p-1.5 text-gray-400 hover:text-blue-600 transition-colors"
+                          title="Edit"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Link>
+
+                        <button
+                          onClick={() => handleDeleteProperty(property.id)}
+                          className="p-1.5 text-gray-400 hover:text-red-600 transition-colors"
+                          title="Delete"
+                          disabled={isCurrentProperty}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-gray-500">
+              <Building className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+              <p>No properties found</p>
+              <p className="text-sm mt-1 mb-4">
+                Create your first property to get started
+              </p>
+              <button
+                onClick={() => setShowCreateModal(true)}
+                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Create First Property
+              </button>
             </div>
           )}
-        </div>
-      </PageContainer>
-    </div>
+        </StandardCard>
+
+        {/* Create Property Modal */}
+        {showCreateModal && (
+          <CreatePropertyModal
+            onClose={() => setShowCreateModal(false)}
+            onCreated={async (newProperty) => {
+              await refreshProperties();
+              setShowCreateModal(false);
+              toast.success("Property created successfully!");
+            }}
+          />
+        )}
+
+        {/* Confirm Delete Dialog */}
+        {confirmDialog.isOpen && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">
+                Delete Property
+              </h2>
+              <p className="text-gray-600 mb-6">
+                Are you sure you want to delete &quot;
+                {confirmDialog.propertyName}&quot;? This action cannot be undone
+                and will remove all associated data including rooms,
+                reservations, and inventory.
+              </p>
+              <div className="flex justify-end space-x-3">
+                <button
+                  onClick={() =>
+                    setConfirmDialog({
+                      isOpen: false,
+                      propertyId: null,
+                      propertyName: "",
+                    })
+                  }
+                  className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmDeleteProperty}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                >
+                  Delete Property
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </StandardPageLayout>
   );
 }
 

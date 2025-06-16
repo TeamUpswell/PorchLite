@@ -18,7 +18,7 @@ const nextConfig = {
     ignoreBuildErrors: true,
   },
   experimental: {
-    largePageDataBytes: 384 * 1000, // Increase even more
+    largePageDataBytes: 384 * 1000, // Increase page data limit
     optimizeCss: false, // Disable CSS optimization
     cpus: 1, // Limit CPU usage to reduce memory pressure
   },
@@ -46,7 +46,7 @@ const nextConfig = {
   },
   publicRuntimeConfig: {
     // Will be available on both server and client
-    staticFolder: '/static',
+    staticFolder: "/static",
   },
 };
 

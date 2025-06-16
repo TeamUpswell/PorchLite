@@ -3,11 +3,10 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/components/auth";
 import { useProperty } from "@/lib/hooks/useProperty";
-import PageContainer from "@/components/layout/PageContainer";
+import StandardPageLayout from "@/components/layout/StandardPageLayout";
 import StandardCard from "@/components/ui/StandardCard";
-import { User, Phone, Mail, MapPin, Eye, EyeOff, Save } from "lucide-react";
+import { User, Phone, Mail, MapPin, Save } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-import Header from "@/components/layout/Header"; // ✅ FIXED: Changed from @/components/ui/Header
 
 interface UserProfile {
   id: string;
@@ -26,7 +25,6 @@ export default function ProfilePage() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
   const [message, setMessage] = useState({ text: "", type: "" });
 
   // Form fields
@@ -111,182 +109,167 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <div className="p-6">
-        <Header title="Profile" />
-        <PageContainer>
-          <StandardCard>
-            <div className="flex items-center justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-              <span className="ml-2">Loading profile...</span>
-            </div>
-          </StandardCard>
-        </PageContainer>
-      </div>
+      <StandardPageLayout>
+        <StandardCard>
+          <div className="flex items-center justify-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <span className="ml-2">Loading profile...</span>
+          </div>
+        </StandardCard>
+      </StandardPageLayout>
     );
   }
 
   return (
-    <div className="p-6">
-      <Header title="Profile" />
-      <PageContainer>
-        <div className="space-y-6">
-          {/* Page Header */}
-          <div className="flex items-center space-x-3">
-            <User className="h-6 w-6 text-blue-600" />
+    <StandardPageLayout>
+      <div className="space-y-6">
+        {/* Success/Error Message */}
+        {message.text && (
+          <div
+            className={`p-4 rounded-md ${
+              message.type === "error"
+                ? "bg-red-50 text-red-700 border border-red-200"
+                : "bg-green-50 text-green-700 border border-green-200"
+            }`}
+          >
+            {message.text}
+          </div>
+        )}
+
+        {/* Profile Information */}
+        <StandardCard
+          title="Profile Information"
+          subtitle="Update your personal details"
+          icon={<User className="h-5 w-5 text-gray-600" />}
+        >
+          <div className="space-y-6">
+            {/* Email (Read-only) */}
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Profile</h1>
-              <p className="text-gray-600">Manage your account information</p>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Email Address
+              </label>
+              <div className="flex items-center">
+                <Mail className="h-4 w-4 text-gray-400 mr-2" />
+                <input
+                  type="email"
+                  value={profile?.email || ""}
+                  disabled
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-500"
+                />
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                Email cannot be changed. Contact support if needed.
+              </p>
+            </div>
+
+            {/* Name */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Full Name
+              </label>
+              <input
+                type="text"
+                value={formData.name}
+                onChange={(e) => handleInputChange("name", e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Your full name"
+              />
+            </div>
+
+            {/* Phone */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Phone Number
+              </label>
+              <div className="flex items-center">
+                <Phone className="h-4 w-4 text-gray-400 mr-2" />
+                <input
+                  type="tel"
+                  value={formData.phone}
+                  onChange={(e) => handleInputChange("phone", e.target.value)}
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="(555) 123-4567"
+                />
+              </div>
             </div>
           </div>
+        </StandardCard>
 
-          {/* Success/Error Message */}
-          {message.text && (
-            <div
-              className={`p-4 rounded-md ${
-                message.type === "error"
-                  ? "bg-red-50 text-red-700 border border-red-200"
-                  : "bg-green-50 text-green-700 border border-green-200"
-              }`}
-            >
-              {message.text}
+        {/* Address Information */}
+        <StandardCard
+          title="Address Information"
+          subtitle="Your contact address"
+          icon={<MapPin className="h-5 w-5 text-gray-600" />}
+        >
+          <div className="space-y-4">
+            {/* Street Address */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Street Address
+              </label>
+              <input
+                type="text"
+                value={formData.address}
+                onChange={(e) => handleInputChange("address", e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="123 Main Street"
+              />
             </div>
-          )}
 
-          {/* Profile Information */}
-          <StandardCard
-            title="Profile Information"
-            subtitle="Update your personal details"
-            icon={<User className="h-5 w-5 text-gray-600" />}
-          >
-            <div className="space-y-6">
-              {/* Email (Read-only) */}
+            {/* City, State, ZIP */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Email Address
-                </label>
-                <div className="flex items-center">
-                  <Mail className="h-4 w-4 text-gray-400 mr-2" />
-                  <input
-                    type="email"
-                    value={profile?.email || ""}
-                    disabled
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-500"
-                  />
-                </div>
-                <p className="text-xs text-gray-500 mt-1">
-                  Email cannot be changed. Contact support if needed.
-                </p>
-              </div>
-
-              {/* Name */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Full Name
+                  City
                 </label>
                 <input
                   type="text"
-                  value={formData.name}
-                  onChange={(e) => handleInputChange("name", e.target.value)}
+                  value={formData.city}
+                  onChange={(e) => handleInputChange("city", e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="Your full name"
+                  placeholder="City"
                 />
               </div>
-
-              {/* Phone */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Phone Number
-                </label>
-                <div className="flex items-center">
-                  <Phone className="h-4 w-4 text-gray-400 mr-2" />
-                  <input
-                    type="tel"
-                    value={formData.phone}
-                    onChange={(e) => handleInputChange("phone", e.target.value)}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="(555) 123-4567"
-                  />
-                </div>
-              </div>
-            </div>
-          </StandardCard>
-
-          {/* Address Information */}
-          <StandardCard
-            title="Address Information"
-            subtitle="Your contact address"
-            icon={<MapPin className="h-5 w-5 text-gray-600" />}
-          >
-            <div className="space-y-4">
-              {/* Street Address */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Street Address
+                  State
                 </label>
                 <input
                   type="text"
-                  value={formData.address}
-                  onChange={(e) => handleInputChange("address", e.target.value)}
+                  value={formData.state}
+                  onChange={(e) => handleInputChange("state", e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="123 Main Street"
+                  placeholder="State"
                 />
               </div>
-
-              {/* City, State, ZIP */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    City
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.city}
-                    onChange={(e) => handleInputChange("city", e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="City"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    State
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.state}
-                    onChange={(e) => handleInputChange("state", e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="State"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    ZIP Code
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.zip}
-                    onChange={(e) => handleInputChange("zip", e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="12345"
-                  />
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  ZIP Code
+                </label>
+                <input
+                  type="text"
+                  value={formData.zip}
+                  onChange={(e) => handleInputChange("zip", e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="12345"
+                />
               </div>
             </div>
-          </StandardCard>
-
-          {/* Save Button */}
-          <div className="flex justify-end">
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="flex items-center px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              <Save className="h-4 w-4 mr-2" />
-              {saving ? "Saving..." : "Save Changes"}
-            </button>
           </div>
+        </StandardCard>
+
+        {/* Save Button */}
+        <div className="flex justify-end">
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="flex items-center px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            <Save className="h-4 w-4 mr-2" />
+            {saving ? "Saving..." : "Save Changes"}
+          </button>
         </div>
-      </PageContainer>
-    </div>
+      </div>
+    </StandardPageLayout>
   );
 }

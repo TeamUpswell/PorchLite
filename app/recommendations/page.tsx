@@ -1,20 +1,10 @@
+// app/recommendations/page.tsx
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import {
-  Star,
-  Plus,
-  MapPin,
-  Phone,
-  Globe,
-  Navigation,
-  Trash2,
-  Search,
-} from "lucide-react";
-import Link from "next/link";
+import { Star, Plus, MapPin, Phone, Globe, Trash2, Search } from "lucide-react";
 import { useAuth } from "@/components/auth";
-import Header from "@/components/layout/Header";
-import PageContainer from "@/components/layout/PageContainer";
+import StandardPageLayout from "@/components/layout/StandardPageLayout";
 import StandardCard from "@/components/ui/StandardCard";
 import { useProperty } from "@/lib/hooks/useProperty";
 import { supabase } from "@/lib/supabase";
@@ -22,10 +12,7 @@ import DynamicGooglePlacePhoto from "@/components/DynamicGooglePlacePhoto";
 import RecommendationComments from "@/components/recommendations/RecommendationComments";
 import RecommendationFilters from "@/components/recommendations/RecommendationFilters";
 import { MultiActionPattern } from "@/components/ui/FloatingActionPresets";
-import PlaceSearch from "@/components/maps/PlaceSearch";
 import GooglePlacesSearch from "@/components/ui/GooglePlacesSearch";
-import { debugLog, debugError } from "@/lib/utils/debug";
-import LoadingSpinner from "@/components/LoadingSpinner";
 import Image from "next/image";
 
 interface Recommendation {
@@ -71,16 +58,6 @@ interface PlacesResult {
   };
 }
 
-interface AutocompletePrediction {
-  place_id: string;
-  description: string;
-  structured_formatting: {
-    main_text: string;
-    secondary_text: string;
-  };
-  types: string[];
-}
-
 export default function RecommendationsPage() {
   const { user, loading } = useAuth();
   const { currentProperty } = useProperty();
@@ -90,12 +67,44 @@ export default function RecommendationsPage() {
     Recommendation[]
   >([]);
   const [loadingRecommendations, setLoading] = useState(true);
+  const [selectedPlace, setSelectedPlace] = useState<PlacesResult | null>(null);
+  const [placesLoading, setPlacesLoading] = useState(false);
 
+  // Modal states
+  const [showManualModal, setShowManualModal] = useState(false);
+  const [showGoogleSearchModal, setShowGoogleSearchModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [recommendationToDelete, setRecommendationToDelete] =
+    useState<Recommendation | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const [manualForm, setManualForm] = useState({
+    name: "",
+    category: "restaurant",
+    address: "",
+    description: "",
+    rating: 5,
+    website: "",
+    phone_number: "",
+  });
+
+  const categories = [
+    { id: "all", name: "All Categories", icon: "🏪" },
+    { id: "restaurant", name: "Restaurants", icon: "🍽️" },
+    { id: "grocery", name: "Grocery", icon: "🛒" },
+    { id: "entertainment", name: "Entertainment", icon: "🎭" },
+    { id: "healthcare", name: "Healthcare", icon: "🏥" },
+    { id: "shopping", name: "Shopping", icon: "🛍️" },
+    { id: "services", name: "Services", icon: "🔧" },
+    { id: "outdoor", name: "Outdoor", icon: "🌲" },
+    { id: "emergency", name: "Emergency", icon: "🚨" },
+  ];
+
+  // Fetch recommendations
   useEffect(() => {
     async function fetchRecommendations() {
       try {
         setLoading(true);
-
         const { data: recommendationsData, error } = await supabase
           .from("recommendations")
           .select("*")
@@ -115,158 +124,9 @@ export default function RecommendationsPage() {
     }
 
     fetchRecommendations();
-  }, []); // ← Simple dependency array
-
-  // Places search state - DEFAULT TO SHOWING
-  const [placesSearchTerm, setPlacesSearchTerm] = useState("");
-  const [autocompletePredictions, setAutocompletePredictions] = useState<
-    AutocompletePrediction[]
-  >([]);
-  const [selectedPlace, setSelectedPlace] = useState<PlacesResult | null>(null);
-  const [placesLoading, setPlacesLoading] = useState(false);
-  const [showAutocomplete, setShowAutocomplete] = useState(false);
-
-  // Delete state only
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [recommendationToDelete, setRecommendationToDelete] =
-    useState<Recommendation | null>(null);
-
-  // Manual recommendation modal state
-  const [showManualModal, setShowManualModal] = useState(false);
-  const [showAddOptions, setShowAddOptions] = useState(false); // ← Add this for floating menu
-  const [manualForm, setManualForm] = useState({
-    name: "",
-    category: "restaurant",
-    address: "",
-    description: "",
-    rating: 5,
-    website: "",
-    phone_number: "",
-  });
-
-  // Add this state variable with your other useState declarations (around line 95):
-  const [showGoogleSearchModal, setShowGoogleSearchModal] = useState(false);
-
-  const autocompleteRef = useRef<HTMLDivElement>(null);
-  const searchTimeoutRef = useRef<NodeJS.Timeout>();
-
-  const categories = [
-    { id: "all", name: "All Categories", icon: "🏪" },
-    { id: "restaurant", name: "Restaurants", icon: "🍽️" },
-    { id: "grocery", name: "Grocery", icon: "🛒" },
-    { id: "entertainment", name: "Entertainment", icon: "🎭" },
-    { id: "healthcare", name: "Healthcare", icon: "🏥" },
-    { id: "shopping", name: "Shopping", icon: "🛍️" },
-    { id: "services", name: "Services", icon: "🔧" },
-    { id: "outdoor", name: "Outdoor", icon: "🌲" },
-    { id: "emergency", name: "Emergency", icon: "🚨" },
-  ];
-
-  // Autocomplete search with debouncing
-  const searchAutocomplete = async (input: string) => {
-    if (input.length < 2) {
-      setAutocompletePredictions([]);
-      setShowAutocomplete(false);
-      return;
-    }
-
-    try {
-      const location = currentProperty?.coordinates
-        ? `${currentProperty.coordinates.lat},${currentProperty.coordinates.lng}`
-        : "40.7128,-74.0060";
-
-      const response = await fetch(
-        `/api/places/autocomplete?input=${encodeURIComponent(
-          input
-        )}&location=${location}&radius=5000`
-      );
-
-      const data = await response.json();
-      setAutocompletePredictions(data.predictions || []);
-      setShowAutocomplete(true);
-    } catch (error) {
-      console.error("Error fetching autocomplete:", error);
-    }
-  };
-
-  // Handle input change with debouncing
-  const handleSearchInput = (value: string) => {
-    setPlacesSearchTerm(value);
-
-    // Clear previous timeout
-    if (searchTimeoutRef.current) {
-      clearTimeout(searchTimeoutRef.current);
-    }
-
-    // Set new timeout for debounced search
-    searchTimeoutRef.current = setTimeout(() => {
-      searchAutocomplete(value);
-    }, 300);
-  };
-
-  // Get place details when prediction is selected
-  const selectPrediction = async (prediction: AutocompletePrediction) => {
-    setPlacesLoading(true);
-    setPlacesSearchTerm(prediction.description);
-    setShowAutocomplete(false);
-
-    try {
-      const response = await fetch(
-        `/api/places/details?place_id=${prediction.place_id}`
-      );
-      const data = await response.json();
-
-      if (data.result) {
-        setSelectedPlace({
-          place_id: prediction.place_id,
-          name: data.result.name,
-          formatted_address: data.result.formatted_address,
-          rating: data.result.rating,
-          price_level: data.result.price_level,
-          types: data.result.types || [],
-          geometry: data.result.geometry,
-          photos: data.result.photos,
-          formatted_phone_number: data.result.formatted_phone_number,
-          website: data.result.website,
-          opening_hours: data.result.opening_hours,
-        });
-      }
-    } catch (error) {
-      console.error("Error fetching place details:", error);
-      alert("Failed to get place details");
-    } finally {
-      setPlacesLoading(false);
-    }
-  };
-
-  // Close autocomplete when clicking outside
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (
-        autocompleteRef.current &&
-        !autocompleteRef.current.contains(event.target as Node)
-      ) {
-        setShowAutocomplete(false);
-      }
-    }
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
   }, []);
 
-  // Clean up timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (searchTimeoutRef.current) {
-        clearTimeout(searchTimeoutRef.current);
-      }
-    };
-  }, []);
-
-  // Helper function to determine category from Google Places types
+  // Helper functions
   const getCategoryFromTypes = (types: string[]): string => {
     const typeMap: Record<string, string> = {
       restaurant: "restaurant",
@@ -290,10 +150,25 @@ export default function RecommendationsPage() {
         return typeMap[type];
       }
     }
-    return "services"; // default
+    return "services";
   };
 
-  // Add place as recommendation
+  const renderStars = (rating: number) => {
+    return Array.from({ length: 5 }, (_, i) => (
+      <Star
+        key={i}
+        className={`h-4 w-4 ${
+          i < Math.floor(rating)
+            ? "text-yellow-400 fill-current"
+            : i < rating
+            ? "text-yellow-400 fill-current opacity-50"
+            : "text-gray-300"
+        }`}
+      />
+    ));
+  };
+
+  // CRUD Operations
   const addPlaceAsRecommendation = async (place: PlacesResult) => {
     try {
       const category = getCategoryFromTypes(place.types);
@@ -309,9 +184,9 @@ export default function RecommendationsPage() {
         rating: place.rating || 0,
         website: place.website || null,
         phone_number: place.formatted_phone_number || null,
-        images: [], // ← Keep this empty
-        place_id: place.place_id, // ← This is what matters
-        property_id: currentProperty?.id || null, // ← Use currentProperty
+        images: [],
+        place_id: place.place_id,
+        property_id: currentProperty?.id || null,
         is_recommended: true,
       };
 
@@ -325,7 +200,6 @@ export default function RecommendationsPage() {
 
       setRecommendations((prev) => [data, ...prev]);
       setSelectedPlace(null);
-      setPlacesSearchTerm("");
       alert("✅ Place added as recommendation!");
     } catch (error) {
       console.error("Error adding recommendation:", error);
@@ -333,7 +207,45 @@ export default function RecommendationsPage() {
     }
   };
 
-  // Delete functions
+  const addManualRecommendation = async () => {
+    try {
+      const newRecommendation = {
+        ...manualForm,
+        coordinates: currentProperty?.coordinates || {
+          lat: 40.7128,
+          lng: -74.006,
+        },
+        images: [],
+        property_id: currentProperty?.id || null,
+        is_recommended: true,
+      };
+
+      const { data, error } = await supabase
+        .from("recommendations")
+        .insert([newRecommendation])
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setRecommendations((prev) => [data, ...prev]);
+      setShowManualModal(false);
+      setManualForm({
+        name: "",
+        category: "restaurant",
+        address: "",
+        description: "",
+        rating: 5,
+        website: "",
+        phone_number: "",
+      });
+      alert("✅ Recommendation added successfully!");
+    } catch (error) {
+      console.error("Error adding manual recommendation:", error);
+      alert(`Failed to add recommendation: ${error.message}`);
+    }
+  };
+
   const deleteRecommendation = async (recommendationId: string) => {
     try {
       setDeletingId(recommendationId);
@@ -369,67 +281,12 @@ export default function RecommendationsPage() {
     setRecommendationToDelete(null);
   };
 
-  const renderStars = (rating: number) => {
-    return Array.from({ length: 5 }, (_, i) => (
-      <Star
-        key={i}
-        className={`h-4 w-4 ${
-          i < Math.floor(rating)
-            ? "text-yellow-400 fill-current"
-            : i < rating
-            ? "text-yellow-400 fill-current opacity-50"
-            : "text-gray-300"
-        }`}
-      />
-    ));
-  };
-
-  // Add manual recommendation
-  const addManualRecommendation = async () => {
-    try {
-      const newRecommendation = {
-        ...manualForm,
-        coordinates: currentProperty?.coordinates || {
-          lat: 40.7128,
-          lng: -74.006,
-        },
-        images: [],
-        property_id: currentProperty?.id || null, // ← Use currentProperty
-        is_recommended: true,
-      };
-
-      const { data, error } = await supabase
-        .from("recommendations")
-        .insert([newRecommendation])
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      setRecommendations((prev) => [data, ...prev]);
-      setShowManualModal(false);
-      setManualForm({
-        name: "",
-        category: "restaurant",
-        address: "",
-        description: "",
-        rating: 5,
-        website: "",
-        phone_number: "",
-      });
-      alert("✅ Recommendation added successfully!");
-    } catch (error) {
-      console.error("Error adding manual recommendation:", error);
-      alert(`Failed to add recommendation: ${error.message}`);
-    }
-  };
-
-  // Handle place selection from GooglePlacesSearch
   const handlePlaceSelect = (place: PlacesResult) => {
     setSelectedPlace(place);
     setPlacesLoading(false);
   };
 
+  // Loading state
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -439,254 +296,218 @@ export default function RecommendationsPage() {
   }
 
   if (!user) {
-    return null; // Auth will redirect
+    return null;
   }
 
   return (
-    <div className="p-6">
-      <Header title="Recommendations" />
-      <PageContainer>
-        <div className="space-y-6">
-          <StandardCard
-            title="Local Recommendations"
-            subtitle="Local recommendations for your guests"
-          >
-            {/* PASTE YOUR EXISTING RECOMMENDATIONS CONTENT HERE */}
-            <div className="space-y-6">
-              <RecommendationFilters
-                recommendations={recommendations}
-                setFilteredRecommendations={setFilteredRecommendations}
-              />
+    <StandardPageLayout>
+      <div className="space-y-6">
+        {/* Filters */}
+        <RecommendationFilters
+          recommendations={recommendations}
+          setFilteredRecommendations={setFilteredRecommendations}
+        />
 
-              <StandardCard
-                title={`${filteredRecommendations.length} Recommendation${
-                  filteredRecommendations.length !== 1 ? "s" : ""
-                }`}
-                subtitle="Browse your curated local recommendations"
-              >
-                {loadingRecommendations ? (
-                  <div className="flex justify-center py-8">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                  </div>
-                ) : filteredRecommendations.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {filteredRecommendations.map((rec) => {
-                      // Add this debug logging
-                      console.log(`🔍 Recommendation "${rec.name}":`, {
-                        images: rec.images,
-                        imageCount: rec.images?.length || 0,
-                        firstImage: rec.images?.[0],
-                        hasImages: !!(rec.images && rec.images.length > 0),
-                      });
+        {/* Recommendations Grid */}
+        <StandardCard
+          title={`${filteredRecommendations.length} Recommendation${
+            filteredRecommendations.length !== 1 ? "s" : ""
+          }`}
+          subtitle="Browse your curated local recommendations"
+        >
+          {loadingRecommendations ? (
+            <div className="flex justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            </div>
+          ) : filteredRecommendations.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredRecommendations.map((rec) => {
+                const category = categories.find((c) => c.id === rec.category);
 
-                      const categories = [
-                        { id: "all", name: "All Categories", icon: "🏪" },
-                        { id: "restaurant", name: "Restaurants", icon: "🍽️" },
-                        { id: "grocery", name: "Grocery", icon: "🛒" },
-                        {
-                          id: "entertainment",
-                          name: "Entertainment",
-                          icon: "🎭",
-                        },
-                        { id: "healthcare", name: "Healthcare", icon: "🏥" },
-                        { id: "shopping", name: "Shopping", icon: "🛍️" },
-                        { id: "services", name: "Services", icon: "🔧" },
-                        { id: "outdoor", name: "Outdoor", icon: "🌲" },
-                        { id: "emergency", name: "Emergency", icon: "🚨" },
-                      ];
-                      const category = categories.find(
-                        (c) => c.id === rec.category
-                      );
+                return (
+                  <div
+                    key={rec.id}
+                    className="border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow relative group"
+                  >
+                    {/* Delete Button */}
+                    <button
+                      onClick={() => confirmDelete(rec)}
+                      className="absolute top-2 right-2 z-10 p-2 bg-red-500 text-white rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-all duration-200 hover:bg-red-600 hover:scale-110"
+                      title="Delete recommendation"
+                      aria-label="Delete recommendation"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
 
-                      return (
-                        <div
-                          key={rec.id}
-                          className="border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow relative group"
-                        >
-                          {/* DELETE BUTTON - Appears on hover */}
-                          <button
-                            onClick={() => confirmDelete(rec)}
-                            className="absolute top-2 right-2 z-10 p-2 bg-red-500 text-white rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-all duration-200 hover:bg-red-600 hover:scale-110"
-                            title="Delete recommendation"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-
-                          <div className="h-48 relative">
-                            {rec.place_id ? (
-                              <DynamicGooglePlacePhoto
-                                placeId={rec.place_id}
-                                alt={rec.name}
-                                width={400}
-                                height={300}
-                                className="w-full h-full object-cover"
-                                fallback={
-                                  <div className="h-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center">
-                                    <span className="text-4xl">
-                                      {category?.icon || "📍"}
-                                    </span>
-                                  </div>
-                                }
-                              />
-                            ) : rec.images &&
-                              rec.images.length > 0 &&
-                              rec.images[0] ? (
-                              <Image
-                                src={rec.images[0]}
-                                alt={rec.name}
-                                fill
-                                className="object-cover"
-                                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                                onError={() =>
-                                  console.log(
-                                    `Failed to load image: ${rec.images[0]}`
-                                  )
-                                }
-                              />
-                            ) : (
-                              <div className="h-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center">
-                                <span className="text-4xl">
-                                  {category?.icon || "📍"}
-                                </span>
-                              </div>
-                            )}
-                          </div>
-
-                          <div className="p-4">
-                            <div className="flex items-start justify-between mb-2">
-                              <h3 className="font-semibold text-gray-900 text-lg pr-2">
-                                {rec.name}
-                              </h3>
-                              <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded flex-shrink-0">
-                                {category?.name || rec.category}
+                    {/* Image */}
+                    <div className="h-48 relative">
+                      {rec.place_id ? (
+                        <DynamicGooglePlacePhoto
+                          placeId={rec.place_id}
+                          alt={rec.name}
+                          width={400}
+                          height={300}
+                          className="w-full h-full object-cover"
+                          fallback={
+                            <div className="h-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center">
+                              <span className="text-4xl">
+                                {category?.icon || "📍"}
                               </span>
                             </div>
-
-                            <div className="flex items-center mb-2">
-                              <div className="flex items-center mr-2">
-                                {renderStars(rec.rating)}
-                              </div>
-                              <span className="text-sm text-gray-600">
-                                {rec.rating.toFixed(1)}
-                              </span>
-                            </div>
-
-                            <p className="text-gray-600 text-sm mb-3 line-clamp-2">
-                              {rec.description}
-                            </p>
-
-                            <div className="space-y-2 text-sm">
-                              <div className="flex items-center text-gray-600">
-                                <MapPin className="h-4 w-4 mr-2 flex-shrink-0" />
-                                <span className="truncate">{rec.address}</span>
-                              </div>
-
-                              {rec.phone_number && (
-                                <div className="flex items-center text-gray-600">
-                                  <Phone className="h-4 w-4 mr-2 flex-shrink-0" />
-                                  <a
-                                    href={`tel:${rec.phone_number}`}
-                                    className="hover:text-blue-600"
-                                  >
-                                    {rec.phone_number}
-                                  </a>
-                                </div>
-                              )}
-
-                              {rec.website && (
-                                <div className="flex items-center text-gray-600">
-                                  <Globe className="h-4 w-4 mr-2 flex-shrink-0" />
-                                  <a
-                                    href={rec.website}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="hover:text-blue-600 truncate"
-                                  >
-                                    Visit Website
-                                  </a>
-                                </div>
-                              )}
-                            </div>
-
-                            <div className="mt-4 pt-3 border-t border-gray-100 flex justify-between items-center">
-                              <span className="text-xs text-gray-500">
-                                Added{" "}
-                                {new Date(rec.created_at).toLocaleDateString(
-                                  "en-US",
-                                  {
-                                    year: "numeric",
-                                    month: "short",
-                                    day: "numeric",
-                                  }
-                                )}
-                              </span>
-                              <div className="flex items-center space-x-2">
-                                <a
-                                  href={
-                                    rec.place_id
-                                      ? `https://www.google.com/maps/place/?q=place_id:${rec.place_id}`
-                                      : `https://www.google.com/maps/search/${encodeURIComponent(
-                                          rec.name + " " + rec.address
-                                        )}`
-                                  }
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center"
-                                >
-                                  <Globe className="h-3 w-3 mr-1" />
-                                  View on Google
-                                </a>
-                              </div>
-                            </div>
-
-                            {/* Comments Component */}
-                            <RecommendationComments
-                              recommendationId={rec.id}
-                              recommendationName={rec.name}
-                            />
-                          </div>
+                          }
+                        />
+                      ) : rec.images &&
+                        rec.images.length > 0 &&
+                        rec.images[0] ? (
+                        <Image
+                          src={rec.images[0]}
+                          alt={rec.name}
+                          fill
+                          className="object-cover"
+                          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                        />
+                      ) : (
+                        <div className="h-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center">
+                          <span className="text-4xl">
+                            {category?.icon || "📍"}
+                          </span>
                         </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="text-center py-8 text-gray-500">
-                    <Star className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-                    <p>No recommendations found</p>
-                    <p className="text-sm mt-1 mb-4">
-                      Try adjusting your filters or add new recommendations
-                    </p>
-                    <div className="flex gap-3 justify-center">
-                      <button
-                        onClick={() => setShowGoogleSearchModal(true)}
-                        className="inline-flex items-center px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                      >
-                        <Search className="h-4 w-4 mr-2" />
-                        Find with Google
-                      </button>
-                      <button
-                        onClick={() => setShowManualModal(true)}
-                        className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                      >
-                        <Plus className="h-4 w-4 mr-2" />
-                        Add Manually
-                      </button>
+                      )}
+                    </div>
+
+                    {/* Content */}
+                    <div className="p-4">
+                      <div className="flex items-start justify-between mb-2">
+                        <h3 className="font-semibold text-gray-900 text-lg pr-2">
+                          {rec.name}
+                        </h3>
+                        <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded flex-shrink-0">
+                          {category?.name || rec.category}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center mb-2">
+                        <div className="flex items-center mr-2">
+                          {renderStars(rec.rating)}
+                        </div>
+                        <span className="text-sm text-gray-600">
+                          {rec.rating.toFixed(1)}
+                        </span>
+                      </div>
+
+                      <p className="text-gray-600 text-sm mb-3 line-clamp-2">
+                        {rec.description}
+                      </p>
+
+                      <div className="space-y-2 text-sm">
+                        <div className="flex items-center text-gray-600">
+                          <MapPin className="h-4 w-4 mr-2 flex-shrink-0" />
+                          <span className="truncate">{rec.address}</span>
+                        </div>
+
+                        {rec.phone_number && (
+                          <div className="flex items-center text-gray-600">
+                            <Phone className="h-4 w-4 mr-2 flex-shrink-0" />
+                            <a
+                              href={`tel:${rec.phone_number}`}
+                              className="hover:text-blue-600"
+                            >
+                              {rec.phone_number}
+                            </a>
+                          </div>
+                        )}
+
+                        {rec.website && (
+                          <div className="flex items-center text-gray-600">
+                            <Globe className="h-4 w-4 mr-2 flex-shrink-0" />
+                            <a
+                              href={rec.website}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="hover:text-blue-600 truncate"
+                            >
+                              Visit Website
+                            </a>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="mt-4 pt-3 border-t border-gray-100 flex justify-between items-center">
+                        <span className="text-xs text-gray-500">
+                          Added{" "}
+                          {new Date(rec.created_at).toLocaleDateString(
+                            "en-US",
+                            {
+                              year: "numeric",
+                              month: "short",
+                              day: "numeric",
+                            }
+                          )}
+                        </span>
+                        <div className="flex items-center space-x-2">
+                          <a
+                            href={
+                              rec.place_id
+                                ? `https://www.google.com/maps/place/?q=place_id:${rec.place_id}`
+                                : `https://www.google.com/maps/search/${encodeURIComponent(
+                                    rec.name + " " + rec.address
+                                  )}`
+                            }
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center"
+                          >
+                            <Globe className="h-3 w-3 mr-1" />
+                            View on Google
+                          </a>
+                        </div>
+                      </div>
+
+                      {/* Comments Component */}
+                      <RecommendationComments
+                        recommendationId={rec.id}
+                        recommendationName={rec.name}
+                      />
                     </div>
                   </div>
-                )}
-              </StandardCard>
+                );
+              })}
             </div>
-          </StandardCard>
-        </div>
-      </PageContainer>
+          ) : (
+            <div className="text-center py-8 text-gray-500">
+              <Star className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+              <p>No recommendations found</p>
+              <p className="text-sm mt-1 mb-4">
+                Try adjusting your filters or add new recommendations
+              </p>
+              <div className="flex gap-3 justify-center">
+                <button
+                  onClick={() => setShowGoogleSearchModal(true)}
+                  className="inline-flex items-center px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  <Search className="h-4 w-4 mr-2" />
+                  Find with Google
+                </button>
+                <button
+                  onClick={() => setShowManualModal(true)}
+                  className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Manually
+                </button>
+              </div>
+            </div>
+          )}
+        </StandardCard>
+      </div>
 
-      {/* FLOATING ACTION BUTTON - Similar to tasks */}
+      {/* Floating Action Button */}
       <MultiActionPattern
         actions={[
           {
             icon: Search,
             label: "Find with Google",
-            onClick: () => setShowGoogleSearchModal(true), // ✅ Open modal instead
+            onClick: () => setShowGoogleSearchModal(true),
             variant: "secondary",
           },
           {
@@ -698,7 +519,7 @@ export default function RecommendationsPage() {
         ]}
       />
 
-      {/* Manual Add Modal - keep existing */}
+      {/* Manual Add Modal */}
       {showManualModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
@@ -709,6 +530,7 @@ export default function RecommendationsPage() {
               <button
                 onClick={() => setShowManualModal(false)}
                 className="text-gray-400 hover:text-gray-600"
+                aria-label="Close modal"
               >
                 ✕
               </button>
@@ -822,7 +644,7 @@ export default function RecommendationsPage() {
                 </select>
               </div>
 
-              {/* Phone (optional) */}
+              {/* Phone */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Phone (optional)
@@ -841,7 +663,7 @@ export default function RecommendationsPage() {
                 />
               </div>
 
-              {/* Website (optional) */}
+              {/* Website */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Website (optional)
@@ -882,51 +704,6 @@ export default function RecommendationsPage() {
         </div>
       )}
 
-      {/* Delete Confirmation Modal - keep existing */}
-      {showDeleteModal && recommendationToDelete && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <div className="flex items-center mb-4">
-              <Trash2 className="h-6 w-6 text-red-600 mr-3" />
-              <h3 className="text-lg font-semibold text-gray-900">
-                Delete Recommendation
-              </h3>
-            </div>
-
-            <p className="text-gray-600 mb-6">
-              Are you sure you want to delete &quot;
-              {recommendationToDelete.name}&quot;? This action cannot be undone.
-            </p>
-
-            <div className="flex justify-end space-x-3">
-              <button
-                onClick={cancelDelete}
-                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => deleteRecommendation(recommendationToDelete.id)}
-                disabled={deletingId === recommendationToDelete.id}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center"
-              >
-                {deletingId === recommendationToDelete.id ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    Deleting...
-                  </>
-                ) : (
-                  <>
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Delete
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Google Places Search Modal */}
       {showGoogleSearchModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -945,9 +722,9 @@ export default function RecommendationsPage() {
                 onClick={() => {
                   setShowGoogleSearchModal(false);
                   setSelectedPlace(null);
-                  setPlacesSearchTerm("");
                 }}
                 className="text-gray-400 hover:text-gray-600 transition-colors"
+                aria-label="Close modal"
               >
                 <span className="text-xl">✕</span>
               </button>
@@ -1081,7 +858,6 @@ export default function RecommendationsPage() {
                 onClick={() => {
                   setShowGoogleSearchModal(false);
                   setSelectedPlace(null);
-                  setPlacesSearchTerm("");
                 }}
                 className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
               >
@@ -1094,7 +870,6 @@ export default function RecommendationsPage() {
                     addPlaceAsRecommendation(selectedPlace);
                     setShowGoogleSearchModal(false);
                     setSelectedPlace(null);
-                    setPlacesSearchTerm("");
                   }}
                   className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center"
                 >
@@ -1106,6 +881,51 @@ export default function RecommendationsPage() {
           </div>
         </div>
       )}
-    </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && recommendationToDelete && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="flex items-center mb-4">
+              <Trash2 className="h-6 w-6 text-red-600 mr-3" />
+              <h3 className="text-lg font-semibold text-gray-900">
+                Delete Recommendation
+              </h3>
+            </div>
+
+            <p className="text-gray-600 mb-6">
+              Are you sure you want to delete &quot;
+              {recommendationToDelete.name}&quot;? This action cannot be undone.
+            </p>
+
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={cancelDelete}
+                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => deleteRecommendation(recommendationToDelete.id)}
+                disabled={deletingId === recommendationToDelete.id}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center"
+              >
+                {deletingId === recommendationToDelete.id ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </StandardPageLayout>
   );
 }

@@ -2,14 +2,14 @@
 
 import { useViewMode } from "@/lib/hooks/useViewMode";
 import { useState, useEffect } from "react";
-import { Users, Phone, Mail, MapPin, Edit } from "lucide-react";
+import { Users, Phone, Mail, MapPin, Edit, Plus } from "lucide-react";
 import Link from "next/link";
+import StandardPageLayout from "@/components/layout/StandardPageLayout";
 import StandardCard from "@/components/ui/StandardCard";
 import { useAuth } from "@/components/auth";
 import { useProperty } from "@/lib/hooks/useProperty";
 import { supabase } from "@/lib/supabase";
 import FloatingActionButton from "@/components/ui/FloatingActionButton";
-import { Plus } from "lucide-react";
 import { PropertyGuard } from "@/components/ui/PropertyGuard";
 
 interface Contact {
@@ -22,16 +22,13 @@ interface Contact {
   notes?: string;
   property_id: string;
   created_at: string;
+  is_public?: boolean;
 }
 
 export default function ContactsPage() {
   const { user } = useAuth();
   const { currentProperty } = useProperty();
-  const {
-    isManagerView,
-    isFamilyView,
-    isGuestView,
-  } = useViewMode();
+  const { isManagerView, isFamilyView, isGuestView } = useViewMode();
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -145,8 +142,7 @@ export default function ContactsPage() {
   // Show loading state if waiting for property
   if (!currentProperty) {
     return (
-      <div className="p-6 space-y-6">
-        <h1 className="text-2xl font-bold">Contacts</h1>
+      <StandardPageLayout>
         <StandardCard
           title="Loading Property"
           subtitle="Please wait while we load your property information"
@@ -159,7 +155,7 @@ export default function ContactsPage() {
             </p>
           </div>
         </StandardCard>
-      </div>
+      </StandardPageLayout>
     );
   }
 
@@ -272,115 +268,119 @@ export default function ContactsPage() {
 
   return (
     <PropertyGuard>
-      <div className="p-6 space-y-6">
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-bold">Contacts</h1>
-            <p className="text-gray-600 mt-1">
-              Property: <strong>{currentProperty.name}</strong>
-            </p>
+      <StandardPageLayout>
+        <div className="space-y-6">
+          {/* Page Header */}
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-2xl font-bold">Contacts</h1>
+              <p className="text-gray-600 mt-1">
+                Property: <strong>{currentProperty.name}</strong>
+              </p>
+            </div>
           </div>
-        </div>
 
-        {/* Emergency contacts always visible */}
-        <StandardCard
-          title="Emergency Contacts"
-          subtitle="Always know who to call in case of an emergency"
-        >
-          {loading ? (
-            <div className="flex justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            </div>
-          ) : filteredContacts.filter((c) => c.category === "emergency").length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredContacts
-                .filter((c) => c.category === "emergency")
-                .map((contact) => (
-                  <ContactCard key={contact.id} contact={contact} />
-                ))}
-            </div>
-          ) : (
-            <EmptyState
-              title="No emergency contacts found"
-              description="Add emergency contacts for quick access during urgent situations"
-              buttonText="Add Emergency Contact"
-              category="emergency"
-            />
-          )}
-        </StandardCard>
-
-        {/* Property contacts for family+ */}
-        {!isGuestView && (
+          {/* Emergency contacts always visible */}
           <StandardCard
-            title="Property Contacts"
-            subtitle="Contacts related to your property"
+            title="Emergency Contacts"
+            subtitle="Always know who to call in case of an emergency"
           >
             {loading ? (
               <div className="flex justify-center py-8">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
               </div>
-            ) : filteredContacts.filter((c) => 
-                c.category === "property" || 
-                c.category === "maintenance" || 
-                c.category === "service"
-              ).length > 0 ? (
+            ) : filteredContacts.filter((c) => c.category === "emergency").length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filteredContacts
-                  .filter((c) => 
-                    c.category === "property" || 
-                    c.category === "maintenance" || 
-                    c.category === "service"
-                  )
+                  .filter((c) => c.category === "emergency")
                   .map((contact) => (
                     <ContactCard key={contact.id} contact={contact} />
                   ))}
               </div>
             ) : (
               <EmptyState
-                title="No property contacts found"
-                description="Add contacts for property management, maintenance, and services"
-                buttonText="Add Property Contact"
-                category="property"
+                title="No emergency contacts found"
+                description="Add emergency contacts for quick access during urgent situations"
+                buttonText="Add Emergency Contact"
+                category="emergency"
               />
             )}
           </StandardCard>
-        )}
 
-        {/* Vendor contacts for managers only */}
-        {isManagerView && (
-          <StandardCard
-            title="Vendors & Services"
-            subtitle="Contacts for vendors and service providers"
-          >
-            {loading ? (
-              <div className="flex justify-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-              </div>
-            ) : filteredContacts.filter((c) => 
-                c.category === "vendor" || 
-                c.category === "contractor"
-              ).length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredContacts
-                  .filter((c) => 
-                    c.category === "vendor" || 
-                    c.category === "contractor"
-                  )
-                  .map((contact) => (
-                    <ContactCard key={contact.id} contact={contact} />
-                  ))}
-              </div>
-            ) : (
-              <EmptyState
-                title="No vendor contacts found"
-                description="Add contacts for vendors, contractors, and service providers"
-                buttonText="Add Vendor Contact"
-                category="vendor"
-              />
+          {/* Property contacts for family+ */}
+          {!isGuestView && (
+            <StandardCard
+              title="Property Contacts"
+              subtitle="Contacts related to your property"
+            >
+              {loading ? (
+                <div className="flex justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                </div>
+              ) : filteredContacts.filter((c) => 
+                  c.category === "property" || 
+                  c.category === "maintenance" || 
+                  c.category === "service"
+                ).length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {filteredContacts
+                    .filter((c) => 
+                      c.category === "property" || 
+                      c.category === "maintenance" || 
+                      c.category === "service"
+                    )
+                    .map((contact) => (
+                      <ContactCard key={contact.id} contact={contact} />
+                    ))}
+                </div>
+              ) : (
+                <EmptyState
+                  title="No property contacts found"
+                  description="Add contacts for property management, maintenance, and services"
+                  buttonText="Add Property Contact"
+                  category="property"
+                />
               )}
-          </StandardCard>
-        )}
+            </StandardCard>
+          )}
 
+          {/* Vendor contacts for managers only */}
+          {isManagerView && (
+            <StandardCard
+              title="Vendors & Services"
+              subtitle="Contacts for vendors and service providers"
+            >
+              {loading ? (
+                <div className="flex justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                </div>
+              ) : filteredContacts.filter((c) => 
+                  c.category === "vendor" || 
+                  c.category === "contractor"
+                ).length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {filteredContacts
+                    .filter((c) => 
+                      c.category === "vendor" || 
+                      c.category === "contractor"
+                    )
+                    .map((contact) => (
+                      <ContactCard key={contact.id} contact={contact} />
+                    ))}
+                </div>
+              ) : (
+                <EmptyState
+                  title="No vendor contacts found"
+                  description="Add contacts for vendors, contractors, and service providers"
+                  buttonText="Add Vendor Contact"
+                  category="vendor"
+                />
+                )}
+            </StandardCard>
+          )}
+        </div>
+
+        {/* Floating Action Button */}
         {(isManagerView || isFamilyView) && (
           <div className="fixed bottom-6 right-6 z-50">
             <FloatingActionButton
@@ -391,7 +391,7 @@ export default function ContactsPage() {
             />
           </div>
         )}
-      </div>
+      </StandardPageLayout>
     </PropertyGuard>
   );
 }
