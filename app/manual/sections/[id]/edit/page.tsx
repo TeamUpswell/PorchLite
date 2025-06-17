@@ -11,7 +11,7 @@ import StandardCard from "@/components/ui/StandardCard";
 import Button from "@/components/ui/button";
 import { Save, ArrowLeft, FileText } from "lucide-react";
 import Link from "next/link";
-import { useSection } from "@/hooks/useSection";
+import { useSection } from "@/lib/hooks/useSection";
 import toast from "react-hot-toast";
 
 interface ManualSection {
