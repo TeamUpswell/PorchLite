@@ -80,6 +80,7 @@ const RecommendationCard: React.FC<RecommendationCardProps> = ({
             <ActionButton
               onClick={() => onDelete(recommendation.id)}
               title="Delete recommendation"
+              aria-label={`Delete recommendation for ${recommendation.place_name}`}
               variant="delete"
             />
             <ActionButton
@@ -101,6 +102,7 @@ const RecommendationCard: React.FC<RecommendationCardProps> = ({
           <ActionButton
             onClick={() => onEdit(recommendation)}
             title="Edit recommendation"
+            aria-label={`Edit recommendation for ${recommendation.place_name}`}
             variant="edit"
           />
         )}

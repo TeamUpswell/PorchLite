@@ -43,6 +43,7 @@ export default function StapleCard({
             <ActionButton
               onClick={() => onEdit(staple)}
               title="Edit staple"
+              aria-label={`Edit ${staple.name} staple`}
               variant="edit"
               size="sm"
               className="w-6 h-6 bg-white border border-gray-300 rounded flex items-center justify-center hover:bg-blue-50 shadow-md"
@@ -54,6 +55,7 @@ export default function StapleCard({
             <ActionButton
               onClick={() => onDelete(staple)}
               title="Delete staple"
+              aria-label={`Delete ${staple.name} staple`}
               variant="delete"
               size="sm"
               className="w-6 h-6 bg-white border border-gray-300 rounded flex items-center justify-center hover:bg-red-50 shadow-md"

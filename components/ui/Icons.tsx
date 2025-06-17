@@ -32,6 +32,7 @@ export function TrashIcon({ className = "", size = "md" }: IconProps) {
 interface ActionButtonProps {
   onClick: () => void;
   title: string;
+  'aria-label'?: string;  // Add this line
   variant: "edit" | "delete";
   size?: "sm" | "md" | "lg";
   className?: string;
@@ -40,6 +41,7 @@ interface ActionButtonProps {
 export function ActionButton({ 
   onClick, 
   title, 
+  'aria-label': ariaLabel,  // Add this parameter
   variant, 
   size = "md",
   className = "" 
@@ -57,6 +59,7 @@ export function ActionButton({
       onClick={onClick}
       className={`${baseClasses} ${variantClasses[variant]} ${className}`}
       title={title}
+      aria-label={ariaLabel || title}  // Add this line
     >
       {variant === "edit" ? (
         <PencilIcon size={size} />

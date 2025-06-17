@@ -28,14 +28,14 @@ interface RoomStat {
 interface RoomType {
   id: string;
   name: string;
-  icon: LucideIcon; // Updated to use LucideIcon instead of React.ElementType
+  icon: LucideIcon;
 }
 
 interface Property {
   id: string;
   name?: string;
   address?: string;
-  [key: string]: any; // For other potential properties
+  [key: string]: any;
 }
 
 export default function CleaningChecklist() {
@@ -54,13 +54,12 @@ export default function CleaningChecklist() {
   useEffect(() => {
     async function loadData() {
       try {
-        // ✅ Use currentProperty instead of getMainProperty()
         if (currentProperty?.id) {
           // Get task statistics for each room
           const { data: tasks, error } = await supabase
             .from("cleaning_tasks")
             .select("room, is_completed")
-            .eq("property_id", currentProperty.id); // ✅ Use currentProperty
+            .eq("property_id", currentProperty.id);
 
           if (error) throw error;
 
@@ -83,7 +82,7 @@ export default function CleaningChecklist() {
     }
 
     loadData();
-  }, [roomTypes, currentProperty]); // ✅ Add currentProperty to dependencies
+  }, [roomTypes, currentProperty]);
 
   useEffect(() => {
     async function loadCustomRooms() {
@@ -103,13 +102,12 @@ export default function CleaningChecklist() {
             home: Home,
             utensils: Utensils,
             bath: Bath,
-            // Add any other icons you need
           };
 
           const customRooms: RoomType[] = data.map((room) => ({
             id: room.slug,
             name: room.name,
-            icon: iconMap[room.icon] || Home, // Use the correct icon from the map
+            icon: iconMap[room.icon] || Home,
           }));
 
           setRoomTypes((prev) => [...prev, ...customRooms]);
@@ -124,8 +122,16 @@ export default function CleaningChecklist() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+      <div className="p-6">
+        <Header />
+        <PageContainer>
+          <StandardCard>
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              <span className="ml-2">Loading...</span>
+            </div>
+          </StandardCard>
+        </PageContainer>
       </div>
     );
   }
@@ -136,29 +142,30 @@ export default function CleaningChecklist() {
 
   return (
     <AuthenticatedLayout>
-      <div className="container mx-auto py-8 px-4">
-        <div className="mb-6">
-          <Link
-            href="/cleaning"
-            className="flex items-center text-blue-600 hover:text-blue-800"
-          >
-            <ArrowLeft className="h-4 w-4 mr-1" />
-            Back to Cleaning Dashboard
-          </Link>
-        </div>
-
-        <h1 className="text-2xl font-semibold mb-6">
-          {currentProperty?.name} - Cleaning Checklist
-        </h1>
-
-        <Header title="Cleaning Checklist" />
+      <div className="p-6">
+        <Header />
         <PageContainer>
-          <div className="space-y-6">
-            <StandardCard
-              title="Cleaning Tasks"
-              subtitle="Manage your cleaning checklist and tasks"
-            >
-              <div className="space-y-6">
+          <StandardCard
+            title={`${
+              currentProperty?.name || "Property"
+            } - Cleaning Checklist`}
+            subtitle="Manage your cleaning checklist and tasks"
+          >
+            <div className="space-y-6">
+              {/* Back navigation */}
+              <div className="mb-6">
+                <Link
+                  href="/cleaning/hub"
+                  className="flex items-center text-blue-600 hover:text-blue-800 transition-colors"
+                >
+                  <ArrowLeft className="h-4 w-4 mr-1" />
+                  Back to Cleaning Hub
+                  
+                </Link>
+              </div>
+
+              {/* Room cards */}
+              <div className="space-y-4">
                 {roomTypes.map((room) => (
                   <RoomCard
                     key={room.id}
@@ -167,8 +174,23 @@ export default function CleaningChecklist() {
                   />
                 ))}
               </div>
-            </StandardCard>
-          </div>
+
+              {/* Help text */}
+              <div className="text-gray-500 text-sm bg-gray-50 rounded-lg p-4 mt-6">
+                <p className="mb-2">
+                  💡 <strong>Tips:</strong>
+                </p>
+                <ul className="space-y-1">
+                  <li>
+                    • Click on any room to view and manage specific cleaning
+                    tasks
+                  </li>
+                  <li>• Mark tasks as complete to track your progress</li>
+                  <li>• Green checkmarks indicate completed rooms</li>
+                </ul>
+              </div>
+            </div>
+          </StandardCard>
         </PageContainer>
       </div>
     </AuthenticatedLayout>

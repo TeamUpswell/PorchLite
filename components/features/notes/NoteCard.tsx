@@ -26,11 +26,13 @@ export default function NoteCard({ note, onEdit, onDelete }: NoteCardProps) {
           <ActionButton
             onClick={onEdit}
             title="Edit note"
+            aria-label={`Edit ${note.title}`}
             variant="edit"
           />
           <ActionButton
             onClick={() => onDelete(note.id)}
             title="Delete note"
+            aria-label={`Delete ${note.title}`}
             variant="delete"
           />
         </div>

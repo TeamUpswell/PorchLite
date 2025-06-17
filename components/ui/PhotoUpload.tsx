@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { PhotoIcon, TrashIcon, EyeIcon } from "@heroicons/react/24/outline";
+import { PhotoIcon, TrashIcon, EyeIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import { supabase } from "@/lib/supabase";
 import { toast } from "react-hot-toast";
 
@@ -217,7 +217,7 @@ export default function PhotoUpload({
               onClick={() => setPreviewPhoto(null)}
               className="absolute top-4 right-4 bg-white text-gray-800 rounded-full p-2 hover:bg-gray-100"
             >
-              <TrashIcon className="h-5 w-5" />
+              <XMarkIcon className="h-5 w-5" />
             </button>
           </div>
         </div>

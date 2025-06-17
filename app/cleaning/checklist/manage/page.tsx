@@ -261,7 +261,7 @@ export default function ManageCleaningChecklistPage() {
   if (authLoading) {
     return (
       <div className="p-6">
-        <Header title="Manage Cleaning Checklists" />
+        <Header />
         <PageContainer>
           <StandardCard>
             <div className="flex items-center justify-center py-12">
@@ -281,7 +281,7 @@ export default function ManageCleaningChecklistPage() {
   if (!hasAccess) {
     return (
       <div className="p-6">
-        <Header title="Manage Cleaning Checklists" />
+        <Header />
         <PageContainer>
           <StandardCard>
             <div className="text-center py-8">
@@ -290,7 +290,7 @@ export default function ManageCleaningChecklistPage() {
                 Access Denied
               </h3>
               <p className="mt-1 text-sm text-gray-500">
-                You don't have permission to manage cleaning checklists.
+                You don&apos;t have permission to manage cleaning checklists.
               </p>
               <div className="text-xs text-gray-400 mt-4 p-2 bg-gray-50 rounded">
                 <p>Role: {user?.user_metadata?.role || "undefined"}</p>
@@ -303,11 +303,27 @@ export default function ManageCleaningChecklistPage() {
     );
   }
 
+  const checklistTips = [
+    'Click "View Items" to manage individual checklist tasks',
+    "Use descriptive names to easily identify checklists",
+    "Group related tasks into separate checklists",
+  ];
+
   return (
     <div className="p-6">
-      <Header title="Manage Cleaning Checklists" />
+      <Header />
       <PageContainer>
         <div className="space-y-6">
+          {/* Title section */}
+          <div className="mb-6">
+            <h1 className="text-2xl font-bold text-gray-900">
+              Manage Cleaning Checklists
+            </h1>
+            <p className="text-gray-600 mt-1">
+              Create and manage your cleaning checklists
+            </p>
+          </div>
+
           {/* Tab-style navigation */}
           <div className="border-b border-gray-200 dark:border-gray-700">
             <nav className="flex -mb-px space-x-8">
@@ -399,13 +415,14 @@ export default function ManageCleaningChecklistPage() {
                     />
                   </div>
 
-                  <button
+                  <Button
                     type="submit"
-                    className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+                    variant="primary"
+                    className="flex items-center"
                   >
                     <Plus size={18} className="mr-2" />
                     Create Checklist
-                  </button>
+                  </Button>
                 </form>
               </StandardCard>
 
@@ -549,11 +566,9 @@ export default function ManageCleaningChecklistPage() {
                   💡 <strong>Tips:</strong>
                 </p>
                 <ul className="space-y-1">
-                  <li>
-                    • Click "View Items" to manage individual checklist tasks
-                  </li>
-                  <li>• Use descriptive names to easily identify checklists</li>
-                  <li>• Group related tasks into separate checklists</li>
+                  {checklistTips.map((tip, index) => (
+                    <li key={index}>• {tip}</li>
+                  ))}
                 </ul>
               </div>
             </div>
@@ -572,18 +587,20 @@ export default function ManageCleaningChecklistPage() {
               action cannot be undone.
             </p>
             <div className="flex justify-end space-x-3">
-              <button
+              <Button
                 onClick={() => setShowDeleteModal(false)}
-                className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                variant="outline"
+                aria-label="Cancel deletion"
               >
                 Cancel
-              </button>
-              <button
+              </Button>
+              <Button
                 onClick={deleteChecklist}
-                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors"
+                variant="destructive"
+                aria-label={`Confirm delete ${checklistToDelete?.name}`}
               >
                 Delete
-              </button>
+              </Button>
             </div>
           </div>
         </div>

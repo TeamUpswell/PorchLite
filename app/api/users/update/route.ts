@@ -76,7 +76,7 @@ export async function POST(request) {
       if (roleInsertError) throw roleInsertError;
     }
 
-    // 3. Also update the profiles table
+    // 3. Also update the profiles table (including avatar_url)
     const { error: profileUpdateError } = await supabaseAdmin
       .from("profiles")
       .update({
@@ -85,6 +85,7 @@ export async function POST(request) {
         phone_number: userData.phone_number,
         address: userData.address,
         show_in_contacts: userData.show_in_contacts,
+        avatar_url: userData.avatar_url, // ✅ Make sure this line exists
         updated_at: new Date().toISOString()
       })
       .eq("id", userId);

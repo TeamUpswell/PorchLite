@@ -47,6 +47,7 @@ export default function ManualSection({
               onClick={() => onEditSection(section)}
               className="p-1 rounded-md text-gray-500 hover:bg-gray-100"
               title="Edit section"
+              aria-label={`Edit ${section.title} section`}
             >
               <PencilIcon className="h-5 w-5" />
             </button>
@@ -57,6 +58,7 @@ export default function ManualSection({
               onClick={() => onAddItem(section.id)}
               className="p-1 rounded-md text-gray-500 hover:bg-gray-100"
               title="Add item"
+              aria-label={`Add item to ${section.title} section`}
             >
               <PlusIcon className="h-5 w-5" />
             </button>
