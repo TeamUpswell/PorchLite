@@ -47,6 +47,7 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
   const [hasInitialized, setHasInitialized] = useState(false);
 
   const loadingRef = useRef(false);
+  const previousUserIdRef = useRef<string | null>(null);
 
   const loadUserProperties = useCallback(async () => {
     if (loadingRef.current || !user?.id) {
@@ -167,16 +168,37 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
     }
   }, [currentProperty]);
 
+  // 🔧 CRITICAL FIX: Reset hasInitialized when user changes
+  useEffect(() => {
+    const currentUserId = user?.id || null;
+    const previousUserId = previousUserIdRef.current;
+
+    console.log("🏠 Property: User change detected", {
+      previousUserId,
+      currentUserId,
+      hasInitialized
+    });
+
+    // If user ID changed, reset initialization state
+    if (previousUserId !== currentUserId) {
+      console.log("🏠 Property: User changed, resetting initialization");
+      setHasInitialized(false);
+      loadingRef.current = false;
+      previousUserIdRef.current = currentUserId;
+    }
+  }, [user?.id]);
+
   useEffect(() => {
     console.log("🏠 Property: Auth state check", {
       authInitialized,
       authLoading,
       hasUser: !!user,
       hasInitialized,
+      userId: user?.id
     });
 
     if (authInitialized && !authLoading && user?.id && !hasInitialized) {
-      console.log("🏠 Property: Starting property load");
+      console.log("🏠 Property: Starting property load for user:", user.id);
       loadUserProperties();
     } else if (authInitialized && !authLoading && !user) {
       console.log("🏠 Property: No user, clearing properties");
