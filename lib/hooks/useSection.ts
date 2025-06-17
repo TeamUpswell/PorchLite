@@ -2,11 +2,9 @@ import { useState, useEffect, useCallback } from "react";
 
 interface Section {
   id: string;
-  name: string;
-  description?: string;
-  created_at?: string;
-  updated_at?: string;
-  // Add other section properties based on your API
+  title: string;
+  content: string;
+  // Add other section properties as needed
 }
 
 interface UseSectionResult {
@@ -16,6 +14,7 @@ interface UseSectionResult {
   refetch: () => Promise<void>;
 }
 
+// ✅ Keep only the named export (since that's how it's imported)
 export function useSection(sectionId: string): UseSectionResult {
   const [section, setSection] = useState<Section | null>(null);
   const [loading, setLoading] = useState(false);
@@ -54,7 +53,9 @@ export function useSection(sectionId: string): UseSectionResult {
   return { section, loading, error, refetch: fetchSection };
 }
 
-// Default export for flexibility
-export default useSection;
+// ✅ Export the type for reuse
+export type { UseSectionResult, Section };
 
-import { useSection } from '@/hooks/useSection';
+// ❌ REMOVE these problematic lines:
+// export default useSection;
+// import { useSection } from '@/hooks/useSection';
