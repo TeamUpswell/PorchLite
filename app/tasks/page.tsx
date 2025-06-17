@@ -92,6 +92,8 @@ export default function TasksPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [filter, setFilter] = useState("open");
+  // ADD: Internal loading state for tasks
+  const [tasksLoading, setTasksLoading] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [viewingPhotos, setViewingPhotos] = useState<string[] | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -154,9 +156,17 @@ export default function TasksPage() {
     }
   }, [tenantId]);
 
-  // Load tasks
+  // Load tasks - ADD DEBUGGING
   const loadTasks = useCallback(async () => {
-    if (!userId || !propertyId) return;
+    console.log('🔍 loadTasks called with:', { userId, propertyId, filter });
+    
+    if (!userId || !propertyId) {
+      console.log('❌ Missing required data:', { userId, propertyId });
+      return;
+    }
+
+    console.log('📡 Starting to load tasks...');
+    setTasksLoading(true);
 
     try {
       let query = supabase
@@ -187,7 +197,12 @@ export default function TasksPage() {
         ascending: false,
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Tasks query error:', error);
+        throw error;
+      }
+
+      console.log('✅ Tasks loaded successfully:', data?.length || 0);
 
       if (data) {
         const allUserIds = Array.from(
@@ -234,16 +249,30 @@ export default function TasksPage() {
     } catch (err) {
       console.error("❌ Failed to load tasks:", err);
       toast.error("Failed to load tasks");
+    } finally {
+      setTasksLoading(false);
     }
   }, [userId, propertyId, filter]);
 
-  // Load data
+  // Load data - FIX: Remove circular dependency
   useEffect(() => {
-    if (propertyId && userId) {
+    console.log('🔄 useEffect triggered:', { 
+      propertyId, 
+      userId, 
+      filter,
+      authLoading,
+      propertyLoading 
+    });
+    
+    if (propertyId && userId && !authLoading && !propertyLoading) {
+      console.log('✅ Conditions met, loading tasks and users...');
       loadTasks();
       loadUsers();
+    } else {
+      console.log('⏳ Waiting for conditions to be met...');
     }
-  }, [propertyId, userId, filter]);
+    // REMOVE loadTasks and loadUsers from dependencies to prevent infinite loop
+  }, [propertyId, userId, filter, authLoading, propertyLoading]);
 
   // Task actions
   const claimTask = async (taskId: string) => {
@@ -454,7 +483,9 @@ export default function TasksPage() {
           <div className="flex items-center justify-center min-h-[400px]">
             <div className="text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
-              <p className="text-gray-600">Loading tasks...</p>
+              <p className="text-gray-600">
+                {authLoading ? 'Loading user...' : 'Loading property...'}
+              </p>
             </div>
           </div>
         </StandardCard>
@@ -478,6 +509,22 @@ export default function TasksPage() {
             <p className="text-gray-500">
               Please select a property to view its tasks.
             </p>
+          </div>
+        </StandardCard>
+      </StandardPageLayout>
+    );
+  }
+
+  // ADD: Tasks loading state
+  if (tasksLoading) {
+    return (
+      <StandardPageLayout theme="dark" showHeader={false}>
+        <StandardCard>
+          <div className="flex items-center justify-center min-h-[400px]">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+              <p className="text-gray-600">Loading tasks...</p>
+            </div>
           </div>
         </StandardCard>
       </StandardPageLayout>

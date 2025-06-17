@@ -7,18 +7,21 @@ import { useAuth } from "@/components/auth";
 
 export default function LoginPage() {
   const router = useRouter();
-  const { user, signIn, signUp } = useAuth();
+  const { user, signIn, signUp, loading: authLoading, initialized } = useAuth(); // 🔑 ADD loading and initialized
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // Redirect if already logged in
+  // 🔑 IMPROVED: Redirect if already logged in (wait for auth to initialize)
   useEffect(() => {
-    if (user) {
+    console.log('🔍 Login redirect check:', { user: !!user, authLoading, initialized });
+    
+    if (initialized && !authLoading && user) {
+      console.log('🔄 Login: User already logged in, redirecting to home...');
       router.push("/");
     }
-  }, [user, router]);
+  }, [user, authLoading, initialized, router]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,9 +29,20 @@ export default function LoginPage() {
     setError("");
 
     try {
+      console.log('🔍 Login: Attempting login...');
       const result = await signIn(email, password);
-      router.push("/");
+      
+      // 🔑 CHECK FOR ERRORS
+      if (result.error) {
+        setError(result.error.message || "Login failed");
+        console.log('❌ Login error:', result.error);
+      } else {
+        console.log('✅ Login successful, auth state will handle redirect');
+        // 🔑 REMOVE manual redirect - let useEffect handle it
+        // router.push("/"); // Remove this line
+      }
     } catch (error) {
+      console.log('❌ Login exception:', error);
       setError(error instanceof Error ? error.message : "An error occurred");
     } finally {
       setLoading(false);
@@ -37,11 +51,38 @@ export default function LoginPage() {
 
   const handleQuickSignup = async () => {
     try {
-      await signUp("test@example.com", "password123");
+      const result = await signUp("test@example.com", "password123");
+      if (result.error) {
+        setError(result.error.message || "Signup failed");
+      }
     } catch (error) {
       console.error("Signup error:", error);
+      setError("Signup failed");
     }
   };
+
+  // 🔑 SHOW LOADING STATE while auth initializes
+  if (!initialized || authLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // 🔑 DON'T show login form if user is already logged in
+  if (user) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <p className="text-gray-600">Redirecting...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
