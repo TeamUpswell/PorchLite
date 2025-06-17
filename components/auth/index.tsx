@@ -45,10 +45,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
-  const [initialized, setInitialized] = useState(false); // 🔑 CRITICAL: Add this
+  const [initialized, setInitialized] = useState(false);
   const [profileData, setProfileData] = useState<Profile | null>(null);
 
   const initializationRef = useRef(false);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null); // ✅ Add timeout ref
 
   const loadProfile = async (userId: string) => {
     try {
@@ -83,14 +84,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     initializationRef.current = true;
     console.log("🔍 Auth: Initializing...");
 
+    // ✅ CRITICAL: Add timeout fallback
+    timeoutRef.current = setTimeout(() => {
+      console.warn("⚠️ Auth: Initialization timeout - forcing completion");
+      setLoading(false);
+      setInitialized(true);
+    }, 10000); // 10 second timeout
+
     const initializeAuth = async () => {
       try {
         setLoading(true);
+
+        // ✅ Add connection test
+        const startTime = Date.now();
+        console.log("🔍 Auth: Testing Supabase connection...");
 
         const {
           data: { session },
           error,
         } = await supabase.auth.getSession();
+
+        const endTime = Date.now();
+        console.log(`🔍 Auth: Session fetch took ${endTime - startTime}ms`);
 
         if (error) {
           console.log("❌ Auth: Error getting session:", error.message);
@@ -114,8 +129,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(null);
         setProfileData(null);
       } finally {
+        // ✅ Clear timeout and complete initialization
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current);
+          timeoutRef.current = null;
+        }
         setLoading(false);
-        setInitialized(true); // 🔑 CRITICAL: Set initialized after first load
+        setInitialized(true);
         console.log("✅ Auth: Initialization complete");
       }
     };
@@ -126,18 +146,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log("🔄 Auth: State changed:", event);
 
-      // 🔑 FIXED: Don't mess with loading during state changes
       try {
         if (session?.user) {
           setSession(session);
           setUser(session.user);
 
-          // Load profile for signed in users
           if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
             await loadProfile(session.user.id);
           }
         } else {
-          // User signed out or session ended
           setSession(null);
           setUser(null);
           setProfileData(null);
@@ -145,15 +162,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } catch (error) {
         console.error("❌ Auth: State change error:", error);
       }
-      // 🔑 REMOVED: Don't set loading to false here - it causes races
     });
 
     initializeAuth();
 
+    // ✅ Cleanup function
     return () => {
       subscription.unsubscribe();
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
     };
-  }, []); // 🔑 Clean dependency array
+  }, []);
 
   const signIn = async (email: string, password: string) => {
     try {

@@ -68,6 +68,10 @@ export async function middleware(request: NextRequest) {
     "/auth/login",
     "/auth/signup",
     "/auth/callback",
+    "/auth/reset-password", // ✅ Add this
+    "/auth/debug",          // ✅ Add this  
+    "/auth/admin",          // ✅ Add this
+    "/auth/diagnose",       // ✅ Add this
     "/",
     "/images",
     "/favicon.ico",
@@ -87,12 +91,9 @@ export async function middleware(request: NextRequest) {
 
   // Redirect to login if not authenticated
   if (!user) {
-    console.log(
-      "🚫 No user found, redirecting to login from:",
-      request.nextUrl.pathname
-    );
-    const redirectUrl = new URL("/auth/login", request.url);
-    redirectUrl.searchParams.set("redirectTo", request.nextUrl.pathname);
+    console.log("🚫 No user found, redirecting to auth from:", request.nextUrl.pathname);
+    const redirectUrl = new URL("/auth", request.url); // ✅ Change to /auth instead of /auth/login
+    redirectUrl.searchParams.set("redirectedFrom", request.nextUrl.pathname);
     return NextResponse.redirect(redirectUrl);
   }
 

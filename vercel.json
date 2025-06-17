@@ -1,4 +1,10 @@
 {
   "buildCommand": "NODE_OPTIONS='--max-old-space-size=4096' next build || true",
-  "outputDirectory": ".next"
+  "outputDirectory": ".next",
+  "git": {
+    "deploymentEnabled": {
+      "staging": true,
+      "main": true
+    }
+  }
 }

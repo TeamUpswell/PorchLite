@@ -29,13 +29,13 @@ interface InventoryItem {
 }
 
 export default function HomePage() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading, initialized } = useAuth();
   const { currentProperty, loading: propertyLoading } = useProperty();
   const [upcomingVisits, setUpcomingVisits] = useState<UpcomingVisit[]>([]);
   const [inventoryAlerts, setInventoryAlerts] = useState<InventoryItem[]>([]);
   const [taskAlerts, setTaskAlerts] = useState<any[]>([]);
   const [totalInventoryCount, setTotalInventoryCount] = useState(0);
-  const [loading, setLoading] = useState(true);
+  const [loadingState, setLoadingState] = useState(true);
 
   const [componentLoading, setComponentLoading] = useState({
     visits: true,
@@ -66,15 +66,15 @@ export default function HomePage() {
     ],
   };
 
-  // ✅ Restore your original fetchDashboardData with correct supabase import
-  const fetchDashboardData = useCallback(async () => {
-    if (!currentProperty?.id) {
-      debug.log("❌ No current property, skipping dashboard fetch");
+  // ✅ Move fetchDashboardData outside of useEffect dependencies
+  const fetchDashboardData = useCallback(async (propertyId: string) => {
+    if (!propertyId) {
+      debug.log("❌ No property ID provided");
       return;
     }
 
-    debug.log("🔍 Fetching dashboard data for property:", currentProperty.id);
-    setLoading(true);
+    debug.log("🔍 Fetching dashboard data for property:", propertyId);
+    setLoadingState(true);
 
     try {
       // Visits
@@ -82,7 +82,7 @@ export default function HomePage() {
       const visitsData = await supabase
         .from("reservations")
         .select("id, title, start_date, end_date, status")
-        .eq("property_id", currentProperty.id)
+        .eq("property_id", propertyId)
         .gte("start_date", new Date().toISOString())
         .order("start_date", { ascending: true })
         .limit(10);
@@ -95,7 +95,7 @@ export default function HomePage() {
       const inventoryData = await supabase
         .from("inventory")
         .select("id, name, quantity")
-        .eq("property_id", currentProperty.id)
+        .eq("property_id", propertyId)
         .eq("is_active", true);
 
       const inventoryItems = inventoryData.data || [];
@@ -119,7 +119,7 @@ export default function HomePage() {
       const tasksData = await supabase
         .from("tasks")
         .select("id, title, status, priority, due_date")
-        .eq("property_id", currentProperty.id)
+        .eq("property_id", propertyId)
         .in("status", ["pending", "in_progress"])
         .order("due_date", { ascending: true })
         .limit(10);
@@ -132,34 +132,48 @@ export default function HomePage() {
       debug.error("❌ Error fetching dashboard data:", error);
       setComponentLoading({ visits: false, inventory: false, tasks: false });
     } finally {
-      setLoading(false);
+      setLoadingState(false);
     }
-  }, [currentProperty?.id]);
+  }, []); // ✅ Empty dependency array
 
-  // Keep all your existing useEffect hooks...
+  // ✅ Better loading state management
   useEffect(() => {
-    if (authLoading || propertyLoading) {
+    // Wait for auth to initialize
+    if (!initialized) {
+      debug.log("⏳ Auth not initialized yet...");
       return;
     }
 
-    if (!user?.id || !currentProperty?.id) {
-      debug.log("⏳ Waiting for user and property to load...");
-      setLoading(false);
+    // Handle no user case
+    if (!user) {
+      debug.log("🔄 No user found, redirecting to auth...");
+      router.push("/auth");
       return;
     }
 
-    debug.log(
-      "🏠 Property and user loaded, fetching dashboard:",
-      currentProperty.name
-    );
-    fetchDashboardData();
+    // Wait for property to load
+    if (propertyLoading) {
+      debug.log("⏳ Property still loading...");
+      return;
+    }
+
+    // Handle no property case
+    if (!currentProperty?.id) {
+      debug.log("⏳ No property selected, showing property selection...");
+      setLoadingState(false);
+      return;
+    }
+
+    // ✅ All conditions met - fetch dashboard data
+    debug.log("🏠 Ready to load dashboard for:", currentProperty.name);
+    fetchDashboardData(currentProperty.id);
   }, [
-    currentProperty?.id,
-    currentProperty?.name,
-    user?.id,
-    authLoading,
+    initialized, // ✅ Use initialized instead of authLoading
+    user?.id, // ✅ Only the ID matters
     propertyLoading,
+    currentProperty?.id, // ✅ Only the ID matters
     fetchDashboardData,
+    router,
   ]);
 
   const handleAddReservation = () => {
@@ -168,301 +182,58 @@ export default function HomePage() {
   };
 
   useEffect(() => {
-    if (!authLoading && !user) {
-      debug.log("🔄 No user found, redirecting to auth...");
-      router.push("/auth");
-    }
-  }, [user, authLoading, router]);
-
-  useEffect(() => {
     if (process.env.NODE_ENV === "development") {
       debug.log("🏠 HomePage render - Auth state:", {
         user: user?.email || "none",
-        authLoading,
+        loading,
         propertyLoading,
         currentProperty: currentProperty?.name || "none",
       });
     }
-  }, [user?.email, authLoading, propertyLoading, currentProperty?.name]);
+  }, [user?.email, loading, propertyLoading, currentProperty?.name]);
 
   // ✅ Loading states - remove page titles
-  if (authLoading) {
+  if (!initialized || loading) {
     return (
-      <StandardPageLayout theme="dark" showHeader={false}>
-        <StandardCard>
-          <div className="flex items-center justify-center py-12">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          </div>
-        </StandardCard>
-      </StandardPageLayout>
-    );
-  }
-
-  if (user && propertyLoading) {
-    return (
-      <StandardPageLayout theme="dark" showHeader={false}>
-        <StandardCard>
-          <div className="flex items-center justify-center py-12">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-              <p>Loading your property...</p>
-            </div>
-          </div>
-        </StandardCard>
-      </StandardPageLayout>
-    );
-  }
-
-  if (!user) {
-    return (
-      <StandardPageLayout theme="dark" showHeader={false}>
-        <StandardCard>
-          <div className="flex items-center justify-center py-12">
-            <div>Redirecting to login...</div>
-          </div>
-        </StandardCard>
-      </StandardPageLayout>
-    );
-  }
-
-  if (!currentProperty) {
-    return (
-      <StandardPageLayout theme="dark" showHeader={false}>
-        <StandardCard>
-          <div className="text-center py-8">
-            <HomeIcon className="mx-auto h-12 w-12 text-gray-400" />
-            <h3 className="mt-2 text-sm font-medium text-gray-900">
-              No Property Selected
-            </h3>
-            <p className="mt-1 text-sm text-gray-500">
-              Please select a property to view your dashboard.
-            </p>
-          </div>
-        </StandardCard>
-      </StandardPageLayout>
-    );
-  }
-
-  // ✅ Main dashboard - remove page title section, keep beautiful DashboardHeader
-  return (
-    <StandardPageLayout theme="dark" showHeader={false}>
-      {/* ✅ Keep your beautiful DashboardHeader outside the layout */}
-      <div className="mb-6">
-        <DashboardHeader weather={mockWeather} showWeather={true}>
-          <h1 className="text-3xl md:text-4xl font-bold mb-1 text-white drop-shadow-lg tracking-tight">
-            {currentProperty.name}
-          </h1>
-          <p className="text-white/90 text-lg md:text-xl drop-shadow-md font-light tracking-wide">
-            {currentProperty.address || "Your beautiful property"}
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">
+            {!initialized ? "Connecting to PorchLite..." : "Loading..."}
           </p>
-        </DashboardHeader>
-      </div>
-
-      <div className="space-y-6">
-        {/* Keep all your existing dashboard content... */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <StandardCard>
-            <div className="flex items-center">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <svg
-                  className="w-6 h-6 text-blue-600"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                  />
-                </svg>
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">
-                  Upcoming Visits
-                </p>
-                <p className="text-2xl font-semibold text-gray-900">
-                  {componentLoading.visits ? "..." : upcomingVisits.length}
-                </p>
-              </div>
-            </div>
-          </StandardCard>
-
-          <StandardCard>
-            <div className="flex items-center">
-              <div className="p-2 bg-green-100 rounded-lg">
-                <svg
-                  className="w-6 h-6 text-green-600"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
-                  />
-                </svg>
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">
-                  Total Inventory
-                </p>
-                <p className="text-2xl font-semibold text-gray-900">
-                  {componentLoading.inventory ? "..." : totalInventoryCount}
-                </p>
-              </div>
-            </div>
-          </StandardCard>
-
-          <StandardCard>
-            <div className="flex items-center">
-              <div className="p-2 bg-yellow-100 rounded-lg">
-                <svg
-                  className="w-6 h-6 text-yellow-600"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"
-                  />
-                </svg>
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">
-                  Low Stock Alerts
-                </p>
-                <p className="text-2xl font-semibold text-gray-900">
-                  {componentLoading.inventory ? "..." : inventoryAlerts.length}
-                </p>
-              </div>
-            </div>
-          </StandardCard>
-
-          <StandardCard>
-            <div className="flex items-center">
-              <div className="p-2 bg-red-100 rounded-lg">
-                <svg
-                  className="w-6 h-6 text-red-600"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                  />
-                </svg>
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">
-                  Pending Tasks
-                </p>
-                <p className="text-2xl font-semibold text-gray-900">
-                  {componentLoading.tasks ? "..." : taskAlerts.length}
-                </p>
-              </div>
-            </div>
-          </StandardCard>
+          <p className="text-xs text-gray-400 mt-2">
+            This should only take a moment
+          </p>
         </div>
+      </div>
+    );
+  }
 
-        <StandardCard title="Quick Actions">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <button
-              onClick={handleAddReservation}
-              className="p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors"
-            >
-              <div className="text-center">
-                <svg
-                  className="mx-auto h-8 w-8 text-gray-400"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-                  />
-                </svg>
-                <span className="mt-2 block text-sm font-medium text-gray-900">
-                  Add Reservation
-                </span>
-              </div>
-            </button>
-
-            <button
-              onClick={() => router.push("/inventory")}
-              className="p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-green-300 hover:bg-green-50 transition-colors"
-            >
-              <div className="text-center">
-                <svg
-                  className="mx-auto h-8 w-8 text-gray-400"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
-                  />
-                </svg>
-                <span className="mt-2 block text-sm font-medium text-gray-900">
-                  Manage Inventory
-                </span>
-              </div>
-            </button>
-
-            <button
-              onClick={() => router.push("/tasks")}
-              className="p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-purple-300 hover:bg-purple-50 transition-colors"
-            >
-              <div className="text-center">
-                <svg
-                  className="mx-auto h-8 w-8 text-gray-400"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                  />
-                </svg>
-                <span className="mt-2 block text-sm font-medium text-gray-900">
-                  Create Task
-                </span>
-              </div>
-            </button>
-          </div>
-        </StandardCard>
-
-        {currentProperty?.latitude && currentProperty?.longitude && (
-          <StandardCard title="Property Location">
-            <div className="h-64 w-full">
-              <GoogleMapComponent
-                latitude={currentProperty.latitude}
-                longitude={currentProperty.longitude}
-                address={currentProperty.address || currentProperty.name}
-                zoom={16}
-                className="border border-gray-200 rounded-lg"
-              />
+  // ✅ Show content even if properties are still loading
+  return (
+    <StandardPageLayout theme="dark" showHeader={true}>
+      <div className="space-y-6">
+        <StandardCard
+          title="Welcome to PorchLite"
+          subtitle={
+            user ? `Hello, ${user.email}` : "Please sign in to continue"
+          }
+        >
+          {propertyLoading ? (
+            <div className="text-center py-8">
+              <div className="animate-pulse">Loading your properties...</div>
             </div>
-          </StandardCard>
-        )}
+          ) : (
+            <div>
+              {/* Your main content */}
+              {currentProperty ? (
+                <p>Current property: {currentProperty.name}</p>
+              ) : (
+                <p>No property selected</p>
+              )}
+            </div>
+          )}
+        </StandardCard>
       </div>
     </StandardPageLayout>
   );

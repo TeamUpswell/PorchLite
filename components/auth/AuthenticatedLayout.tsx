@@ -45,10 +45,10 @@ export default function AuthenticatedLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { user, isLoading } = useAuth();
+  const { user, loading } = useAuth(); // ✅ Fix: Use 'loading' instead of 'isLoading'
 
   // Show loading skeleton while checking auth
-  if (isLoading) {
+  if (loading) {
     return <AuthLoadingSkeleton />;
   }
 

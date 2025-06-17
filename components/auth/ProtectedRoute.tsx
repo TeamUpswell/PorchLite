@@ -20,18 +20,18 @@ export default function ProtectedRoute({
 }: {
   children: React.ReactNode;
 }) {
-  const { user, isLoading } = useAuth();
+  const { user, loading } = useAuth(); // ✅ Fix: Use 'loading' instead of 'isLoading'
   const router = useRouter();
 
   useEffect(() => {
-    if (!isLoading && !user) {
+    if (!loading && !user) {
       console.log('🔒 No authenticated user, redirecting to auth...');
-      router.push("/auth"); // This line is already correct
+      router.push("/auth");
     }
-  }, [user, isLoading, router]);
+  }, [user, loading, router]); // ✅ Fix: Use 'loading' instead of 'isLoading'
 
   // Show loading spinner while checking auth
-  if (isLoading) {
+  if (loading) {
     return <LoadingSpinner />;
   }
 
