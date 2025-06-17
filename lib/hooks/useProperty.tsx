@@ -15,10 +15,11 @@ import { Database } from "@/lib/database.types";
 
 // Use actual database type
 type Property = Database["public"]["Tables"]["properties"]["Row"];
+type Tenant = Database["public"]["Tables"]["tenants"]["Row"];
 
 interface PropertyContextType {
   currentProperty: Property | null;
-  tenant?: any; // ✅ Add tenant if you need it
+  tenant: Tenant | null;
   userProperties: Property[];
   loading: boolean;
   error: string | null;
@@ -39,6 +40,7 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
   } = useAuth();
 
   const [currentProperty, setCurrentProperty] = useState<Property | null>(null);
+  const [tenant, setTenant] = useState<Tenant | null>(null);
   const [userProperties, setUserProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -47,87 +49,109 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
   const loadingRef = useRef(false);
 
   const loadUserProperties = useCallback(async () => {
-    if (loadingRef.current || !user?.id) return;
+    if (loadingRef.current || !user?.id) {
+      return;
+    }
 
     loadingRef.current = true;
     setLoading(true);
     setError(null);
 
     try {
-      console.log("🏠 Property: Loading properties for user:", user.id);
+      console.log("🏠 [PROD DEBUG] Loading properties for user:", user.id);
 
-      // Get user's tenant relationships
-      const { data: userTenants, error: tenantError } = await supabase
-        .from("tenants")
+      // Get current user from Supabase auth
+      const { data: { user: currentUser }, error: userError } = await supabase.auth.getUser();
+      console.log("🏠 [PROD DEBUG] Current Supabase user:", {
+        userId: currentUser?.id,
+        email: currentUser?.email,
+        error: userError
+      });
+
+      // Step 1: Get user's tenant IDs from tenant_users table
+      const { data: tenantData, error: tenantError } = await supabase
+        .from("tenant_users")
         .select("tenant_id")
-        .eq("user_id", user.id);
+        .eq("user_id", user.id)
+        .eq("status", "active"); // Only active memberships
+
+      console.log("🏠 [PROD DEBUG] User tenant data:", { tenantData, tenantError });
 
       if (tenantError) {
-        console.warn("⚠️ Tenant lookup error:", tenantError.message);
+        throw new Error(`Tenant lookup failed: ${tenantError.message}`);
       }
 
-      const tenantIds = userTenants?.map((t) => t.tenant_id) || [];
-      console.log("🔍 Property: User tenant IDs:", tenantIds);
+      if (!tenantData || tenantData.length === 0) {
+        console.log("🏠 [PROD DEBUG] User has no tenant memberships");
+        setUserProperties([]);
+        setCurrentProperty(null);
+        setTenant(null);
+        return;
+      }
 
-      // Get owned properties
-      const { data: ownedProperties, error: ownedError } = await supabase
+      const tenantIds = tenantData.map(t => t.tenant_id);
+      console.log("🏠 [PROD DEBUG] User tenant IDs:", tenantIds);
+
+      // Step 2: Get tenant info (for the first tenant for now)
+      const { data: tenantInfo, error: tenantInfoError } = await supabase
+        .from("tenants")
+        .select("*")
+        .eq("id", tenantIds[0])
+        .single();
+
+      if (tenantInfoError) {
+        console.warn("🏠 [PROD DEBUG] Could not load tenant info:", tenantInfoError);
+      } else {
+        setTenant(tenantInfo);
+        console.log("🏠 [PROD DEBUG] Loaded tenant:", tenantInfo.name);
+      }
+
+      // Step 3: Get properties for those tenants
+      const { data: userProperties, error: propertiesError } = await supabase
         .from("properties")
         .select("*")
-        .eq("created_by", user.id)
-        .eq("is_active", true);
+        .in("tenant_id", tenantIds)
+        .eq("is_active", true)
+        .order("created_at", { ascending: false });
 
-      if (ownedError) {
-        throw new Error(`Owned properties error: ${ownedError.message}`);
+      console.log("🏠 [PROD DEBUG] Properties query result:", {
+        count: userProperties?.length || 0,
+        error: propertiesError,
+        tenantIds
+      });
+
+      if (propertiesError) {
+        throw propertiesError;
       }
 
-      // Get tenant properties (only if we have tenant IDs)
-      let tenantProperties: Property[] = [];
-      if (tenantIds.length > 0) {
-        const { data, error: tenantError2 } = await supabase
-          .from("properties")
-          .select("*")
-          .in("tenant_id", tenantIds)
-          .eq("is_active", true);
-
-        if (tenantError2) {
-          console.warn("⚠️ Tenant properties error:", tenantError2.message);
-        } else {
-          tenantProperties = data || [];
-        }
-      }
-
-      // Combine and deduplicate
-      const allProperties = [...(ownedProperties || []), ...tenantProperties];
-
-      const uniqueProperties = allProperties.filter(
-        (prop, index, self) => index === self.findIndex((p) => p.id === prop.id)
-      );
-
-      console.log("✅ Property: Found properties:", uniqueProperties.length);
-
-      setUserProperties(uniqueProperties);
+      setUserProperties(userProperties || []);
 
       // Set first property as current if none selected
-      if (uniqueProperties.length > 0 && !currentProperty) {
-        setCurrentProperty(uniqueProperties[0]);
-        console.log(
-          "✅ Property: Set current property:",
-          uniqueProperties[0].name
-        );
-      } else if (uniqueProperties.length === 0) {
+      if (userProperties && userProperties.length > 0) {
+        // Try to restore previously selected property
+        const storedPropertyId = localStorage.getItem("currentPropertyId");
+        const storedProperty = storedPropertyId 
+          ? userProperties.find(p => p.id === storedPropertyId)
+          : null;
+        
+        const propertyToSet = storedProperty || userProperties[0];
+        setCurrentProperty(propertyToSet);
+        
+        console.log("✅ Property: Set current property:", propertyToSet.name);
+      } else {
         setCurrentProperty(null);
+        console.log("🏠 Property: No properties found for user's tenants");
       }
+
     } catch (err) {
-      console.error("❌ Property: Error loading properties:", err);
-      setError(
-        err instanceof Error ? err.message : "Failed to load properties"
-      );
+      console.error("❌ [PROD DEBUG] Property loading error:", err);
+      setError(err instanceof Error ? err.message : "Failed to load properties");
     } finally {
       setLoading(false);
       setHasInitialized(true);
       loadingRef.current = false;
     }
-  }, [user?.id, currentProperty]);
+  }, [user?.id]);
 
   const refreshProperties = useCallback(async () => {
     if (user?.id) {
@@ -135,6 +159,13 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
       await loadUserProperties();
     }
   }, [user?.id, loadUserProperties]);
+
+  // Save current property to localStorage when it changes
+  useEffect(() => {
+    if (currentProperty?.id) {
+      localStorage.setItem("currentPropertyId", currentProperty.id);
+    }
+  }, [currentProperty]);
 
   useEffect(() => {
     console.log("🏠 Property: Auth state check", {
@@ -151,8 +182,10 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
       console.log("🏠 Property: No user, clearing properties");
       setCurrentProperty(null);
       setUserProperties([]);
+      setTenant(null);
       setHasInitialized(true);
       setLoading(false);
+      localStorage.removeItem("currentPropertyId");
     }
   }, [
     user?.id,
@@ -162,16 +195,9 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
     loadUserProperties,
   ]);
 
-  // Add 'user' to the dependency array
-  useEffect(() => {
-    // Your effect logic here
-    if (user) {
-      // Do something with user
-    }
-  }, [user]); // ✅ Include 'user' in dependencies
-
   const value = {
     currentProperty,
+    tenant,
     userProperties,
     loading,
     error,
