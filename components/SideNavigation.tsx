@@ -41,11 +41,6 @@ interface NavigationItem {
   permissions?: string[];
 }
 
-interface NavigationSection {
-  category: string;
-  items: NavigationItem[];
-}
-
 interface SideNavigationProps {
   user?: any;
   onCollapseChange?: (collapsed: boolean) => void;
@@ -75,21 +70,16 @@ const hasMinimumRole = (user: any, minRole: string) => {
 };
 
 // Simplified navigation structure - Only General section
-const navigationStructure: NavigationSection[] = [
-  {
-    category: "General",
-    items: [
-      { name: "Dashboard", href: "/", icon: HomeIcon },
-      { name: "Calendar", href: "/calendar", icon: CalendarIcon },
-      { name: "The House", href: "/house", icon: HouseIcon },
-      { name: "Instructions", href: "/manual", icon: BookOpenIcon },
-      { name: "Tasks", href: "/tasks", icon: CheckSquareIcon },
-      { name: "Guest Book", href: "/guest-book", icon: HeartIcon },
-      { name: "Nearby Places", href: "/recommendations", icon: StarIcon },
-      { name: "Inventory", href: "/inventory", icon: PackageIcon },
-      { name: "Contacts", href: "/contacts", icon: PhoneIcon },
-    ],
-  },
+const navigationItems: NavigationItem[] = [
+  { name: "Dashboard", href: "/", icon: HomeIcon },
+  { name: "Calendar", href: "/calendar", icon: CalendarIcon },
+  { name: "The House", href: "/house", icon: HouseIcon },
+  { name: "Instructions", href: "/manual", icon: BookOpenIcon },
+  { name: "Tasks", href: "/tasks", icon: CheckSquareIcon },
+  { name: "Guest Book", href: "/guest-book", icon: HeartIcon },
+  { name: "Nearby Places", href: "/recommendations", icon: StarIcon },
+  { name: "Inventory", href: "/inventory", icon: PackageIcon },
+  { name: "Contacts", href: "/contacts", icon: PhoneIcon },
 ];
 
 export default function SideNavigation({
@@ -109,11 +99,6 @@ export default function SideNavigation({
   // State variables - Simplified to only track General
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isCollapsedState, setIsCollapsed] = useState(isCollapsed);
-  const [expandedCategories, setExpandedCategories] = useState<
-    Record<string, boolean>
-  >({
-    General: true,
-  });
 
   // Sync external isCollapsed prop with internal state
   useEffect(() => {
@@ -183,26 +168,6 @@ export default function SideNavigation({
     const newCollapsedState = !isCollapsedState;
     setIsCollapsed(newCollapsedState);
     onCollapseChange?.(newCollapsedState);
-
-    if (newCollapsedState) {
-      // When collapsing, close all categories
-      setExpandedCategories({
-        General: false,
-      });
-    } else {
-      // When expanding, open General by default
-      setExpandedCategories({
-        General: true,
-      });
-    }
-  };
-
-  const toggleCategory = (category: string) => {
-    if (isCollapsedState) return;
-    setExpandedCategories((prev) => ({
-      ...prev,
-      [category]: !prev[category],
-    }));
   };
 
   const isActive = (href: string) => pathname === href;
@@ -343,95 +308,60 @@ export default function SideNavigation({
             className="flex-1 overflow-y-auto p-2"
             style={{ WebkitOverflowScrolling: "touch" }}
           >
-            {navigationStructure.map((section) => {
-              const isExpanded = expandedCategories[section.category] ?? true;
+            <div className="space-y-1">
+              {navigationItems.map((item) => {
+                // Check permissions
+                if (item.permissionCheck && !item.permissionCheck(user)) {
+                  return null;
+                }
 
-              return (
-                <div key={section.category} className="mb-4">
-                  {/* Category header */}
-                  {!isCollapsedState && (
-                    <button
-                      onClick={() => toggleCategory(section.category)}
-                      className={`w-full flex items-center justify-between text-left text-sm font-medium px-3 py-2 rounded-md ${
-                        isDarkMode
-                          ? "text-gray-300 hover:text-white hover:bg-gray-800"
-                          : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
-                      } transition-colors duration-200`}
-                    >
-                      <span>{section.category}</span>
-                      <ChevronRight
-                        className={`h-4 w-4 transition-transform duration-200 ${
-                          isExpanded ? "rotate-90" : ""
-                        }`}
-                      />
-                    </button>
-                  )}
+                const IconComponent = item.icon || DocumentTextIcon;
 
-                  {/* Navigation items */}
-                  {(isExpanded || isCollapsedState) && (
-                    <div
-                      className={`space-y-1 ${!isCollapsedState ? "mt-2" : ""}`}
-                    >
-                      {section.items.map((item) => {
-                        // Check permissions
-                        if (
-                          item.permissionCheck &&
-                          !item.permissionCheck(user)
-                        ) {
-                          return null;
-                        }
+                return (
+                  <Link
+                    key={item.name}
+                    href={item.href}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handleLinkClick(item.href);
+                    }}
+                    className={`flex items-center ${
+                      isCollapsedState ? "justify-center px-2" : "px-3"
+                    } py-2.5 text-sm rounded-md group relative transition-colors duration-200 ${
+                      isActive(item.href)
+                        ? "bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
+                        : "text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"
+                    }`}
+                    title={isCollapsedState ? item.name : undefined}
+                    style={{
+                      WebkitTapHighlightColor: "transparent",
+                      touchAction: "manipulation",
+                      minHeight: "44px",
+                    }}
+                  >
+                    <IconComponent
+                      className={`${
+                        isCollapsedState ? "" : "mr-3"
+                      } flex-shrink-0 h-5 w-5 ${
+                        isActive(item.href)
+                          ? "text-blue-600 dark:text-blue-400"
+                          : "text-gray-400 group-hover:text-gray-500 dark:group-hover:text-gray-300"
+                      }`}
+                    />
+                    {!isCollapsedState && (
+                      <span className="truncate">{item.name}</span>
+                    )}
 
-                        const IconComponent = item.icon || DocumentTextIcon;
-
-                        return (
-                          <Link
-                            key={item.name}
-                            href={item.href}
-                            onClick={(e) => {
-                              e.preventDefault();
-                              handleLinkClick(item.href);
-                            }}
-                            className={`flex items-center ${
-                              isCollapsedState ? "justify-center px-2" : "px-3"
-                            } py-2.5 text-sm rounded-md group relative transition-colors duration-200 ${
-                              isActive(item.href)
-                                ? "bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
-                                : "text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"
-                            }`}
-                            title={isCollapsedState ? item.name : undefined}
-                            style={{
-                              WebkitTapHighlightColor: "transparent",
-                              touchAction: "manipulation",
-                              minHeight: "44px",
-                            }}
-                          >
-                            <IconComponent
-                              className={`${
-                                isCollapsedState ? "" : "mr-3"
-                              } flex-shrink-0 h-5 w-5 ${
-                                isActive(item.href)
-                                  ? "text-blue-600 dark:text-blue-400"
-                                  : "text-gray-400 group-hover:text-gray-500 dark:group-hover:text-gray-300"
-                              }`}
-                            />
-                            {!isCollapsedState && (
-                              <span className="truncate">{item.name}</span>
-                            )}
-
-                            {/* Tooltip for collapsed state */}
-                            {isCollapsedState && (
-                              <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 dark:bg-gray-700 text-white text-sm rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
-                                {item.name}
-                              </div>
-                            )}
-                          </Link>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+                    {/* Tooltip for collapsed state */}
+                    {isCollapsedState && (
+                      <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 dark:bg-gray-700 text-white text-sm rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
+                        {item.name}
+                      </div>
+                    )}
+                  </Link>
+                );
+              })}
+            </div>
           </div>
 
           {/* Footer */}

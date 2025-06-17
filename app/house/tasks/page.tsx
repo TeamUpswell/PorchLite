@@ -17,6 +17,8 @@ import { PlusIcon, CheckSquareIcon } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { CreatePattern } from "@/components/ui/FloatingActionPresets";
 import { debugLog, debugError } from "@/lib/utils/debug";
+import StandardPageLayout from "@/components/layout/StandardPageLayout";
+import { PropertyGuard } from "@/components/ui/PropertyGuard";
 
 // Task type definition
 type Task = {
@@ -576,12 +578,19 @@ export default function HouseTasksPage() {
     return true; // Managers see all tasks
   });
 
-  // ✅ EARLY RETURNS AFTER ALL HOOKS - This is the critical fix
+  // Early returns for loading states
   if (authLoading || propertyLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
-      </div>
+      <StandardPageLayout theme="dark" showHeader={true}>
+        <StandardCard>
+          <div className="flex items-center justify-center min-h-[400px]">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+              <p className="text-gray-600">Loading tasks...</p>
+            </div>
+          </div>
+        </StandardCard>
+      </StandardPageLayout>
     );
   }
 
@@ -591,51 +600,25 @@ export default function HouseTasksPage() {
 
   if (!currentProperty) {
     return (
-      <div className="p-6">
-        <Header title="House Tasks" />
-        <PageContainer>
-          <StandardCard
-            title="No Property Selected"
-            subtitle="Please select a property to view its tasks"
-          >
-            <div className="text-center py-8">
-              <CheckSquareIcon className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
-                No Property Selected
-              </h3>
-              <p className="text-gray-500">
-                Please select a property to view its tasks.
-              </p>
-            </div>
-          </StandardCard>
-        </PageContainer>
-      </div>
-    );
-  }
-
-  if (loading) {
-    return (
-      <div className="p-6">
-        <Header title="House Tasks" />
-        <PageContainer>
-          <StandardCard
-            title="Loading Tasks"
-            subtitle="Please wait while we load your tasks"
-          >
-            <div className="flex items-center justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-              <span className="ml-2">Loading tasks...</span>
-            </div>
-          </StandardCard>
-        </PageContainer>
-      </div>
+      <StandardPageLayout theme="dark" showHeader={true}>
+        <StandardCard>
+          <div className="text-center py-8">
+            <CheckSquareIcon className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">
+              No Property Selected
+            </h3>
+            <p className="text-gray-500">
+              Please select a property to view its tasks.
+            </p>
+          </div>
+        </StandardCard>
+      </StandardPageLayout>
     );
   }
 
   return (
-    <div className="p-6">
-      <Header title="House Tasks" />
-      <PageContainer>
+    <PropertyGuard fallback={<DashboardNoPropertyFallback />}>
+      <StandardPageLayout theme="dark" showHeader={true}>
         <div className="space-y-6">
           <StandardCard
             title="House Management Tasks"
@@ -880,7 +863,26 @@ export default function HouseTasksPage() {
             label="Create Task"
           />
         </div>
-      </PageContainer>
-    </div>
+      </StandardPageLayout>
+    </PropertyGuard>
+  );
+}
+
+// Update your fallback component too
+function DashboardNoPropertyFallback() {
+  return (
+    <StandardPageLayout theme="dark" showHeader={true}>
+      <StandardCard>
+        <div className="text-center py-8">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">
+            Welcome to PorchLite
+          </h2>
+          <p className="text-gray-600 mb-6">
+            You need to create or select a property to get started.
+          </p>
+          {/* Rest of fallback content */}
+        </div>
+      </StandardCard>
+    </StandardPageLayout>
   );
 }

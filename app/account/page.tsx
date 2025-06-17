@@ -20,18 +20,6 @@ import {
 import Link from "next/link";
 import StandardPageLayout from "@/components/layout/StandardPageLayout";
 
-// 🔍 DEBUG: Log all imports to find the undefined one
-console.log("🔍 Debugging imports:", {
-  useAuth: typeof useAuth,
-  canManageProperties: typeof canManageProperties,
-  canManageUsers: typeof canManageUsers,
-  StandardCard: typeof StandardCard,
-  ProfileModal: typeof ProfileModal,
-  StandardPageLayout: typeof StandardPageLayout,
-  User: typeof User,
-  Link: typeof Link,
-});
-
 export default function AccountPage() {
   const { user, loading: authLoading } = useAuth();
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
@@ -89,6 +77,26 @@ export default function AccountPage() {
 
   const visibleSections = accountSections.filter((section) => section.show);
 
+  // ✅ Create a user object that matches ProfileModal expectations
+  const profileUser = user
+    ? {
+        id: user.id,
+        email: user.email,
+        full_name:
+          user.user_metadata?.name || user.user_metadata?.full_name || "",
+        phone_number: user.user_metadata?.phone_number || "",
+        avatar_url: user.user_metadata?.avatar_url || "",
+        address: user.user_metadata?.address || "",
+        show_in_contacts: user.user_metadata?.show_in_contacts ?? true,
+        role: user.user_metadata?.role || "guest",
+      }
+    : null;
+
+  const handleProfileUpdate = (updatedUser: any) => {
+    console.log("Profile updated:", updatedUser);
+    // Optionally refresh user data or update local state
+  };
+
   if (authLoading) {
     return (
       <StandardPageLayout>
@@ -112,7 +120,15 @@ export default function AccountPage() {
         <StandardCard title="Your Account">
           <div className="flex items-center space-x-4">
             <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
-              <User className="h-8 w-8 text-blue-600" />
+              {user?.user_metadata?.avatar_url ? (
+                <img
+                  src={user.user_metadata.avatar_url}
+                  alt={user.user_metadata.name || "User"}
+                  className="w-16 h-16 rounded-full object-cover"
+                />
+              ) : (
+                <User className="h-8 w-8 text-blue-600" />
+              )}
             </div>
             <div className="flex-1">
               <h3 className="text-lg font-semibold text-gray-900">
@@ -185,9 +201,7 @@ export default function AccountPage() {
                 >
                   <Users className="h-8 w-8 text-indigo-600 mr-3" />
                   <div>
-                    <h4 className="font-medium text-gray-900">
-                      Manage Users
-                    </h4>
+                    <h4 className="font-medium text-gray-900">Manage Users</h4>
                     <p className="text-sm text-gray-600">
                       Add or edit user accounts
                     </p>
@@ -235,10 +249,15 @@ export default function AccountPage() {
         </div>
       </div>
 
-      <ProfileModal
-        isOpen={isProfileModalOpen}
-        onClose={() => setIsProfileModalOpen(false)}
-      />
+      {/* ✅ Fixed ProfileModal with required props */}
+      {profileUser && (
+        <ProfileModal
+          isOpen={isProfileModalOpen}
+          onClose={() => setIsProfileModalOpen(false)}
+          user={profileUser}
+          onProfileUpdate={handleProfileUpdate}
+        />
+      )}
     </StandardPageLayout>
   );
 }

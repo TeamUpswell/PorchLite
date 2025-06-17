@@ -18,6 +18,7 @@ import { supabase } from "@/lib/supabase";
 import { CreatePattern } from "@/components/ui/FloatingActionPresets";
 import MainLayout from "@/components/layout/MainLayout"; // ✅ Use MainLayout
 import StandardCard from "@/components/ui/StandardCard";
+import StandardPageLayout from "@/components/layout/StandardPageLayout";
 
 interface ManualSection {
   id: string;
@@ -266,7 +267,7 @@ export default function ManualPage() {
 
   // ✅ Main content using MainLayout
   return (
-    <MainLayout>
+    <StandardPageLayout theme="dark" showHeader={true}>
       <div className="p-6">
         <div className="max-w-7xl mx-auto">
           {loading ? (
@@ -365,7 +366,7 @@ export default function ManualPage() {
           <CreatePattern href="/manual/sections/new" label="Add Instructions" />
         </div>
       </div>
-    </MainLayout>
+    </StandardPageLayout>
   );
 }
 

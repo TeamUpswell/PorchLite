@@ -1,0 +1,21 @@
+/* Strengthen text shadow utilities for better readability */
+.text-shadow-sm {
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+}
+
+.text-shadow-md {
+  text-shadow: 0 3px 6px rgba(0, 0, 0, 0.9);
+}
+
+.text-shadow-lg {
+  text-shadow: 0 4px 8px rgba(0, 0, 0, 0.9), 0 2px 4px rgba(0, 0, 0, 0.8);
+}
+
+/* Add text stroke utility for extra contrast */
+.text-stroke {
+  -webkit-text-stroke: 1px rgba(0, 0, 0, 0.8);
+}
+
+.text-stroke-2 {
+  -webkit-text-stroke: 2px rgba(0, 0, 0, 0.6);
+}
