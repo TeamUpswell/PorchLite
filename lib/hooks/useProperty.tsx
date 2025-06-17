@@ -32,16 +32,11 @@ const PropertyContext = createContext<PropertyContextType | undefined>(
   undefined
 );
 
-export function PropertyProvider({ children }: { children: ReactNode }) {
-  const {
-    user,
-    loading: authLoading,
-    initialized: authInitialized,
-  } = useAuth();
-
+export function PropertyProvider({ children }: { children: React.ReactNode }) {
+  const { user, isLoading, status } = useAuth();
   const [currentProperty, setCurrentProperty] = useState<Property | null>(null);
-  const [tenant, setTenant] = useState<Tenant | null>(null);
-  const [userProperties, setUserProperties] = useState<Property[]>([]);
+  const [userProperties, setUserProperties] = useState<Property[]>([]); // Fixed: was 'properties'
+  const [tenant, setTenant] = useState<Tenant | null>(null); // Added missing state
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasInitialized, setHasInitialized] = useState(false);
@@ -62,11 +57,14 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
       console.log("🏠 [PROD DEBUG] Loading properties for user:", user.id);
 
       // Get current user from Supabase auth
-      const { data: { user: currentUser }, error: userError } = await supabase.auth.getUser();
+      const {
+        data: { user: currentUser },
+        error: userError,
+      } = await supabase.auth.getUser();
       console.log("🏠 [PROD DEBUG] Current Supabase user:", {
         userId: currentUser?.id,
         email: currentUser?.email,
-        error: userError
+        error: userError,
       });
 
       // Step 1: Get user's tenant IDs from tenant_users table
@@ -76,7 +74,10 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
         .eq("user_id", user.id)
         .eq("status", "active"); // Only active memberships
 
-      console.log("🏠 [PROD DEBUG] User tenant data:", { tenantData, tenantError });
+      console.log("🏠 [PROD DEBUG] User tenant data:", {
+        tenantData,
+        tenantError,
+      });
 
       if (tenantError) {
         throw new Error(`Tenant lookup failed: ${tenantError.message}`);
@@ -90,7 +91,7 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      const tenantIds = tenantData.map(t => t.tenant_id);
+      const tenantIds = tenantData.map((t) => t.tenant_id);
       console.log("🏠 [PROD DEBUG] User tenant IDs:", tenantIds);
 
       // Step 2: Get tenant info (for the first tenant for now)
@@ -101,14 +102,17 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
         .single();
 
       if (tenantInfoError) {
-        console.warn("🏠 [PROD DEBUG] Could not load tenant info:", tenantInfoError);
+        console.warn(
+          "🏠 [PROD DEBUG] Could not load tenant info:",
+          tenantInfoError
+        );
       } else {
         setTenant(tenantInfo);
         console.log("🏠 [PROD DEBUG] Loaded tenant:", tenantInfo.name);
       }
 
       // Step 3: Get properties for those tenants
-      const { data: userProperties, error: propertiesError } = await supabase
+      const { data: propertiesData, error: propertiesError } = await supabase
         .from("properties")
         .select("*")
         .in("tenant_id", tenantIds)
@@ -116,37 +120,38 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
         .order("created_at", { ascending: false });
 
       console.log("🏠 [PROD DEBUG] Properties query result:", {
-        count: userProperties?.length || 0,
+        count: propertiesData?.length || 0,
         error: propertiesError,
-        tenantIds
+        tenantIds,
       });
 
       if (propertiesError) {
         throw propertiesError;
       }
 
-      setUserProperties(userProperties || []);
+      setUserProperties(propertiesData || []);
 
       // Set first property as current if none selected
-      if (userProperties && userProperties.length > 0) {
+      if (propertiesData && propertiesData.length > 0) {
         // Try to restore previously selected property
         const storedPropertyId = localStorage.getItem("currentPropertyId");
-        const storedProperty = storedPropertyId 
-          ? userProperties.find(p => p.id === storedPropertyId)
+        const storedProperty = storedPropertyId
+          ? propertiesData.find((p) => p.id === storedPropertyId)
           : null;
-        
-        const propertyToSet = storedProperty || userProperties[0];
+
+        const propertyToSet = storedProperty || propertiesData[0];
         setCurrentProperty(propertyToSet);
-        
+
         console.log("✅ Property: Set current property:", propertyToSet.name);
       } else {
         setCurrentProperty(null);
         console.log("🏠 Property: No properties found for user's tenants");
       }
-
     } catch (err) {
       console.error("❌ [PROD DEBUG] Property loading error:", err);
-      setError(err instanceof Error ? err.message : "Failed to load properties");
+      setError(
+        err instanceof Error ? err.message : "Failed to load properties"
+      );
     } finally {
       setLoading(false);
       setHasInitialized(true);
@@ -176,46 +181,49 @@ export function PropertyProvider({ children }: { children: ReactNode }) {
     console.log("🏠 Property: User change detected", {
       previousUserId,
       currentUserId,
-      hasInitialized
+      hasInitialized,
     });
 
     // If user ID changed, reset initialization state
     if (previousUserId !== currentUserId) {
       console.log("🏠 Property: User changed, resetting initialization");
       setHasInitialized(false);
+      setCurrentProperty(null);
+      setUserProperties([]);
+      setTenant(null);
       loadingRef.current = false;
       previousUserIdRef.current = currentUserId;
     }
-  }, [user?.id]);
+  }, [user?.id, hasInitialized]);
 
+  // Fixed: Use hasInitialized instead of isInitialized
   useEffect(() => {
     console.log("🏠 Property: Auth state check", {
-      authInitialized,
-      authLoading,
       hasUser: !!user,
       hasInitialized,
-      userId: user?.id
+      isLoading,
+      authStatus: status,
     });
 
-    if (authInitialized && !authLoading && user?.id && !hasInitialized) {
-      console.log("🏠 Property: Starting property load for user:", user.id);
-      loadUserProperties();
-    } else if (authInitialized && !authLoading && !user) {
+    // Don't do anything if we're in a loading/transitional state
+    if (isLoading || status === "INITIAL_SESSION") {
+      return;
+    }
+
+    if (!user) {
       console.log("🏠 Property: No user, clearing properties");
       setCurrentProperty(null);
       setUserProperties([]);
       setTenant(null);
       setHasInitialized(true);
-      setLoading(false);
-      localStorage.removeItem("currentPropertyId");
+      return;
     }
-  }, [
-    user?.id,
-    authLoading,
-    authInitialized,
-    hasInitialized,
-    loadUserProperties,
-  ]);
+
+    if (!hasInitialized) {
+      console.log("🏠 Property: Starting property load for user:", user.id);
+      loadUserProperties();
+    }
+  }, [user, hasInitialized, isLoading, status, loadUserProperties]);
 
   const value = {
     currentProperty,

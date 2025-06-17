@@ -185,62 +185,24 @@ export default function CleaningPage() {
             title="Quick Actions"
             subtitle="Access cleaning tools and features"
           >
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {/* Cleaning Checklist */}
+            <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
+              {/* Cleaning Checklist - Now the main focus */}
               <Link href="/cleaning/checklist" className="group block">
-                <div className="bg-gradient-to-br from-green-50 to-blue-50 rounded-lg p-6 border-2 border-green-200 hover:border-green-300 transition-colors">
-                  <div className="flex items-center mb-3">
-                    <div className="p-2 bg-green-100 rounded-lg">
-                      <Sparkles className="h-6 w-6 text-green-600" />
+                <div className="bg-gradient-to-br from-green-50 to-blue-50 rounded-lg p-8 border-2 border-green-200 hover:border-green-300 transition-colors">
+                  <div className="flex items-center mb-4">
+                    <div className="p-3 bg-green-100 rounded-lg">
+                      <Sparkles className="h-8 w-8 text-green-600" />
                     </div>
-                    <h3 className="ml-3 font-semibold text-gray-900">
-                      Room Checklist
+                    <h3 className="ml-4 text-xl font-semibold text-gray-900">
+                      Room Cleaning Checklist
                     </h3>
                   </div>
-                  <p className="text-sm text-gray-600 mb-3">
-                    Manage cleaning tasks by room and track progress
+                  <p className="text-gray-600 mb-4">
+                    Manage cleaning tasks by room and track your progress. Stay organized with our comprehensive room-by-room cleaning system.
                   </p>
                   <div className="flex items-center text-green-600 group-hover:text-green-700">
-                    <span className="text-sm font-medium">Open Checklist</span>
-                    <ArrowRight className="h-4 w-4 ml-1" />
-                  </div>
-                </div>
-              </Link>
-
-              {/* Schedule */}
-              <Link href="/cleaning/schedule" className="group block">
-                <div className="bg-white rounded-lg p-6 border-2 border-gray-200 hover:border-blue-300 transition-colors">
-                  <div className="flex items-center mb-3">
-                    <div className="p-2 bg-blue-100 rounded-lg">
-                      <Calendar className="h-6 w-6 text-blue-600" />
-                    </div>
-                    <h3 className="ml-3 font-semibold text-gray-900">Schedule</h3>
-                  </div>
-                  <p className="text-sm text-gray-600 mb-3">
-                    View and manage cleaning schedules
-                  </p>
-                  <div className="flex items-center text-blue-600 group-hover:text-blue-700">
-                    <span className="text-sm font-medium">View Schedule</span>
-                    <ArrowRight className="h-4 w-4 ml-1" />
-                  </div>
-                </div>
-              </Link>
-
-              {/* Team Management */}
-              <Link href="/cleaning/team" className="group block">
-                <div className="bg-white rounded-lg p-6 border-2 border-gray-200 hover:border-purple-300 transition-colors">
-                  <div className="flex items-center mb-3">
-                    <div className="p-2 bg-purple-100 rounded-lg">
-                      <Users className="h-6 w-6 text-purple-600" />
-                    </div>
-                    <h3 className="ml-3 font-semibold text-gray-900">Team</h3>
-                  </div>
-                  <p className="text-sm text-gray-600 mb-3">
-                    Manage cleaning team and assignments
-                  </p>
-                  <div className="flex items-center text-purple-600 group-hover:text-purple-700">
-                    <span className="text-sm font-medium">Manage Team</span>
-                    <ArrowRight className="h-4 w-4 ml-1" />
+                    <span className="font-medium">Start Cleaning Checklist</span>
+                    <ArrowRight className="h-5 w-5 ml-2" />
                   </div>
                 </div>
               </Link>
@@ -257,7 +219,7 @@ export default function CleaningPage() {
                 <Clock className="mx-auto h-8 w-8 text-gray-400 mb-2" />
                 <p>No recent activity</p>
                 <p className="text-sm mt-1">
-                  Cleaning tasks will appear here once you start using the system
+                  Cleaning tasks will appear here once you start using the checklist
                 </p>
               </div>
             </div>
@@ -270,10 +232,10 @@ export default function CleaningPage() {
             </p>
             <ul className="space-y-1">
               <li>
-                • Use the <strong>Room Checklist</strong> to manage tasks by room
+                • Use the <strong>Room Checklist</strong> to manage cleaning tasks by room
               </li>
-              <li>• Set up cleaning <strong>Schedules</strong> for recurring tasks</li>
-              <li>• Invite team members to collaborate on cleaning</li>
+              <li>• Check off completed tasks as you clean each room</li>
+              <li>• Track your progress with the dashboard statistics</li>
             </ul>
           </div>
         </div>
