@@ -67,6 +67,8 @@ export function PropertyProvider({ children }: { children: React.ReactNode }) {
     hasInitialized: hasInitialized.current,
     lastUserId: lastUserId.current,
     isLoading: isLoadingRef.current,
+    currentProperty: currentProperty?.id,
+    userPropertiesCount: userProperties.length,
   });
 
   const loadUserProperties = useCallback(async (): Promise<void> => {
@@ -104,27 +106,79 @@ export function PropertyProvider({ children }: { children: React.ReactNode }) {
 
       console.log("🏠 [PROD DEBUG] Tenants response:", tenantData);
 
-      const properties =
-        tenantData
-          ?.map((tenant) => tenant.property)
-          .filter(Boolean) || [];
+      // Log each tenant record to see the structure
+      if (tenantData) {
+        tenantData.forEach((tenant, index) => {
+          console.log(`🏠 [DETAILED] Tenant ${index}:`, {
+            id: tenant.id,
+            property_id: tenant.property_id,
+            user_id: tenant.user_id,
+            role: tenant.role,
+            property: tenant.property,
+            propertyType: typeof tenant.property,
+            propertyKeys: tenant.property ? Object.keys(tenant.property) : "none",
+          });
+        });
+      }
+
+      // Extract properties correctly - filter out null properties and flatten
+      const properties: Property[] = [];
+      const validTenants: Tenant[] = [];
+
+      if (tenantData) {
+        tenantData.forEach((tenantRecord, index) => {
+          console.log(`🏠 [PROCESSING] Processing tenant ${index}:`, tenantRecord);
+
+          // Check if property exists and has an ID
+          if (tenantRecord.property) {
+            console.log(`🏠 [PROCESSING] Property found for tenant ${index}:`, tenantRecord.property);
+
+            // Handle both single property object and array of properties
+            let propertyData = tenantRecord.property;
+
+            // If it's an array, take the first element
+            if (Array.isArray(propertyData)) {
+              console.log(`🏠 [PROCESSING] Property is array, taking first:`, propertyData[0]);
+              propertyData = propertyData[0];
+            }
+
+            // Validate the property has required fields
+            if (propertyData && propertyData.id && propertyData.name) {
+              console.log(`🏠 [PROCESSING] Valid property found:`, propertyData);
+              properties.push(propertyData as Property);
+              validTenants.push({
+                id: tenantRecord.id,
+                property_id: tenantRecord.property_id,
+                user_id: tenantRecord.user_id,
+                role: tenantRecord.role,
+                created_at: tenantRecord.created_at,
+              });
+            } else {
+              console.log(`🏠 [PROCESSING] Invalid property data:`, propertyData);
+            }
+          } else {
+            console.log(`🏠 [PROCESSING] No property for tenant ${index}`);
+          }
+        });
+      }
 
       console.log("🏠 [PROD DEBUG] Processed properties:", properties);
+      console.log("🏠 [PROD DEBUG] Valid tenants:", validTenants);
 
       setUserProperties(properties);
 
       // Set current tenant info if available
-      if (tenantData && tenantData.length > 0) {
-        setTenant(tenantData[0]);
+      if (validTenants.length > 0) {
+        setTenant(validTenants[0]);
       }
 
-      // Set first property as current if none selected
+      // Set first property as current if none selected and we have properties
       if (properties.length > 0 && !currentProperty) {
-        console.log(
-          "🏠 Property: Setting first property as current:",
-          properties[0]
-        );
+        console.log("🏠 Property: Setting first property as current:", properties[0]);
         setCurrentProperty(properties[0]);
+      } else if (properties.length === 0) {
+        console.log("🏠 Property: No properties found, clearing current property");
+        setCurrentProperty(null);
       }
     } catch (err) {
       console.error("🏠 Property: Error loading properties:", err);
@@ -195,13 +249,15 @@ export function PropertyProvider({ children }: { children: React.ReactNode }) {
       if (error) throw error;
 
       // Also create tenant entry for the owner
-      await supabase.from("tenants").insert([
-        {
-          property_id: data.id,
-          user_id: user.id,
-          role: "owner",
-        },
-      ]);
+      await supabase
+        .from("tenants")
+        .insert([
+          {
+            property_id: data.id,
+            user_id: user.id,
+            role: "owner",
+          },
+        ]);
 
       await loadUserProperties();
       return data;

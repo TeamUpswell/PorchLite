@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server"; // ADD: NextRequest import
+import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 
 // ADD: Interface for type safety
@@ -18,13 +18,28 @@ interface TaskUpdateRequest extends Partial<TaskRequest> {
 // Handler for GET requests to retrieve tasks
 export async function GET(request: NextRequest) {
   try {
-    const { data, error } = await supabase
+    const { searchParams } = new URL(request.url);
+    const property_id = searchParams.get('property_id');
+    
+    console.log('🔍 Tasks API: Fetching tasks for property:', property_id);
+
+    let query = supabase
       .from("tasks")
-      .select("*")
-      .order("created_at", { ascending: false });
+      .select("*");
 
-    if (error) throw error;
+    // Filter by property_id if provided
+    if (property_id) {
+      query = query.eq('property_id', property_id);
+    }
 
+    const { data, error } = await query.order("created_at", { ascending: false });
+
+    if (error) {
+      console.error('❌ Tasks API error:', error);
+      throw error;
+    }
+
+    console.log('✅ Tasks API: Found', data?.length || 0, 'tasks');
     return NextResponse.json({ tasks: data });
   } catch (error) {
     console.error("Error fetching tasks:", error);
