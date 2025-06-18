@@ -9,6 +9,7 @@ import Script from "next/script";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import ClientErrorTracker from "@/components/ClientErrorTracker";
 import AuthStateMonitor from "@/components/AuthStateMonitor";
+import SessionMonitor from "@/components/SessionMonitor";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -30,6 +31,7 @@ export default function RootLayout({
           <ErrorBoundary>
             <AuthProvider>
               <AuthStateMonitor />
+              <SessionMonitor />
               <PropertyProvider>
                 {children} {/* ✅ ONLY THIS - NO OTHER COMPONENTS */}
                 <Toaster position="top-right" />

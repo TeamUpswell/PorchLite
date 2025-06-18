@@ -85,6 +85,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const initializeAuth = async () => {
       try {
         setLoading(true);
+        setInitialized(false); // ✅ FIXED: Explicitly set to false
 
         const {
           data: { session },
@@ -114,7 +115,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setProfileData(null);
       } finally {
         setLoading(false);
-        setInitialized(true);
+        setInitialized(true); // ✅ FIXED: Always set initialized to true
         console.log("✅ Auth: Initialization complete");
       }
     };
@@ -126,19 +127,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log("🔄 Auth: State changed:", event);
 
       try {
-        if (session?.user) {
-          setSession(session);
-          setUser(session.user);
-
-          // Load profile for signed in users
-          if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
+        // ✅ FIXED: Don't reset loading/initialized on state changes after initial load
+        if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
+          if (session?.user) {
+            setSession(session);
+            setUser(session.user);
             await loadProfile(session.user.id);
           }
-        } else {
-          // User signed out or session ended
+        } else if (event === "SIGNED_OUT") {
           setSession(null);
           setUser(null);
           setProfileData(null);
+          // ✅ FIXED: Don't reset initialized on sign out
         }
       } catch (error) {
         console.error("❌ Auth: State change error:", error);
@@ -188,7 +188,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!requiredRole) return true;
     if (!user) return false;
 
-    // 🔑 IMPROVEMENT: Check both user_metadata and profileData for role
     const userRole = user.user_metadata?.role || profileData?.role;
     const roleHierarchy = { owner: 4, manager: 3, family: 2, friend: 1 };
 
