@@ -59,13 +59,10 @@ class AuthManager {
 
   async initialize() {
     if (this.initialized) {
-      console.log("🔄 Auth Manager: Already initialized");
       return;
     }
 
     if (this.loading) {
-      console.log("🔄 Auth Manager: Already loading, waiting...");
-      // Wait for current initialization to complete
       while (this.loading) {
         await new Promise((resolve) => setTimeout(resolve, 100));
       }
@@ -76,41 +73,34 @@ class AuthManager {
     this.notify();
 
     try {
-      console.log("🔍 Auth Manager: Initializing...");
-
-      // ✅ FIXED: Properly get session on refresh
       const {
         data: { session },
         error,
       } = await supabase.auth.getSession();
 
       if (error) {
-        console.error("❌ Auth Manager: Session error:", error);
+        console.error("❌ Auth error:", error);
         this.session = null;
         this.user = null;
         this.profileData = null;
       } else if (session?.user) {
-        console.log(
-          "✅ Auth Manager: Found existing session for:",
-          session.user.email
-        );
+        // ✅ CLEANED: Less verbose logging
+        console.log("✅ Session restored for:", session.user.email);
         this.session = session;
         this.user = session.user;
         await this.loadProfile(session.user.id);
       } else {
-        console.log("🔍 Auth Manager: No session found");
         this.session = null;
         this.user = null;
         this.profileData = null;
       }
 
-      // ✅ FIXED: Setup auth listener only once
       if (!this.authListenerSetup) {
         this.setupAuthListener();
         this.authListenerSetup = true;
       }
     } catch (error) {
-      console.error("❌ Auth Manager: Init error:", error);
+      console.error("❌ Auth init error:", error);
       this.session = null;
       this.user = null;
       this.profileData = null;
@@ -118,7 +108,6 @@ class AuthManager {
       this.loading = false;
       this.initialized = true;
       this.notify();
-      console.log("✅ Auth Manager: Initialization complete");
     }
   }
 
