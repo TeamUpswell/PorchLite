@@ -40,6 +40,9 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// ✅ FIXED: Create a unique instance ID to track provider lifecycles
+const instanceId = Math.random().toString(36).substr(2, 9);
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<(User & { user_metadata?: any }) | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -49,9 +52,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const initializationRef = useRef(false);
 
+  // ✅ FIXED: Log provider lifecycle events
+  useEffect(() => {
+    console.log(`🚀 Auth Provider MOUNTED - Instance: ${instanceId}`);
+    
+    return () => {
+      console.log(`💀 Auth Provider UNMOUNTED - Instance: ${instanceId}`);
+    };
+  }, []);
+
   const loadProfile = async (userId: string) => {
     try {
-      console.log("🔍 Auth: Loading profile for user:", userId);
+      console.log(`🔍 Auth [${instanceId}]: Loading profile for user:`, userId);
       const { data: profile, error } = await supabase
         .from("profiles")
         .select("*")
@@ -59,33 +71,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .single();
 
       if (error) {
-        console.log("⚠️ Auth: Profile error:", error.message);
+        console.log(`⚠️ Auth [${instanceId}]: Profile error:`, error.message);
         return null;
       }
 
       if (profile) {
         setProfileData(profile);
-        console.log("✅ Auth: Profile loaded");
+        console.log(`✅ Auth [${instanceId}]: Profile loaded`);
         return profile;
       }
     } catch (profileError) {
-      console.log("⚠️ Auth: No profile found:", profileError);
+      console.log(`⚠️ Auth [${instanceId}]: No profile found:`, profileError);
     }
     return null;
   };
 
   useEffect(() => {
     if (initializationRef.current) {
+      console.log(`⚠️ Auth [${instanceId}]: Attempted double initialization - skipping`);
       return;
     }
 
     initializationRef.current = true;
-    console.log("🔍 Auth: Initializing...");
+    console.log(`🔍 Auth [${instanceId}]: Initializing...`);
 
     const initializeAuth = async () => {
       try {
         setLoading(true);
-        setInitialized(false); // ✅ FIXED: Explicitly set to false
+        setInitialized(false);
+
+        // ✅ FIXED: Check for existing session in localStorage first
+        const existingSession = localStorage.getItem('supabase.auth.token');
+        if (existingSession) {
+          console.log(`🔄 Auth [${instanceId}]: Found existing session in localStorage`);
+        }
 
         const {
           data: { session },
@@ -93,30 +112,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } = await supabase.auth.getSession();
 
         if (error) {
-          console.log("❌ Auth: Error getting session:", error.message);
+          console.log(`❌ Auth [${instanceId}]: Error getting session:`, error.message);
           setSession(null);
           setUser(null);
           setProfileData(null);
         } else if (session?.user) {
-          console.log("✅ Auth: Found session for:", session.user.email);
+          console.log(`✅ Auth [${instanceId}]: Found session for:`, session.user.email);
           setSession(session);
           setUser(session.user);
           await loadProfile(session.user.id);
         } else {
-          console.log("🔍 Auth: No session found");
+          console.log(`🔍 Auth [${instanceId}]: No session found`);
           setSession(null);
           setUser(null);
           setProfileData(null);
         }
       } catch (error) {
-        console.error("❌ Auth: Initialization error:", error);
+        console.error(`❌ Auth [${instanceId}]: Initialization error:`, error);
         setSession(null);
         setUser(null);
         setProfileData(null);
       } finally {
         setLoading(false);
-        setInitialized(true); // ✅ FIXED: Always set initialized to true
-        console.log("✅ Auth: Initialization complete");
+        setInitialized(true);
+        console.log(`✅ Auth [${instanceId}]: Initialization complete`);
       }
     };
 
@@ -124,10 +143,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log("🔄 Auth: State changed:", event);
+      console.log(`🔄 Auth [${instanceId}]: State changed:`, event);
 
       try {
-        // ✅ FIXED: Don't reset loading/initialized on state changes after initial load
         if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
           if (session?.user) {
             setSession(session);
@@ -138,16 +156,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setSession(null);
           setUser(null);
           setProfileData(null);
-          // ✅ FIXED: Don't reset initialized on sign out
         }
       } catch (error) {
-        console.error("❌ Auth: State change error:", error);
+        console.error(`❌ Auth [${instanceId}]: State change error:`, error);
       }
     });
 
     initializeAuth();
 
     return () => {
+      console.log(`🧹 Auth [${instanceId}]: Cleaning up subscription`);
       subscription.unsubscribe();
     };
   }, []);
