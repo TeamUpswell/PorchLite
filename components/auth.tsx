@@ -24,7 +24,7 @@ interface AuthContextType {
   user: (User & { user_metadata?: any }) | null;
   session: Session | null;
   loading: boolean;
-  initialized: boolean; // 🔑 CRITICAL: Add initialization flag
+  initialized: boolean;
   profileData: Profile | null;
   signIn: (
     email: string,
@@ -35,17 +35,16 @@ interface AuthContextType {
     password: string
   ) => Promise<{ data?: any; error?: any }>;
   signOut: () => Promise<void>;
+  hasPermission: (requiredRole?: string) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<(User & { user_metadata?: any }) | null>(
-    null
-  );
+  const [user, setUser] = useState<(User & { user_metadata?: any }) | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
-  const [initialized, setInitialized] = useState(false); // 🔑 CRITICAL: Add this
+  const [initialized, setInitialized] = useState(false);
   const [profileData, setProfileData] = useState<Profile | null>(null);
 
   const initializationRef = useRef(false);
@@ -115,7 +114,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setProfileData(null);
       } finally {
         setLoading(false);
-        setInitialized(true); // 🔑 CRITICAL: Set initialized after first load
+        setInitialized(true);
         console.log("✅ Auth: Initialization complete");
       }
     };
@@ -126,7 +125,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log("🔄 Auth: State changed:", event);
 
-      // 🔑 FIXED: Don't mess with loading during state changes
       try {
         if (session?.user) {
           setSession(session);
@@ -145,7 +143,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } catch (error) {
         console.error("❌ Auth: State change error:", error);
       }
-      // 🔑 REMOVED: Don't set loading to false here - it causes races
     });
 
     initializeAuth();
@@ -153,11 +150,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => {
       subscription.unsubscribe();
     };
-  }, []); // 🔑 Clean dependency array
+  }, []);
 
   const signIn = async (email: string, password: string) => {
     try {
-      // 🔑 DON'T set loading here - auth state change will handle it
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -170,7 +166,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signUp = async (email: string, password: string) => {
     try {
-      // 🔑 DON'T set loading here - auth state change will handle it
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -184,21 +179,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = async () => {
     try {
       await supabase.auth.signOut();
-      // 🔑 State will be cleared by auth state change listener
     } catch (error) {
       console.error("Sign out error:", error);
     }
+  };
+
+  const hasPermission = (requiredRole?: string) => {
+    if (!requiredRole) return true;
+    if (!user) return false;
+
+    // 🔑 IMPROVEMENT: Check both user_metadata and profileData for role
+    const userRole = user.user_metadata?.role || profileData?.role;
+    const roleHierarchy = { owner: 4, manager: 3, family: 2, friend: 1 };
+
+    const userLevel = roleHierarchy[userRole as keyof typeof roleHierarchy] || 0;
+    const requiredLevel = roleHierarchy[requiredRole as keyof typeof roleHierarchy] || 0;
+
+    return userLevel >= requiredLevel;
   };
 
   const value = {
     user,
     session,
     loading,
-    initialized, // 🔑 CRITICAL: Expose initialization state
+    initialized,
     profileData,
     signIn,
     signUp,
     signOut,
+    hasPermission,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
