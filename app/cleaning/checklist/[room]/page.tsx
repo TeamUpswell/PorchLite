@@ -142,6 +142,7 @@ export default function RoomChecklist() {
 
       // Create visit tasks for any that don't exist yet
       const existingTaskIds = visitTasks.map((vt) => vt.task_id);
+      // Creates visit-specific task instances from task templates
       const tasksToCreate = roomTasks
         .filter((task) => !existingTaskIds.includes(task.id))
         .map((task) => ({

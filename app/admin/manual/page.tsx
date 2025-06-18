@@ -1,4 +1,4 @@
-"use client";
+  "use client";
 
 // REMOVE ANY EXISTING revalidate CONFIGS
 export const dynamic = "force-dynamic";

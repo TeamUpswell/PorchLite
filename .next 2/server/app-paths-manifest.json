@@ -1,6 +1,0 @@
-{
-  "/account/properties/page": "app/account/properties/page.js",
-  "/house/page": "app/house/page.js",
-  "/guest-book/page": "app/guest-book/page.js",
-  "/page": "app/page.js"
-}

@@ -1,84 +1,112 @@
 import { createClient } from "@supabase/supabase-js";
 
+// ✅ Helper for development-only logging
+const logInfo = (message: string, ...data: any[]) => {
+  if (process.env.NODE_ENV === 'development') {
+    console.log(message, ...data);
+  }
+};
+
+// ✅ Helper for error logging (always log errors, but conditionally include details)
+const logError = (message: string, error: any) => {
+  if (process.env.NODE_ENV === 'development') {
+    console.error(message, error);
+  } else {
+    console.error(message);
+  }
+};
+
 export async function resetUserAndRecreate(
   userId: string,
   email: string,
   newPassword: string
 ) {
-  console.log("Starting user reset process for:", userId);
-
+  // ✅ Removed console.log
+  
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!supabaseUrl || !supabaseServiceKey) {
-    console.error("Missing Supabase URL or service key");
+    // ✅ Use helper for error logging
+    logError("Missing Supabase URL or service key", null);
     return { success: false, error: "Configuration error" };
   }
 
   const adminSupabase = createClient(supabaseUrl, supabaseServiceKey);
 
   try {
-    console.log("1. Deleting user data from tables...");
+    // ✅ Removed console.log
+    
     // Delete in correct order (child records first)
     try {
       await adminSupabase.from("notes").delete().eq("user_id", userId);
-      console.log("Notes deleted");
+      // ✅ Removed console.log
     } catch (e) {
-      console.log("Note deletion error:", e);
+      // ✅ Use helper for error logging
+      logError("Note deletion error", e);
     }
 
     try {
       await adminSupabase.from("tasks").delete().eq("created_by", userId);
-      console.log("Tasks (created_by) deleted");
+      // ✅ Removed console.log
     } catch (e) {
-      console.log("Tasks (created_by) deletion error:", e);
+      // ✅ Use helper for error logging
+      logError("Tasks (created_by) deletion error", e);
     }
 
     try {
       await adminSupabase.from("tasks").delete().eq("assigned_to", userId);
-      console.log("Tasks (assigned_to) deleted");
+      // ✅ Removed console.log
     } catch (e) {
-      console.log("Tasks (assigned_to) deletion error:", e);
+      // ✅ Use helper for error logging
+      logError("Tasks (assigned_to) deletion error", e);
     }
 
     try {
       await adminSupabase.from("inventory").delete().eq("user_id", userId);
-      console.log("Inventory deleted");
+      // ✅ Removed console.log
     } catch (e) {
-      console.log("Inventory deletion error:", e);
+      // ✅ Use helper for error logging
+      logError("Inventory deletion error", e);
     }
 
     try {
       await adminSupabase.from("reservations").delete().eq("user_id", userId);
-      console.log("Reservations deleted");
+      // ✅ Removed console.log
     } catch (e) {
-      console.log("Reservations deletion error:", e);
+      // ✅ Use helper for error logging
+      logError("Reservations deletion error", e);
     }
 
     try {
       await adminSupabase.from("user_roles").delete().eq("user_id", userId);
-      console.log("User roles deleted");
+      // ✅ Removed console.log
     } catch (e) {
-      console.log("User roles deletion error:", e);
+      // ✅ Use helper for error logging
+      logError("User roles deletion error", e);
     }
 
     try {
       await adminSupabase.from("profiles").delete().eq("id", userId);
-      console.log("Profile deleted");
+      // ✅ Removed console.log
     } catch (e) {
-      console.log("Profile deletion error:", e);
+      // ✅ Use helper for error logging
+      logError("Profile deletion error", e);
     }
 
-    console.log("2. Deleting user from Auth...");
+    // ✅ Removed console.log
+    
     const { error: authDeleteError } =
       await adminSupabase.auth.admin.deleteUser(userId);
 
     if (authDeleteError) {
-      console.error("Error deleting user from Auth:", authDeleteError);
+      // ✅ Use helper for error logging
+      logError("Error deleting user from Auth", authDeleteError);
       throw authDeleteError;
     }
 
-    console.log("3. Creating new user...");
+    // ✅ Removed console.log
+    
     const { data, error: createError } =
       await adminSupabase.auth.admin.createUser({
         email,
@@ -87,11 +115,13 @@ export async function resetUserAndRecreate(
       });
 
     if (createError) {
-      console.error("Error creating new user:", createError);
+      // ✅ Use helper for error logging
+      logError("Error creating new user", createError);
       throw createError;
     }
 
-    console.log("4. Creating profile and role for new user...");
+    // ✅ Removed console.log
+    
     const newUserId = data.user.id;
 
     const { error: profileError } = await adminSupabase
@@ -105,7 +135,8 @@ export async function resetUserAndRecreate(
       });
 
     if (profileError) {
-      console.error("Error creating profile:", profileError);
+      // ✅ Use helper for error logging
+      logError("Error creating profile", profileError);
       throw profileError;
     }
 
@@ -115,14 +146,17 @@ export async function resetUserAndRecreate(
     });
 
     if (roleError) {
-      console.error("Error creating role:", roleError);
+      // ✅ Use helper for error logging
+      logError("Error creating role", roleError);
       throw roleError;
     }
 
-    console.log("User successfully reset with new ID:", newUserId);
+    // ✅ Removed console.log
+    
     return { success: true, userId: newUserId };
   } catch (error) {
-    console.error("Error in resetUserAndRecreate:", error);
+    // ✅ Use helper for error logging
+    logError("Error in resetUserAndRecreate", error);
     return { success: false, error };
   }
 }

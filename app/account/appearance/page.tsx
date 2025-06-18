@@ -65,7 +65,7 @@ export default function AppearancePage() {
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Appearance</h1>
               <p className="text-gray-600">
-                Customize your app's appearance and theme
+                Customize your app&apos;s appearance and theme
               </p>
             </div>
           </div>

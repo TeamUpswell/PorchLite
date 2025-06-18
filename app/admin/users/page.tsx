@@ -25,6 +25,20 @@ import { createClient } from "@supabase/supabase-js";
 import CreateUserModal from "@/components/admin/CreateUserModal";
 import toast from "react-hot-toast";
 
+// ✅ ADDED: Environment-aware logging helpers
+const logInfo = (message: string, ...args: any[]) => {
+  if (process.env.NODE_ENV === "development") {
+    console.log(message, ...args);
+  }
+};
+
+const logError = (message: string, error: any) => {
+  if (process.env.NODE_ENV === "development") {
+    console.error(message, error);
+  }
+  // We could add error reporting service integration here
+};
+
 interface User {
   id: string;
   email: string;
@@ -52,6 +66,10 @@ export default function UsersPage() {
   const [selectedRole, setSelectedRole] = useState<string>("all");
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [actionMenuOpen, setActionMenuOpen] = useState<string | null>(null);
+
+  // ✅ ADDED: State for delete confirmation modal
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<string | null>(null);
 
   // Check if user has access
   const hasAccess = canManageUsers(currentUser);
@@ -116,7 +134,8 @@ export default function UsersPage() {
           }, {} as Record<string, string>);
         }
       } catch (roleError) {
-        console.log("No user_roles table found, using metadata roles");
+        // ✅ FIXED: Using environment-aware logging
+        logInfo("No user_roles table found, using metadata roles");
         // Fallback to user_metadata for roles
         profilesData?.forEach((user) => {
           rolesMap[user.id] = user.user_metadata?.role || "guest";
@@ -126,7 +145,8 @@ export default function UsersPage() {
       setUsers(profilesData || []);
       setUserRoles(rolesMap);
     } catch (error) {
-      console.error("Error fetching users:", error);
+      // ✅ FIXED: Using environment-aware logging
+      logError("Error fetching users:", error);
       toast.error("Failed to load users");
     } finally {
       setLoading(false);
@@ -160,24 +180,25 @@ export default function UsersPage() {
       setUserRoles((prev) => ({ ...prev, [userId]: newRole }));
       toast.success("User role updated successfully");
     } catch (error) {
-      console.error("Error updating user role:", error);
+      // ✅ FIXED: Using environment-aware logging
+      logError("Error updating user role:", error);
       toast.error("Failed to update user role");
     }
   };
 
-  const handleDeleteUser = async (userId: string) => {
+  // ✅ FIXED: Replaced window.confirm with proper state management
+  const initiateDeleteUser = (userId: string) => {
     if (userId === currentUser?.id) {
       toast.error("You cannot delete your own account");
       return;
     }
 
-    if (
-      !confirm(
-        "Are you sure you want to delete this user? This action cannot be undone."
-      )
-    ) {
-      return;
-    }
+    setUserToDelete(userId);
+    setShowDeleteConfirm(true);
+  };
+
+  const handleDeleteUser = async (userId: string) => {
+    if (!userId) return;
 
     try {
       const response = await fetch("/api/users/delete", {
@@ -198,8 +219,12 @@ export default function UsersPage() {
       });
       toast.success("User deleted successfully");
     } catch (error) {
-      console.error("Error deleting user:", error);
+      // ✅ FIXED: Using environment-aware logging
+      logError("Error deleting user:", error);
       toast.error("Failed to delete user");
+    } finally {
+      setUserToDelete(null);
+      setShowDeleteConfirm(false);
     }
   };
 
@@ -274,7 +299,7 @@ export default function UsersPage() {
                 Access Denied
               </h3>
               <p className="mt-1 text-sm text-gray-500">
-                You don't have permission to manage users.
+                You don&apos;t have permission to manage users.
               </p>
               <div className="text-xs text-gray-400 mt-4 p-2 bg-gray-50 rounded">
                 <p>Role: {currentUser?.user_metadata?.role || "undefined"}</p>
@@ -512,7 +537,7 @@ export default function UsersPage() {
                                     {!isCurrentUser && (
                                       <button
                                         onClick={() => {
-                                          handleDeleteUser(user.id);
+                                          initiateDeleteUser(user.id);
                                           setActionMenuOpen(null);
                                         }}
                                         className="flex items-center px-4 py-2 text-sm text-red-700 hover:bg-red-50 w-full text-left"
@@ -590,6 +615,38 @@ export default function UsersPage() {
         onClose={() => setShowCreateModal(false)}
         onUserCreated={fetchUsers}
       />
+
+      {/* ✅ ADDED: Delete confirmation modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md mx-auto">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">
+              Confirm Delete
+            </h3>
+            <p className="text-gray-500 mb-6">
+              Are you sure you want to delete this user? This action cannot be
+              undone.
+            </p>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => {
+                  setShowDeleteConfirm(false);
+                  setUserToDelete(null);
+                }}
+                className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => userToDelete && handleDeleteUser(userToDelete)}
+                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

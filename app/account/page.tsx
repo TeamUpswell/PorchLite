@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import StandardPageLayout from "@/components/layout/StandardPageLayout";
+import Image from "next/image";
 
 export default function AccountPage() {
   const { user, loading: authLoading } = useAuth();
@@ -93,7 +94,9 @@ export default function AccountPage() {
     : null;
 
   const handleProfileUpdate = (updatedUser: any) => {
-    console.log("Profile updated:", updatedUser);
+    if (process.env.NODE_ENV === "development") {
+      console.log("Profile updated:", updatedUser);
+    }
     // Optionally refresh user data or update local state
   };
 
@@ -121,10 +124,12 @@ export default function AccountPage() {
           <div className="flex items-center space-x-4">
             <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
               {user?.user_metadata?.avatar_url ? (
-                <img
+                <Image
                   src={user.user_metadata.avatar_url}
                   alt={user.user_metadata.name || "User"}
-                  className="w-16 h-16 rounded-full object-cover"
+                  width={64}
+                  height={64}
+                  className="rounded-full object-cover"
                 />
               ) : (
                 <User className="h-8 w-8 text-blue-600" />

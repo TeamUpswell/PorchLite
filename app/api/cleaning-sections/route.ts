@@ -1,23 +1,58 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { logInfo, logError } from "@/lib/utils/logging";
+
+// Helper to detect common database errors
+const handleDatabaseError = (error: any) => {
+  // Check for table not found error
+  if (error?.code === '42P01' && error?.message?.includes('does not exist')) {
+    return {
+      code: 'TABLE_NOT_FOUND',
+      message: 'The required database table is missing. Please run database migrations.',
+      details: error.message,
+      status: 500
+    };
+  }
+  
+  // Permission errors
+  if (error?.code === '42501' || error?.code === '28000') {
+    return {
+      code: 'PERMISSION_DENIED',
+      message: 'Database permission denied. Check your API key permissions.',
+      details: error.message,
+      status: 403
+    };
+  }
+  
+  // Default database error
+  return {
+    code: 'DATABASE_ERROR',
+    message: 'A database error occurred',
+    details: error.message,
+    status: 500
+  };
+};
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    console.log("🧹 Cleaning sections request body:", body);
+    logInfo("Cleaning sections request body", body);
 
-    // ✅ FIX: Handle both propertyId and property_id
+    // Handle both propertyId and property_id
     const propertyId = body.propertyId || body.property_id;
 
     if (!propertyId) {
-      console.error("🧹 Missing property ID in request:", body);
+      logError("Missing property ID in request", { body: { hasPropertyId: false } });
       return NextResponse.json(
-        { error: "propertyId is required" },
+        { 
+          error: "BAD_REQUEST", 
+          message: "propertyId is required" 
+        },
         { status: 400 }
       );
     }
 
-    console.log("🧹 Looking for cleaning sections for property:", propertyId);
+    logInfo("Looking for cleaning sections for property", { propertyId });
 
     const { data, error } = await supabase
       .from("cleaning_sections")
@@ -26,16 +61,27 @@ export async function POST(request: NextRequest) {
       .order("order_index");
 
     if (error) {
-      console.error("🧹 Supabase cleaning sections error:", error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      logError("Supabase cleaning sections error", error);
+      
+      // Handle specific database errors
+      const dbError = handleDatabaseError(error);
+      
+      return NextResponse.json({ 
+        error: dbError.code,
+        message: dbError.message
+      }, { status: dbError.status });
     }
 
-    console.log("🧹 Cleaning sections found:", data?.length || 0);
+    logInfo("Cleaning sections found", { count: data?.length || 0 });
     return NextResponse.json(data || []);
   } catch (error) {
-    console.error("🧹 Cleaning sections API error:", error);
+    logError("Cleaning sections API error", error);
+    
     return NextResponse.json(
-      { error: "Internal server error" },
+      { 
+        error: "INTERNAL_SERVER_ERROR",
+        message: "An unexpected error occurred" 
+      },
       { status: 500 }
     );
   }
@@ -48,10 +94,15 @@ export async function GET(request: NextRequest) {
 
     if (!propertyId) {
       return NextResponse.json(
-        { error: "propertyId query parameter is required" },
+        { 
+          error: "BAD_REQUEST",
+          message: "propertyId query parameter is required" 
+        },
         { status: 400 }
       );
     }
+
+    logInfo("GET cleaning sections for property", { propertyId });
 
     const { data, error } = await supabase
       .from("cleaning_sections")
@@ -60,15 +111,27 @@ export async function GET(request: NextRequest) {
       .order("order_index");
 
     if (error) {
-      console.error("🧹 GET cleaning sections error:", error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      logError("GET cleaning sections error", error);
+      
+      // Handle specific database errors
+      const dbError = handleDatabaseError(error);
+      
+      return NextResponse.json({ 
+        error: dbError.code,
+        message: dbError.message
+      }, { status: dbError.status });
     }
 
+    logInfo("GET cleaning sections found", { count: data?.length || 0 });
     return NextResponse.json(data || []);
   } catch (error) {
-    console.error("🧹 GET cleaning sections API error:", error);
+    logError("GET cleaning sections API error", error);
+    
     return NextResponse.json(
-      { error: "Internal server error" },
+      { 
+        error: "INTERNAL_SERVER_ERROR",
+        message: "An unexpected error occurred" 
+      },
       { status: 500 }
     );
   }
