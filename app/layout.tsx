@@ -6,10 +6,7 @@ import { PropertyProvider } from "@/lib/hooks/useProperty";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { Toaster } from "react-hot-toast";
 import Script from "next/script";
-import ErrorBoundary from "@/components/ErrorBoundary";
-import ClientErrorTracker from "@/components/ClientErrorTracker";
-import AuthStateMonitor from "@/components/AuthStateMonitor";
-import SessionMonitor from "@/components/SessionMonitor";
+import { PageErrorBoundary } from "@/components/PageErrorBoundary"; // ✅ ADD
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -27,17 +24,14 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${inter.className} bg-gray-900`}>
         <ThemeProvider>
-          <ClientErrorTracker />
-          <ErrorBoundary>
-            <AuthProvider>
-              <AuthStateMonitor />
-              <SessionMonitor />
-              <PropertyProvider>
-                {children} {/* ✅ ONLY THIS - NO OTHER COMPONENTS */}
-                <Toaster position="top-right" />
-              </PropertyProvider>
-            </AuthProvider>
-          </ErrorBoundary>
+          <AuthProvider>
+            <PropertyProvider>
+              <PageErrorBoundary>
+                {children}
+              </PageErrorBoundary>
+              <Toaster position="top-right" />
+            </PropertyProvider>
+          </AuthProvider>
         </ThemeProvider>
         <Script
           src={`https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=places&loading=async`}
