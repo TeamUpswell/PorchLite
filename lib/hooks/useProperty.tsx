@@ -61,29 +61,22 @@ export function PropertyProvider({ children }: { children: React.ReactNode }) {
   const loadingRef = useRef(false);
   const lastUserIdRef = useRef<string | null>(null);
 
-  console.log("🏠 Property: Provider render", {
-    user: user?.id,
-    authLoading,
-    initialized,
-    currentProperty: currentProperty?.id,
-    userPropertiesCount: userProperties.length,
-    loading,
-  });
+  // ✅ REDUCED: Only log critical state changes
+  const isDebugEnabled = process.env.NODE_ENV === 'development';
+  
+  if (isDebugEnabled && Math.random() < 0.1) { // Only log 10% of renders in dev
+    console.log("🏠 Property: Provider render", {
+      user: user?.id?.slice(0, 8) + '...',
+      authLoading,
+      currentProperty: currentProperty?.name,
+      propertiesCount: userProperties.length,
+    });
+  }
 
-  // ✅ FIXED: Include user.id dependency and use functional updates
   const loadUserProperties = useCallback(async (): Promise<void> => {
     const userId = user?.id;
 
-    console.log("🏠 Property: loadUserProperties called", {
-      userId,
-      isLoading: loadingRef.current,
-    });
-
     if (!userId || loadingRef.current) {
-      console.log(
-        "🏠 Property: Skipping load",
-        { userId, isLoading: loadingRef.current }
-      );
       return;
     }
 
@@ -92,7 +85,10 @@ export function PropertyProvider({ children }: { children: React.ReactNode }) {
     setError(null);
 
     try {
-      console.log("🏠 Property: Starting fetch for user:", userId);
+      // ✅ REDUCED: Only log start of fetch, not every detail
+      if (isDebugEnabled) {
+        console.log("🏠 Property: Loading properties for user");
+      }
 
       const { data: tenantData, error: tenantError } = await supabase
         .from("tenants")
@@ -103,8 +99,6 @@ export function PropertyProvider({ children }: { children: React.ReactNode }) {
         .eq("user_id", userId);
 
       if (tenantError) throw tenantError;
-
-      console.log("🏠 Property: Tenants response:", tenantData);
 
       const properties: Property[] = [];
       const validTenants: Tenant[] = [];
@@ -133,36 +127,32 @@ export function PropertyProvider({ children }: { children: React.ReactNode }) {
         });
       }
 
-      console.log("🏠 Property: Processed properties:", properties);
+      // ✅ REDUCED: Only log significant changes
+      if (isDebugEnabled && properties.length !== userProperties.length) {
+        console.log("🏠 Property: Found", properties.length, "properties");
+      }
 
-      // ✅ FIXED: Update state in batch and use functional updates
       setUserProperties(properties);
       setTenant(validTenants[0] || null);
 
-      // ✅ FIXED: Use functional update to avoid stale closure
       setCurrentProperty((prevCurrent) => {
-        console.log("🏠 Property: Setting current property", {
-          prevCurrent: prevCurrent?.id,
-          availableProperties: properties.map((p) => p.id),
-        });
-
-        // If no current property or current property not in list, set first one
         const currentStillValid =
           prevCurrent &&
           properties.some((p) => p.id === prevCurrent.id);
 
         if (!currentStillValid && properties.length > 0) {
-          console.log("🏠 Property: Setting first property as current:", properties[0]);
+          if (isDebugEnabled) {
+            console.log("🏠 Property: Set current to:", properties[0].name);
+          }
           return properties[0];
         } else if (properties.length === 0) {
-          console.log("🏠 Property: No properties found, clearing current");
           return null;
         }
 
-        console.log("🏠 Property: Keeping existing current property");
         return prevCurrent;
       });
     } catch (err) {
+      // ✅ KEEP: Always log errors
       console.error("🏠 Property loading error:", err);
       setError(err instanceof Error ? err.message : "Failed to load properties");
       setUserProperties([]);
@@ -172,47 +162,39 @@ export function PropertyProvider({ children }: { children: React.ReactNode }) {
       setLoading(false);
       loadingRef.current = false;
     }
-  }, [user?.id]); // ✅ FIXED: Include user.id dependency
+  }, [user?.id, userProperties.length]); // Added userProperties.length for comparison
 
-  // ✅ ADD: Cleanup ref
   const cleanupRef = useRef<(() => void)[]>([]);
 
-  // ✅ ADD: Register cleanup function
   const registerCleanup = (cleanup: () => void) => {
     cleanupRef.current.push(cleanup);
   };
 
-  // ✅ MODIFY: User effect with proper cleanup
+  // ✅ REDUCED: Less verbose user effect logging
   useEffect(() => {
     let mounted = true;
 
     const handleUserChange = async () => {
-      console.log("🏠 Property: User effect triggered", {
-        userId: user?.id || null,
-        lastUserId: lastUserIdRef.current,
-        authLoading,
-        initialized,
-      });
-
       if (!initialized) {
-        console.log("🏠 Property: Auth not ready, waiting...");
         return;
       }
 
       const newUserId = user?.id || null;
 
       if (newUserId !== lastUserIdRef.current) {
-        console.log("🏠 Property: User changed, loading properties", {
-          from: lastUserIdRef.current,
-          to: newUserId,
-        });
+        // ✅ REDUCED: Only log user changes, not every check
+        if (isDebugEnabled) {
+          console.log("🏠 Property: User changed", {
+            hasUser: !!newUserId,
+            hadUser: !!lastUserIdRef.current
+          });
+        }
 
         lastUserIdRef.current = newUserId;
 
         if (newUserId && mounted) {
-          await loadUserProperties(newUserId);
+          await loadUserProperties();
         } else if (mounted) {
-          // Clear data when no user
           setUserProperties([]);
           setCurrentProperty(null);
           setLoading(false);
@@ -225,12 +207,14 @@ export function PropertyProvider({ children }: { children: React.ReactNode }) {
     return () => {
       mounted = false;
     };
-  }, [user?.id, authLoading, initialized]);
+  }, [user?.id, authLoading, initialized, loadUserProperties]);
 
-  // ✅ ADD: Component cleanup on unmount
+  // ✅ REDUCED: Only log cleanup in debug mode
   useEffect(() => {
     return () => {
-      console.log("🏠 Property: Provider unmounting, running cleanup...");
+      if (isDebugEnabled) {
+        console.log("🏠 Property: Provider cleanup");
+      }
       cleanupRef.current.forEach((cleanup) => {
         try {
           cleanup();
