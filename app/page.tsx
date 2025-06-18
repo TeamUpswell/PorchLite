@@ -65,6 +65,27 @@ export default function HomePage() {
     ],
   };
 
+  // ✅ Navigation handlers for clickable cards
+  const handleUpcomingVisitsClick = () => {
+    debug.log("📅 Navigating to calendar/reservations");
+    router.push("/calendar");
+  };
+
+  const handleInventoryClick = () => {
+    debug.log("📦 Navigating to inventory");
+    router.push("/inventory");
+  };
+
+  const handleLowStockClick = () => {
+    debug.log("⚠️ Navigating to inventory with low stock filter");
+    router.push("/inventory?filter=low-stock");
+  };
+
+  const handleTasksClick = () => {
+    debug.log("✅ Navigating to tasks");
+    router.push("/tasks");
+  };
+
   // ✅ Restore your original fetchDashboardData
   const fetchDashboardData = useCallback(async () => {
     if (!currentProperty?.id) {
@@ -254,7 +275,7 @@ export default function HomePage() {
     );
   }
 
-  // ✅ Main dashboard - exactly as you had it!
+  // ✅ Main dashboard with clickable cards!
   return (
     <StandardPageLayout theme="dark" showHeader={false}>
       {/* ✅ Beautiful DashboardHeader with property name and weather */}
@@ -270,119 +291,187 @@ export default function HomePage() {
       </div>
 
       <div className="space-y-6">
-        {/* ✅ Stats Grid - exactly as you had it */}
+        {/* ✅ CLICKABLE Stats Grid - FIXED to show data */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <StandardCard>
-            <div className="flex items-center">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <svg
-                  className="w-6 h-6 text-blue-600"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                  />
-                </svg>
+          {/* Upcoming Visits - Clickable */}
+          <div
+            onClick={handleUpcomingVisitsClick}
+            className="cursor-pointer transform transition-all duration-200 hover:scale-105 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-lg group"
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                handleUpcomingVisitsClick();
+              }
+            }}
+          >
+            <StandardCard className="h-full group-hover:shadow-lg transition-shadow">
+              <div className="flex items-center">
+                <div className="p-2 bg-blue-100 rounded-lg">
+                  <svg
+                    className="w-6 h-6 text-blue-600"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                    />
+                  </svg>
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600">
+                    Upcoming Visits
+                  </p>
+                  <p className="text-2xl font-semibold text-gray-900">
+                    {componentLoading.visits ? "..." : upcomingVisits.length}
+                  </p>
+                  <p className="text-xs text-blue-600 font-medium opacity-0 group-hover:opacity-100 transition-opacity">
+                    Click to view calendar →
+                  </p>
+                </div>
               </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">
-                  Upcoming Visits
-                </p>
-                <p className="text-2xl font-semibold text-gray-900">
-                  {componentLoading.visits ? "..." : upcomingVisits.length}
-                </p>
-              </div>
-            </div>
-          </StandardCard>
+            </StandardCard>
+          </div>
 
-          <StandardCard>
-            <div className="flex items-center">
-              <div className="p-2 bg-green-100 rounded-lg">
-                <svg
-                  className="w-6 h-6 text-green-600"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
-                  />
-                </svg>
+          {/* Total Inventory - Clickable */}
+          <div
+            onClick={handleInventoryClick}
+            className="cursor-pointer transform transition-all duration-200 hover:scale-105 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 rounded-lg group"
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                handleInventoryClick();
+              }
+            }}
+          >
+            <StandardCard className="h-full group-hover:shadow-lg transition-shadow">
+              <div className="flex items-center">
+                <div className="p-2 bg-green-100 rounded-lg">
+                  <svg
+                    className="w-6 h-6 text-green-600"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+                    />
+                  </svg>
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600">
+                    Total Inventory
+                  </p>
+                  <p className="text-2xl font-semibold text-gray-900">
+                    {componentLoading.inventory ? "..." : totalInventoryCount}
+                  </p>
+                  <p className="text-xs text-green-600 font-medium opacity-0 group-hover:opacity-100 transition-opacity">
+                    Click to manage →
+                  </p>
+                </div>
               </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">
-                  Total Inventory
-                </p>
-                <p className="text-2xl font-semibold text-gray-900">
-                  {componentLoading.inventory ? "..." : totalInventoryCount}
-                </p>
-              </div>
-            </div>
-          </StandardCard>
+            </StandardCard>
+          </div>
 
-          <StandardCard>
-            <div className="flex items-center">
-              <div className="p-2 bg-yellow-100 rounded-lg">
-                <svg
-                  className="w-6 h-6 text-yellow-600"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"
-                  />
-                </svg>
+          {/* Low Stock Alerts - Clickable */}
+          <div
+            onClick={handleLowStockClick}
+            className="cursor-pointer transform transition-all duration-200 hover:scale-105 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 rounded-lg group"
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                handleLowStockClick();
+              }
+            }}
+          >
+            <StandardCard className="h-full group-hover:shadow-lg transition-shadow">
+              <div className="flex items-center">
+                <div className="p-2 bg-yellow-100 rounded-lg">
+                  <svg
+                    className="w-6 h-6 text-yellow-600"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"
+                    />
+                  </svg>
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600">
+                    Low Stock Alerts
+                  </p>
+                  <p className="text-2xl font-semibold text-gray-900">
+                    {componentLoading.inventory ? "..." : inventoryAlerts.length}
+                  </p>
+                  <p className="text-xs text-yellow-600 font-medium opacity-0 group-hover:opacity-100 transition-opacity">
+                    Click to review →
+                  </p>
+                </div>
               </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">
-                  Low Stock Alerts
-                </p>
-                <p className="text-2xl font-semibold text-gray-900">
-                  {componentLoading.inventory ? "..." : inventoryAlerts.length}
-                </p>
-              </div>
-            </div>
-          </StandardCard>
+            </StandardCard>
+          </div>
 
-          <StandardCard>
-            <div className="flex items-center">
-              <div className="p-2 bg-red-100 rounded-lg">
-                <svg
-                  className="w-6 h-6 text-red-600"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                  />
-                </svg>
+          {/* Pending Tasks - Clickable */}
+          <div
+            onClick={handleTasksClick}
+            className="cursor-pointer transform transition-all duration-200 hover:scale-105 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 rounded-lg group"
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                handleTasksClick();
+              }
+            }}
+          >
+            <StandardCard className="h-full group-hover:shadow-lg transition-shadow">
+              <div className="flex items-center">
+                <div className="p-2 bg-red-100 rounded-lg">
+                  <svg
+                    className="w-6 h-6 text-red-600"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                    />
+                  </svg>
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600">
+                    Pending Tasks
+                  </p>
+                  <p className="text-2xl font-semibold text-gray-900">
+                    {componentLoading.tasks ? "..." : taskAlerts.length}
+                  </p>
+                  <p className="text-xs text-red-600 font-medium opacity-0 group-hover:opacity-100 transition-opacity">
+                    Click to view →
+                  </p>
+                </div>
               </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">
-                  Pending Tasks
-                </p>
-                <p className="text-2xl font-semibold text-gray-900">
-                  {componentLoading.tasks ? "..." : taskAlerts.length}
-                </p>
-              </div>
-            </div>
-          </StandardCard>
+            </StandardCard>
+          </div>
         </div>
 
         {/* ✅ Quick Actions - exactly as you had it */}
