@@ -85,7 +85,7 @@ export default function LoginLayout({
           <div className="max-w-xl text-white text-center">
             <h2 className="text-3xl font-bold mb-6">Welcome Home</h2>
             <p className="text-xl text-gray-300 leading-relaxed">
-              Your vacation rental management platform where the light is always
+              Your private vacation home management platform where the light is always
               on.
             </p>
           </div>
