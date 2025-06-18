@@ -10,7 +10,6 @@ import React, {
 import { supabase } from "@/lib/supabase";
 import type { User, Session } from "@supabase/supabase-js";
 
-// ✅ FIXED: Better singleton that handles page refreshes properly
 class AuthManager {
   private static instance: AuthManager;
   private session: Session | null = null;
@@ -30,7 +29,6 @@ class AuthManager {
 
   subscribe(listener: (state: any) => void) {
     this.listeners.add(listener);
-
     return () => {
       this.listeners.delete(listener);
     };
@@ -113,7 +111,6 @@ class AuthManager {
 
   private async loadProfile(userId: string) {
     try {
-      console.log("🔍 Auth Manager: Loading profile for:", userId);
       const { data: profile, error } = await supabase
         .from("profiles")
         .select("*")
@@ -122,33 +119,29 @@ class AuthManager {
 
       if (!error && profile) {
         this.profileData = profile;
-        console.log("✅ Auth Manager: Profile loaded");
-      } else {
-        console.log("⚠️ Auth Manager: Profile not found or error:", error);
       }
     } catch (error) {
-      console.log("⚠️ Auth Manager: Profile load failed:", error);
+      console.log("⚠️ Profile load failed:", error);
     }
   }
 
   private setupAuthListener() {
-    console.log("🔧 Auth Manager: Setting up auth listener");
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log("🔄 Auth Manager: Auth state changed:", event);
-
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      // ✅ CLEANED: Only log important auth events
+      if (event === "SIGNED_OUT") {
+        console.log('👋 User signed out');
+      } else if (event === "SIGNED_IN") {
+        console.log('✅ User signed in:', session?.user?.email);
+      }
+      
       if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
         if (session?.user) {
-          console.log("✅ Auth Manager: User signed in:", session.user.email);
           this.session = session;
           this.user = session.user;
           await this.loadProfile(session.user.id);
           this.notify();
         }
       } else if (event === "SIGNED_OUT") {
-        console.log("👋 Auth Manager: User signed out");
         this.session = null;
         this.user = null;
         this.profileData = null;
@@ -160,27 +153,20 @@ class AuthManager {
   }
 
   async signIn(email: string, password: string) {
-    console.log("🔑 Auth Manager: Signing in user:", email);
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     return { data, error };
   }
 
   async signOut() {
-    console.log("👋 Auth Manager: Signing out user");
-    // Reset state immediately
     this.session = null;
     this.user = null;
     this.profileData = null;
     this.notify();
-
+    
     await supabase.auth.signOut();
   }
 }
 
-// ✅ FIXED: Get singleton instance
 const authManager = AuthManager.getInstance();
 
 interface AuthContextType {
@@ -189,14 +175,8 @@ interface AuthContextType {
   loading: boolean;
   initialized: boolean;
   profileData: any | null;
-  signIn: (
-    email: string,
-    password: string
-  ) => Promise<{ data?: any; error?: any }>;
-  signUp: (
-    email: string,
-    password: string
-  ) => Promise<{ data?: any; error?: any }>;
+  signIn: (email: string, password: string) => Promise<{ data?: any; error?: any }>;
+  signUp: (email: string, password: string) => Promise<{ data?: any; error?: any }>;
   signOut: () => Promise<void>;
   hasPermission: (requiredRole?: string) => boolean;
 }
@@ -205,7 +185,6 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [authState, setAuthState] = useState(() => {
-    // ✅ FIXED: Start with loading state on fresh mount
     return {
       session: null,
       user: null,
@@ -214,17 +193,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       loading: true,
     };
   });
-
+  
   const instanceId = useRef(Math.random().toString(36).substr(2, 9));
   const isInitializing = useRef(false);
 
   useEffect(() => {
-    console.log(`🚀 Auth Provider MOUNTED - Instance: ${instanceId.current}`);
-
-    // ✅ FIXED: Subscribe to auth manager
+    // ✅ CLEANED: Less verbose logging
+    console.log(`🚀 Auth Provider mounted - ${instanceId.current}`);
+    
     const unsubscribe = authManager.subscribe(setAuthState);
-
-    // ✅ FIXED: Initialize auth manager (handles multiple calls gracefully)
+    
     const initAuth = async () => {
       if (!isInitializing.current) {
         isInitializing.current = true;
@@ -232,13 +210,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isInitializing.current = false;
       }
     };
-
+    
     initAuth();
 
     return () => {
-      console.log(
-        `💀 Auth Provider UNMOUNTED - Instance: ${instanceId.current}`
-      );
       unsubscribe();
     };
   }, []);
@@ -252,14 +227,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!requiredRole) return true;
     if (!authState.user) return false;
 
-    const userRole =
-      authState.user.user_metadata?.role || authState.profileData?.role;
+    const userRole = authState.user.user_metadata?.role || authState.profileData?.role;
     const roleHierarchy = { owner: 4, manager: 3, family: 2, friend: 1 };
 
-    const userLevel =
-      roleHierarchy[userRole as keyof typeof roleHierarchy] || 0;
-    const requiredLevel =
-      roleHierarchy[requiredRole as keyof typeof roleHierarchy] || 0;
+    const userLevel = roleHierarchy[userRole as keyof typeof roleHierarchy] || 0;
+    const requiredLevel = roleHierarchy[requiredRole as keyof typeof roleHierarchy] || 0;
 
     return userLevel >= requiredLevel;
   };
