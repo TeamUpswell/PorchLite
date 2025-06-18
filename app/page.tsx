@@ -10,7 +10,6 @@ import StandardCard from "@/components/ui/StandardCard";
 import { Home as HomeIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import GoogleMapComponent from "@/components/GoogleMapComponent";
-import { debug } from "@/lib/utils/debug";
 
 interface UpcomingVisit {
   id: string;
@@ -60,7 +59,7 @@ export default function HomePage() {
   const lastPropertyId = useRef<string | null>(null);
   const fetchInProgress = useRef(false);
 
-  // ✅ NEW: Enhanced state for data persistence
+  // Enhanced state for data persistence
   const [lastDataFetch, setLastDataFetch] = useState<number>(0);
   const [isPageVisible, setIsPageVisible] = useState(true);
   const [showRecovery, setShowRecovery] = useState(false);
@@ -70,6 +69,9 @@ export default function HomePage() {
     tasks: any[];
     totalCount: number;
   } | null>(null);
+
+  // ✅ REDUCED: Only enable debug logs in development mode
+  const isDebugEnabled = process.env.NODE_ENV === 'development';
 
   const mockWeather = {
     current: {
@@ -92,7 +94,7 @@ export default function HomePage() {
     ],
   };
 
-  // ✅ NEW: Enhanced data backup system
+  // ✅ SIMPLIFIED: Basic data backup
   const backupCurrentData = useCallback(() => {
     if (upcomingVisits.length > 0 || inventoryAlerts.length > 0 || taskAlerts.length > 0) {
       dataBackupRef.current = {
@@ -101,18 +103,19 @@ export default function HomePage() {
         tasks: [...taskAlerts],
         totalCount: totalInventoryCount
       };
-      console.log("💾 Backed up current dashboard data:", {
-        visits: upcomingVisits.length,
-        inventory: inventoryAlerts.length,
-        tasks: taskAlerts.length
-      });
+      
+      if (isDebugEnabled) {
+        console.log("💾 Dashboard data backed up");
+      }
     }
-  }, [upcomingVisits, inventoryAlerts, taskAlerts, totalInventoryCount]);
+  }, [upcomingVisits, inventoryAlerts, taskAlerts, totalInventoryCount, isDebugEnabled]);
 
-  // ✅ NEW: Data recovery function
+  // ✅ SIMPLIFIED: Data recovery
   const recoverData = useCallback(() => {
     if (dataBackupRef.current) {
-      console.log("🔄 Recovering dashboard data from backup");
+      if (isDebugEnabled) {
+        console.log("🔄 Recovering dashboard data from backup");
+      }
       setUpcomingVisits(dataBackupRef.current.visits);
       setInventoryAlerts(dataBackupRef.current.inventory);
       setTaskAlerts(dataBackupRef.current.tasks);
@@ -121,45 +124,29 @@ export default function HomePage() {
       return true;
     }
     return false;
-  }, []);
+  }, [isDebugEnabled]);
 
-  // ✅ Debug effect to monitor data changes
-  useEffect(() => {
-    console.log("📊 Dashboard state changed:", {
-      visits: upcomingVisits.length,
-      inventoryAlerts: inventoryAlerts.length,
-      tasks: taskAlerts.length,
-      totalInventory: totalInventoryCount,
-      hasLoadedOnce,
-      timestamp: new Date().toISOString()
-    });
-  }, [upcomingVisits.length, inventoryAlerts.length, taskAlerts.length, totalInventoryCount, hasLoadedOnce]);
+  // ✅ REMOVED: Verbose state change logging - too noisy for production
 
-  // ✅ ENHANCED: Load cached data with recovery fallback
+  // ✅ SIMPLIFIED: Cache loading with error handling
   const loadCachedData = useCallback(() => {
     if (!currentProperty?.id) return false;
 
     try {
       const cached = localStorage.getItem(DASHBOARD_CACHE_KEY);
       if (!cached) {
-        console.log("📦 No cache found, trying data recovery");
         return recoverData();
       }
 
       const parsedCache: DashboardCache = JSON.parse(cached);
-      
-      // More lenient cache validation - extend cache duration when page becomes visible
       const cacheAge = Date.now() - parsedCache.timestamp;
       const isValidProperty = parsedCache.propertyId === currentProperty.id;
-      const isRecentEnough = cacheAge < (CACHE_DURATION * 2); // Extended cache for visibility returns
+      const isRecentEnough = cacheAge < (CACHE_DURATION * 2);
       
       if (isValidProperty && isRecentEnough) {
-        debug.log("📦 Loading cached dashboard data", {
-          age: Math.round(cacheAge / 1000) + "s",
-          visits: parsedCache.upcomingVisits?.length || 0,
-          inventory: parsedCache.inventoryAlerts?.length || 0,
-          tasks: parsedCache.taskAlerts?.length || 0
-        });
+        if (isDebugEnabled) {
+          console.log("📦 Loading cached dashboard data");
+        }
         
         setUpcomingVisits(parsedCache.upcomingVisits || []);
         setInventoryAlerts(parsedCache.inventoryAlerts || []);
@@ -168,7 +155,6 @@ export default function HomePage() {
         setComponentLoading({ visits: false, inventory: false, tasks: false });
         setHasLoadedOnce(true);
         
-        // Update backup
         dataBackupRef.current = {
           visits: parsedCache.upcomingVisits || [],
           inventory: parsedCache.inventoryAlerts || [],
@@ -178,20 +164,21 @@ export default function HomePage() {
         
         return true;
       } else {
-        debug.log("🗑️ Cache invalid", { isValidProperty, cacheAge, maxAge: CACHE_DURATION * 2 });
         if (!isValidProperty) {
           localStorage.removeItem(DASHBOARD_CACHE_KEY);
         }
         return recoverData();
       }
     } catch (error) {
-      debug.error("❌ Error loading cached data:", error);
+      if (isDebugEnabled) {
+        console.error("❌ Error loading cached data:", error);
+      }
       localStorage.removeItem(DASHBOARD_CACHE_KEY);
       return recoverData();
     }
-  }, [currentProperty?.id, recoverData]);
+  }, [currentProperty?.id, recoverData, isDebugEnabled]);
 
-  // ✅ Save data to cache
+  // ✅ SIMPLIFIED: Cache saving
   const saveCacheData = useCallback((data: {
     upcomingVisits: UpcomingVisit[];
     inventoryAlerts: InventoryItem[];
@@ -207,46 +194,42 @@ export default function HomePage() {
         propertyId: currentProperty.id,
       };
       localStorage.setItem(DASHBOARD_CACHE_KEY, JSON.stringify(cacheData));
-      debug.log("💾 Dashboard data cached");
+      
+      if (isDebugEnabled) {
+        console.log("💾 Dashboard data cached");
+      }
     } catch (error) {
-      debug.error("❌ Error saving cache:", error);
+      if (isDebugEnabled) {
+        console.error("❌ Error saving cache:", error);
+      }
     }
-  }, [currentProperty?.id]);
+  }, [currentProperty?.id, isDebugEnabled]);
 
-  // ✅ Navigation handlers
+  // ✅ SIMPLIFIED: Navigation handlers
   const handleUpcomingVisitsClick = () => {
-    debug.log("📅 Navigating to calendar/reservations");
-    
-    // ✅ Clear any potential stuck states before navigation
     try {
       localStorage.removeItem('calendar_stuck_state');
     } catch (error) {
-      console.warn("Could not clear calendar state:", error);
+      // Silent fail
     }
-    
     router.push("/calendar");
   };
 
   const handleLowStockClick = () => {
-    debug.log("⚠️ Navigating to inventory from low stock");
     router.push("/inventory");
   };
 
   const handleTasksClick = () => {
-    debug.log("✅ Navigating to tasks");
     router.push("/tasks");
   };
 
-  // ✅ ENHANCED fetchDashboardData with timing and backup
+  // ✅ SIMPLIFIED: Fetch with reduced logging
   const fetchDashboardData = useCallback(async (forceRefresh = false) => {
     if (!currentProperty?.id) {
-      debug.log("❌ No current property, skipping dashboard fetch");
       return;
     }
 
-    // Prevent multiple concurrent fetches
     if (fetchInProgress.current && !forceRefresh) {
-      debug.log("🔄 Fetch already in progress, skipping");
       return;
     }
 
@@ -257,11 +240,12 @@ export default function HomePage() {
     }
 
     fetchInProgress.current = true;
-    debug.log("🔍 Fetching fresh dashboard data for property:", currentProperty.id);
+    if (isDebugEnabled) {
+      console.log("🔍 Fetching dashboard data for:", currentProperty.name);
+    }
     setLoading(true);
 
     try {
-      // Reset loading states
       setComponentLoading({
         visits: true,
         inventory: true,
@@ -270,7 +254,6 @@ export default function HomePage() {
 
       // Visits
       const today = new Date().toISOString().split("T")[0];
-      console.log("🔍 Dashboard: Looking for reservations after:", today);
 
       const { data: visitsData, error: visitsError } = await supabase
         .from("reservations")
@@ -283,7 +266,6 @@ export default function HomePage() {
       if (visitsError) {
         console.error("❌ Error fetching visits:", visitsError);
       } else {
-        console.log("📊 Dashboard: Found reservations:", visitsData?.length || 0);
         setUpcomingVisits(visitsData || []);
       }
       setComponentLoading((prev) => ({ ...prev, visits: false }));
@@ -335,10 +317,9 @@ export default function HomePage() {
       }
       setComponentLoading((prev) => ({ ...prev, tasks: false }));
 
-      // ✅ NEW: Update fetch timestamp on successful completion
       setLastDataFetch(Date.now());
 
-      // Save to cache and backup only if we have the data
+      // Save to cache and backup
       if (visitsData !== undefined && inventoryData !== undefined && tasksData !== undefined) {
         const cacheData = {
           upcomingVisits: visitsData || [],
@@ -354,7 +335,6 @@ export default function HomePage() {
         
         saveCacheData(cacheData);
         
-        // ✅ NEW: Backup to ref as well
         dataBackupRef.current = {
           visits: visitsData || [],
           inventory: cacheData.inventoryAlerts,
@@ -363,16 +343,16 @@ export default function HomePage() {
         };
       }
 
-      // Mark data as loaded
       lastPropertyId.current = currentProperty.id;
       setHasLoadedOnce(true);
 
-      debug.log("✅ Dashboard data fetched successfully");
+      if (isDebugEnabled) {
+        console.log("✅ Dashboard data fetched successfully");
+      }
     } catch (error) {
-      debug.error("❌ Error fetching dashboard data:", error);
+      console.error("❌ Error fetching dashboard data:", error);
       setComponentLoading({ visits: false, inventory: false, tasks: false });
       
-      // If fetch fails, try to load cache as fallback
       if (!hasLoadedOnce) {
         loadCachedData();
       }
@@ -380,9 +360,9 @@ export default function HomePage() {
       setLoading(false);
       fetchInProgress.current = false;
     }
-  }, [currentProperty?.id, loadCachedData, saveCacheData, hasLoadedOnce]);
+  }, [currentProperty?.id, currentProperty?.name, loadCachedData, saveCacheData, hasLoadedOnce, isDebugEnabled]);
 
-  // ✅ NEW: Enhanced visibility and focus handling
+  // ✅ SIMPLIFIED: Visibility handling with reduced logging
   useEffect(() => {
     let visibilityTimeout: NodeJS.Timeout;
     
@@ -391,40 +371,32 @@ export default function HomePage() {
       setIsPageVisible(isVisible);
       
       if (isVisible && hasLoadedOnce && currentProperty?.id) {
-        console.log("👁️ Page became visible, restoring dashboard data");
+        if (isDebugEnabled) {
+          console.log("👁️ Page became visible, restoring data");
+        }
         
-        // Clear any pending timeout
         if (visibilityTimeout) {
           clearTimeout(visibilityTimeout);
         }
         
-        // Small delay to ensure everything is ready
         visibilityTimeout = setTimeout(() => {
-          // First try to load from cache/backup
           if (!loadCachedData()) {
-            console.log("🔄 No cached data available, fetching fresh data");
             fetchDashboardData(true);
           }
         }, 100);
       } else if (!isVisible && hasLoadedOnce) {
-        console.log("👁️ Page became hidden, backing up data");
         backupCurrentData();
       }
     };
 
     const handleFocus = () => {
       if (hasLoadedOnce && currentProperty?.id) {
-        console.log("🔍 Window focused, checking data state");
-        
-        // Check if data is currently empty
         const hasEmptyData = upcomingVisits.length === 0 && 
                             inventoryAlerts.length === 0 && 
                             taskAlerts.length === 0;
         
         if (hasEmptyData) {
-          console.log("⚠️ Data appears empty on focus, attempting recovery");
           if (!loadCachedData()) {
-            console.log("🔄 Recovery failed, fetching fresh data");
             fetchDashboardData(true);
           }
         }
@@ -432,21 +404,18 @@ export default function HomePage() {
     };
 
     const handleBeforeUnload = () => {
-      console.log("📤 Page unloading, backing up data");
       backupCurrentData();
     };
 
-    // Add event listeners
     document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('focus', handleFocus);
     window.addEventListener('beforeunload', handleBeforeUnload);
     
-    // Also backup data periodically while page is visible
     const backupInterval = setInterval(() => {
       if (isPageVisible && hasLoadedOnce) {
         backupCurrentData();
       }
-    }, 30000); // Backup every 30 seconds
+    }, 30000);
 
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
@@ -455,9 +424,9 @@ export default function HomePage() {
       clearInterval(backupInterval);
       if (visibilityTimeout) clearTimeout(visibilityTimeout);
     };
-  }, [hasLoadedOnce, currentProperty?.id, loadCachedData, fetchDashboardData, backupCurrentData, isPageVisible, upcomingVisits.length, inventoryAlerts.length, taskAlerts.length]);
+  }, [hasLoadedOnce, currentProperty?.id, loadCachedData, fetchDashboardData, backupCurrentData, isPageVisible, upcomingVisits.length, inventoryAlerts.length, taskAlerts.length, isDebugEnabled]);
 
-  // ✅ NEW: Data staleness detection
+  // ✅ SIMPLIFIED: Data staleness detection
   useEffect(() => {
     if (!hasLoadedOnce || !currentProperty?.id) return;
 
@@ -466,26 +435,22 @@ export default function HomePage() {
       const timeSinceLastFetch = now - lastDataFetch;
       const hasData = upcomingVisits.length > 0 || inventoryAlerts.length > 0 || taskAlerts.length > 0;
       
-      // If no data and it's been more than 2 minutes since last fetch, refresh
+      // Refresh if no data for 2+ minutes
       if (!hasData && timeSinceLastFetch > 2 * 60 * 1000) {
-        console.log("⚠️ Data appears stale, refreshing...");
         fetchDashboardData(true);
       }
       
-      // If data exists but it's been more than 10 minutes, consider refreshing
+      // Background refresh if data is 10+ minutes old
       if (hasData && timeSinceLastFetch > 10 * 60 * 1000 && isPageVisible) {
-        console.log("🔄 Data is old, refreshing in background...");
         fetchDashboardData(true);
       }
     };
 
-    // Check every 30 seconds
     const stalenessInterval = setInterval(checkDataStaleness, 30000);
-    
     return () => clearInterval(stalenessInterval);
   }, [hasLoadedOnce, currentProperty?.id, lastDataFetch, fetchDashboardData, upcomingVisits.length, inventoryAlerts.length, taskAlerts.length, isPageVisible]);
 
-  // ✅ NEW: Check if we should show recovery option
+  // Recovery state management
   useEffect(() => {
     const hasEmptyData = upcomingVisits.length === 0 && 
                         inventoryAlerts.length === 0 && 
@@ -496,14 +461,13 @@ export default function HomePage() {
     setShowRecovery(hasEmptyData && hasBeenLoaded && notCurrentlyLoading);
   }, [upcomingVisits.length, inventoryAlerts.length, taskAlerts.length, hasLoadedOnce, loading, componentLoading]);
 
-  // ✅ Main effect to load data when component mounts or property changes
+  // Main effect to load data when component mounts or property changes
   useEffect(() => {
     if (authLoading || propertyLoading) {
       return;
     }
 
     if (!user?.id || !currentProperty?.id) {
-      debug.log("⏳ Waiting for user and property to load...");
       setLoading(false);
       return;
     }
@@ -511,12 +475,13 @@ export default function HomePage() {
     // Check if property changed
     const propertyChanged = lastPropertyId.current !== currentProperty.id;
     if (propertyChanged) {
-      debug.log("🏠 Property changed, clearing cache and fetching fresh data");
+      if (isDebugEnabled) {
+        console.log("🏠 Property changed, fetching fresh data");
+      }
       localStorage.removeItem(DASHBOARD_CACHE_KEY);
       setHasLoadedOnce(false);
     }
 
-    debug.log("🏠 Property and user loaded, fetching dashboard:", currentProperty.name);
     fetchDashboardData(propertyChanged);
   }, [
     currentProperty?.id,
@@ -525,21 +490,20 @@ export default function HomePage() {
     authLoading,
     propertyLoading,
     fetchDashboardData,
+    isDebugEnabled,
   ]);
 
   const handleAddReservation = () => {
-    debug.log("➕ Add reservation triggered");
     router.push("/calendar");
   };
 
   useEffect(() => {
     if (!authLoading && !user) {
-      debug.log("🔄 No user found, redirecting to auth...");
       router.push("/auth");
     }
   }, [user, authLoading, router]);
 
-  // ✅ Loading states
+  // Loading states
   if (authLoading) {
     return (
       <StandardPageLayout theme="dark" showHeader={false}>
@@ -597,7 +561,7 @@ export default function HomePage() {
     );
   }
 
-  // ✅ NEW: Recovery screen when data is empty
+  // Recovery screen when data is empty
   if (showRecovery) {
     return (
       <StandardPageLayout theme="dark" showHeader={false}>
@@ -650,10 +614,9 @@ export default function HomePage() {
     );
   }
 
-  // ✅ Main dashboard with proper fallbacks for numbers
+  // Main dashboard
   return (
     <StandardPageLayout theme="dark" showHeader={false}>
-      {/* ✅ Beautiful DashboardHeader with property name and weather */}
       <div className="mb-6">
         <DashboardHeader weather={mockWeather} showWeather={true}>
           <h1 className="text-3xl md:text-4xl font-bold mb-1 text-white drop-shadow-lg tracking-tight">
@@ -666,9 +629,9 @@ export default function HomePage() {
       </div>
 
       <div className="space-y-6">
-        {/* ✅ CLICKABLE Stats Grid - 3 cards with proper fallbacks */}
+        {/* Stats Grid - 3 clickable cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {/* Upcoming Visits - Clickable */}
+          {/* Upcoming Visits */}
           <div
             onClick={handleUpcomingVisitsClick}
             className="cursor-pointer transform transition-all duration-200 hover:scale-105 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-lg group"
@@ -713,7 +676,7 @@ export default function HomePage() {
             </StandardCard>
           </div>
 
-          {/* Low Stock Alerts - Clickable */}
+          {/* Low Stock Alerts */}
           <div
             onClick={handleLowStockClick}
             className="cursor-pointer transform transition-all duration-200 hover:scale-105 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 rounded-lg group"
@@ -758,7 +721,7 @@ export default function HomePage() {
             </StandardCard>
           </div>
 
-          {/* Pending Tasks - Clickable */}
+          {/* Pending Tasks */}
           <div
             onClick={handleTasksClick}
             className="cursor-pointer transform transition-all duration-200 hover:scale-105 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 rounded-lg group"
@@ -804,7 +767,7 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* ✅ Quick Actions */}
+        {/* Quick Actions */}
         <StandardCard title="Quick Actions">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <button
@@ -881,7 +844,7 @@ export default function HomePage() {
           </div>
         </StandardCard>
 
-        {/* ✅ Property Location Map */}
+        {/* Property Location Map */}
         {currentProperty?.latitude && currentProperty?.longitude && (
           <StandardCard title="Property Location">
             <div className="h-64 w-full">

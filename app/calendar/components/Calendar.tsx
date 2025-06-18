@@ -5,7 +5,6 @@ import { Calendar as BigCalendar, dateFnsLocalizer } from "react-big-calendar";
 import { format, parse, startOfWeek, getDay } from "date-fns";
 import { toast } from "react-hot-toast";
 import { supabase } from "@/lib/supabase";
-import { debugLog, debugError } from "@/lib/utils/debug";
 import { useAuth } from "@/components/auth";
 
 // CSS imports
@@ -41,7 +40,7 @@ interface CalendarProps {
   isManager?: boolean;
 }
 
-// ✅ SIMPLIFIED: Cache constants
+// Cache constants
 const CALENDAR_CACHE_KEY = "porchlite_calendar_cache";
 const CALENDAR_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
@@ -49,14 +48,16 @@ export default function Calendar({
   newReservationTrigger = 0,
   isManager = false,
 }: CalendarProps) {
-  // ✅ SIMPLIFIED: Basic persistence state
+  // Basic persistence state
   const [isPageVisible, setIsPageVisible] = useState(true);
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
   const dataBackupRef = useRef<Reservation[]>([]);
 
   const { user } = useAuth();
 
-  // ✅ FIXED: Properly destructure the hook
+  // ✅ REDUCED: Only enable debug logs in development mode
+  const isDebugEnabled = process.env.NODE_ENV === 'development';
+
   const {
     reservations,
     setReservations,
@@ -78,33 +79,20 @@ export default function Calendar({
   const [currentDate, setCurrentDate] = useState(new Date());
   const [isMobile, setIsMobile] = useState(false);
 
-  // ✅ Performance monitoring
-  useEffect(() => {
-    const startTime = performance.now();
-    debugLog("📅 Calendar component mounted");
-
-    return () => {
-      const endTime = performance.now();
-      debugLog(
-        "📅 Calendar component unmounted, render time:",
-        `${(endTime - startTime).toFixed(2)}ms`
-      );
-    };
-  }, []);
+  // ✅ REMOVED: Performance monitoring - too verbose for production
 
   // ✅ SIMPLIFIED: Basic backup system
   const backupCalendarData = useCallback(() => {
     if (reservations && reservations.length > 0) {
       dataBackupRef.current = [...reservations];
-      console.log(
-        "💾 Backed up calendar data:",
-        reservations.length,
-        "reservations"
-      );
+      
+      if (isDebugEnabled) {
+        console.log("💾 Calendar data backed up");
+      }
     }
-  }, [reservations]);
+  }, [reservations, isDebugEnabled]);
 
-  // ✅ SIMPLIFIED: Basic cache load with error handling
+  // ✅ SIMPLIFIED: Cache loading with reduced logging
   const loadCachedCalendarData = useCallback(() => {
     try {
       // First try localStorage
@@ -114,7 +102,9 @@ export default function Calendar({
         const cacheAge = Date.now() - parsedCache.timestamp;
 
         if (cacheAge < CALENDAR_CACHE_DURATION && parsedCache.reservations) {
-          debugLog("📦 Loading cached calendar data");
+          if (isDebugEnabled) {
+            console.log("📦 Loading cached calendar data");
+          }
           if (setReservations && typeof setReservations === "function") {
             setReservations(parsedCache.reservations);
             dataBackupRef.current = parsedCache.reservations;
@@ -125,7 +115,9 @@ export default function Calendar({
 
       // Then try backup
       if (dataBackupRef.current.length > 0) {
-        console.log("🔄 Using backup calendar data");
+        if (isDebugEnabled) {
+          console.log("🔄 Using backup calendar data");
+        }
         if (setReservations && typeof setReservations === "function") {
           setReservations(dataBackupRef.current);
           return true;
@@ -134,18 +126,20 @@ export default function Calendar({
 
       return false;
     } catch (error) {
-      debugError("❌ Error loading cached calendar data:", error);
+      if (isDebugEnabled) {
+        console.error("❌ Error loading cached calendar data:", error);
+      }
       // Clear bad cache
       try {
         localStorage.removeItem(CALENDAR_CACHE_KEY);
       } catch (e) {
-        console.warn("Could not clear cache:", e);
+        // Silent fail
       }
       return false;
     }
-  }, [setReservations]);
+  }, [setReservations, isDebugEnabled]);
 
-  // ✅ SIMPLIFIED: Basic cache save
+  // ✅ SIMPLIFIED: Cache saving
   const saveCacheCalendarData = useCallback(
     (data: Reservation[]) => {
       try {
@@ -155,15 +149,20 @@ export default function Calendar({
           propertyId: user?.id || "unknown",
         };
         localStorage.setItem(CALENDAR_CACHE_KEY, JSON.stringify(cacheData));
-        debugLog("💾 Calendar data cached");
+        
+        if (isDebugEnabled) {
+          console.log("💾 Calendar data cached");
+        }
       } catch (error) {
-        debugError("❌ Error saving calendar cache:", error);
+        if (isDebugEnabled) {
+          console.error("❌ Error saving calendar cache:", error);
+        }
       }
     },
-    [user?.id]
+    [user?.id, isDebugEnabled]
   );
 
-  // ✅ SIMPLIFIED: Enhanced fetch
+  // ✅ SIMPLIFIED: Enhanced fetch with reduced logging
   const enhancedFetchReservations = useCallback(
     async (forceRefresh = false) => {
       // Try cache first unless forced refresh
@@ -171,48 +170,52 @@ export default function Calendar({
         return;
       }
 
-      console.log("🔍 Fetching fresh calendar data");
+      if (isDebugEnabled) {
+        console.log("🔍 Fetching fresh calendar data");
+      }
 
       try {
         await fetchReservations();
         setHasLoadedOnce(true);
-        debugLog("✅ Calendar data fetched successfully");
+        
+        if (isDebugEnabled) {
+          console.log("✅ Calendar data fetched successfully");
+        }
       } catch (error) {
-        debugError("❌ Error fetching calendar data:", error);
+        console.error("❌ Error fetching calendar data:", error);
         // Try to use cached/backup data as fallback
         loadCachedCalendarData();
       }
     },
-    [fetchReservations, hasLoadedOnce, loadCachedCalendarData]
+    [fetchReservations, hasLoadedOnce, loadCachedCalendarData, isDebugEnabled]
   );
 
-  // ✅ SIMPLIFIED: Visibility handling
+  // ✅ SIMPLIFIED: Visibility handling with reduced logging
   useEffect(() => {
     const handleVisibilityChange = () => {
       const isVisible = document.visibilityState === "visible";
       setIsPageVisible(isVisible);
 
       if (isVisible && hasLoadedOnce) {
-        console.log("👁️ Calendar became visible, checking data");
+        if (isDebugEnabled) {
+          console.log("👁️ Calendar became visible, checking data");
+        }
 
         // Small delay to ensure component is ready
         setTimeout(() => {
           if (reservations.length === 0) {
-            console.log("🔄 No reservations visible, trying to restore");
             if (!loadCachedCalendarData()) {
               enhancedFetchReservations(true);
             }
           }
         }, 100);
       } else if (!isVisible && hasLoadedOnce) {
-        console.log("👁️ Calendar became hidden, backing up data");
         backupCalendarData();
       }
     };
 
     const handleFocus = () => {
       if (hasLoadedOnce && reservations.length === 0 && !isLoading) {
-        console.log("🔍 Calendar focused with no data, attempting recovery");
         if (!loadCachedCalendarData()) {
           enhancedFetchReservations(true);
         }
@@ -242,14 +245,15 @@ export default function Calendar({
     loadCachedCalendarData,
     enhancedFetchReservations,
     backupCalendarData,
+    isDebugEnabled,
   ]);
 
-  // ✅ Initial data load
+  // Initial data load
   useEffect(() => {
     enhancedFetchReservations();
   }, [enhancedFetchReservations]);
 
-  // ✅ Cache when reservations change
+  // Cache when reservations change
   useEffect(() => {
     if (reservations.length > 0 && hasLoadedOnce) {
       saveCacheCalendarData(reservations);
@@ -275,9 +279,8 @@ export default function Calendar({
     }
   }, [newReservationTrigger, clearCompanions]);
 
-  // Event handlers
+  // ✅ SIMPLIFIED: Event handlers with reduced logging
   const handleReservationSelect = (reservation: Reservation) => {
-    debugLog("📅 Reservation selected:", reservation.title);
     setSelectedReservation(reservation);
     setShowReservationModal(true);
 
@@ -289,7 +292,6 @@ export default function Calendar({
   };
 
   const handleSlotSelect = ({ start, end }: { start: Date; end: Date }) => {
-    debugLog("📅 Time slot selected:", { start, end });
     setSelectedSlot({ start, end });
     setSelectedReservation(null);
     setShowReservationModal(true);
@@ -297,7 +299,6 @@ export default function Calendar({
   };
 
   const handleModalClose = () => {
-    debugLog("📅 Reservation modal closed");
     setShowReservationModal(false);
     setSelectedReservation(null);
     setSelectedSlot(null);
@@ -305,7 +306,6 @@ export default function Calendar({
   };
 
   const handleReservationSaved = () => {
-    debugLog("📅 Reservation saved, refreshing calendar data...");
     enhancedFetchReservations(true);
     handleModalClose();
   };
@@ -322,7 +322,6 @@ export default function Calendar({
 
   const handleSelectEvent = useCallback(
     (event: Reservation) => {
-      console.log("[DEBUG] 📅 Big Calendar Event selected:", event);
       setSelectedReservation(event);
       setSelectedSlot(null);
       setShowReservationModal(true);
@@ -342,18 +341,13 @@ export default function Calendar({
       return;
     }
 
-    const startTime = performance.now();
-    debugLog("📅 Deleting reservation:", id);
-
     try {
       const result = await hookDeleteReservation(id);
 
       if (result.success) {
-        const endTime = performance.now();
-        debugLog("📅 Reservation deleted successfully:", {
-          id,
-          deleteTime: `${(endTime - startTime).toFixed(2)}ms`,
-        });
+        if (isDebugEnabled) {
+          console.log("📅 Reservation deleted successfully");
+        }
 
         toast.success("Reservation deleted successfully");
 
@@ -365,7 +359,7 @@ export default function Calendar({
         throw result.error;
       }
     } catch (error) {
-      debugError("📅 Error deleting reservation:", error);
+      console.error("❌ Error deleting reservation:", error);
       toast.error("Failed to delete reservation");
     }
   };

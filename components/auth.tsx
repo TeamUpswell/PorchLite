@@ -20,6 +20,9 @@ class AuthManager {
   private listeners: Set<(state: any) => void> = new Set();
   private authListenerSetup = false;
 
+  // ✅ REDUCED: Only enable debug logs in development mode
+  private isDebugEnabled = process.env.NODE_ENV === 'development';
+
   static getInstance(): AuthManager {
     if (!AuthManager.instance) {
       AuthManager.instance = new AuthManager();
@@ -82,8 +85,10 @@ class AuthManager {
         this.user = null;
         this.profileData = null;
       } else if (session?.user) {
-        // ✅ CLEANED: Less verbose logging
-        console.log("✅ Session restored for:", session.user.email);
+        // ✅ SIMPLIFIED: Only log in development
+        if (this.isDebugEnabled) {
+          console.log("✅ Session restored");
+        }
         this.session = session;
         this.user = session.user;
         await this.loadProfile(session.user.id);
@@ -121,17 +126,22 @@ class AuthManager {
         this.profileData = profile;
       }
     } catch (error) {
-      console.log("⚠️ Profile load failed:", error);
+      // ✅ SIMPLIFIED: Only log profile errors in development
+      if (this.isDebugEnabled) {
+        console.log("⚠️ Profile load failed:", error);
+      }
     }
   }
 
   private setupAuthListener() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      // ✅ CLEANED: Only log important auth events
-      if (event === "SIGNED_OUT") {
-        console.log('👋 User signed out');
-      } else if (event === "SIGNED_IN") {
-        console.log('✅ User signed in:', session?.user?.email);
+      // ✅ SIMPLIFIED: Only log auth state changes in development
+      if (this.isDebugEnabled) {
+        if (event === "SIGNED_OUT") {
+          console.log('👋 User signed out');
+        } else if (event === "SIGNED_IN") {
+          console.log('✅ User signed in');
+        }
       }
       
       if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
@@ -197,9 +207,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const instanceId = useRef(Math.random().toString(36).substr(2, 9));
   const isInitializing = useRef(false);
 
+  // ✅ REDUCED: Only enable debug logs in development mode
+  const isDebugEnabled = process.env.NODE_ENV === 'development';
+
   useEffect(() => {
-    // ✅ CLEANED: Less verbose logging
-    console.log(`🚀 Auth Provider mounted - ${instanceId.current}`);
+    // ✅ SIMPLIFIED: Only log provider mount in development
+    if (isDebugEnabled) {
+      console.log(`🚀 Auth Provider mounted`);
+    }
     
     const unsubscribe = authManager.subscribe(setAuthState);
     
@@ -216,7 +231,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => {
       unsubscribe();
     };
-  }, []);
+  }, [isDebugEnabled]);
 
   const signUp = async (email: string, password: string) => {
     const { data, error } = await supabase.auth.signUp({ email, password });
