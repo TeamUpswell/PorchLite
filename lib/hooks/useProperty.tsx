@@ -48,7 +48,7 @@ const PropertyContext = createContext<PropertyContextType | undefined>(
 );
 
 export function PropertyProvider({ children }: { children: React.ReactNode }) {
-  const { user, isLoading: authLoading, status } = useAuth();
+  const { user, loading: authLoading, initialized } = useAuth(); // ✅ FIXED: Use correct auth properties
   const [currentProperty, setCurrentProperty] = useState<Property | null>(null);
   const [userProperties, setUserProperties] = useState<Property[]>([]);
   const [tenant, setTenant] = useState<Tenant | null>(null);
@@ -63,7 +63,7 @@ export function PropertyProvider({ children }: { children: React.ReactNode }) {
   console.log("🏠 Property: Provider render", {
     user: user?.id,
     authLoading,
-    status,
+    initialized,
     hasInitialized: hasInitialized.current,
     lastUserId: lastUserId.current,
     isLoading: isLoadingRef.current,
@@ -121,7 +121,7 @@ export function PropertyProvider({ children }: { children: React.ReactNode }) {
         });
       }
 
-      // Extract properties correctly - filter out null properties and flatten
+      // ✅ FIXED: Better property extraction with proper null/empty array handling
       const properties: Property[] = [];
       const validTenants: Tenant[] = [];
 
@@ -129,21 +129,30 @@ export function PropertyProvider({ children }: { children: React.ReactNode }) {
         tenantData.forEach((tenantRecord, index) => {
           console.log(`🏠 [PROCESSING] Processing tenant ${index}:`, tenantRecord);
 
-          // Check if property exists and has an ID
+          // Check if property exists
           if (tenantRecord.property) {
             console.log(`🏠 [PROCESSING] Property found for tenant ${index}:`, tenantRecord.property);
 
-            // Handle both single property object and array of properties
             let propertyData = tenantRecord.property;
 
-            // If it's an array, take the first element
+            // ✅ FIXED: Handle arrays properly - check if empty first
             if (Array.isArray(propertyData)) {
-              console.log(`🏠 [PROCESSING] Property is array, taking first:`, propertyData[0]);
+              console.log(`🏠 [PROCESSING] Property is array, length: ${propertyData.length}`);
+              
+              if (propertyData.length === 0) {
+                console.log(`🏠 [PROCESSING] Empty property array for tenant ${index}, skipping`);
+                return; // ✅ Skip this tenant entirely
+              }
+              
               propertyData = propertyData[0];
+              console.log(`🏠 [PROCESSING] Taking first property from array:`, propertyData);
             }
 
-            // Validate the property has required fields
-            if (propertyData && propertyData.id && propertyData.name) {
+            // ✅ FIXED: Validate the property has required fields AND exists
+            if (propertyData && 
+                typeof propertyData === 'object' && 
+                propertyData.id && 
+                propertyData.name) {
               console.log(`🏠 [PROCESSING] Valid property found:`, propertyData);
               properties.push(propertyData as Property);
               validTenants.push({
@@ -154,7 +163,7 @@ export function PropertyProvider({ children }: { children: React.ReactNode }) {
                 created_at: tenantRecord.created_at,
               });
             } else {
-              console.log(`🏠 [PROCESSING] Invalid property data:`, propertyData);
+              console.log(`🏠 [PROCESSING] Invalid property data for tenant ${index}:`, propertyData);
             }
           } else {
             console.log(`🏠 [PROCESSING] No property for tenant ${index}`);
@@ -170,26 +179,39 @@ export function PropertyProvider({ children }: { children: React.ReactNode }) {
       // Set current tenant info if available
       if (validTenants.length > 0) {
         setTenant(validTenants[0]);
+      } else {
+        setTenant(null); // ✅ FIXED: Clear tenant if no valid ones
       }
 
-      // Set first property as current if none selected and we have properties
-      if (properties.length > 0 && !currentProperty) {
-        console.log("🏠 Property: Setting first property as current:", properties[0]);
-        setCurrentProperty(properties[0]);
-      } else if (properties.length === 0) {
-        console.log("🏠 Property: No properties found, clearing current property");
+      // ✅ FIXED: Better current property logic
+      if (properties.length > 0) {
+        // If no current property is set, or current property is not in the list, set the first one
+        const currentPropertyStillValid = currentProperty && 
+          properties.some(p => p.id === currentProperty.id);
+        
+        if (!currentPropertyStillValid) {
+          console.log("🏠 Property: Setting first property as current:", properties[0]);
+          setCurrentProperty(properties[0]);
+        }
+      } else {
+        console.log("🏠 Property: No valid properties found, clearing current property");
         setCurrentProperty(null);
       }
     } catch (err) {
       console.error("🏠 Property: Error loading properties:", err);
       setError(err instanceof Error ? err.message : "Failed to load properties");
+      
+      // ✅ FIXED: Clear state on error
+      setUserProperties([]);
+      setCurrentProperty(null);
+      setTenant(null);
     } finally {
       setLoading(false);
       isLoadingRef.current = false;
     }
   }, [user?.id, currentProperty]);
 
-  // Initialize properties when user changes (but prevent loops)
+  // ✅ FIXED: Initialize properties when user changes (but prevent loops)
   useEffect(() => {
     const currentUserId = user?.id || null;
 
@@ -197,13 +219,13 @@ export function PropertyProvider({ children }: { children: React.ReactNode }) {
       currentUserId,
       lastUserId: lastUserId.current,
       authLoading,
-      status,
+      initialized,
       hasInitialized: hasInitialized.current,
     });
 
-    // If auth is still loading, don't do anything
-    if (authLoading || status === "loading") {
-      console.log("🏠 Property: Auth still loading, waiting...");
+    // ✅ FIXED: Wait for auth to be initialized, not just loading
+    if (authLoading || !initialized) {
+      console.log("🏠 Property: Auth not ready, waiting...");
       return;
     }
 
@@ -232,7 +254,7 @@ export function PropertyProvider({ children }: { children: React.ReactNode }) {
     } else {
       console.log("🏠 Property: Same user, skipping load");
     }
-  }, [user?.id, authLoading, status, loadUserProperties]);
+  }, [user?.id, authLoading, initialized, loadUserProperties]); // ✅ FIXED: Use initialized instead of status
 
   const createProperty = useCallback(
     async (
