@@ -110,7 +110,7 @@ export default function ContactForm({
         ]);
       }
 
-      onSaved();
+      onSave();
     } catch (error) {
       console.error("Error saving contact:", error);
       alert("Failed to save contact. Please try again.");

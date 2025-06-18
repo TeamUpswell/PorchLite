@@ -81,10 +81,31 @@ export const useReservations = () => {
     }
   };
 
+  // Make sure your reservations are being formatted correctly for FullCalendar
+  const formattedEvents = reservations.map(reservation => ({
+    id: reservation.id,
+    title: reservation.title,
+    start: reservation.start_date,
+    end: reservation.end_date,
+    // ✅ Make sure ALL data is in extendedProps so it's available on click
+    extendedProps: {
+      user_id: reservation.user_id,
+      description: reservation.description,
+      guests: reservation.guests,
+      status: reservation.status,
+      tenant_id: reservation.tenant_id,
+      property_id: reservation.property_id,
+      companion_count: reservation.companion_count,
+      created_at: reservation.created_at,
+      updated_at: reservation.updated_at,
+    }
+  }));
+
   return {
     reservations,
     isLoading,
     fetchReservations,
     deleteReservation,
+    formattedEvents,
   };
 };

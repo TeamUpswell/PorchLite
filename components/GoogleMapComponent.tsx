@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import { loadMapsApi } from "@/lib/googleMaps";
 
 interface GoogleMapProps {
   latitude: number;
@@ -10,6 +9,43 @@ interface GoogleMapProps {
   zoom?: number;
   className?: string;
 }
+
+// ✅ Create a safe loadMapsApi function directly in the component
+const loadMapsApi = (): Promise<void> => {
+  return new Promise((resolve, reject) => {
+    // Check if already loaded
+    if (window.google && window.google.maps) {
+      resolve();
+      return;
+    }
+
+    // Check if script is already loading
+    const existingScript = document.querySelector('script[src*="maps.googleapis.com"]');
+    if (existingScript) {
+      existingScript.addEventListener('load', () => resolve());
+      existingScript.addEventListener('error', () => reject(new Error('Failed to load Google Maps')));
+      return;
+    }
+
+    // Load the script
+    const script = document.createElement('script');
+    const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+    
+    if (!apiKey) {
+      reject(new Error('Google Maps API key not found'));
+      return;
+    }
+
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`;
+    script.async = true;
+    script.defer = true;
+
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error('Failed to load Google Maps script'));
+
+    document.head.appendChild(script);
+  });
+};
 
 export default function GoogleMapComponent({
   latitude,
@@ -25,7 +61,7 @@ export default function GoogleMapComponent({
   const [mapLoaded, setMapLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Memoize the map initialization to prevent unnecessary re-renders
+  // ✅ Wrap the initMap function in try-catch for safety
   const initMap = useCallback(async () => {
     const mapElement = mapRef.current;
     if (!mapElement) return;
@@ -33,7 +69,7 @@ export default function GoogleMapComponent({
     try {
       setError(null);
 
-      // Load the Google Maps API
+      // ✅ Use the safe loadMapsApi function
       await loadMapsApi();
 
       // Double-check the element is still available after async operation
@@ -46,9 +82,8 @@ export default function GoogleMapComponent({
         streetViewControl: false,
         fullscreenControl: false,
         zoomControl: true,
-        gestureHandling: "cooperative", // Better mobile experience
+        gestureHandling: "cooperative",
         styles: [
-          // Optional: Add subtle styling
           {
             featureType: "poi",
             elementType: "labels",
@@ -66,7 +101,7 @@ export default function GoogleMapComponent({
         position: { lat: latitude, lng: longitude },
         map: map,
         title: address,
-        animation: google.maps.Animation.DROP, // Nice animation
+        animation: google.maps.Animation.DROP,
       });
       markerRef.current = marker;
 
@@ -80,9 +115,10 @@ export default function GoogleMapComponent({
       });
 
       setMapLoaded(true);
+      console.log("✅ Google Map loaded successfully");
     } catch (error) {
-      console.error("Error initializing map:", error);
-      setError("Failed to load map. Please try again.");
+      console.error("❌ Error initializing map:", error);
+      setError("Failed to load map. Please check your internet connection.");
     }
   }, [latitude, longitude, address, zoom]);
 
@@ -90,19 +126,20 @@ export default function GoogleMapComponent({
   useEffect(() => {
     if (mapInstanceRef.current && markerRef.current && mapLoaded) {
       const newPosition = { lat: latitude, lng: longitude };
-
-      // Update map center
       mapInstanceRef.current.setCenter(newPosition);
-
-      // Update marker position
       markerRef.current.setPosition(newPosition);
       markerRef.current.setTitle(address);
     }
   }, [latitude, longitude, address, mapLoaded]);
 
-  // Initialize map on mount
+  // ✅ Wrap initMap call in try-catch
   useEffect(() => {
-    initMap();
+    try {
+      initMap();
+    } catch (error) {
+      console.error("❌ Error in map initialization:", error);
+      setError("Failed to initialize map");
+    }
   }, [initMap]);
 
   // Cleanup on unmount
@@ -112,7 +149,6 @@ export default function GoogleMapComponent({
         markerRef.current.setMap(null);
       }
       if (mapInstanceRef.current) {
-        // Google Maps doesn't need explicit cleanup, but good practice
         mapInstanceRef.current = null;
       }
     };

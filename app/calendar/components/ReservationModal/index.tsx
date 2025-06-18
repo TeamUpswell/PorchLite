@@ -12,14 +12,14 @@ interface ReservationModalProps {
   selectedReservation: Reservation | null;
   selectedSlot: { start: Date; end: Date } | null;
   onClose: () => void;
-  onSaved: () => void;
+  onSave: () => void; // ← Changed from onSaved to onSave
 }
 
 export const ReservationModal = ({
   selectedReservation,
   selectedSlot,
   onClose,
-  onSaved,
+  onSave, // ← Changed from onSaved to onSave
 }: ReservationModalProps) => {
   const { user } = useAuth();
   const { currentProperty } = useProperty();
@@ -223,7 +223,7 @@ export const ReservationModal = ({
       }
 
       alert(successMessage);
-      onSaved();
+      onSave();
     } catch (error: any) {
       console.error("❌ Error saving reservation:", error);
       alert(`❌ Failed to save reservation: ${error.message}`);

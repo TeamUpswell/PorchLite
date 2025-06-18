@@ -389,15 +389,14 @@ export default function GuestBookPage() {
             /* Guest book entries - Timeline Layout */
             <div className="space-y-8">
               {/* Timeline Header */}
-              <div className="text-center mb-12">
-                <h2 className="text-3xl font-bold text-gray-900 mb-4">
+              <div className="text-center mb-6">
+                <h2 className="text-3xl font-bold text-gray-900 mb-1">
                   Memory Timeline
                 </h2>
-                <p className="text-gray-600 max-w-2xl mx-auto">
-                  Follow the journey of guests who have made this place their
-                  temporary home
+                <p className="text-gray-600 max-w-2xl mx-auto mb-2">
+                  The memories you create make this place magic
                 </p>
-                <div className="mt-6 w-24 h-1 bg-gradient-to-r from-rose-400 to-amber-400 mx-auto rounded-full"></div>
+                <div className="w-24 h-1 bg-gradient-to-r from-rose-400 to-amber-400 mx-auto rounded-full"></div>
               </div>
 
               {/* Add new entry prompt - Timeline style */}

@@ -91,10 +91,6 @@ export default function DashboardHeader({
     window.location.reload();
   };
 
-  const defaultSubtitle = currentProperty
-    ? `Managing ${currentProperty.name}`
-    : "Property Overview";
-
   return (
     <>
       <div className="relative h-64 rounded-lg overflow-hidden group mb-6">
@@ -189,26 +185,8 @@ export default function DashboardHeader({
           </div>
         )}
 
-        {/* Property Title - Lower Left Corner (Desktop) */}
-        <div className="hidden md:block absolute bottom-6 left-6 max-w-lg">
-          <div className="bg-black/40 backdrop-blur-sm rounded-xl px-6 py-3 border border-white/10 shadow-xl">
-            <div className="text-white">{title}</div>
-            <div className="text-white text-sm opacity-80">
-              {subtitle || defaultSubtitle}
-            </div>
-          </div>
-        </div>
-
         {/* Mobile Layout - Stacked properly */}
         <div className="md:hidden absolute bottom-4 left-4 right-4 space-y-3">
-          {/* Property Title - Mobile */}
-          <div className="bg-black/40 backdrop-blur-sm rounded-xl px-4 py-3 border border-white/10 shadow-xl">
-            <div className="text-white">{title}</div>
-            <div className="text-white text-sm opacity-80">
-              {subtitle || defaultSubtitle}
-            </div>
-          </div>
-
           {/* Weather Widget - Mobile (below title) */}
           {weather && showWeather && (
             <div className="bg-white/15 backdrop-blur-md rounded-lg p-3 text-white border border-white/20">

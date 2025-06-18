@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Calendar as BigCalendar, dateFnsLocalizer } from "react-big-calendar";
 import { format, parse, startOfWeek, getDay } from "date-fns";
 import { toast } from "react-hot-toast"; // ← Changed from react-toastify
@@ -141,20 +141,26 @@ export default function Calendar({
   };
 
   const handleSelectEvent = useCallback(
-    (event: any) => {
-      debugLog("📅 Event selected:", event);
-
-      if (isManager) {
-        // Managers can edit any reservation
-        setSelectedReservation(event);
-        setShowReservationModal(true);
+    (event: Reservation) => {
+      console.log('[DEBUG] 📅 Big Calendar Event selected:', event);
+      console.log('[DEBUG] 📅 Event ID:', event.id);
+      console.log('[DEBUG] 📅 Event title:', event.title);
+      console.log('[DEBUG] 📅 Is editing mode:', Boolean(event.id));
+      
+      // This event is already in the correct Reservation format
+      setSelectedReservation(event);
+      setSelectedSlot(null); // Clear selected slot when editing
+      setShowReservationModal(true);
+      
+      if (event.id) {
+        fetchCompanions(event.id);
       } else {
-        // Regular users can only view
-        setSelectedReservation(event);
-        setShowReservationModal(true);
+        clearCompanions();
       }
+      
+      console.log('[DEBUG] 📅 Modal should open for editing');
     },
-    [isManager]
+    [fetchCompanions, clearCompanions]
   );
 
   const handleDeleteReservation = async (id: string) => {

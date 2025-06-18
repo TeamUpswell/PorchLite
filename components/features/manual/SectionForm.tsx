@@ -22,7 +22,11 @@ interface SectionFormProps {
   onSaved: () => void;
 }
 
-export default function SectionForm({ section, onClose, onSaved }: SectionFormProps) {
+export default function SectionForm({
+  section,
+  onClose,
+  onSaved,
+}: SectionFormProps) {
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -83,20 +87,18 @@ export default function SectionForm({ section, onClose, onSaved }: SectionFormPr
           .eq("id", section.id);
       } else {
         // Create new section
-        await supabase
-          .from("manual_sections")
-          .insert([
-            {
-              title: formData.title,
-              description: formData.description,
-              icon: formData.icon || null,
-              property_id: formData.property_id || null,
-              order_index: orderIndex,
-            },
-          ]);
+        await supabase.from("manual_sections").insert([
+          {
+            title: formData.title,
+            description: formData.description,
+            icon: formData.icon || null,
+            property_id: formData.property_id || null,
+            order_index: orderIndex,
+          },
+        ]);
       }
 
-      onSaved();
+      onSave();
     } catch (error) {
       console.error("Error saving section:", error);
       alert("Failed to save section. Please try again.");
@@ -163,8 +165,8 @@ export default function SectionForm({ section, onClose, onSaved }: SectionFormPr
           </div>
 
           <div className="mb-4">
-            <label 
-              htmlFor="property-select" 
+            <label
+              htmlFor="property-select"
               className="block text-sm font-medium text-gray-700 mb-1"
             >
               Property

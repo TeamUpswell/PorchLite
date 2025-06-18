@@ -156,7 +156,7 @@ export default function ItemForm({
         ]);
       }
 
-      onSaved();
+      onSave();
     } catch (error) {
       console.error("Error saving item:", error);
       alert("Failed to save item. Please try again.");

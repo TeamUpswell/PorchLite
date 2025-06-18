@@ -76,15 +76,26 @@ export default function HomePage() {
     setLoading(true);
 
     try {
-      // Visits
+      // ✅ FIX: Update visits query to match reservations page format
       setComponentLoading((prev) => ({ ...prev, visits: true }));
+
+      // Use date-only format for consistency
+      const today = new Date().toISOString().split("T")[0];
+      console.log("🔍 Dashboard: Looking for reservations after:", today);
+
       const visitsData = await supabase
         .from("reservations")
         .select("id, title, start_date, end_date, status")
         .eq("property_id", currentProperty.id)
-        .gte("start_date", new Date().toISOString())
+        .gte("start_date", today) // ✅ Use date-only format
         .order("start_date", { ascending: true })
         .limit(10);
+
+      console.log(
+        "📊 Dashboard: Found reservations:",
+        visitsData.data?.length || 0
+      );
+      console.log("📋 Dashboard: Reservations data:", visitsData.data);
 
       setUpcomingVisits(visitsData.data || []);
       setComponentLoading((prev) => ({ ...prev, visits: false }));
@@ -102,11 +113,12 @@ export default function HomePage() {
         .filter((item) => item.quantity !== null && item.quantity < 5)
         .map((item) => ({
           ...item,
-          status: (item.quantity === 0
-            ? "critical"
-            : item.quantity < 2
-            ? "critical"
-            : "low") as "good" | "low" | "critical",
+          status:
+            (item.quantity === 0
+              ? "critical"
+              : item.quantity < 2
+              ? "critical"
+              : "low") as "good" | "low" | "critical",
         }));
 
       setInventoryAlerts(lowStockItems);
