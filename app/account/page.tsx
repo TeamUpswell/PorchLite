@@ -6,7 +6,6 @@ import { useAuth } from "@/components/auth";
 import { canManageProperties, canManageUsers } from "@/lib/utils/roles";
 import StandardCard from "@/components/ui/StandardCard";
 import ProfileModal from "@/components/modals/ProfileModal";
-import { LoadingWithTimeout } from '@/components/ui/LoadingWithTimeout'; // ✅ Added import
 import {
   User,
   Shield,
@@ -114,10 +113,9 @@ export default function AccountPage() {
   if (authLoading) {
     return (
       <StandardPageLayout>
-        <LoadingWithTimeout
-          isLoading={authLoading}
-          onRetry={retryAccountData}
-        />
+        <div className="flex items-center justify-center p-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        </div>
       </StandardPageLayout>
     );
   }
