@@ -7,7 +7,7 @@ import { debugLog } from "@/lib/utils/debug";
 
 export default function AuthPage() {
   const router = useRouter();
-  const { user, signIn, signUp, loading: authLoading } = useAuth();
+  const { user, signIn, signUp, loading: authLoading, refreshSession } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);

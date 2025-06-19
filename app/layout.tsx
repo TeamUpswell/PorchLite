@@ -7,6 +7,8 @@ import { ThemeProvider } from "@/components/ThemeProvider";
 import { Toaster } from "react-hot-toast";
 import Script from "next/script";
 import { PageErrorBoundary } from "@/components/PageErrorBoundary"; // ✅ ADD
+import SessionRecovery from "@/components/system/SessionRecovery";
+import { withSessionRetry } from '@/lib/api-helpers';
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -27,6 +29,7 @@ export default function RootLayout({
           <AuthProvider>
             <PropertyProvider>
               <PageErrorBoundary>
+                <SessionRecovery />
                 {children}
               </PageErrorBoundary>
               <Toaster position="top-right" />
@@ -41,3 +44,35 @@ export default function RootLayout({
     </html>
   );
 }
+
+// Import the helper
+// import { withSessionRetry } from '@/lib/api-helpers';
+
+// Update one of your API functions as an example
+// const fetchUpcomingVisits = async (propertyId: string): Promise<UpcomingVisit[]> => {
+//   try {
+//     const today = new Date().toISOString().split("T")[0];
+    
+//     const result = await withSessionRetry(() => 
+//       supabase
+//         .from("reservations")
+//         .select("id, title, start_date, end_date, status")
+//         .eq("property_id", propertyId)
+//         .gte("start_date", today)
+//         .order("start_date", { ascending: true })
+//         .limit(10)
+//     );
+    
+//     if (result.error) {
+//       console.error("Error fetching visits:", result.error);
+//       return [];
+//     }
+    
+//     return result.data || [];
+//   } catch (error) {
+//     console.error("Exception fetching visits:", error);
+//     return [];
+//   }
+// };
+
+// Similarly update your other API functions

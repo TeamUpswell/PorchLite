@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/components/auth";
 import { useProperty } from "@/lib/hooks/useProperty";
 import { supabase } from "@/lib/supabase";
@@ -26,19 +26,6 @@ interface InventoryItem {
   status: "good" | "low" | "critical";
 }
 
-interface DashboardCache {
-  upcomingVisits: UpcomingVisit[];
-  inventoryAlerts: InventoryItem[];
-  taskAlerts: any[];
-  totalInventoryCount: number;
-  timestamp: number;
-  propertyId: string;
-}
-
-// Cache key for localStorage
-const DASHBOARD_CACHE_KEY = 'porchlite_dashboard_cache';
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
-
 export default function HomePage() {
   const { user, loading: authLoading } = useAuth();
   const { currentProperty, loading: propertyLoading } = useProperty();
@@ -47,7 +34,6 @@ export default function HomePage() {
   const [taskAlerts, setTaskAlerts] = useState<any[]>([]);
   const [totalInventoryCount, setTotalInventoryCount] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
 
   const [componentLoading, setComponentLoading] = useState({
     visits: true,
@@ -56,22 +42,6 @@ export default function HomePage() {
   });
 
   const router = useRouter();
-  const lastPropertyId = useRef<string | null>(null);
-  const fetchInProgress = useRef(false);
-
-  // Enhanced state for data persistence
-  const [lastDataFetch, setLastDataFetch] = useState<number>(0);
-  const [isPageVisible, setIsPageVisible] = useState(true);
-  const [showRecovery, setShowRecovery] = useState(false);
-  const dataBackupRef = useRef<{
-    visits: UpcomingVisit[];
-    inventory: InventoryItem[];
-    tasks: any[];
-    totalCount: number;
-  } | null>(null);
-
-  // ✅ REDUCED: Only enable debug logs in development mode
-  const isDebugEnabled = process.env.NODE_ENV === 'development';
 
   const mockWeather = {
     current: {
@@ -94,124 +64,106 @@ export default function HomePage() {
     ],
   };
 
-  // ✅ SIMPLIFIED: Basic data backup
-  const backupCurrentData = useCallback(() => {
-    if (upcomingVisits.length > 0 || inventoryAlerts.length > 0 || taskAlerts.length > 0) {
-      dataBackupRef.current = {
-        visits: [...upcomingVisits],
-        inventory: [...inventoryAlerts],
-        tasks: [...taskAlerts],
-        totalCount: totalInventoryCount
-      };
-      
-      if (isDebugEnabled) {
-        console.log("💾 Dashboard data backed up");
-      }
+  // Simple data fetching - exactly like your working version
+  const fetchDashboardData = useCallback(async () => {
+    if (!currentProperty?.id) {
+      console.log("❌ No current property, skipping dashboard fetch");
+      return;
     }
-  }, [upcomingVisits, inventoryAlerts, taskAlerts, totalInventoryCount, isDebugEnabled]);
 
-  // ✅ SIMPLIFIED: Data recovery
-  const recoverData = useCallback(() => {
-    if (dataBackupRef.current) {
-      if (isDebugEnabled) {
-        console.log("🔄 Recovering dashboard data from backup");
-      }
-      setUpcomingVisits(dataBackupRef.current.visits);
-      setInventoryAlerts(dataBackupRef.current.inventory);
-      setTaskAlerts(dataBackupRef.current.tasks);
-      setTotalInventoryCount(dataBackupRef.current.totalCount);
+    console.log("🔍 Fetching dashboard data for property:", currentProperty.id);
+    setLoading(true);
+
+    try {
+      // Visits
+      setComponentLoading((prev) => ({ ...prev, visits: true }));
+      const today = new Date().toISOString().split("T")[0];
+      console.log("🔍 Dashboard: Looking for reservations after:", today);
+
+      const visitsData = await supabase
+        .from("reservations")
+        .select("id, title, start_date, end_date, status")
+        .eq("property_id", currentProperty.id)
+        .gte("start_date", today)
+        .order("start_date", { ascending: true })
+        .limit(10);
+
+      console.log("📊 Dashboard: Found reservations:", visitsData.data?.length || 0);
+      setUpcomingVisits(visitsData.data || []);
+      setComponentLoading((prev) => ({ ...prev, visits: false }));
+
+      // Inventory
+      setComponentLoading((prev) => ({ ...prev, inventory: true }));
+      const inventoryData = await supabase
+        .from("inventory")
+        .select("id, name, quantity")
+        .eq("property_id", currentProperty.id)
+        .eq("is_active", true);
+
+      const inventoryItems = inventoryData.data || [];
+      const lowStockItems = inventoryItems
+        .filter((item) => item.quantity !== null && item.quantity < 5)
+        .map((item) => ({
+          ...item,
+          status:
+            (item.quantity === 0
+              ? "critical"
+              : item.quantity < 2
+              ? "critical"
+              : "low") as "good" | "low" | "critical",
+        }));
+
+      setInventoryAlerts(lowStockItems);
+      setTotalInventoryCount(inventoryItems.length);
+      setComponentLoading((prev) => ({ ...prev, inventory: false }));
+
+      // Tasks
+      setComponentLoading((prev) => ({ ...prev, tasks: true }));
+      const tasksData = await supabase
+        .from("tasks")
+        .select("id, title, status, priority, due_date")
+        .eq("property_id", currentProperty.id)
+        .in("status", ["pending", "in_progress"])
+        .order("due_date", { ascending: true })
+        .limit(10);
+
+      setTaskAlerts(tasksData.data || []);
+      setComponentLoading((prev) => ({ ...prev, tasks: false }));
+
+      console.log("✅ Dashboard data fetched successfully");
+    } catch (error) {
+      console.error("❌ Error fetching dashboard data:", error);
       setComponentLoading({ visits: false, inventory: false, tasks: false });
-      return true;
+    } finally {
+      setLoading(false);
     }
-    return false;
-  }, [isDebugEnabled]);
+  }, [currentProperty?.id]);
 
-  // ✅ REMOVED: Verbose state change logging - too noisy for production
-
-  // ✅ SIMPLIFIED: Cache loading with error handling
-  const loadCachedData = useCallback(() => {
-    if (!currentProperty?.id) return false;
-
-    try {
-      const cached = localStorage.getItem(DASHBOARD_CACHE_KEY);
-      if (!cached) {
-        return recoverData();
-      }
-
-      const parsedCache: DashboardCache = JSON.parse(cached);
-      const cacheAge = Date.now() - parsedCache.timestamp;
-      const isValidProperty = parsedCache.propertyId === currentProperty.id;
-      const isRecentEnough = cacheAge < (CACHE_DURATION * 2);
-      
-      if (isValidProperty && isRecentEnough) {
-        if (isDebugEnabled) {
-          console.log("📦 Loading cached dashboard data");
-        }
-        
-        setUpcomingVisits(parsedCache.upcomingVisits || []);
-        setInventoryAlerts(parsedCache.inventoryAlerts || []);
-        setTaskAlerts(parsedCache.taskAlerts || []);
-        setTotalInventoryCount(parsedCache.totalInventoryCount || 0);
-        setComponentLoading({ visits: false, inventory: false, tasks: false });
-        setHasLoadedOnce(true);
-        
-        dataBackupRef.current = {
-          visits: parsedCache.upcomingVisits || [],
-          inventory: parsedCache.inventoryAlerts || [],
-          tasks: parsedCache.taskAlerts || [],
-          totalCount: parsedCache.totalInventoryCount || 0
-        };
-        
-        return true;
-      } else {
-        if (!isValidProperty) {
-          localStorage.removeItem(DASHBOARD_CACHE_KEY);
-        }
-        return recoverData();
-      }
-    } catch (error) {
-      if (isDebugEnabled) {
-        console.error("❌ Error loading cached data:", error);
-      }
-      localStorage.removeItem(DASHBOARD_CACHE_KEY);
-      return recoverData();
+  // Single useEffect for data loading - exactly like your working version
+  useEffect(() => {
+    if (authLoading || propertyLoading) {
+      return;
     }
-  }, [currentProperty?.id, recoverData, isDebugEnabled]);
 
-  // ✅ SIMPLIFIED: Cache saving
-  const saveCacheData = useCallback((data: {
-    upcomingVisits: UpcomingVisit[];
-    inventoryAlerts: InventoryItem[];
-    taskAlerts: any[];
-    totalInventoryCount: number;
-  }) => {
-    if (!currentProperty?.id) return;
-
-    try {
-      const cacheData: DashboardCache = {
-        ...data,
-        timestamp: Date.now(),
-        propertyId: currentProperty.id,
-      };
-      localStorage.setItem(DASHBOARD_CACHE_KEY, JSON.stringify(cacheData));
-      
-      if (isDebugEnabled) {
-        console.log("💾 Dashboard data cached");
-      }
-    } catch (error) {
-      if (isDebugEnabled) {
-        console.error("❌ Error saving cache:", error);
-      }
+    if (!user?.id || !currentProperty?.id) {
+      console.log("⏳ Waiting for user and property to load...");
+      setLoading(false);
+      return;
     }
-  }, [currentProperty?.id, isDebugEnabled]);
 
-  // ✅ SIMPLIFIED: Navigation handlers
+    console.log("🏠 Property and user loaded, fetching dashboard:", currentProperty.name);
+    fetchDashboardData();
+  }, [
+    currentProperty?.id,
+    currentProperty?.name,
+    user?.id,
+    authLoading,
+    propertyLoading,
+    fetchDashboardData,
+  ]);
+
+  // Navigation handlers
   const handleUpcomingVisitsClick = () => {
-    try {
-      localStorage.removeItem('calendar_stuck_state');
-    } catch (error) {
-      // Silent fail
-    }
     router.push("/calendar");
   };
 
@@ -222,276 +174,6 @@ export default function HomePage() {
   const handleTasksClick = () => {
     router.push("/tasks");
   };
-
-  // ✅ SIMPLIFIED: Fetch with reduced logging
-  const fetchDashboardData = useCallback(async (forceRefresh = false) => {
-    if (!currentProperty?.id) {
-      return;
-    }
-
-    if (fetchInProgress.current && !forceRefresh) {
-      return;
-    }
-
-    // Check cache first (unless forced refresh)
-    if (!forceRefresh && loadCachedData()) {
-      setLoading(false);
-      return;
-    }
-
-    fetchInProgress.current = true;
-    if (isDebugEnabled) {
-      console.log("🔍 Fetching dashboard data for:", currentProperty.name);
-    }
-    setLoading(true);
-
-    try {
-      setComponentLoading({
-        visits: true,
-        inventory: true,
-        tasks: true,
-      });
-
-      // Visits
-      const today = new Date().toISOString().split("T")[0];
-
-      const { data: visitsData, error: visitsError } = await supabase
-        .from("reservations")
-        .select("id, title, start_date, end_date, status")
-        .eq("property_id", currentProperty.id)
-        .gte("start_date", today)
-        .order("start_date", { ascending: true })
-        .limit(10);
-
-      if (visitsError) {
-        console.error("❌ Error fetching visits:", visitsError);
-      } else {
-        setUpcomingVisits(visitsData || []);
-      }
-      setComponentLoading((prev) => ({ ...prev, visits: false }));
-
-      // Inventory
-      const { data: inventoryData, error: inventoryError } = await supabase
-        .from("inventory")
-        .select("id, name, quantity")
-        .eq("property_id", currentProperty.id)
-        .eq("is_active", true);
-
-      if (inventoryError) {
-        console.error("❌ Error fetching inventory:", inventoryError);
-        setInventoryAlerts([]);
-        setTotalInventoryCount(0);
-      } else {
-        const inventoryItems = inventoryData || [];
-        const lowStockItems = inventoryItems
-          .filter((item) => item.quantity !== null && item.quantity < 5)
-          .map((item) => ({
-            ...item,
-            status:
-              (item.quantity === 0
-                ? "critical"
-                : item.quantity < 2
-                ? "critical"
-                : "low") as "good" | "low" | "critical",
-          }));
-
-        setInventoryAlerts(lowStockItems);
-        setTotalInventoryCount(inventoryItems.length);
-      }
-      setComponentLoading((prev) => ({ ...prev, inventory: false }));
-
-      // Tasks
-      const { data: tasksData, error: tasksError } = await supabase
-        .from("tasks")
-        .select("id, title, status, priority, due_date")
-        .eq("property_id", currentProperty.id)
-        .in("status", ["pending", "in_progress"])
-        .order("due_date", { ascending: true })
-        .limit(10);
-
-      if (tasksError) {
-        console.error("❌ Error fetching tasks:", tasksError);
-        setTaskAlerts([]);
-      } else {
-        setTaskAlerts(tasksData || []);
-      }
-      setComponentLoading((prev) => ({ ...prev, tasks: false }));
-
-      setLastDataFetch(Date.now());
-
-      // Save to cache and backup
-      if (visitsData !== undefined && inventoryData !== undefined && tasksData !== undefined) {
-        const cacheData = {
-          upcomingVisits: visitsData || [],
-          inventoryAlerts: inventoryData ? inventoryData
-            .filter((item) => item.quantity !== null && item.quantity < 5)
-            .map((item) => ({
-              ...item,
-              status: (item.quantity === 0 ? "critical" : item.quantity < 2 ? "critical" : "low") as "good" | "low" | "critical",
-            })) : [],
-          taskAlerts: tasksData || [],
-          totalInventoryCount: inventoryData?.length || 0,
-        };
-        
-        saveCacheData(cacheData);
-        
-        dataBackupRef.current = {
-          visits: visitsData || [],
-          inventory: cacheData.inventoryAlerts,
-          tasks: tasksData || [],
-          totalCount: inventoryData?.length || 0,
-        };
-      }
-
-      lastPropertyId.current = currentProperty.id;
-      setHasLoadedOnce(true);
-
-      if (isDebugEnabled) {
-        console.log("✅ Dashboard data fetched successfully");
-      }
-    } catch (error) {
-      console.error("❌ Error fetching dashboard data:", error);
-      setComponentLoading({ visits: false, inventory: false, tasks: false });
-      
-      if (!hasLoadedOnce) {
-        loadCachedData();
-      }
-    } finally {
-      setLoading(false);
-      fetchInProgress.current = false;
-    }
-  }, [currentProperty?.id, currentProperty?.name, loadCachedData, saveCacheData, hasLoadedOnce, isDebugEnabled]);
-
-  // ✅ SIMPLIFIED: Visibility handling with reduced logging
-  useEffect(() => {
-    let visibilityTimeout: NodeJS.Timeout;
-    
-    const handleVisibilityChange = () => {
-      const isVisible = document.visibilityState === 'visible';
-      setIsPageVisible(isVisible);
-      
-      if (isVisible && hasLoadedOnce && currentProperty?.id) {
-        if (isDebugEnabled) {
-          console.log("👁️ Page became visible, restoring data");
-        }
-        
-        if (visibilityTimeout) {
-          clearTimeout(visibilityTimeout);
-        }
-        
-        visibilityTimeout = setTimeout(() => {
-          if (!loadCachedData()) {
-            fetchDashboardData(true);
-          }
-        }, 100);
-      } else if (!isVisible && hasLoadedOnce) {
-        backupCurrentData();
-      }
-    };
-
-    const handleFocus = () => {
-      if (hasLoadedOnce && currentProperty?.id) {
-        const hasEmptyData = upcomingVisits.length === 0 && 
-                            inventoryAlerts.length === 0 && 
-                            taskAlerts.length === 0;
-        
-        if (hasEmptyData) {
-          if (!loadCachedData()) {
-            fetchDashboardData(true);
-          }
-        }
-      }
-    };
-
-    const handleBeforeUnload = () => {
-      backupCurrentData();
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('focus', handleFocus);
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    
-    const backupInterval = setInterval(() => {
-      if (isPageVisible && hasLoadedOnce) {
-        backupCurrentData();
-      }
-    }, 30000);
-
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('focus', handleFocus);
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-      clearInterval(backupInterval);
-      if (visibilityTimeout) clearTimeout(visibilityTimeout);
-    };
-  }, [hasLoadedOnce, currentProperty?.id, loadCachedData, fetchDashboardData, backupCurrentData, isPageVisible, upcomingVisits.length, inventoryAlerts.length, taskAlerts.length, isDebugEnabled]);
-
-  // ✅ SIMPLIFIED: Data staleness detection
-  useEffect(() => {
-    if (!hasLoadedOnce || !currentProperty?.id) return;
-
-    const checkDataStaleness = () => {
-      const now = Date.now();
-      const timeSinceLastFetch = now - lastDataFetch;
-      const hasData = upcomingVisits.length > 0 || inventoryAlerts.length > 0 || taskAlerts.length > 0;
-      
-      // Refresh if no data for 2+ minutes
-      if (!hasData && timeSinceLastFetch > 2 * 60 * 1000) {
-        fetchDashboardData(true);
-      }
-      
-      // Background refresh if data is 10+ minutes old
-      if (hasData && timeSinceLastFetch > 10 * 60 * 1000 && isPageVisible) {
-        fetchDashboardData(true);
-      }
-    };
-
-    const stalenessInterval = setInterval(checkDataStaleness, 30000);
-    return () => clearInterval(stalenessInterval);
-  }, [hasLoadedOnce, currentProperty?.id, lastDataFetch, fetchDashboardData, upcomingVisits.length, inventoryAlerts.length, taskAlerts.length, isPageVisible]);
-
-  // Recovery state management
-  useEffect(() => {
-    const hasEmptyData = upcomingVisits.length === 0 && 
-                        inventoryAlerts.length === 0 && 
-                        taskAlerts.length === 0;
-    const hasBeenLoaded = hasLoadedOnce;
-    const notCurrentlyLoading = !loading && !componentLoading.visits && !componentLoading.inventory && !componentLoading.tasks;
-    
-    setShowRecovery(hasEmptyData && hasBeenLoaded && notCurrentlyLoading);
-  }, [upcomingVisits.length, inventoryAlerts.length, taskAlerts.length, hasLoadedOnce, loading, componentLoading]);
-
-  // Main effect to load data when component mounts or property changes
-  useEffect(() => {
-    if (authLoading || propertyLoading) {
-      return;
-    }
-
-    if (!user?.id || !currentProperty?.id) {
-      setLoading(false);
-      return;
-    }
-
-    // Check if property changed
-    const propertyChanged = lastPropertyId.current !== currentProperty.id;
-    if (propertyChanged) {
-      if (isDebugEnabled) {
-        console.log("🏠 Property changed, fetching fresh data");
-      }
-      localStorage.removeItem(DASHBOARD_CACHE_KEY);
-      setHasLoadedOnce(false);
-    }
-
-    fetchDashboardData(propertyChanged);
-  }, [
-    currentProperty?.id,
-    currentProperty?.name,
-    user?.id,
-    authLoading,
-    propertyLoading,
-    fetchDashboardData,
-    isDebugEnabled,
-  ]);
 
   const handleAddReservation = () => {
     router.push("/calendar");
@@ -561,59 +243,6 @@ export default function HomePage() {
     );
   }
 
-  // Recovery screen when data is empty
-  if (showRecovery) {
-    return (
-      <StandardPageLayout theme="dark" showHeader={false}>
-        <div className="mb-6">
-          <DashboardHeader weather={mockWeather} showWeather={true}>
-            <h1 className="text-3xl md:text-4xl font-bold mb-1 text-white drop-shadow-lg tracking-tight">
-              {currentProperty.name}
-            </h1>
-            <p className="text-white/90 text-lg md:text-xl drop-shadow-md font-light tracking-wide">
-              {currentProperty.address || "Your beautiful property"}
-            </p>
-          </DashboardHeader>
-        </div>
-        
-        <StandardCard>
-          <div className="text-center py-8">
-            <div className="text-gray-600 mb-4">
-              <svg className="mx-auto h-12 w-12 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-              <h3 className="text-lg font-medium mb-2">Dashboard Data Unavailable</h3>
-              <p className="text-sm text-gray-500 mb-6">
-                Your dashboard data appears to be empty. This sometimes happens when returning to the page after a while.
-              </p>
-            </div>
-            <div className="space-x-4">
-              <button
-                onClick={() => {
-                  if (loadCachedData()) {
-                    setShowRecovery(false);
-                  }
-                }}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
-              >
-                Try Recovery
-              </button>
-              <button
-                onClick={() => {
-                  setShowRecovery(false);
-                  fetchDashboardData(true);
-                }}
-                className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg transition-colors"
-              >
-                Refresh Data
-              </button>
-            </div>
-          </div>
-        </StandardCard>
-      </StandardPageLayout>
-    );
-  }
-
   // Main dashboard
   return (
     <StandardPageLayout theme="dark" showHeader={false}>
@@ -637,12 +266,6 @@ export default function HomePage() {
             className="cursor-pointer transform transition-all duration-200 hover:scale-105 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-lg group"
             role="button"
             tabIndex={0}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                handleUpcomingVisitsClick();
-              }
-            }}
           >
             <StandardCard className="h-full group-hover:shadow-lg transition-shadow">
               <div className="flex items-center">
@@ -666,7 +289,7 @@ export default function HomePage() {
                     Upcoming Visits
                   </p>
                   <p className="text-2xl font-semibold text-gray-900">
-                    {componentLoading.visits ? "..." : (upcomingVisits?.length ?? 0)}
+                    {componentLoading.visits ? "..." : upcomingVisits.length}
                   </p>
                   <p className="text-xs text-blue-600 font-medium opacity-0 group-hover:opacity-100 transition-opacity">
                     Click to view calendar →
@@ -682,12 +305,6 @@ export default function HomePage() {
             className="cursor-pointer transform transition-all duration-200 hover:scale-105 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 rounded-lg group"
             role="button"
             tabIndex={0}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                handleLowStockClick();
-              }
-            }}
           >
             <StandardCard className="h-full group-hover:shadow-lg transition-shadow">
               <div className="flex items-center">
@@ -711,7 +328,7 @@ export default function HomePage() {
                     Low Stock Alerts
                   </p>
                   <p className="text-2xl font-semibold text-gray-900">
-                    {componentLoading.inventory ? "..." : (inventoryAlerts?.length ?? 0)}
+                    {componentLoading.inventory ? "..." : inventoryAlerts.length}
                   </p>
                   <p className="text-xs text-yellow-600 font-medium opacity-0 group-hover:opacity-100 transition-opacity">
                     Click to manage inventory →
@@ -727,12 +344,6 @@ export default function HomePage() {
             className="cursor-pointer transform transition-all duration-200 hover:scale-105 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 rounded-lg group"
             role="button"
             tabIndex={0}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                handleTasksClick();
-              }
-            }}
           >
             <StandardCard className="h-full group-hover:shadow-lg transition-shadow">
               <div className="flex items-center">
@@ -756,7 +367,7 @@ export default function HomePage() {
                     Pending Tasks
                   </p>
                   <p className="text-2xl font-semibold text-gray-900">
-                    {componentLoading.tasks ? "..." : (taskAlerts?.length ?? 0)}
+                    {componentLoading.tasks ? "..." : taskAlerts.length}
                   </p>
                   <p className="text-xs text-red-600 font-medium opacity-0 group-hover:opacity-100 transition-opacity">
                     Click to view →
