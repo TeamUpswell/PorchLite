@@ -17,6 +17,7 @@ function CalendarPageContent() {
   const [newReservationTrigger, setNewReservationTrigger] = useState(0);
   const [isStuck, setIsStuck] = useState(false);
   const [isPageVisible, setIsPageVisible] = useState(true);
+  const [timedOut, setTimedOut] = useState(false); // ✅ Added timedOut state
   const lastActivityRef = useRef(Date.now());
   const mountTimeRef = useRef(Date.now());
 
@@ -29,6 +30,15 @@ function CalendarPageContent() {
     };
   }, []);
 
+  // ✅ Enhanced retry function for calendar data
+  const retryCalendarData = () => {
+    setTimedOut(false);
+    setIsStuck(false);
+    lastActivityRef.current = Date.now();
+    setNewReservationTrigger(prev => prev + 1);
+    debugLog("🔄 Calendar: Manual retry triggered");
+  };
+
   // ✅ Enhanced visibility and focus handling for calendar
   useEffect(() => {
     const handleVisibilityChange = () => {
@@ -39,6 +49,7 @@ function CalendarPageContent() {
         console.log("👁️ Calendar page became visible");
         lastActivityRef.current = Date.now();
         setIsStuck(false);
+        setTimedOut(false); // ✅ Reset timeout on visibility
         
         // Reset calendar state if it's been hidden for a while
         const timeSinceMount = Date.now() - mountTimeRef.current;
@@ -55,6 +66,7 @@ function CalendarPageContent() {
       console.log("🔍 Calendar window focused");
       lastActivityRef.current = Date.now();
       setIsStuck(false);
+      setTimedOut(false); // ✅ Reset timeout on focus
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
@@ -86,6 +98,7 @@ function CalendarPageContent() {
     const resetActivity = () => {
       lastActivityRef.current = Date.now();
       setIsStuck(false);
+      setTimedOut(false); // ✅ Reset timeout on activity
     };
 
     // ✅ More interaction types to detect activity
@@ -111,6 +124,7 @@ function CalendarPageContent() {
       const recoveryTimeout = setTimeout(() => {
         console.log("🔄 Calendar: Auto-recovering...");
         setIsStuck(false);
+        setTimedOut(false);
         lastActivityRef.current = Date.now();
         setNewReservationTrigger(prev => prev + 1);
       }, 10000);
@@ -119,22 +133,14 @@ function CalendarPageContent() {
     }
   }, [isStuck, user, currentProperty]);
 
-  // Loading state
+  // Just use a simple loading state in the calendar page
   if (authLoading || propertyLoading) {
     return (
-      <StandardPageLayout
-        theme="dark"
-        showHeader={false}
-        showSideNav={true}
-      >
-        <StandardCard>
-          <div className="flex items-center justify-center min-h-[400px]">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
-              <p className="text-gray-600">Loading calendar...</p>
-            </div>
-          </div>
-        </StandardCard>
+      <StandardPageLayout title="Calendar">
+        <div className="flex items-center justify-center p-8">
+          <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-blue-500 mr-3"></div>
+          <span>Loading calendar...</span>
+        </div>
       </StandardPageLayout>
     );
   }
@@ -162,7 +168,7 @@ function CalendarPageContent() {
     );
   }
 
-  // ✅ Enhanced stuck warning with more options
+  // ✅ Enhanced stuck warning with LoadingWithTimeout integration
   if (isStuck) {
     return (
       <StandardPageLayout
@@ -170,37 +176,12 @@ function CalendarPageContent() {
         showHeader={false}
         showSideNav={true}
       >
-        <StandardCard>
-          <div className="text-center py-8">
-            <div className="text-gray-600 mb-4">
-              <svg className="mx-auto h-12 w-12 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <h3 className="text-lg font-medium mb-2">Calendar Loading Issue</h3>
-              <p className="text-sm text-gray-500 mb-6">
-                The calendar appears to be taking longer than usual to load.
-              </p>
-            </div>
-            <div className="space-x-4">
-              <button
-                onClick={() => {
-                  setIsStuck(false);
-                  lastActivityRef.current = Date.now();
-                  setNewReservationTrigger(prev => prev + 1);
-                }}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
-              >
-                Try Again
-              </button>
-              <button
-                onClick={() => window.location.reload()}
-                className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg transition-colors"
-              >
-                Refresh Page
-              </button>
-            </div>
-          </div>
-        </StandardCard>
+        <LoadingWithTimeout
+          isLoading={true}
+          onRetry={retryCalendarData}
+          message="Calendar appears to be stuck. This might be due to browser inactivity."
+          showRetryButton={true}
+        />
       </StandardPageLayout>
     );
   }

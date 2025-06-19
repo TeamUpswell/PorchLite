@@ -35,6 +35,7 @@ interface DashboardHeaderProps {
       condition: string;
       icon: string;
     }>;
+    location?: string; // Added location field
   } | null;
   showWeather?: boolean;
 }
@@ -182,6 +183,13 @@ export default function DashboardHeader({
                 ))}
               </div>
             </div>
+
+            {/* Location Info - Added below weather */}
+            {weather.location && (
+              <p className="text-white/70 text-xs font-medium tracking-wide">
+                {weather.location}
+              </p>
+            )}
           </div>
         )}
 

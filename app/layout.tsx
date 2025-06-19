@@ -7,8 +7,7 @@ import { ThemeProvider } from "@/components/ThemeProvider";
 import { Toaster } from "react-hot-toast";
 import Script from "next/script";
 import { PageErrorBoundary } from "@/components/PageErrorBoundary"; // ✅ ADD
-import SessionRecovery from "@/components/system/SessionRecovery";
-import { withSessionRetry } from '@/lib/api-helpers';
+import UnifiedSessionManager from "@/components/system/UnifiedSessionManager"; // ✅ New unified component
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -23,13 +22,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <body className={`${inter.className} bg-gray-900`}>
+    <html lang="en" suppressHydrationWarning>
+      <body className={`${inter.className} bg-gray-900`} suppressHydrationWarning>
         <ThemeProvider>
           <AuthProvider>
             <PropertyProvider>
               <PageErrorBoundary>
-                <SessionRecovery />
+                <UnifiedSessionManager /> 
                 {children}
               </PageErrorBoundary>
               <Toaster position="top-right" />

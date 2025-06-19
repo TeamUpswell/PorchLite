@@ -2,10 +2,14 @@
 
 import { useAuth } from "@/components/auth";
 import { useProperty } from "@/lib/hooks/useProperty";
+import { debugLog } from "@/lib/debug";
 
 export default function DebugPage() {
   const auth = useAuth();
   const property = useProperty();
+
+  debugLog("Auth state", auth);
+  debugLog("Property state", property);
 
   return (
     <div className="p-8 space-y-4">

@@ -10,6 +10,7 @@ import StandardCard from "@/components/ui/StandardCard";
 import { Home as HomeIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import GoogleMapComponent from "@/components/GoogleMapComponent";
+import { usePropertyWeather } from "@/components/dashboard/WeatherWidget";
 
 interface UpcomingVisit {
   id: string;
@@ -29,6 +30,10 @@ interface InventoryItem {
 export default function HomePage() {
   const { user, loading: authLoading } = useAuth();
   const { currentProperty, loading: propertyLoading } = useProperty();
+  
+  // Use the weather hook
+  const { weather: realWeather, loading: weatherLoading, error: weatherError } = usePropertyWeather();
+  
   const [upcomingVisits, setUpcomingVisits] = useState<UpcomingVisit[]>([]);
   const [inventoryAlerts, setInventoryAlerts] = useState<InventoryItem[]>([]);
   const [taskAlerts, setTaskAlerts] = useState<any[]>([]);
@@ -43,6 +48,7 @@ export default function HomePage() {
 
   const router = useRouter();
 
+  // Fallback weather data (your existing mockWeather)
   const mockWeather = {
     current: {
       temp: 72,
@@ -63,6 +69,9 @@ export default function HomePage() {
       { date: "Wed", high: 73, low: 60, condition: "Rain", icon: "rain" },
     ],
   };
+
+  // Use real weather if available, otherwise fall back to mock
+  const weatherData = realWeather || mockWeather;
 
   // Simple data fetching - exactly like your working version
   const fetchDashboardData = useCallback(async () => {
@@ -247,13 +256,31 @@ export default function HomePage() {
   return (
     <StandardPageLayout theme="dark" showHeader={false}>
       <div className="mb-6">
-        <DashboardHeader weather={mockWeather} showWeather={true}>
+        <DashboardHeader 
+          weather={weatherData}
+          showWeather={true}
+        >
           <h1 className="text-3xl md:text-4xl font-bold mb-1 text-white drop-shadow-lg tracking-tight">
             {currentProperty.name}
           </h1>
           <p className="text-white/90 text-lg md:text-xl drop-shadow-md font-light tracking-wide">
             {currentProperty.address || "Your beautiful property"}
           </p>
+          {realWeather?.location && !weatherLoading && (
+            <p className="text-white/80 text-sm drop-shadow-md">
+              Current weather for {realWeather.location}
+            </p>
+          )}
+          {weatherLoading && (
+            <p className="text-white/80 text-sm drop-shadow-md">
+              Loading weather...
+            </p>
+          )}
+          {weatherError && (
+            <p className="text-white/80 text-sm drop-shadow-md">
+              Weather: Using default data
+            </p>
+          )}
         </DashboardHeader>
       </div>
 

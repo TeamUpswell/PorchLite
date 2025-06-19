@@ -42,7 +42,11 @@ export const debugInfo = debug.info;
 export const logDebug = (message: string, data?: any) => {
   if (process.env.NODE_ENV === 'development') {
     // In development, log the message but sanitize sensitive data
-    console.log(message, data ? '[DATA REDACTED]' : '');
+    if (data && typeof data === 'object') {
+      console.log(message, JSON.stringify(data, null, 2).slice(0, 200) + '...');
+    } else {
+      console.log(message, data);
+    }
   }
 };
 
