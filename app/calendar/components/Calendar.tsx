@@ -1,11 +1,10 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Calendar as BigCalendar, dateFnsLocalizer } from "react-big-calendar";
 import { format, parse, startOfWeek, getDay } from "date-fns";
-import { toast } from "react-hot-toast"; // ← Changed from react-toastify
-import { supabase } from "@/lib/supabase"; // ← Updated path to match your project structure
-import { debugLog, debugError } from "@/lib/utils/debug";
+import { toast } from "react-hot-toast";
+import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/components/auth";
 
 // CSS imports
@@ -38,28 +37,35 @@ const localizer = dateFnsLocalizer({
 
 interface CalendarProps {
   newReservationTrigger?: number;
-  isManager?: boolean; // Add this prop
+  isManager?: boolean;
 }
+
+// Cache constants
+const CALENDAR_CACHE_KEY = "porchlite_calendar_cache";
+const CALENDAR_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
 export default function Calendar({
   newReservationTrigger = 0,
   isManager = false,
 }: CalendarProps) {
-  // ✅ ADD PERFORMANCE MONITORING
-  useEffect(() => {
-    const startTime = performance.now();
-    debugLog("📅 Calendar component mounted");
+  // Basic persistence state
+  const [isPageVisible, setIsPageVisible] = useState(true);
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
+  const dataBackupRef = useRef<Reservation[]>([]);
 
-    return () => {
-      const endTime = performance.now();
-      debugLog(
-        "📅 Calendar component unmounted, render time:",
-        `${(endTime - startTime).toFixed(2)}ms`
-      );
-    };
-  }, []);
+  const { user } = useAuth();
 
-  const { reservations, isLoading, fetchReservations } = useReservations();
+  // ✅ REDUCED: Only enable debug logs in development mode
+  const isDebugEnabled = process.env.NODE_ENV === 'development';
+
+  const {
+    reservations,
+    setReservations,
+    isLoading,
+    fetchReservations,
+    deleteReservation: hookDeleteReservation,
+  } = useReservations();
+
   const { clearCompanions, fetchCompanions } = useCompanions();
 
   // UI state
@@ -73,7 +79,189 @@ export default function Calendar({
   const [currentDate, setCurrentDate] = useState(new Date());
   const [isMobile, setIsMobile] = useState(false);
 
-  // Effects
+  // ✅ REMOVED: Performance monitoring - too verbose for production
+
+  // ✅ SIMPLIFIED: Basic backup system
+  const backupCalendarData = useCallback(() => {
+    if (reservations && reservations.length > 0) {
+      dataBackupRef.current = [...reservations];
+      
+      if (isDebugEnabled) {
+        console.log("💾 Calendar data backed up");
+      }
+    }
+  }, [reservations, isDebugEnabled]);
+
+  // ✅ SIMPLIFIED: Cache loading with reduced logging
+  const loadCachedCalendarData = useCallback(() => {
+    try {
+      // First try localStorage
+      const cached = localStorage.getItem(CALENDAR_CACHE_KEY);
+      if (cached) {
+        const parsedCache = JSON.parse(cached);
+        const cacheAge = Date.now() - parsedCache.timestamp;
+
+        if (cacheAge < CALENDAR_CACHE_DURATION && parsedCache.reservations) {
+          if (isDebugEnabled) {
+            console.log("📦 Loading cached calendar data");
+          }
+          if (setReservations && typeof setReservations === "function") {
+            setReservations(parsedCache.reservations);
+            dataBackupRef.current = parsedCache.reservations;
+            return true;
+          }
+        }
+      }
+
+      // Then try backup
+      if (dataBackupRef.current.length > 0) {
+        if (isDebugEnabled) {
+          console.log("🔄 Using backup calendar data");
+        }
+        if (setReservations && typeof setReservations === "function") {
+          setReservations(dataBackupRef.current);
+          return true;
+        }
+      }
+
+      return false;
+    } catch (error) {
+      if (isDebugEnabled) {
+        console.error("❌ Error loading cached calendar data:", error);
+      }
+      // Clear bad cache
+      try {
+        localStorage.removeItem(CALENDAR_CACHE_KEY);
+      } catch (e) {
+        // Silent fail
+      }
+      return false;
+    }
+  }, [setReservations, isDebugEnabled]);
+
+  // ✅ SIMPLIFIED: Cache saving
+  const saveCacheCalendarData = useCallback(
+    (data: Reservation[]) => {
+      try {
+        const cacheData = {
+          reservations: data,
+          timestamp: Date.now(),
+          propertyId: user?.id || "unknown",
+        };
+        localStorage.setItem(CALENDAR_CACHE_KEY, JSON.stringify(cacheData));
+        
+        if (isDebugEnabled) {
+          console.log("💾 Calendar data cached");
+        }
+      } catch (error) {
+        if (isDebugEnabled) {
+          console.error("❌ Error saving calendar cache:", error);
+        }
+      }
+    },
+    [user?.id, isDebugEnabled]
+  );
+
+  // ✅ SIMPLIFIED: Enhanced fetch with reduced logging
+  const enhancedFetchReservations = useCallback(
+    async (forceRefresh = false) => {
+      // Try cache first unless forced refresh
+      if (!forceRefresh && hasLoadedOnce && loadCachedCalendarData()) {
+        return;
+      }
+
+      if (isDebugEnabled) {
+        console.log("🔍 Fetching fresh calendar data");
+      }
+
+      try {
+        await fetchReservations();
+        setHasLoadedOnce(true);
+        
+        if (isDebugEnabled) {
+          console.log("✅ Calendar data fetched successfully");
+        }
+      } catch (error) {
+        console.error("❌ Error fetching calendar data:", error);
+        // Try to use cached/backup data as fallback
+        loadCachedCalendarData();
+      }
+    },
+    [fetchReservations, hasLoadedOnce, loadCachedCalendarData, isDebugEnabled]
+  );
+
+  // ✅ SIMPLIFIED: Visibility handling with reduced logging
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      const isVisible = document.visibilityState === "visible";
+      setIsPageVisible(isVisible);
+
+      if (isVisible && hasLoadedOnce) {
+        if (isDebugEnabled) {
+          console.log("👁️ Calendar became visible, checking data");
+        }
+
+        // Small delay to ensure component is ready
+        setTimeout(() => {
+          if (reservations.length === 0) {
+            if (!loadCachedCalendarData()) {
+              enhancedFetchReservations(true);
+            }
+          }
+        }, 100);
+      } else if (!isVisible && hasLoadedOnce) {
+        backupCalendarData();
+      }
+    };
+
+    const handleFocus = () => {
+      if (hasLoadedOnce && reservations.length === 0 && !isLoading) {
+        if (!loadCachedCalendarData()) {
+          enhancedFetchReservations(true);
+        }
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("focus", handleFocus);
+
+    // Backup periodically
+    const backupInterval = setInterval(() => {
+      if (isPageVisible && hasLoadedOnce && reservations.length > 0) {
+        backupCalendarData();
+      }
+    }, 60000); // Every minute
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("focus", handleFocus);
+      clearInterval(backupInterval);
+    };
+  }, [
+    hasLoadedOnce,
+    isPageVisible,
+    reservations.length,
+    isLoading,
+    loadCachedCalendarData,
+    enhancedFetchReservations,
+    backupCalendarData,
+    isDebugEnabled,
+  ]);
+
+  // Initial data load
+  useEffect(() => {
+    enhancedFetchReservations();
+  }, [enhancedFetchReservations]);
+
+  // Cache when reservations change
+  useEffect(() => {
+    if (reservations.length > 0 && hasLoadedOnce) {
+      saveCacheCalendarData(reservations);
+      backupCalendarData();
+    }
+  }, [reservations, hasLoadedOnce, saveCacheCalendarData, backupCalendarData]);
+
+  // Mobile detection
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768);
     checkMobile();
@@ -81,10 +269,7 @@ export default function Calendar({
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
-  useEffect(() => {
-    fetchReservations();
-  }, [fetchReservations]);
-
+  // Handle new reservation trigger
   useEffect(() => {
     if (newReservationTrigger && newReservationTrigger > 0) {
       setSelectedReservation(null);
@@ -94,9 +279,8 @@ export default function Calendar({
     }
   }, [newReservationTrigger, clearCompanions]);
 
-  // Event handlers
+  // ✅ SIMPLIFIED: Event handlers with reduced logging
   const handleReservationSelect = (reservation: Reservation) => {
-    debugLog("📅 Reservation selected:", reservation.title);
     setSelectedReservation(reservation);
     setShowReservationModal(true);
 
@@ -108,7 +292,6 @@ export default function Calendar({
   };
 
   const handleSlotSelect = ({ start, end }: { start: Date; end: Date }) => {
-    debugLog("📅 Time slot selected:", { start, end });
     setSelectedSlot({ start, end });
     setSelectedReservation(null);
     setShowReservationModal(true);
@@ -116,7 +299,6 @@ export default function Calendar({
   };
 
   const handleModalClose = () => {
-    debugLog("📅 Reservation modal closed");
     setShowReservationModal(false);
     setSelectedReservation(null);
     setSelectedSlot(null);
@@ -124,15 +306,13 @@ export default function Calendar({
   };
 
   const handleReservationSaved = () => {
-    debugLog("📅 Reservation saved, refreshing calendar data...");
-    fetchReservations();
+    enhancedFetchReservations(true);
     handleModalClose();
   };
 
   const handleEventRightClick = (event: Reservation, e: React.MouseEvent) => {
     e.preventDefault();
 
-    // Show context menu or immediately show delete confirmation
     if (
       window.confirm(`Delete "${event.title}"? This action cannot be undone.`)
     ) {
@@ -142,23 +322,15 @@ export default function Calendar({
 
   const handleSelectEvent = useCallback(
     (event: Reservation) => {
-      console.log('[DEBUG] 📅 Big Calendar Event selected:', event);
-      console.log('[DEBUG] 📅 Event ID:', event.id);
-      console.log('[DEBUG] 📅 Event title:', event.title);
-      console.log('[DEBUG] 📅 Is editing mode:', Boolean(event.id));
-      
-      // This event is already in the correct Reservation format
       setSelectedReservation(event);
-      setSelectedSlot(null); // Clear selected slot when editing
+      setSelectedSlot(null);
       setShowReservationModal(true);
-      
+
       if (event.id) {
         fetchCompanions(event.id);
       } else {
         clearCompanions();
       }
-      
-      console.log('[DEBUG] 📅 Modal should open for editing');
     },
     [fetchCompanions, clearCompanions]
   );
@@ -169,27 +341,25 @@ export default function Calendar({
       return;
     }
 
-    const startTime = performance.now();
-    debugLog("📅 Deleting reservation:", id);
-
     try {
-      const { error } = await supabase
-        .from("reservations")
-        .delete()
-        .eq("id", id);
+      const result = await hookDeleteReservation(id);
 
-      if (error) throw error;
+      if (result.success) {
+        if (isDebugEnabled) {
+          console.log("📅 Reservation deleted successfully");
+        }
 
-      const endTime = performance.now();
-      debugLog("📅 Reservation deleted successfully:", {
-        id,
-        deleteTime: `${(endTime - startTime).toFixed(2)}ms`,
-      });
+        toast.success("Reservation deleted successfully");
 
-      toast.success("Reservation deleted successfully");
-      fetchReservations();
+        // Update cache and backup
+        const updatedReservations = reservations.filter((r) => r.id !== id);
+        saveCacheCalendarData(updatedReservations);
+        dataBackupRef.current = updatedReservations;
+      } else {
+        throw result.error;
+      }
     } catch (error) {
-      debugError("📅 Error deleting reservation:", error);
+      console.error("❌ Error deleting reservation:", error);
       toast.error("Failed to delete reservation");
     }
   };
@@ -219,10 +389,9 @@ export default function Calendar({
   // Day reservations highlighting
   const dayPropGetter = useCallback(
     (date: Date) => {
-      const dateStr = format(date, "yyyy-MM-dd");
       const dayReservations = reservations.filter((reservation) => {
-        const start = new Date(reservation.start_date);
-        const end = new Date(reservation.end_date);
+        const start = new Date(reservation.start_date || reservation.start);
+        const end = new Date(reservation.end_date || reservation.end);
         return date >= start && date <= end;
       });
 
@@ -230,7 +399,7 @@ export default function Calendar({
         return {
           className: "rbc-day-reserved",
           style: {
-            backgroundColor: "#fef3c7", // Light yellow for reserved days
+            backgroundColor: "#fef3c7",
             border: "1px solid #f59e0b",
           },
         };
@@ -242,19 +411,29 @@ export default function Calendar({
   );
 
   // Loading state
-  if (isLoading) {
+  if (isLoading && !hasLoadedOnce) {
     return (
       <div className="flex items-center justify-center h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <p className="text-gray-600 mb-4">Loading calendar...</p>
+          {dataBackupRef.current.length > 0 && (
+            <button
+              onClick={() => loadCachedCalendarData()}
+              className="text-blue-600 hover:text-blue-800 text-sm"
+            >
+              Load backup data ({dataBackupRef.current.length} events)
+            </button>
+          )}
+        </div>
       </div>
     );
   }
 
-  // Custom toolbar component without view buttons
-  const CustomToolbar = ({ label, onNavigate, onView }: any) => {
+  // Custom toolbar component
+  const CustomToolbar = ({ label, onNavigate }: any) => {
     return (
       <div className="flex items-center justify-between mb-4 pb-4 border-b border-gray-200">
-        {/* Navigation buttons */}
         <div className="flex items-center space-x-2">
           <button
             onClick={() => onNavigate("PREV")}
@@ -304,21 +483,30 @@ export default function Calendar({
           </button>
         </div>
 
-        {/* Current date/period label */}
         <h2 className="text-lg font-semibold text-gray-900">{label}</h2>
 
-        {/* Empty div to maintain flexbox spacing */}
-        <div className="w-24"></div>
+        <div className="flex items-center space-x-2">
+          {hasLoadedOnce && (
+            <span className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded">
+              {reservations.length} events
+            </span>
+          )}
+          <button
+            onClick={() => enhancedFetchReservations(true)}
+            className="text-xs text-gray-500 hover:text-gray-700 px-2 py-1 rounded hover:bg-gray-100"
+            title="Refresh calendar data"
+          >
+            ↻
+          </button>
+        </div>
       </div>
     );
   };
 
   return (
     <div className="h-full">
-      {/* Status Legend */}
       <StatusLegend />
 
-      {/* Big Calendar */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 h-[calc(100vh-140px)]">
         <BigCalendar
           localizer={localizer}
@@ -329,15 +517,15 @@ export default function Calendar({
           onSelectEvent={handleSelectEvent}
           onSelectSlot={isManager ? handleSlotSelect : undefined}
           selectable={isManager}
-          views={["month"]} // Lock to month view only
+          views={["month"]}
           defaultView="month"
-          view="month" // Force month view
+          view="month"
           date={currentDate}
           onNavigate={setCurrentDate}
           eventPropGetter={eventStyleGetter}
           className={styles.calendar}
           components={{
-            toolbar: CustomToolbar, // Use custom toolbar
+            toolbar: CustomToolbar,
             event: ({ event }) => (
               <div
                 onContextMenu={(e) => handleEventRightClick(event, e)}
@@ -355,7 +543,6 @@ export default function Calendar({
         />
       </div>
 
-      {/* Reservation Modal */}
       {showReservationModal && (
         <ReservationModal
           isOpen={showReservationModal}
@@ -368,7 +555,6 @@ export default function Calendar({
         />
       )}
 
-      {/* Floating Action Button */}
       {isManager && (
         <CreatePattern
           onClick={() =>

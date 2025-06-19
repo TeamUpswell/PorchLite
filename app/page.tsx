@@ -10,7 +10,6 @@ import StandardCard from "@/components/ui/StandardCard";
 import { Home as HomeIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import GoogleMapComponent from "@/components/GoogleMapComponent";
-import { debug } from "@/lib/utils/debug";
 
 interface UpcomingVisit {
   id: string;
@@ -65,21 +64,19 @@ export default function HomePage() {
     ],
   };
 
-  // ✅ Restore your original fetchDashboardData
+  // Simple data fetching - exactly like your working version
   const fetchDashboardData = useCallback(async () => {
     if (!currentProperty?.id) {
-      debug.log("❌ No current property, skipping dashboard fetch");
+      console.log("❌ No current property, skipping dashboard fetch");
       return;
     }
 
-    debug.log("🔍 Fetching dashboard data for property:", currentProperty.id);
+    console.log("🔍 Fetching dashboard data for property:", currentProperty.id);
     setLoading(true);
 
     try {
-      // ✅ FIX: Update visits query to match reservations page format
+      // Visits
       setComponentLoading((prev) => ({ ...prev, visits: true }));
-
-      // Use date-only format for consistency
       const today = new Date().toISOString().split("T")[0];
       console.log("🔍 Dashboard: Looking for reservations after:", today);
 
@@ -87,16 +84,11 @@ export default function HomePage() {
         .from("reservations")
         .select("id, title, start_date, end_date, status")
         .eq("property_id", currentProperty.id)
-        .gte("start_date", today) // ✅ Use date-only format
+        .gte("start_date", today)
         .order("start_date", { ascending: true })
         .limit(10);
 
-      console.log(
-        "📊 Dashboard: Found reservations:",
-        visitsData.data?.length || 0
-      );
-      console.log("📋 Dashboard: Reservations data:", visitsData.data);
-
+      console.log("📊 Dashboard: Found reservations:", visitsData.data?.length || 0);
       setUpcomingVisits(visitsData.data || []);
       setComponentLoading((prev) => ({ ...prev, visits: false }));
 
@@ -138,31 +130,28 @@ export default function HomePage() {
       setTaskAlerts(tasksData.data || []);
       setComponentLoading((prev) => ({ ...prev, tasks: false }));
 
-      debug.log("✅ Dashboard data fetched successfully");
+      console.log("✅ Dashboard data fetched successfully");
     } catch (error) {
-      debug.error("❌ Error fetching dashboard data:", error);
+      console.error("❌ Error fetching dashboard data:", error);
       setComponentLoading({ visits: false, inventory: false, tasks: false });
     } finally {
       setLoading(false);
     }
   }, [currentProperty?.id]);
 
-  // ✅ Keep all your existing useEffect hooks
+  // Single useEffect for data loading - exactly like your working version
   useEffect(() => {
     if (authLoading || propertyLoading) {
       return;
     }
 
     if (!user?.id || !currentProperty?.id) {
-      debug.log("⏳ Waiting for user and property to load...");
+      console.log("⏳ Waiting for user and property to load...");
       setLoading(false);
       return;
     }
 
-    debug.log(
-      "🏠 Property and user loaded, fetching dashboard:",
-      currentProperty.name
-    );
+    console.log("🏠 Property and user loaded, fetching dashboard:", currentProperty.name);
     fetchDashboardData();
   }, [
     currentProperty?.id,
@@ -173,30 +162,30 @@ export default function HomePage() {
     fetchDashboardData,
   ]);
 
+  // Navigation handlers
+  const handleUpcomingVisitsClick = () => {
+    router.push("/calendar");
+  };
+
+  const handleLowStockClick = () => {
+    router.push("/inventory");
+  };
+
+  const handleTasksClick = () => {
+    router.push("/tasks");
+  };
+
   const handleAddReservation = () => {
-    debug.log("➕ Add reservation triggered");
     router.push("/calendar");
   };
 
   useEffect(() => {
     if (!authLoading && !user) {
-      debug.log("🔄 No user found, redirecting to auth...");
       router.push("/auth");
     }
   }, [user, authLoading, router]);
 
-  useEffect(() => {
-    if (process.env.NODE_ENV === "development") {
-      debug.log("🏠 HomePage render - Auth state:", {
-        user: user?.email || "none",
-        authLoading,
-        propertyLoading,
-        currentProperty: currentProperty?.name || "none",
-      });
-    }
-  }, [user?.email, authLoading, propertyLoading, currentProperty?.name]);
-
-  // ✅ Loading states - exactly as you had them
+  // Loading states
   if (authLoading) {
     return (
       <StandardPageLayout theme="dark" showHeader={false}>
@@ -254,10 +243,9 @@ export default function HomePage() {
     );
   }
 
-  // ✅ Main dashboard - exactly as you had it!
+  // Main dashboard
   return (
     <StandardPageLayout theme="dark" showHeader={false}>
-      {/* ✅ Beautiful DashboardHeader with property name and weather */}
       <div className="mb-6">
         <DashboardHeader weather={mockWeather} showWeather={true}>
           <h1 className="text-3xl md:text-4xl font-bold mb-1 text-white drop-shadow-lg tracking-tight">
@@ -270,122 +258,127 @@ export default function HomePage() {
       </div>
 
       <div className="space-y-6">
-        {/* ✅ Stats Grid - exactly as you had it */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <StandardCard>
-            <div className="flex items-center">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <svg
-                  className="w-6 h-6 text-blue-600"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                  />
-                </svg>
+        {/* Stats Grid - 3 clickable cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {/* Upcoming Visits */}
+          <div
+            onClick={handleUpcomingVisitsClick}
+            className="cursor-pointer transform transition-all duration-200 hover:scale-105 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-lg group"
+            role="button"
+            tabIndex={0}
+          >
+            <StandardCard className="h-full group-hover:shadow-lg transition-shadow">
+              <div className="flex items-center">
+                <div className="p-2 bg-blue-100 rounded-lg">
+                  <svg
+                    className="w-6 h-6 text-blue-600"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                    />
+                  </svg>
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600">
+                    Upcoming Visits
+                  </p>
+                  <p className="text-2xl font-semibold text-gray-900">
+                    {componentLoading.visits ? "..." : upcomingVisits.length}
+                  </p>
+                  <p className="text-xs text-blue-600 font-medium opacity-0 group-hover:opacity-100 transition-opacity">
+                    Click to view calendar →
+                  </p>
+                </div>
               </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">
-                  Upcoming Visits
-                </p>
-                <p className="text-2xl font-semibold text-gray-900">
-                  {componentLoading.visits ? "..." : upcomingVisits.length}
-                </p>
-              </div>
-            </div>
-          </StandardCard>
+            </StandardCard>
+          </div>
 
-          <StandardCard>
-            <div className="flex items-center">
-              <div className="p-2 bg-green-100 rounded-lg">
-                <svg
-                  className="w-6 h-6 text-green-600"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
-                  />
-                </svg>
+          {/* Low Stock Alerts */}
+          <div
+            onClick={handleLowStockClick}
+            className="cursor-pointer transform transition-all duration-200 hover:scale-105 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 rounded-lg group"
+            role="button"
+            tabIndex={0}
+          >
+            <StandardCard className="h-full group-hover:shadow-lg transition-shadow">
+              <div className="flex items-center">
+                <div className="p-2 bg-yellow-100 rounded-lg">
+                  <svg
+                    className="w-6 h-6 text-yellow-600"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"
+                    />
+                  </svg>
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600">
+                    Low Stock Alerts
+                  </p>
+                  <p className="text-2xl font-semibold text-gray-900">
+                    {componentLoading.inventory ? "..." : inventoryAlerts.length}
+                  </p>
+                  <p className="text-xs text-yellow-600 font-medium opacity-0 group-hover:opacity-100 transition-opacity">
+                    Click to manage inventory →
+                  </p>
+                </div>
               </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">
-                  Total Inventory
-                </p>
-                <p className="text-2xl font-semibold text-gray-900">
-                  {componentLoading.inventory ? "..." : totalInventoryCount}
-                </p>
-              </div>
-            </div>
-          </StandardCard>
+            </StandardCard>
+          </div>
 
-          <StandardCard>
-            <div className="flex items-center">
-              <div className="p-2 bg-yellow-100 rounded-lg">
-                <svg
-                  className="w-6 h-6 text-yellow-600"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"
-                  />
-                </svg>
+          {/* Pending Tasks */}
+          <div
+            onClick={handleTasksClick}
+            className="cursor-pointer transform transition-all duration-200 hover:scale-105 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 rounded-lg group"
+            role="button"
+            tabIndex={0}
+          >
+            <StandardCard className="h-full group-hover:shadow-lg transition-shadow">
+              <div className="flex items-center">
+                <div className="p-2 bg-red-100 rounded-lg">
+                  <svg
+                    className="w-6 h-6 text-red-600"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                    />
+                  </svg>
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600">
+                    Pending Tasks
+                  </p>
+                  <p className="text-2xl font-semibold text-gray-900">
+                    {componentLoading.tasks ? "..." : taskAlerts.length}
+                  </p>
+                  <p className="text-xs text-red-600 font-medium opacity-0 group-hover:opacity-100 transition-opacity">
+                    Click to view →
+                  </p>
+                </div>
               </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">
-                  Low Stock Alerts
-                </p>
-                <p className="text-2xl font-semibold text-gray-900">
-                  {componentLoading.inventory ? "..." : inventoryAlerts.length}
-                </p>
-              </div>
-            </div>
-          </StandardCard>
-
-          <StandardCard>
-            <div className="flex items-center">
-              <div className="p-2 bg-red-100 rounded-lg">
-                <svg
-                  className="w-6 h-6 text-red-600"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                  />
-                </svg>
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">
-                  Pending Tasks
-                </p>
-                <p className="text-2xl font-semibold text-gray-900">
-                  {componentLoading.tasks ? "..." : taskAlerts.length}
-                </p>
-              </div>
-            </div>
-          </StandardCard>
+            </StandardCard>
+          </div>
         </div>
 
-        {/* ✅ Quick Actions - exactly as you had it */}
+        {/* Quick Actions */}
         <StandardCard title="Quick Actions">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <button
@@ -462,7 +455,7 @@ export default function HomePage() {
           </div>
         </StandardCard>
 
-        {/* ✅ Property Location Map - exactly as you had it */}
+        {/* Property Location Map */}
         {currentProperty?.latitude && currentProperty?.longitude && (
           <StandardCard title="Property Location">
             <div className="h-64 w-full">

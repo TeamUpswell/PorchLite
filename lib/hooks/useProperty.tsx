@@ -16,6 +16,8 @@ interface Property {
   name: string;
   address: string;
   owner_id: string;
+  latitude?: number;
+  longitude?: number;
   created_at?: string;
   updated_at?: string;
 }
@@ -48,112 +50,70 @@ const PropertyContext = createContext<PropertyContextType | undefined>(
 );
 
 export function PropertyProvider({ children }: { children: React.ReactNode }) {
-  const { user, loading: authLoading, initialized } = useAuth(); // ✅ FIXED: Use correct auth properties
+  const { user, loading: authLoading, initialized } = useAuth();
   const [currentProperty, setCurrentProperty] = useState<Property | null>(null);
   const [userProperties, setUserProperties] = useState<Property[]>([]);
   const [tenant, setTenant] = useState<Tenant | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Track initialization state to prevent loops
-  const hasInitialized = useRef(false);
-  const lastUserId = useRef<string | null>(null);
-  const isLoadingRef = useRef(false);
+  // Simple refs to track state
+  const loadingRef = useRef(false);
+  const lastUserIdRef = useRef<string | null>(null);
 
-  console.log("🏠 Property: Provider render", {
-    user: user?.id,
-    authLoading,
-    initialized,
-    hasInitialized: hasInitialized.current,
-    lastUserId: lastUserId.current,
-    isLoading: isLoadingRef.current,
-    currentProperty: currentProperty?.id,
-    userPropertiesCount: userProperties.length,
-  });
+  // ✅ REDUCED: Only log critical state changes
+  const isDebugEnabled = process.env.NODE_ENV === 'development';
+  
+  if (isDebugEnabled && Math.random() < 0.1) { // Only log 10% of renders in dev
+    console.log("🏠 Property: Provider render", {
+      user: user?.id?.slice(0, 8) + '...',
+      authLoading,
+      currentProperty: currentProperty?.name,
+      propertiesCount: userProperties.length,
+    });
+  }
 
   const loadUserProperties = useCallback(async (): Promise<void> => {
-    if (!user?.id || isLoadingRef.current) {
-      console.log(
-        "🏠 Property: Skipping load - no user or already loading",
-        {
-          userId: user?.id,
-          isLoading: isLoadingRef.current,
-        }
-      );
+    const userId = user?.id;
+
+    if (!userId || loadingRef.current) {
       return;
     }
 
-    isLoadingRef.current = true;
+    loadingRef.current = true;
     setLoading(true);
     setError(null);
 
     try {
-      console.log("🏠 [PROD DEBUG] Loading properties for user:", user.id);
+      // ✅ REDUCED: Only log start of fetch, not every detail
+      if (isDebugEnabled) {
+        console.log("🏠 Property: Loading properties for user");
+      }
 
-      // Get user's properties through tenants table
       const { data: tenantData, error: tenantError } = await supabase
         .from("tenants")
         .select(`
           *,
           property:properties(*)
         `)
-        .eq("user_id", user.id);
+        .eq("user_id", userId);
 
-      if (tenantError) {
-        console.error("🏠 Property: Error loading tenants:", tenantError);
-        throw tenantError;
-      }
+      if (tenantError) throw tenantError;
 
-      console.log("🏠 [PROD DEBUG] Tenants response:", tenantData);
-
-      // Log each tenant record to see the structure
-      if (tenantData) {
-        tenantData.forEach((tenant, index) => {
-          console.log(`🏠 [DETAILED] Tenant ${index}:`, {
-            id: tenant.id,
-            property_id: tenant.property_id,
-            user_id: tenant.user_id,
-            role: tenant.role,
-            property: tenant.property,
-            propertyType: typeof tenant.property,
-            propertyKeys: tenant.property ? Object.keys(tenant.property) : "none",
-          });
-        });
-      }
-
-      // ✅ FIXED: Better property extraction with proper null/empty array handling
       const properties: Property[] = [];
       const validTenants: Tenant[] = [];
 
       if (tenantData) {
-        tenantData.forEach((tenantRecord, index) => {
-          console.log(`🏠 [PROCESSING] Processing tenant ${index}:`, tenantRecord);
-
-          // Check if property exists
+        tenantData.forEach((tenantRecord) => {
           if (tenantRecord.property) {
-            console.log(`🏠 [PROCESSING] Property found for tenant ${index}:`, tenantRecord.property);
-
             let propertyData = tenantRecord.property;
 
-            // ✅ FIXED: Handle arrays properly - check if empty first
             if (Array.isArray(propertyData)) {
-              console.log(`🏠 [PROCESSING] Property is array, length: ${propertyData.length}`);
-              
-              if (propertyData.length === 0) {
-                console.log(`🏠 [PROCESSING] Empty property array for tenant ${index}, skipping`);
-                return; // ✅ Skip this tenant entirely
-              }
-              
+              if (propertyData.length === 0) return;
               propertyData = propertyData[0];
-              console.log(`🏠 [PROCESSING] Taking first property from array:`, propertyData);
             }
 
-            // ✅ FIXED: Validate the property has required fields AND exists
-            if (propertyData && 
-                typeof propertyData === 'object' && 
-                propertyData.id && 
-                propertyData.name) {
-              console.log(`🏠 [PROCESSING] Valid property found:`, propertyData);
+            if (propertyData?.id && propertyData?.name) {
               properties.push(propertyData as Property);
               validTenants.push({
                 id: tenantRecord.id,
@@ -162,99 +122,109 @@ export function PropertyProvider({ children }: { children: React.ReactNode }) {
                 role: tenantRecord.role,
                 created_at: tenantRecord.created_at,
               });
-            } else {
-              console.log(`🏠 [PROCESSING] Invalid property data for tenant ${index}:`, propertyData);
             }
-          } else {
-            console.log(`🏠 [PROCESSING] No property for tenant ${index}`);
           }
         });
       }
 
-      console.log("🏠 [PROD DEBUG] Processed properties:", properties);
-      console.log("🏠 [PROD DEBUG] Valid tenants:", validTenants);
+      // ✅ REDUCED: Only log significant changes
+      if (isDebugEnabled && properties.length !== userProperties.length) {
+        console.log("🏠 Property: Found", properties.length, "properties");
+      }
 
       setUserProperties(properties);
+      setTenant(validTenants[0] || null);
 
-      // Set current tenant info if available
-      if (validTenants.length > 0) {
-        setTenant(validTenants[0]);
-      } else {
-        setTenant(null); // ✅ FIXED: Clear tenant if no valid ones
-      }
+      setCurrentProperty((prevCurrent) => {
+        const currentStillValid =
+          prevCurrent &&
+          properties.some((p) => p.id === prevCurrent.id);
 
-      // ✅ FIXED: Better current property logic
-      if (properties.length > 0) {
-        // If no current property is set, or current property is not in the list, set the first one
-        const currentPropertyStillValid = currentProperty && 
-          properties.some(p => p.id === currentProperty.id);
-        
-        if (!currentPropertyStillValid) {
-          console.log("🏠 Property: Setting first property as current:", properties[0]);
-          setCurrentProperty(properties[0]);
+        if (!currentStillValid && properties.length > 0) {
+          if (isDebugEnabled) {
+            console.log("🏠 Property: Set current to:", properties[0].name);
+          }
+          return properties[0];
+        } else if (properties.length === 0) {
+          return null;
         }
-      } else {
-        console.log("🏠 Property: No valid properties found, clearing current property");
-        setCurrentProperty(null);
-      }
+
+        return prevCurrent;
+      });
     } catch (err) {
-      console.error("🏠 Property: Error loading properties:", err);
+      // ✅ KEEP: Always log errors
+      console.error("🏠 Property loading error:", err);
       setError(err instanceof Error ? err.message : "Failed to load properties");
-      
-      // ✅ FIXED: Clear state on error
       setUserProperties([]);
       setCurrentProperty(null);
       setTenant(null);
     } finally {
       setLoading(false);
-      isLoadingRef.current = false;
+      loadingRef.current = false;
     }
-  }, [user?.id, currentProperty]);
+  }, [user?.id, userProperties.length]); // Added userProperties.length for comparison
 
-  // ✅ FIXED: Initialize properties when user changes (but prevent loops)
+  const cleanupRef = useRef<(() => void)[]>([]);
+
+  const registerCleanup = (cleanup: () => void) => {
+    cleanupRef.current.push(cleanup);
+  };
+
+  // ✅ REDUCED: Less verbose user effect logging
   useEffect(() => {
-    const currentUserId = user?.id || null;
+    let mounted = true;
 
-    console.log("🏠 Property: User effect triggered", {
-      currentUserId,
-      lastUserId: lastUserId.current,
-      authLoading,
-      initialized,
-      hasInitialized: hasInitialized.current,
-    });
+    const handleUserChange = async () => {
+      if (!initialized) {
+        return;
+      }
 
-    // ✅ FIXED: Wait for auth to be initialized, not just loading
-    if (authLoading || !initialized) {
-      console.log("🏠 Property: Auth not ready, waiting...");
-      return;
-    }
+      const newUserId = user?.id || null;
 
-    // If user logged out, clear everything
-    if (!currentUserId) {
-      console.log("🏠 Property: No user, clearing properties");
-      setCurrentProperty(null);
-      setUserProperties([]);
-      setTenant(null);
-      setError(null);
-      hasInitialized.current = false;
-      lastUserId.current = null;
-      return;
-    }
+      if (newUserId !== lastUserIdRef.current) {
+        // ✅ REDUCED: Only log user changes, not every check
+        if (isDebugEnabled) {
+          console.log("🏠 Property: User changed", {
+            hasUser: !!newUserId,
+            hadUser: !!lastUserIdRef.current
+          });
+        }
 
-    // Only load if user actually changed
-    if (currentUserId !== lastUserId.current) {
-      console.log("🏠 Property: User changed, loading properties", {
-        from: lastUserId.current,
-        to: currentUserId,
+        lastUserIdRef.current = newUserId;
+
+        if (newUserId && mounted) {
+          await loadUserProperties();
+        } else if (mounted) {
+          setUserProperties([]);
+          setCurrentProperty(null);
+          setLoading(false);
+        }
+      }
+    };
+
+    handleUserChange();
+
+    return () => {
+      mounted = false;
+    };
+  }, [user?.id, authLoading, initialized, loadUserProperties]);
+
+  // ✅ REDUCED: Only log cleanup in debug mode
+  useEffect(() => {
+    return () => {
+      if (isDebugEnabled) {
+        console.log("🏠 Property: Provider cleanup");
+      }
+      cleanupRef.current.forEach((cleanup) => {
+        try {
+          cleanup();
+        } catch (error) {
+          console.error("🏠 Property: Cleanup error:", error);
+        }
       });
-
-      lastUserId.current = currentUserId;
-      hasInitialized.current = true;
-      loadUserProperties();
-    } else {
-      console.log("🏠 Property: Same user, skipping load");
-    }
-  }, [user?.id, authLoading, initialized, loadUserProperties]); // ✅ FIXED: Use initialized instead of status
+      cleanupRef.current = [];
+    };
+  }, []);
 
   const createProperty = useCallback(
     async (
@@ -270,7 +240,6 @@ export function PropertyProvider({ children }: { children: React.ReactNode }) {
 
       if (error) throw error;
 
-      // Also create tenant entry for the owner
       await supabase
         .from("tenants")
         .insert([

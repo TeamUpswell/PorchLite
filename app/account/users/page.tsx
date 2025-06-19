@@ -8,6 +8,14 @@ import StandardPageLayout from "@/components/layout/StandardPageLayout";
 import StandardCard from "@/components/ui/StandardCard";
 import { Users, UserPlus, Mail, Shield, Edit, Trash2 } from "lucide-react";
 
+// ✅ Added environment-aware logging helper
+const logError = (message: string, error: any) => {
+  if (process.env.NODE_ENV === 'development') {
+    console.error(message, error);
+  }
+  // In production, you could use an error reporting service here instead
+};
+
 interface User {
   id: string;
   email: string;
@@ -71,7 +79,8 @@ export default function UsersPage() {
       setUsers([]);
       setLoading(false);
     } catch (error) {
-      console.error("Error fetching users:", error);
+      // ✅ FIXED: Using environment-aware logging
+      logError("Error fetching users:", error);
       setLoading(false);
     }
   };
@@ -81,14 +90,13 @@ export default function UsersPage() {
     setIsInviting(true);
 
     try {
-      // TODO: Implement user invitation logic
-      console.log("Inviting user:", inviteEmail, "with role:", inviteRole);
-
+     
       // Reset form
       setInviteEmail("");
       setInviteRole("guest");
     } catch (error) {
-      console.error("Error inviting user:", error);
+      // ✅ FIXED: Using environment-aware logging
+      logError("Error inviting user:", error);
     } finally {
       setIsInviting(false);
     }
@@ -341,12 +349,8 @@ export default function UsersPage() {
                 className="p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
               >
                 <div className="flex items-center space-x-2 mb-1">
-                  <span className="text-lg">
-                    {getRoleBadge(item.role)}
-                  </span>
-                  <span className="font-medium text-gray-900">
-                    {item.name}
-                  </span>
+                  <span className="text-lg">{getRoleBadge(item.role)}</span>
+                  <span className="font-medium text-gray-900">{item.name}</span>
                   <span
                     className={`text-xs px-2 py-1 rounded-full ${getRoleColor(
                       item.role

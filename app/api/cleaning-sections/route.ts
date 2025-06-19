@@ -1,72 +1,137 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { logInfo, logError } from "@/lib/utils/logging";
 
-export async function GET(request: NextRequest) {
+// Helper to detect common database errors
+const handleDatabaseError = (error: any) => {
+  // Check for table not found error
+  if (error?.code === '42P01' && error?.message?.includes('does not exist')) {
+    return {
+      code: 'TABLE_NOT_FOUND',
+      message: 'The required database table is missing. Please run database migrations.',
+      details: error.message,
+      status: 500
+    };
+  }
+  
+  // Permission errors
+  if (error?.code === '42501' || error?.code === '28000') {
+    return {
+      code: 'PERMISSION_DENIED',
+      message: 'Database permission denied. Check your API key permissions.',
+      details: error.message,
+      status: 403
+    };
+  }
+  
+  // Default database error
+  return {
+    code: 'DATABASE_ERROR',
+    message: 'A database error occurred',
+    details: error.message,
+    status: 500
+  };
+};
+
+export async function POST(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const propertyId = searchParams.get("property_id");
+    const body = await request.json();
+    logInfo("Cleaning sections request body", body);
+
+    // Handle both propertyId and property_id
+    const propertyId = body.propertyId || body.property_id;
 
     if (!propertyId) {
+      logError("Missing property ID in request", { body: { hasPropertyId: false } });
       return NextResponse.json(
-        { error: "Property ID required" },
+        { 
+          error: "BAD_REQUEST", 
+          message: "propertyId is required" 
+        },
         { status: 400 }
       );
     }
 
-    const { data: sections, error } = await supabase
-      .from("instruction_sections")
+    logInfo("Looking for cleaning sections for property", { propertyId });
+
+    const { data, error } = await supabase
+      .from("cleaning_sections")
       .select("*")
       .eq("property_id", propertyId)
       .order("order_index");
 
     if (error) {
-      console.error("Error fetching cleaning sections:", error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      logError("Supabase cleaning sections error", error);
+      
+      // Handle specific database errors
+      const dbError = handleDatabaseError(error);
+      
+      return NextResponse.json({ 
+        error: dbError.code,
+        message: dbError.message
+      }, { status: dbError.status });
     }
 
-    return NextResponse.json({ sections });
+    logInfo("Cleaning sections found", { count: data?.length || 0 });
+    return NextResponse.json(data || []);
   } catch (error) {
-    console.error("API error:", error);
+    logError("Cleaning sections API error", error);
+    
     return NextResponse.json(
-      { error: "Internal server error" },
+      { 
+        error: "INTERNAL_SERVER_ERROR",
+        message: "An unexpected error occurred" 
+      },
       { status: 500 }
     );
   }
 }
 
-export async function POST(request: NextRequest) {
+export async function GET(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { property_id, name, instructions, order_index } = body;
+    const { searchParams } = new URL(request.url);
+    const propertyId = searchParams.get("propertyId");
 
-    if (!property_id || !name) {
+    if (!propertyId) {
       return NextResponse.json(
-        { error: "Property ID and name required" },
+        { 
+          error: "BAD_REQUEST",
+          message: "propertyId query parameter is required" 
+        },
         { status: 400 }
       );
     }
 
-    const { data: section, error } = await supabase
-      .from("instruction_sections")
-      .insert({
-        property_id,
-        name,
-        instructions: instructions || "",
-        order_index: order_index || 0,
-      })
-      .select()
-      .single();
+    logInfo("GET cleaning sections for property", { propertyId });
+
+    const { data, error } = await supabase
+      .from("cleaning_sections")
+      .select("*")
+      .eq("property_id", propertyId)
+      .order("order_index");
 
     if (error) {
-      console.error("Error creating cleaning section:", error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      logError("GET cleaning sections error", error);
+      
+      // Handle specific database errors
+      const dbError = handleDatabaseError(error);
+      
+      return NextResponse.json({ 
+        error: dbError.code,
+        message: dbError.message
+      }, { status: dbError.status });
     }
 
-    return NextResponse.json({ section });
+    logInfo("GET cleaning sections found", { count: data?.length || 0 });
+    return NextResponse.json(data || []);
   } catch (error) {
-    console.error("API error:", error);
+    logError("GET cleaning sections API error", error);
+    
     return NextResponse.json(
-      { error: "Internal server error" },
+      { 
+        error: "INTERNAL_SERVER_ERROR",
+        message: "An unexpected error occurred" 
+      },
       { status: 500 }
     );
   }

@@ -24,10 +24,27 @@ export const debug = {
 };
 
 // Also export individual functions for convenience
-export const debugLog = debug.log;
-export const debugError = debug.error;
+export const debugLog = (...args: any[]) => {
+  if (process.env.NODE_ENV === 'development') {
+    console.log(...args);
+  }
+};
+
+export const debugError = (...args: any[]) => {
+  if (process.env.NODE_ENV === 'development') {
+    console.error(...args);
+  }
+};
+
 export const debugWarn = debug.warn;
 export const debugInfo = debug.info;
+
+export const logDebug = (message: string, data?: any) => {
+  if (process.env.NODE_ENV === 'development') {
+    // In development, log the message but sanitize sensitive data
+    console.log(message, data ? '[DATA REDACTED]' : '');
+  }
+};
 
 // Usage in your components:
 // import { debugLog, debugError, debugWarn } from '@/lib/utils/debug';

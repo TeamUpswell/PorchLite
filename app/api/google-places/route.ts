@@ -27,11 +27,13 @@ export async function GET(request: NextRequest) {
 
     const data = await response.json();
 
-    console.log("🔍 Google Place Details API response:", {
-      status: data.status,
-      hasPhotos: !!data.result?.photos,
-      photoCount: data.result?.photos?.length || 0,
-    });
+    if (process.env.NODE_ENV === "development") {
+      console.log("🔍 Google Place Details API response:", {
+        status: data.status,
+        hasPhotos: !!data.result?.photos,
+        photoCount: data.result?.photos?.length || 0,
+      });
+    }
 
     if (data.status === "OK" && data.result?.photos?.[0]) {
       return NextResponse.json({

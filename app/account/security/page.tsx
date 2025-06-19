@@ -7,6 +7,7 @@ import PageContainer from "@/components/layout/PageContainer";
 import Header from "@/components/layout/Header";
 import StandardCard from "@/components/ui/StandardCard";
 import { Key, Shield, LogOut } from "lucide-react";
+import ConfirmModal from "@/components/ui/ConfirmModal";
 
 export default function SecurityPage() {
   const { user } = useAuth();
@@ -18,6 +19,7 @@ export default function SecurityPage() {
     text: "",
     type: "",
   });
+  const [showConfirm, setShowConfirm] = useState(false);
 
   // Password change function
   const changePassword = async (e: FormEvent<HTMLFormElement>) => {
@@ -74,6 +76,15 @@ export default function SecurityPage() {
       });
     } finally {
       setIsChangingPassword(false);
+    }
+  };
+
+  const handleSignOutAll = async () => {
+    try {
+      await supabase.auth.signOut({ scope: "global" });
+      window.location.href = "/auth";
+    } catch (error) {
+      console.error("Error signing out:", error);
     }
   };
 
@@ -245,25 +256,21 @@ export default function SecurityPage() {
               <button
                 type="button"
                 className="px-4 py-2 border border-red-500 text-red-500 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors"
-                onClick={async () => {
-                  if (
-                    confirm(
-                      "Are you sure you want to sign out from all devices?"
-                    )
-                  ) {
-                    try {
-                      await supabase.auth.signOut({ scope: "global" });
-                      window.location.href = "/auth";
-                    } catch (error) {
-                      console.error("Error signing out:", error);
-                    }
-                  }
-                }}
+                onClick={() => setShowConfirm(true)}
               >
                 Sign Out From All Devices
               </button>
             </div>
           </StandardCard>
+
+          {/* Confirm Modal */}
+          <ConfirmModal
+            open={showConfirm}
+            onClose={() => setShowConfirm(false)}
+            onConfirm={handleSignOutAll}
+            title="Sign Out From All Devices"
+            description="Are you sure you want to sign out from all devices? This will require you to log in again."
+          />
         </div>
       </PageContainer>
     </div>

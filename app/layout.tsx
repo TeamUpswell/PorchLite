@@ -6,10 +6,9 @@ import { PropertyProvider } from "@/lib/hooks/useProperty";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { Toaster } from "react-hot-toast";
 import Script from "next/script";
-import ErrorBoundary from "@/components/ErrorBoundary";
-import ClientErrorTracker from "@/components/ClientErrorTracker";
-import AuthStateMonitor from "@/components/AuthStateMonitor";
-import SessionMonitor from "@/components/SessionMonitor";
+import { PageErrorBoundary } from "@/components/PageErrorBoundary"; // ✅ ADD
+import SessionRecovery from "@/components/system/SessionRecovery";
+import { withSessionRetry } from '@/lib/api-helpers';
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -27,17 +26,15 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${inter.className} bg-gray-900`}>
         <ThemeProvider>
-          <ClientErrorTracker />
-          <ErrorBoundary>
-            <AuthProvider>
-              <AuthStateMonitor />
-              <SessionMonitor />
-              <PropertyProvider>
-                {children} {/* ✅ ONLY THIS - NO OTHER COMPONENTS */}
-                <Toaster position="top-right" />
-              </PropertyProvider>
-            </AuthProvider>
-          </ErrorBoundary>
+          <AuthProvider>
+            <PropertyProvider>
+              <PageErrorBoundary>
+                <SessionRecovery />
+                {children}
+              </PageErrorBoundary>
+              <Toaster position="top-right" />
+            </PropertyProvider>
+          </AuthProvider>
         </ThemeProvider>
         <Script
           src={`https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=places&loading=async`}
@@ -47,3 +44,35 @@ export default function RootLayout({
     </html>
   );
 }
+
+// Import the helper
+// import { withSessionRetry } from '@/lib/api-helpers';
+
+// Update one of your API functions as an example
+// const fetchUpcomingVisits = async (propertyId: string): Promise<UpcomingVisit[]> => {
+//   try {
+//     const today = new Date().toISOString().split("T")[0];
+    
+//     const result = await withSessionRetry(() => 
+//       supabase
+//         .from("reservations")
+//         .select("id, title, start_date, end_date, status")
+//         .eq("property_id", propertyId)
+//         .gte("start_date", today)
+//         .order("start_date", { ascending: true })
+//         .limit(10)
+//     );
+    
+//     if (result.error) {
+//       console.error("Error fetching visits:", result.error);
+//       return [];
+//     }
+    
+//     return result.data || [];
+//   } catch (error) {
+//     console.error("Exception fetching visits:", error);
+//     return [];
+//   }
+// };
+
+// Similarly update your other API functions
