@@ -1,7 +1,7 @@
-// app/calendar/page.tsx
+// app/calendar/page.tsx - Final version
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { PageErrorBoundary } from "@/components/PageErrorBoundary";
 import { useAuth } from "@/components/auth";
 import { useProperty } from "@/lib/hooks/useProperty";
@@ -14,127 +14,102 @@ import { Calendar as CalendarIcon } from "lucide-react";
 function CalendarPageContent() {
   const { user, loading: authLoading } = useAuth();
   const { currentProperty, loading: propertyLoading } = useProperty();
-  const [newReservationTrigger, setNewReservationTrigger] = useState(0);
-  const [isStuck, setIsStuck] = useState(false);
-  const [isPageVisible, setIsPageVisible] = useState(true);
-  const [timedOut, setTimedOut] = useState(false); // ✅ Added timedOut state
-  const lastActivityRef = useRef(Date.now());
+  
+  // Simplified state management
+  const [refreshKey, setRefreshKey] = useState(0);
+  
+  // Refs to prevent excessive updates
+  const lastRefreshRef = useRef(Date.now());
   const mountTimeRef = useRef(Date.now());
+  const hasInitializedRef = useRef(false);
+  const lastPropertyIdRef = useRef<string | null>(null);
 
+  // Memoize loading state to prevent unnecessary re-renders
+  const isLoading = useMemo(() => {
+    return authLoading || propertyLoading;
+  }, [authLoading, propertyLoading]);
+
+  // Single initialization effect
   useEffect(() => {
+    if (hasInitializedRef.current) return;
+    
     debugLog("📅 Calendar page component mounted");
     mountTimeRef.current = Date.now();
+    hasInitializedRef.current = true;
     
     return () => {
       debugLog("📅 Calendar page unmounted");
+      hasInitializedRef.current = false;
     };
   }, []);
 
-  // ✅ Enhanced retry function for calendar data
-  const retryCalendarData = () => {
-    setTimedOut(false);
-    setIsStuck(false);
-    lastActivityRef.current = Date.now();
-    setNewReservationTrigger(prev => prev + 1);
-    debugLog("🔄 Calendar: Manual retry triggered");
-  };
+  // Throttled refresh function to prevent spam
+  const refreshCalendar = useCallback(() => {
+    const now = Date.now();
+    const timeSinceLastRefresh = now - lastRefreshRef.current;
+    
+    // Prevent refreshes more than once every 5 seconds
+    if (timeSinceLastRefresh < 5000) {
+      console.log("🚫 Calendar refresh throttled");
+      return;
+    }
+    
+    lastRefreshRef.current = now;
+    setRefreshKey(prev => prev + 1);
+    debugLog("🔄 Calendar refreshed");
+  }, []);
 
-  // ✅ Enhanced visibility and focus handling for calendar
+  // Handle property changes (refresh calendar when property changes)
+  useEffect(() => {
+    if (!currentProperty?.id) {
+      return;
+    }
+
+    // If property changed, refresh calendar (but throttled)
+    if (lastPropertyIdRef.current && lastPropertyIdRef.current !== currentProperty.id) {
+      console.log("🏠 Property changed, refreshing calendar");
+      refreshCalendar();
+    }
+    
+    lastPropertyIdRef.current = currentProperty.id;
+  }, [currentProperty?.id, refreshCalendar]);
+
+  // Simplified visibility handling - REMOVED refreshCalendar dependency
   useEffect(() => {
     const handleVisibilityChange = () => {
       const isVisible = document.visibilityState === 'visible';
-      setIsPageVisible(isVisible);
       
       if (isVisible) {
         console.log("👁️ Calendar page became visible");
-        lastActivityRef.current = Date.now();
-        setIsStuck(false);
-        setTimedOut(false); // ✅ Reset timeout on visibility
         
-        // Reset calendar state if it's been hidden for a while
+        // Only refresh if it's been hidden for more than 5 minutes
         const timeSinceMount = Date.now() - mountTimeRef.current;
-        if (timeSinceMount > 60000) { // 1 minute
+        if (timeSinceMount > 300000) { // 5 minutes
           console.log("🔄 Calendar: Refreshing after long absence");
-          setNewReservationTrigger(prev => prev + 1);
+          
+          // Call refresh directly instead of using the callback
+          const now = Date.now();
+          const timeSinceLastRefresh = now - lastRefreshRef.current;
+          
+          if (timeSinceLastRefresh >= 5000) {
+            lastRefreshRef.current = now;
+            setRefreshKey(prev => prev + 1);
+            debugLog("🔄 Calendar refreshed after visibility change");
+          }
         }
       } else {
         console.log("👁️ Calendar page became hidden");
       }
     };
 
-    const handleFocus = () => {
-      console.log("🔍 Calendar window focused");
-      lastActivityRef.current = Date.now();
-      setIsStuck(false);
-      setTimedOut(false); // ✅ Reset timeout on focus
-    };
-
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('focus', handleFocus);
-
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('focus', handleFocus);
     };
-  }, []);
+  }, []); // Empty dependency array - only set up once
 
-  // ✅ More lenient timeout detection
-  useEffect(() => {
-    const checkActivity = () => {
-      const now = Date.now();
-      const timeSinceActivity = now - lastActivityRef.current;
-      
-      // Only consider stuck if page is visible and truly inactive
-      // Increased timeout to 2 minutes and only when page is visible
-      if (isPageVisible && timeSinceActivity > 120000) {
-        setIsStuck(true);
-        console.warn("⚠️ Calendar: Page appears stuck, no activity for 2 minutes");
-      }
-    };
-
-    const interval = setInterval(checkActivity, 10000); // Check every 10 seconds instead of 5
-
-    // Reset activity on any user interaction
-    const resetActivity = () => {
-      lastActivityRef.current = Date.now();
-      setIsStuck(false);
-      setTimedOut(false); // ✅ Reset timeout on activity
-    };
-
-    // ✅ More interaction types to detect activity
-    const events = ["click", "keydown", "scroll", "mousemove", "touchstart"];
-    events.forEach(event => {
-      window.addEventListener(event, resetActivity, { passive: true });
-    });
-
-    return () => {
-      clearInterval(interval);
-      events.forEach(event => {
-        window.removeEventListener(event, resetActivity);
-      });
-    };
-  }, [isPageVisible]);
-
-  // ✅ Auto-recovery mechanism
-  useEffect(() => {
-    if (isStuck && user && currentProperty) {
-      console.log("🔧 Calendar: Attempting auto-recovery");
-      
-      // Try to auto-recover after 10 seconds
-      const recoveryTimeout = setTimeout(() => {
-        console.log("🔄 Calendar: Auto-recovering...");
-        setIsStuck(false);
-        setTimedOut(false);
-        lastActivityRef.current = Date.now();
-        setNewReservationTrigger(prev => prev + 1);
-      }, 10000);
-
-      return () => clearTimeout(recoveryTimeout);
-    }
-  }, [isStuck, user, currentProperty]);
-
-  // Just use a simple loading state in the calendar page
-  if (authLoading || propertyLoading) {
+  // Show loading state
+  if (isLoading) {
     return (
       <StandardPageLayout title="Calendar">
         <div className="flex items-center justify-center p-8">
@@ -168,25 +143,7 @@ function CalendarPageContent() {
     );
   }
 
-  // ✅ Enhanced stuck warning with LoadingWithTimeout integration
-  if (isStuck) {
-    return (
-      <StandardPageLayout
-        theme="dark"
-        showHeader={false}
-        showSideNav={true}
-      >
-        <LoadingWithTimeout
-          isLoading={true}
-          onRetry={retryCalendarData}
-          message="Calendar appears to be stuck. This might be due to browser inactivity."
-          showRetryButton={true}
-        />
-      </StandardPageLayout>
-    );
-  }
-
-  // ✅ Main calendar with enhanced error recovery
+  // Main calendar - stable, no forced re-mounting
   return (
     <StandardPageLayout
       theme="dark"
@@ -195,9 +152,9 @@ function CalendarPageContent() {
     >
       <div className="space-y-6">
         <Calendar
-          newReservationTrigger={newReservationTrigger}
+          refreshTrigger={refreshKey}
           isManager={true}
-          key={`calendar-${newReservationTrigger}`} // Force re-render when trigger changes
+          onRefreshNeeded={refreshCalendar}
         />
       </div>
     </StandardPageLayout>

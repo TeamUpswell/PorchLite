@@ -1,6 +1,7 @@
+// app/page.tsx - Optimized version
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useAuth } from "@/components/auth";
 import { useProperty } from "@/lib/hooks/useProperty";
 import { supabase } from "@/lib/supabase";
@@ -31,7 +32,11 @@ export default function HomePage() {
   const { user, loading: authLoading } = useAuth();
   const { currentProperty, loading: propertyLoading } = useProperty();
   
-  // Use the weather hook
+  // Prevent multiple simultaneous fetches
+  const fetchingRef = useRef(false);
+  const hasFetchedRef = useRef<string | null>(null);
+  
+  // Use the weather hook with stable reference
   const { weather: realWeather, loading: weatherLoading, error: weatherError } = usePropertyWeather();
   
   const [upcomingVisits, setUpcomingVisits] = useState<UpcomingVisit[]>([]);
@@ -48,8 +53,8 @@ export default function HomePage() {
 
   const router = useRouter();
 
-  // Fallback weather data (your existing mockWeather)
-  const mockWeather = {
+  // Memoize fallback weather to prevent re-creation
+  const mockWeather = useMemo(() => ({
     current: {
       temp: 72,
       condition: "Partly Cloudy",
@@ -68,31 +73,35 @@ export default function HomePage() {
       },
       { date: "Wed", high: 73, low: 60, condition: "Rain", icon: "rain" },
     ],
-  };
+  }), []);
 
-  // Use real weather if available, otherwise fall back to mock
-  const weatherData = realWeather || mockWeather;
+  // Memoize weather data to prevent unnecessary re-renders
+  const weatherData = useMemo(() => {
+    return realWeather || mockWeather;
+  }, [realWeather, mockWeather]);
 
-  // Simple data fetching - exactly like your working version
-  const fetchDashboardData = useCallback(async () => {
-    if (!currentProperty?.id) {
-      console.log("❌ No current property, skipping dashboard fetch");
+  // Memoize the fetch function - REMOVED from useEffect dependency
+  const fetchDashboardData = useCallback(async (propertyId: string, userId: string) => {
+    // Prevent duplicate fetches for the same property
+    if (fetchingRef.current || hasFetchedRef.current === propertyId) {
       return;
     }
 
-    console.log("🔍 Fetching dashboard data for property:", currentProperty.id);
-    setLoading(true);
+    fetchingRef.current = true;
+    hasFetchedRef.current = propertyId;
 
     try {
-      // Visits
-      setComponentLoading((prev) => ({ ...prev, visits: true }));
+      console.log('🏠 Property and user loaded, fetching dashboard:', currentProperty?.name);
+      
       const today = new Date().toISOString().split("T")[0];
+      console.log("🔍 Fetching dashboard data for property:", propertyId);
       console.log("🔍 Dashboard: Looking for reservations after:", today);
 
+      // Fetch visits
       const visitsData = await supabase
         .from("reservations")
         .select("id, title, start_date, end_date, status")
-        .eq("property_id", currentProperty.id)
+        .eq("property_id", propertyId)
         .gte("start_date", today)
         .order("start_date", { ascending: true })
         .limit(10);
@@ -101,12 +110,11 @@ export default function HomePage() {
       setUpcomingVisits(visitsData.data || []);
       setComponentLoading((prev) => ({ ...prev, visits: false }));
 
-      // Inventory
-      setComponentLoading((prev) => ({ ...prev, inventory: true }));
+      // Fetch inventory
       const inventoryData = await supabase
         .from("inventory")
         .select("id, name, quantity")
-        .eq("property_id", currentProperty.id)
+        .eq("property_id", propertyId)
         .eq("is_active", true);
 
       const inventoryItems = inventoryData.data || [];
@@ -126,12 +134,11 @@ export default function HomePage() {
       setTotalInventoryCount(inventoryItems.length);
       setComponentLoading((prev) => ({ ...prev, inventory: false }));
 
-      // Tasks
-      setComponentLoading((prev) => ({ ...prev, tasks: true }));
+      // Fetch tasks
       const tasksData = await supabase
         .from("tasks")
         .select("id, title, status, priority, due_date")
-        .eq("property_id", currentProperty.id)
+        .eq("property_id", propertyId)
         .in("status", ["pending", "in_progress"])
         .order("due_date", { ascending: true })
         .limit(10);
@@ -145,57 +152,57 @@ export default function HomePage() {
       setComponentLoading({ visits: false, inventory: false, tasks: false });
     } finally {
       setLoading(false);
+      fetchingRef.current = false;
+    }
+  }, [currentProperty?.name]); // Minimal dependencies
+
+  // FIXED: Removed fetchDashboardData from dependency array
+  useEffect(() => {
+    if (authLoading || propertyLoading || !user?.id || !currentProperty?.id) {
+      if (!authLoading && !propertyLoading) {
+        setLoading(false);
+      }
+      return;
+    }
+
+    // Call with specific IDs instead of using callback in deps
+    fetchDashboardData(currentProperty.id, user.id);
+  }, [user?.id, currentProperty?.id, authLoading, propertyLoading]); // REMOVED fetchDashboardData
+
+  // Reset fetch tracking when property changes
+  useEffect(() => {
+    if (currentProperty?.id !== hasFetchedRef.current) {
+      hasFetchedRef.current = null;
+      fetchingRef.current = false;
+      // Reset loading states when property changes
+      setComponentLoading({ visits: true, inventory: true, tasks: true });
+      setLoading(true);
     }
   }, [currentProperty?.id]);
 
-  // Single useEffect for data loading - exactly like your working version
-  useEffect(() => {
-    if (authLoading || propertyLoading) {
-      return;
-    }
+  // Memoize navigation handlers to prevent re-creation
+  const navigationHandlers = useMemo(() => ({
+    handleUpcomingVisitsClick: () => router.push("/calendar"),
+    handleLowStockClick: () => router.push("/inventory"),
+    handleTasksClick: () => router.push("/tasks"),
+    handleAddReservation: () => router.push("/calendar"),
+    handleInventoryClick: () => router.push("/inventory"),
+    handleCreateTaskClick: () => router.push("/tasks"),
+  }), [router]);
 
-    if (!user?.id || !currentProperty?.id) {
-      console.log("⏳ Waiting for user and property to load...");
-      setLoading(false);
-      return;
-    }
-
-    console.log("🏠 Property and user loaded, fetching dashboard:", currentProperty.name);
-    fetchDashboardData();
-  }, [
-    currentProperty?.id,
-    currentProperty?.name,
-    user?.id,
-    authLoading,
-    propertyLoading,
-    fetchDashboardData,
-  ]);
-
-  // Navigation handlers
-  const handleUpcomingVisitsClick = () => {
-    router.push("/calendar");
-  };
-
-  const handleLowStockClick = () => {
-    router.push("/inventory");
-  };
-
-  const handleTasksClick = () => {
-    router.push("/tasks");
-  };
-
-  const handleAddReservation = () => {
-    router.push("/calendar");
-  };
-
+  // Auth redirect effect
   useEffect(() => {
     if (!authLoading && !user) {
       router.push("/auth");
     }
   }, [user, authLoading, router]);
 
+  // Memoize loading states to prevent unnecessary re-renders
+  const isAuthLoading = authLoading;
+  const isPropertyLoading = propertyLoading;
+
   // Loading states
-  if (authLoading) {
+  if (isAuthLoading) {
     return (
       <StandardPageLayout theme="dark" showHeader={false}>
         <StandardCard>
@@ -207,14 +214,14 @@ export default function HomePage() {
     );
   }
 
-  if (user && propertyLoading) {
+  if (user && isPropertyLoading) {
     return (
       <StandardPageLayout theme="dark" showHeader={false}>
         <StandardCard>
           <div className="flex items-center justify-center py-12">
             <div className="text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-              <p>Loading your property...</p>
+              <p>⏳ Waiting for user and property to load...</p>
             </div>
           </div>
         </StandardCard>
@@ -289,7 +296,7 @@ export default function HomePage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {/* Upcoming Visits */}
           <div
-            onClick={handleUpcomingVisitsClick}
+            onClick={navigationHandlers.handleUpcomingVisitsClick}
             className="cursor-pointer transform transition-all duration-200 hover:scale-105 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-lg group"
             role="button"
             tabIndex={0}
@@ -328,7 +335,7 @@ export default function HomePage() {
 
           {/* Low Stock Alerts */}
           <div
-            onClick={handleLowStockClick}
+            onClick={navigationHandlers.handleLowStockClick}
             className="cursor-pointer transform transition-all duration-200 hover:scale-105 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 rounded-lg group"
             role="button"
             tabIndex={0}
@@ -367,7 +374,7 @@ export default function HomePage() {
 
           {/* Pending Tasks */}
           <div
-            onClick={handleTasksClick}
+            onClick={navigationHandlers.handleTasksClick}
             className="cursor-pointer transform transition-all duration-200 hover:scale-105 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 rounded-lg group"
             role="button"
             tabIndex={0}
@@ -409,7 +416,7 @@ export default function HomePage() {
         <StandardCard title="Quick Actions">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <button
-              onClick={handleAddReservation}
+              onClick={navigationHandlers.handleAddReservation}
               className="p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors"
             >
               <div className="text-center">
@@ -433,7 +440,7 @@ export default function HomePage() {
             </button>
 
             <button
-              onClick={() => router.push("/inventory")}
+              onClick={navigationHandlers.handleInventoryClick}
               className="p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-green-300 hover:bg-green-50 transition-colors"
             >
               <div className="text-center">
@@ -457,7 +464,7 @@ export default function HomePage() {
             </button>
 
             <button
-              onClick={() => router.push("/tasks")}
+              onClick={navigationHandlers.handleCreateTaskClick}
               className="p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-purple-300 hover:bg-purple-50 transition-colors"
             >
               <div className="text-center">

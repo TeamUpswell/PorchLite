@@ -1,61 +1,32 @@
 // components/system/UnifiedSessionManager.tsx
-"use client";
+'use client';
 
-import { useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect } from 'react';
 
 export default function UnifiedSessionManager() {
-  const router = useRouter();
-  const hasInitialized = useRef(false);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
-
   useEffect(() => {
-    // Prevent multiple initializations
-    if (hasInitialized.current) return;
-    hasInitialized.current = true;
+    console.log('🔧 UnifiedSessionManager initialized');
 
-    if (process.env.NODE_ENV === "development") {
-      console.log("🔧 UnifiedSessionManager initialized");
-    }
-
-    // Basic session health check every 5 minutes (not every 2 minutes)
-    intervalRef.current = setInterval(() => {
-      if (document.visibilityState === "visible") {
-        // Only check if user is actively using the app
-        const lastActivity = Date.now() - (window as any).lastActivity || 0;
-        if (lastActivity < 10 * 60 * 1000) {
-          // 10 minutes
-          // Optionally refresh if needed
+    // Global cleanup on page unload
+    const handleBeforeUnload = () => {
+      // Cancel any pending requests
+      if (typeof window !== 'undefined') {
+        // Clear timeouts and intervals
+        const highestId = window.setTimeout(() => {}, 0);
+        for (let i = 0; i < highestId; i++) {
+          window.clearTimeout(i);
+          window.clearInterval(i);
         }
       }
-    }, 5 * 60 * 1000); // 5 minutes
-
-    // Track activity
-    const updateActivity = () => {
-      (window as any).lastActivity = Date.now();
     };
 
-    const events = ["click", "keydown", "scroll"];
-    events.forEach((event) => {
-      document.addEventListener(event, updateActivity, { passive: true });
-    });
+    window.addEventListener('beforeunload', handleBeforeUnload);
 
     return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
-
-      events.forEach((event) => {
-        document.removeEventListener(event, updateActivity);
-      });
-
-      if (process.env.NODE_ENV === "development") {
-        console.log("🔧 UnifiedSessionManager cleaned up");
-      }
-
-      hasInitialized.current = false;
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      console.log('🔧 UnifiedSessionManager cleaned up');
     };
-  }, []); // Empty dependency array is crucial
+  }, []); // Empty dependency array - only run once
 
   return null;
 }

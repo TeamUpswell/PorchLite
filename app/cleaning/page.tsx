@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/components/auth";
 import { useProperty } from "@/lib/hooks/useProperty";
 import { supabase } from "@/lib/supabase";
@@ -29,6 +29,10 @@ export default function CleaningPage() {
   });
   const [loading, setLoading] = useState(true);
 
+  // Add refs to prevent double fetching
+  const loadingRef = useRef(false);
+  const lastPropertyIdRef = useRef<string | null>(null);
+
   useEffect(() => {
     async function loadCleaningStats() {
       if (!currentProperty?.id) {
@@ -36,7 +40,17 @@ export default function CleaningPage() {
         return;
       }
 
+      // Prevent double fetching for same property
+      if (loadingRef.current || lastPropertyIdRef.current === currentProperty.id) {
+        return;
+      }
+
+      loadingRef.current = true;
+      lastPropertyIdRef.current = currentProperty.id;
+
       try {
+        console.log('🏠 Property and user loaded, fetching sections:', currentProperty.name);
+        
         // Mock data for now
         const mockStats = {
           totalTasks: 12,
@@ -50,10 +64,24 @@ export default function CleaningPage() {
         console.error("Error loading cleaning stats:", error);
       } finally {
         setLoading(false);
+        loadingRef.current = false;
       }
     }
 
     loadCleaningStats();
+    
+    // Cleanup function
+    return () => {
+      loadingRef.current = false;
+    };
+  }, [currentProperty?.id]);
+
+  // Reset refs when property changes
+  useEffect(() => {
+    if (currentProperty?.id !== lastPropertyIdRef.current) {
+      lastPropertyIdRef.current = null;
+      loadingRef.current = false;
+    }
   }, [currentProperty?.id]);
 
   if (authLoading || propertyLoading) {
