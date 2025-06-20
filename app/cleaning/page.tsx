@@ -278,4 +278,123 @@ export default function CleaningPage() {
                       <div
                         className="h-2 bg-green-600 rounded-full"
                         style={{ width: `${progressPercentage}%` }}
-                      
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Stat Cards Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {statCards.map((card, index) => (
+                    <div
+                      key={index}
+                      className={`rounded-lg shadow-md p-4 flex items-center space-x-4 ${card.bgColor} ${card.borderColor}`}
+                    >
+                      <div
+                        className={`p-3 rounded-full ${card.iconBg} ${card.iconColor}`}
+                      >
+                        <card.icon className="h-6 w-6" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-xs font-semibold ${card.textColor}`}>
+                          {card.title}
+                        </p>
+                        <p className={`text-lg font-bold ${card.valueColor}`}>
+                          {card.value}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex flex-col sm:flex-row sm:space-x-4">
+                  <Link
+                    href="/cleaning/tasks"
+                    className="inline-flex items-center justify-center px-4 py-2 text-sm font-semibold text-white bg-blue-600 rounded-lg shadow-md hover:bg-blue-700 transition-all duration-200"
+                  >
+                    <Plus className="w-5 h-5 mr-2" />
+                    New Cleaning Task
+                  </Link>
+                  <Link
+                    href="/cleaning/history"
+                    className="inline-flex items-center justify-center px-4 py-2 text-sm font-semibold text-gray-700 bg-gray-100 rounded-lg shadow-md hover:bg-gray-200 transition-all duration-200"
+                  >
+                    <Calendar className="w-5 h-5 mr-2" />
+                    View Cleaning History
+                  </Link>
+                </div>
+              </div>
+            )}
+          </StandardCard>
+
+          {/* Detailed Stats Table - Hidden on small screens */}
+          <div className="hidden sm:block">
+            <StandardCard title="Detailed Cleaning Stats">
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th
+                        scope="col"
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      >
+                        Task
+                      </th>
+                      <th
+                        scope="col"
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      >
+                        Status
+                      </th>
+                      <th
+                        scope="col"
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      >
+                        Due Date
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {/* TODO: Replace with real data rows */}
+                    <tr>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-medium text-gray-900">
+                          Sample Task 1
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className="text-xs inline-flex items-center font-semibold rounded-full px-2.5 py-0.5 bg-green-100 text-green-800">
+                          Completed
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-500">2023-10-10</div>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-medium text-gray-900">
+                          Sample Task 2
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className="text-xs inline-flex items-center font-semibold rounded-full px-2.5 py-0.5 bg-red-100 text-red-800">
+                          Overdue
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-500">2023-09-30</div>
+                      </td>
+                    </tr>
+                    {/* More rows... */}
+                  </tbody>
+                </table>
+              </div>
+            </StandardCard>
+          </div>
+        </div>
+      </div>
+    </MainLayout>
+  );
+}
