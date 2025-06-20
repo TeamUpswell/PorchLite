@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import {
   Package,
   Plus,
@@ -22,26 +22,10 @@ import FloatingActionButton from "@/components/ui/FloatingActionButton";
 import { useAuth } from "@/components/auth";
 import { useInventory } from "@/components/inventory/hooks/useInventory";
 import { useProperty } from "@/lib/hooks/useProperty";
-import { supabase } from "@/lib/supabase";
-import toast from "react-hot-toast";
-import { useRouter } from "next/navigation";
 import { PropertyGuard } from "@/components/ui/PropertyGuard";
+import { useRouter } from "next/navigation";
 
-// Debug utilities
-const debugLog = (message: string, ...args: any[]) => {
-  if (process.env.NODE_ENV === "development") {
-    console.log(message, ...args);
-  }
-};
-
-const debugError = (message: string, error: any) => {
-  if (process.env.NODE_ENV === "development") {
-    console.error(message, error);
-  }
-};
-
-export const dynamic = "force-dynamic";
-
+// Types
 interface InventoryItem {
   id: string;
   name: string;
@@ -56,81 +40,58 @@ interface InventoryItem {
 
 type ViewMode = "grid" | "list" | "card";
 
+// Debug utilities
+const debugLog = (message: string, ...args: any[]) => {
+  if (process.env.NODE_ENV === "development") {
+    console.log(message, ...args);
+  }
+};
+
+export const dynamic = "force-dynamic";
+
 export default function InventoryPage() {
   // Hooks
   const { user, loading: authLoading } = useAuth();
-  const {
-    currentProperty,
-    loading: propertyLoading,
-    error: propertyError,
-  } = useProperty();
+  const { currentProperty, loading: propertyLoading, error: propertyError } = useProperty();
   const inventoryHook = useInventory();
-
-  // Local state
-  const [viewMode, setViewMode] = useState<ViewMode>("grid");
-  const isManagerView = true;
-  const isFamilyView = false;
-  const isGuestView = false;
-
   const router = useRouter();
 
-  // State declarations
+  // State
+  const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [showManageModal, setShowManageModal] = useState(false);
   const [showShoppingListModal, setShowShoppingListModal] = useState(false);
-  const [showImportModal, setShowImportModal] = useState(false);
-  const [inventory, setInventory] = useState<InventoryItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [hasInitialized, setHasInitialized] = useState(false);
-  const [filter, setFilter] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
+  const [filter, setFilter] = useState("all");
 
-  // Memoized values
-  const shoppingListItems = useMemo(() => {
-    if (!inventoryHook.filteredItems) return [];
-    return inventoryHook.filteredItems.filter((item) => {
-      return item.status === "low" || item.status === "out";
-    });
-  }, [inventoryHook.filteredItems]);
+  // Refs for optimization
+  const mountedRef = useRef(true);
+  const urlParamsProcessedRef = useRef(false);
 
-  const stats = useMemo(() => {
-    const items = inventoryHook.filteredItems || [];
-
+  // Memoized view permissions
+  const viewPermissions = useMemo(() => {
+    const userOwnsProperty = currentProperty?.created_by === user?.id;
     return {
-      totalItems: items.length,
-      goodStockItems: items.filter((item) => {
-        if (item.status === "good") return true;
-        if (item.status === "low" || item.status === "out") return false;
-        if (item.quantity === 0) return false;
-        if (item.quantity <= (item.threshold || 5)) return false;
-        return true;
-      }).length,
-
-      lowStockItems: items.filter((item) => {
-        return item.status === "low";
-      }).length,
-
-      outOfStockItems: items.filter((item) => {
-        if (item.status === "out") return true;
-        if (item.status === "good" || item.status === "low") return false;
-        return item.quantity === 0;
-      }).length,
+      isManagerView: userOwnsProperty,
+      isFamilyView: false, // Add logic as needed
+      isGuestView: !userOwnsProperty,
+      userOwnsProperty,
     };
-  }, [inventoryHook.filteredItems]);
+  }, [currentProperty?.created_by, user?.id]);
 
-  const { totalItems, goodStockItems, lowStockItems, outOfStockItems } = stats;
+  const { isManagerView, isFamilyView, isGuestView, userOwnsProperty } = viewPermissions;
 
-  const propertyId = useMemo(() => currentProperty?.id, [currentProperty?.id]);
-  const userId = useMemo(() => user?.id, [user?.id]);
-
-  // Threshold analysis state
-  const [thresholdAnalysis, setThresholdAnalysis] = useState({
-    averageThreshold: 0,
-    thresholdRange: { min: 0, max: 0 },
-    itemsWithHighThreshold: 0,
-  });
-
-  // URL params effect
+  // Component cleanup
   useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  // URL params processing - only once
+  useEffect(() => {
+    if (urlParamsProcessedRef.current) return;
+    
     const params = new URLSearchParams(window.location.search);
 
     if (params.get("create-shopping-list") === "true") {
@@ -142,130 +103,120 @@ export default function InventoryPage() {
       inventoryHook.setIsAddingItem(true);
       window.history.replaceState({}, "", "/inventory");
     }
+
+    urlParamsProcessedRef.current = true;
   }, [inventoryHook]);
 
-  // Debug effects
-  useEffect(() => {
-    debugLog("📦 INVENTORY PAGE LOADED - /app/inventory/page.tsx");
+  // Memoized filtered items with search
+  const filteredItems = useMemo(() => {
+    let items = inventoryHook.filteredItems || [];
+
+    // Apply search filter
+    if (searchTerm.trim()) {
+      const search = searchTerm.toLowerCase();
+      items = items.filter(item => 
+        item.name.toLowerCase().includes(search)
+      );
+    }
+
+    // Apply status filter
+    if (filter !== "all") {
+      items = items.filter(item => item.status === filter);
+    }
+
+    return items;
+  }, [inventoryHook.filteredItems, searchTerm, filter]);
+
+  // Memoized shopping list items
+  const shoppingListItems = useMemo(() => {
+    return filteredItems.filter(item => 
+      item.status === "low" || item.status === "out"
+    );
+  }, [filteredItems]);
+
+  // Memoized stats
+  const stats = useMemo(() => {
+    const items = filteredItems;
+
+    const goodStockItems = items.filter(item => {
+      if (item.status === "good") return true;
+      if (item.status === "low" || item.status === "out") return false;
+      if (item.quantity === 0) return false;
+      if (item.quantity <= (item.threshold || 5)) return false;
+      return true;
+    }).length;
+
+    const lowStockItems = items.filter(item => item.status === "low").length;
+    const outOfStockItems = items.filter(item => 
+      item.status === "out" || (item.status !== "good" && item.status !== "low" && item.quantity === 0)
+    ).length;
+
+    return {
+      totalItems: items.length,
+      goodStockItems,
+      lowStockItems,
+      outOfStockItems,
+    };
+  }, [filteredItems]);
+
+  // Memoized handlers
+  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value);
   }, []);
 
+  const handleFilterChange = useCallback((newFilter: string) => {
+    setFilter(newFilter);
+  }, []);
+
+  const handleModalClose = useCallback(() => {
+    setShowManageModal(false);
+    inventoryHook.refreshItems();
+  }, [inventoryHook]);
+
+  const handleAddItem = useCallback(() => {
+    inventoryHook.setIsAddingItem(true);
+  }, [inventoryHook]);
+
+  const handleShowShoppingList = useCallback(() => {
+    setShowShoppingListModal(true);
+  }, []);
+
+  const handleShowManage = useCallback(() => {
+    setShowManageModal(true);
+  }, []);
+
+  // Memoized navigation handlers
+  const navigationHandlers = useMemo(() => ({
+    goToProperties: () => router.push("/properties"),
+    goToDashboard: () => router.push("/"),
+    reload: () => window.location.reload(),
+  }), [router]);
+
+  // Debug effect - only in development
   useEffect(() => {
-    debugLog("📦 Inventory Page Debug:", {
-      propertyId: currentProperty?.id,
-      propertyName: currentProperty?.name,
-      userOwnsProperty: currentProperty?.created_by === user?.id,
-      isManagerView,
-      isFamilyView,
-      isGuestView,
-    });
+    if (process.env.NODE_ENV === "development") {
+      debugLog("📦 INVENTORY PAGE LOADED - /app/inventory/page.tsx");
+      debugLog("📦 Inventory Page Debug:", {
+        propertyId: currentProperty?.id,
+        propertyName: currentProperty?.name,
+        userOwnsProperty,
+        isManagerView,
+        isFamilyView,
+        isGuestView,
+        totalItems: stats.totalItems,
+      });
+    }
   }, [
     currentProperty?.id,
     currentProperty?.name,
-    currentProperty?.created_by,
-    user?.id,
+    userOwnsProperty,
     isManagerView,
     isFamilyView,
     isGuestView,
+    stats.totalItems,
   ]);
 
-  // Threshold analysis effect
-  useEffect(() => {
-    if (inventoryHook.filteredItems) {
-      const analysis = {
-        averageThreshold:
-          inventoryHook.filteredItems.reduce(
-            (sum, item) => sum + (item.threshold || 0),
-            0
-          ) / (inventoryHook.filteredItems.length || 1),
-        thresholdRange: {
-          min: Math.min(
-            ...(inventoryHook.filteredItems.map(
-              (item) => item.threshold || 0
-            ) || [0])
-          ),
-          max: Math.max(
-            ...(inventoryHook.filteredItems.map(
-              (item) => item.threshold || 0
-            ) || [0])
-          ),
-        },
-        itemsWithHighThreshold: inventoryHook.filteredItems.filter(
-          (item) => (item.threshold || 0) > 10
-        ).length,
-      };
-
-      setThresholdAnalysis(analysis);
-      debugLog("🔍 Threshold Analysis:", analysis);
-    }
-  }, [inventoryHook.filteredItems]);
-
-  // Load inventory function
-  const loadInventory = useCallback(async () => {
-    if (!propertyId) {
-      debugLog("❌ No property ID, skipping inventory fetch");
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from("inventory")
-        .select("*")
-        .eq("property_id", propertyId)
-        .eq("is_active", true)
-        .order("name");
-
-      if (error) {
-        debugError("❌ Error loading inventory:", error);
-        if (hasInitialized) {
-          toast.error("Failed to load inventory");
-        }
-      } else {
-        setInventory(data || []);
-        debugLog("✅ Loaded inventory:", data?.length || 0, "items");
-      }
-    } catch (error) {
-      debugError("❌ Unexpected error:", error);
-      if (hasInitialized) {
-        toast.error("Failed to load inventory");
-      }
-    } finally {
-      setLoading(false);
-    }
-  }, [propertyId, hasInitialized]);
-
-  // Main data loading effect
-  useEffect(() => {
-    if (authLoading || propertyLoading) {
-      return;
-    }
-
-    if (!userId || !propertyId) {
-      debugLog("⏳ Waiting for user and property to load...");
-      setLoading(false);
-      setHasInitialized(true);
-      return;
-    }
-
-    debugLog("🏠 Loading inventory for:", currentProperty?.name);
-    setHasInitialized(true);
-    loadInventory();
-  }, [
-    userId,
-    propertyId,
-    authLoading,
-    propertyLoading,
-    loadInventory,
-    currentProperty?.name,
-  ]);
-
-  // Modal handlers
-  const handleModalClose = () => {
-    setShowManageModal(false);
-    inventoryHook.refreshItems();
-  };
-
-  // Early returns after all hooks
+  // Loading states
   if (authLoading || propertyLoading) {
     return (
       <StandardPageLayout>
@@ -274,7 +225,7 @@ export default function InventoryPage() {
             <div className="text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-3"></div>
               <p className="text-gray-600">
-                {authLoading ? "Authenticating..." : "Loading property..."}
+                {authLoading ? "⏳ Authenticating..." : "🏠 Loading property..."}
               </p>
             </div>
           </div>
@@ -287,6 +238,7 @@ export default function InventoryPage() {
     return null; // Auth will redirect
   }
 
+  // Error states
   if (propertyError) {
     return (
       <StandardPageLayout>
@@ -301,7 +253,7 @@ export default function InventoryPage() {
             </h3>
             <p className="text-red-600 mb-4">{propertyError}</p>
             <button
-              onClick={() => window.location.reload()}
+              onClick={navigationHandlers.reload}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
             >
               Try Again
@@ -329,13 +281,13 @@ export default function InventoryPage() {
             </p>
             <div className="flex gap-3 justify-center">
               <button
-                onClick={() => router.push("/properties")}
+                onClick={navigationHandlers.goToProperties}
                 className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               >
                 Select Property
               </button>
               <button
-                onClick={() => router.push("/")}
+                onClick={navigationHandlers.goToDashboard}
                 className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
               >
                 Go to Dashboard
@@ -346,9 +298,6 @@ export default function InventoryPage() {
       </StandardPageLayout>
     );
   }
-
-  // Check if user owns the property
-  const userOwnsProperty = currentProperty?.created_by === user?.id;
 
   if (!userOwnsProperty) {
     return (
@@ -366,7 +315,7 @@ export default function InventoryPage() {
               You don&apos;t have access to manage inventory for this property.
             </p>
             <button
-              onClick={() => router.push("/")}
+              onClick={navigationHandlers.goToDashboard}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
             >
               Return to Dashboard
@@ -377,7 +326,7 @@ export default function InventoryPage() {
     );
   }
 
-  if (loading) {
+  if (inventoryHook.loading) {
     return (
       <StandardPageLayout>
         <StandardCard>
@@ -385,7 +334,7 @@ export default function InventoryPage() {
             <div className="text-center">
               <Package className="mx-auto h-12 w-12 text-gray-300 mb-3 animate-pulse" />
               <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto mb-3"></div>
-              <p className="text-gray-600">Loading inventory...</p>
+              <p className="text-gray-600">📦 Loading inventory...</p>
             </div>
           </div>
         </StandardCard>
@@ -393,7 +342,7 @@ export default function InventoryPage() {
     );
   }
 
-  // Main inventory page
+  // Main render
   return (
     <PropertyGuard>
       <StandardPageLayout>
@@ -404,20 +353,20 @@ export default function InventoryPage() {
             headerActions={
               <div className="flex items-center gap-2">
                 <span className="text-xs text-gray-500">
-                  {totalItems} total items
+                  {stats.totalItems} total items
                 </span>
-                {(outOfStockItems > 0 || lowStockItems > 0) && (
+                {(stats.outOfStockItems > 0 || stats.lowStockItems > 0) && (
                   <div className="flex items-center gap-1">
-                    {outOfStockItems > 0 && (
+                    {stats.outOfStockItems > 0 && (
                       <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
                         <AlertTriangle className="h-3 w-3 mr-1" />
-                        {outOfStockItems} out
+                        {stats.outOfStockItems} out
                       </span>
                     )}
-                    {lowStockItems > 0 && (
+                    {stats.lowStockItems > 0 && (
                       <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
                         <AlertTriangle className="h-3 w-3 mr-1" />
-                        {lowStockItems} low
+                        {stats.lowStockItems} low
                       </span>
                     )}
                   </div>
@@ -431,12 +380,12 @@ export default function InventoryPage() {
                 <StandardCard className="p-4">
                   <div className="text-center">
                     <div className="text-2xl font-bold text-green-600">
-                      {goodStockItems}
+                      {stats.goodStockItems}
                     </div>
                     <div className="text-sm text-gray-600">Well Stocked</div>
                     <div className="text-xs text-gray-500 mt-1">
-                      {totalItems > 0
-                        ? Math.round((goodStockItems / totalItems) * 100)
+                      {stats.totalItems > 0
+                        ? Math.round((stats.goodStockItems / stats.totalItems) * 100)
                         : 0}
                       % of inventory
                     </div>
@@ -446,7 +395,7 @@ export default function InventoryPage() {
                 <StandardCard className="p-4">
                   <div className="text-center">
                     <div className="text-2xl font-bold text-yellow-600">
-                      {lowStockItems}
+                      {stats.lowStockItems}
                     </div>
                     <div className="text-sm text-gray-600">Getting Low</div>
                     <div className="text-xs text-gray-500 mt-1">
@@ -458,11 +407,11 @@ export default function InventoryPage() {
                 <StandardCard className="p-4">
                   <div className="text-center">
                     <div className="text-2xl font-bold text-red-600">
-                      {outOfStockItems}
+                      {stats.outOfStockItems}
                     </div>
                     <div className="text-sm text-gray-600">Out of Stock</div>
                     <div className="text-xs text-gray-500 mt-1">
-                      {outOfStockItems > 0
+                      {stats.outOfStockItems > 0
                         ? "Immediate attention needed"
                         : "All good!"}
                     </div>
@@ -474,14 +423,14 @@ export default function InventoryPage() {
               {(isManagerView || isFamilyView) && (
                 <div className="flex flex-wrap gap-3">
                   <button
-                    onClick={() => inventoryHook.setIsAddingItem(true)}
+                    onClick={handleAddItem}
                     className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                   >
                     <Plus className="h-4 w-4 mr-2" />
                     Add Item
                   </button>
                   <button
-                    onClick={() => setShowShoppingListModal(true)}
+                    onClick={handleShowShoppingList}
                     className="inline-flex items-center px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
                   >
                     <ShoppingCart className="h-4 w-4 mr-2" />
@@ -493,7 +442,7 @@ export default function InventoryPage() {
                     )}
                   </button>
                   <button
-                    onClick={() => setShowManageModal(true)}
+                    onClick={handleShowManage}
                     className="inline-flex items-center px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
                   >
                     <Settings className="h-4 w-4 mr-2" />
@@ -510,35 +459,43 @@ export default function InventoryPage() {
                     type="text"
                     placeholder="Search inventory..."
                     value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
+                    onChange={handleSearchChange}
                     className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                 </div>
-                <button className="flex items-center px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
-                  <Filter className="h-4 w-4 mr-2" />
-                  Filters
-                </button>
+                <select
+                  value={filter}
+                  onChange={(e) => handleFilterChange(e.target.value)}
+                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="all">All Items</option>
+                  <option value="good">Well Stocked</option>
+                  <option value="low">Low Stock</option>
+                  <option value="out">Out of Stock</option>
+                </select>
               </div>
 
               {/* Main Inventory Table */}
               <StandardCard
                 title="Inventory Items"
-                subtitle={`${totalItems} items • ${currentProperty.name}`}
+                subtitle={`${filteredItems.length} items • ${currentProperty.name}`}
               >
-                {inventoryHook.filteredItems?.length === 0 ? (
+                {filteredItems.length === 0 ? (
                   <div className="text-center py-12">
                     <Package className="mx-auto h-16 w-16 text-gray-300 mb-4" />
                     <h3 className="text-lg font-medium text-gray-900 mb-2">
                       No inventory items found
                     </h3>
                     <p className="text-gray-600 mb-6">
-                      {totalItems === 0
+                      {stats.totalItems === 0
                         ? "Get started by adding your first inventory item."
-                        : "Try adjusting your filters to see more items."}
+                        : searchTerm || filter !== "all"
+                        ? "Try adjusting your search or filters to see more items."
+                        : "No items match your current view."}
                     </p>
-                    {(isManagerView || isFamilyView) && totalItems === 0 && (
+                    {(isManagerView || isFamilyView) && stats.totalItems === 0 && (
                       <button
-                        onClick={() => inventoryHook.setIsAddingItem(true)}
+                        onClick={handleAddItem}
                         className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                       >
                         <Plus className="h-5 w-5 mr-2" />
@@ -548,14 +505,11 @@ export default function InventoryPage() {
                   </div>
                 ) : (
                   <InventoryTable
-                    items={inventoryHook.filteredItems || []}
+                    items={filteredItems}
                     handleEdit={inventoryHook.handleEdit}
                     handleDelete={inventoryHook.handleDelete}
                     updateQuantity={inventoryHook.updateQuantity}
-                    updateItemStatus={(itemId, status) => {
-                      debugLog("🔄 Direct call to updateItemStatus:", itemId, status);
-                      return inventoryHook.updateItemStatus?.(itemId, status);
-                    }}
+                    updateItemStatus={inventoryHook.updateItemStatus}
                   />
                 )}
               </StandardCard>
@@ -563,13 +517,13 @@ export default function InventoryPage() {
           </StandardCard>
         </div>
 
-        {/* Floating Action Buttons - Only for family/manager */}
+        {/* Floating Action Buttons */}
         {(isManagerView || isFamilyView) && (
           <div className="fixed bottom-6 right-6 flex flex-col items-end space-y-3 z-50">
             <FloatingActionButton
               icon={Plus}
               label="Add Item"
-              onClick={() => inventoryHook.setIsAddingItem(true)}
+              onClick={handleAddItem}
               variant="primary"
             />
 
@@ -577,7 +531,7 @@ export default function InventoryPage() {
               <FloatingActionButton
                 icon={ShoppingCart}
                 label="Shopping List"
-                onClick={() => setShowShoppingListModal(true)}
+                onClick={handleShowShoppingList}
                 variant={shoppingListItems.length > 0 ? "success" : "secondary"}
               />
 

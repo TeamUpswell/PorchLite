@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useAuth } from "@/components/auth";
 import { useProperty } from "@/lib/hooks/useProperty";
 import { supabase } from "@/lib/supabase";
-import MainLayout from "@/components/layout/MainLayout"; // ✅ Use MainLayout
+import MainLayout from "@/components/layout/MainLayout";
 import StandardCard from "@/components/ui/StandardCard";
 import Link from "next/link";
 import {
@@ -18,80 +18,204 @@ import {
   ArrowRight,
 } from "lucide-react";
 
+interface CleaningStats {
+  totalTasks: number;
+  completedTasks: number;
+  pendingTasks: number;
+  overdueTasks: number;
+}
+
 export default function CleaningPage() {
   const { user, loading: authLoading } = useAuth();
   const { currentProperty, loading: propertyLoading } = useProperty();
-  const [stats, setStats] = useState({
+  const [stats, setStats] = useState<CleaningStats>({
     totalTasks: 0,
     completedTasks: 0,
     pendingTasks: 0,
     overdueTasks: 0,
   });
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
-  // Add refs to prevent double fetching
-  const loadingRef = useRef(false);
-  const lastPropertyIdRef = useRef<string | null>(null);
+  // Refs to prevent multiple fetches and track component mount
+  const fetchingRef = useRef(false);
+  const hasFetchedRef = useRef<string | null>(null);
+  const mountedRef = useRef(true);
 
+  // Memoize loading states
+  const isLoading = useMemo(() => {
+    return authLoading || propertyLoading;
+  }, [authLoading, propertyLoading]);
+
+  // Component cleanup
   useEffect(() => {
-    async function loadCleaningStats() {
-      if (!currentProperty?.id) {
-        setLoading(false);
-        return;
-      }
-
-      // Prevent double fetching for same property
-      if (loadingRef.current || lastPropertyIdRef.current === currentProperty.id) {
-        return;
-      }
-
-      loadingRef.current = true;
-      lastPropertyIdRef.current = currentProperty.id;
-
-      try {
-        console.log('🏠 Property and user loaded, fetching sections:', currentProperty.name);
-        
-        // Mock data for now
-        const mockStats = {
-          totalTasks: 12,
-          completedTasks: 8,
-          pendingTasks: 3,
-          overdueTasks: 1,
-        };
-
-        setStats(mockStats);
-      } catch (error) {
-        console.error("Error loading cleaning stats:", error);
-      } finally {
-        setLoading(false);
-        loadingRef.current = false;
-      }
-    }
-
-    loadCleaningStats();
-    
-    // Cleanup function
+    mountedRef.current = true;
     return () => {
-      loadingRef.current = false;
+      mountedRef.current = false;
     };
-  }, [currentProperty?.id]);
+  }, []);
 
-  // Reset refs when property changes
+  // Optimized stats loading function
+  const loadCleaningStats = useCallback(async (propertyId: string) => {
+    // Prevent duplicate fetches
+    if (fetchingRef.current || hasFetchedRef.current === propertyId) {
+      return;
+    }
+
+    fetchingRef.current = true;
+    hasFetchedRef.current = propertyId;
+
+    try {
+      console.log("🧽 Loading cleaning stats for property:", propertyId);
+      setLoading(true);
+
+      // TODO: Replace with real API call when ready
+      // For now, simulate API delay and return mock data
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // Mock data - replace with real Supabase query
+      const mockStats: CleaningStats = {
+        totalTasks: 12,
+        completedTasks: 8,
+        pendingTasks: 3,
+        overdueTasks: 1,
+      };
+
+      // Future real implementation:
+      /*
+      const { data: cleaningTasks, error } = await supabase
+        .from("cleaning_tasks")
+        .select("status, due_date")
+        .eq("property_id", propertyId);
+
+      if (error) throw error;
+
+      const now = new Date();
+      const stats = {
+        totalTasks: cleaningTasks?.length || 0,
+        completedTasks: cleaningTasks?.filter(task => task.status === "completed").length || 0,
+        pendingTasks: cleaningTasks?.filter(task => task.status === "pending").length || 0,
+        overdueTasks: cleaningTasks?.filter(task => 
+          task.status !== "completed" && 
+          task.due_date && 
+          new Date(task.due_date) < now
+        ).length || 0,
+      };
+      */
+
+      if (mountedRef.current) {
+        console.log("✅ Cleaning stats loaded:", mockStats);
+        setStats(mockStats);
+      }
+    } catch (error) {
+      console.error("❌ Error loading cleaning stats:", error);
+      if (mountedRef.current) {
+        // Reset to default stats on error
+        setStats({
+          totalTasks: 0,
+          completedTasks: 0,
+          pendingTasks: 0,
+          overdueTasks: 0,
+        });
+      }
+    } finally {
+      if (mountedRef.current) {
+        setLoading(false);
+      }
+      fetchingRef.current = false;
+    }
+  }, []);
+
+  // Single useEffect with proper dependencies
   useEffect(() => {
-    if (currentProperty?.id !== lastPropertyIdRef.current) {
-      lastPropertyIdRef.current = null;
-      loadingRef.current = false;
+    if (isLoading || !currentProperty?.id) {
+      if (!isLoading) {
+        setLoading(false);
+      }
+      return;
+    }
+
+    console.log("🏠 Property loaded, fetching cleaning stats");
+    loadCleaningStats(currentProperty.id);
+  }, [currentProperty?.id, isLoading, loadCleaningStats]);
+
+  // Reset fetch tracking when property changes
+  useEffect(() => {
+    if (currentProperty?.id !== hasFetchedRef.current) {
+      hasFetchedRef.current = null;
+      fetchingRef.current = false;
+      setLoading(true);
     }
   }, [currentProperty?.id]);
 
-  if (authLoading || propertyLoading) {
+  // Memoized progress calculation
+  const progressPercentage = useMemo(() => {
+    if (stats.totalTasks === 0) return 0;
+    return Math.round((stats.completedTasks / stats.totalTasks) * 100);
+  }, [stats.totalTasks, stats.completedTasks]);
+
+  // Memoized stat cards data
+  const statCards = useMemo(() => [
+    {
+      title: "Total Tasks",
+      value: stats.totalTasks,
+      icon: CheckCircle,
+      color: "blue",
+      bgColor: "bg-blue-50",
+      borderColor: "border-blue-200",
+      iconBg: "bg-blue-100",
+      iconColor: "text-blue-600",
+      textColor: "text-blue-900",
+      valueColor: "text-blue-600",
+    },
+    {
+      title: "Completed",
+      value: stats.completedTasks,
+      icon: CheckCircle,
+      color: "green",
+      bgColor: "bg-green-50",
+      borderColor: "border-green-200",
+      iconBg: "bg-green-100",
+      iconColor: "text-green-600",
+      textColor: "text-green-900",
+      valueColor: "text-green-600",
+    },
+    {
+      title: "Pending",
+      value: stats.pendingTasks,
+      icon: Clock,
+      color: "yellow",
+      bgColor: "bg-yellow-50",
+      borderColor: "border-yellow-200",
+      iconBg: "bg-yellow-100",
+      iconColor: "text-yellow-600",
+      textColor: "text-yellow-900",
+      valueColor: "text-yellow-600",
+    },
+    {
+      title: "Overdue",
+      value: stats.overdueTasks,
+      icon: AlertCircle,
+      color: "red",
+      bgColor: "bg-red-50",
+      borderColor: "border-red-200",
+      iconBg: "bg-red-100",
+      iconColor: "text-red-600",
+      textColor: "text-red-900",
+      valueColor: "text-red-600",
+    },
+  ], [stats]);
+
+  // Loading states
+  if (isLoading) {
     return (
       <MainLayout>
         <div className="p-6">
           <StandardCard>
             <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-              <span className="ml-2">Loading cleaning dashboard...</span>
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+                <p className="text-gray-600">⏳ Loading cleaning dashboard...</p>
+              </div>
             </div>
           </StandardCard>
         </div>
@@ -130,7 +254,7 @@ export default function CleaningPage() {
           {/* Overview Stats Card */}
           <StandardCard
             title={`${currentProperty.name} - Cleaning Dashboard`}
-            subtitle="Manage cleaning tasks and track progress"
+            subtitle={`Manage cleaning tasks and track progress • ${progressPercentage}% complete`}
           >
             {loading ? (
               <div className="flex items-center justify-center py-8">
@@ -138,136 +262,20 @@ export default function CleaningPage() {
                 <span className="ml-2">Loading stats...</span>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                {/* Total Tasks */}
-                <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
-                  <div className="flex items-center">
-                    <div className="p-2 bg-blue-100 rounded-lg">
-                      <CheckCircle className="h-6 w-6 text-blue-600" />
+              <div className="space-y-6">
+                {/* Progress Bar */}
+                {stats.totalTasks > 0 && (
+                  <div className="rounded-lg bg-gray-100 p-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-gray-700">
+                        Cleaning Progress
+                      </span>
+                      <span className="text-sm font-medium text-gray-500">
+                        {progressPercentage}%
+                      </span>
                     </div>
-                    <div className="ml-3">
-                      <p className="text-sm font-medium text-blue-900">
-                        Total Tasks
-                      </p>
-                      <p className="text-2xl font-bold text-blue-600">
-                        {stats.totalTasks}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Completed Tasks */}
-                <div className="bg-green-50 rounded-lg p-4 border border-green-200">
-                  <div className="flex items-center">
-                    <div className="p-2 bg-green-100 rounded-lg">
-                      <CheckCircle className="h-6 w-6 text-green-600" />
-                    </div>
-                    <div className="ml-3">
-                      <p className="text-sm font-medium text-green-900">
-                        Completed
-                      </p>
-                      <p className="text-2xl font-bold text-green-600">
-                        {stats.completedTasks}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Pending Tasks */}
-                <div className="bg-yellow-50 rounded-lg p-4 border border-yellow-200">
-                  <div className="flex items-center">
-                    <div className="p-2 bg-yellow-100 rounded-lg">
-                      <Clock className="h-6 w-6 text-yellow-600" />
-                    </div>
-                    <div className="ml-3">
-                      <p className="text-sm font-medium text-yellow-900">
-                        Pending
-                      </p>
-                      <p className="text-2xl font-bold text-yellow-600">
-                        {stats.pendingTasks}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Overdue Tasks */}
-                <div className="bg-red-50 rounded-lg p-4 border border-red-200">
-                  <div className="flex items-center">
-                    <div className="p-2 bg-red-100 rounded-lg">
-                      <AlertCircle className="h-6 w-6 text-red-600" />
-                    </div>
-                    <div className="ml-3">
-                      <p className="text-sm font-medium text-red-900">Overdue</p>
-                      <p className="text-2xl font-bold text-red-600">
-                        {stats.overdueTasks}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-          </StandardCard>
-
-          {/* Quick Actions Card */}
-          <StandardCard
-            title="Quick Actions"
-            subtitle="Access cleaning tools and features"
-          >
-            <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
-              {/* Cleaning Checklist - Now the main focus */}
-              <Link href="/cleaning/checklist" className="group block">
-                <div className="bg-gradient-to-br from-green-50 to-blue-50 rounded-lg p-8 border-2 border-green-200 hover:border-green-300 transition-colors">
-                  <div className="flex items-center mb-4">
-                    <div className="p-3 bg-green-100 rounded-lg">
-                      <Sparkles className="h-8 w-8 text-green-600" />
-                    </div>
-                    <h3 className="ml-4 text-xl font-semibold text-gray-900">
-                      Room Cleaning Checklist
-                    </h3>
-                  </div>
-                  <p className="text-gray-600 mb-4">
-                    Manage cleaning tasks by room and track your progress. Stay organized with our comprehensive room-by-room cleaning system.
-                  </p>
-                  <div className="flex items-center text-green-600 group-hover:text-green-700">
-                    <span className="font-medium">Start Cleaning Checklist</span>
-                    <ArrowRight className="h-5 w-5 ml-2" />
-                  </div>
-                </div>
-              </Link>
-            </div>
-          </StandardCard>
-
-          {/* Recent Activity Card */}
-          <StandardCard
-            title="Recent Activity"
-            subtitle="Latest cleaning task updates"
-          >
-            <div className="space-y-3">
-              <div className="text-center py-8 text-gray-500">
-                <Clock className="mx-auto h-8 w-8 text-gray-400 mb-2" />
-                <p>No recent activity</p>
-                <p className="text-sm mt-1">
-                  Cleaning tasks will appear here once you start using the checklist
-                </p>
-              </div>
-            </div>
-          </StandardCard>
-
-          {/* Help Section */}
-          <div className="text-gray-500 text-sm bg-gray-50 rounded-lg p-4">
-            <p className="mb-2">
-              💡 <strong>Getting Started:</strong>
-            </p>
-            <ul className="space-y-1">
-              <li>
-                • Use the <strong>Room Checklist</strong> to manage cleaning tasks by room
-              </li>
-              <li>• Check off completed tasks as you clean each room</li>
-              <li>• Track your progress with the dashboard statistics</li>
-            </ul>
-          </div>
-        </div>
-      </div>
-    </MainLayout>
-  );
-}
+                    <div className="mt-2 h-2 bg-gray-200 rounded-full">
+                      <div
+                        className="h-2 bg-green-600 rounded-full"
+                        style={{ width: `${progressPercentage}%` }}
+                      

@@ -6,9 +6,6 @@ import {
   Plus,
   BookOpen,
   Pin,
-  Edit,
-  Trash2,
-  MapPin,
   Sparkles,
 } from "lucide-react";
 import { toast } from "react-hot-toast";
@@ -37,27 +34,29 @@ export default function ManualPage() {
   const { currentProperty, loading: propertyLoading } = useProperty();
   const [sections, setSections] = useState<ManualSection[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Refs to prevent multiple fetches
-  const fetchingRef = useRef(false);
-  const hasFetchedRef = useRef<string | null>(null);
-  const hasCreatedDefaultRef = useRef<string | null>(null);
+  // Refs for optimization
+  const mountedRef = useRef(true);
+  const hasLoadedRef = useRef(false);
+  const currentPropertyIdRef = useRef<string | null>(null);
 
-  // Memoize loading state
-  const isLoading = useMemo(() => {
+  // Component cleanup
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  // Memoized loading state
+  const isInitializing = useMemo(() => {
     return authLoading || propertyLoading;
   }, [authLoading, propertyLoading]);
 
   // Optimized default cleaning section creation
   const createDefaultCleaningSection = useCallback(
     async (propertyId: string, userId: string) => {
-      // Prevent multiple creations for the same property
-      if (hasCreatedDefaultRef.current === propertyId) {
-        return;
-      }
-
-      hasCreatedDefaultRef.current = propertyId;
-
       try {
         const response = await fetch("/api/cleaning-sections", {
           method: "POST",
@@ -73,106 +72,126 @@ export default function ManualPage() {
           console.warn("⚠️ Default cleaning section creation failed, continuing...");
         }
       } catch (error) {
-        console.error("Error creating default section:", error);
+        console.warn("⚠️ Error creating default section:", error);
         // Don't block the main flow if this fails
       }
     },
     [currentProperty?.name]
   );
 
-  // Optimized fetch function
-  const fetchSections = useCallback(
-    async (propertyId: string, userId: string) => {
-      // Prevent duplicate fetches
-      if (fetchingRef.current || hasFetchedRef.current === propertyId) {
-        return;
-      }
+  // Main data loading function
+  const loadSections = useCallback(async () => {
+    if (!currentProperty?.id || !user?.id || !mountedRef.current) {
+      return;
+    }
 
-      fetchingRef.current = true;
-      hasFetchedRef.current = propertyId;
+    try {
+      setLoading(true);
+      setError(null);
 
-      try {
-        console.log("🏠 Property and user loaded, fetching sections:", currentProperty?.name);
+      console.log("🏠 Loading sections for property:", currentProperty.name);
 
-        // Create default cleaning section in background (don't wait)
-        createDefaultCleaningSection(propertyId, userId).catch(console.warn);
+      // Create default cleaning section in background (don't await)
+      createDefaultCleaningSection(currentProperty.id, user.id).catch(console.warn);
 
-        const { data, error } = await supabase
-          .from("manual_sections")
-          .select(`
+      const { data, error } = await supabase
+        .from("manual_sections")
+        .select(`
           *,
           manual_items(count)
         `)
-          .eq("property_id", propertyId)
-          .order("is_priority", { ascending: false })
-          .order("created_at", { ascending: true });
+        .eq("property_id", currentProperty.id)
+        .order("is_priority", { ascending: false })
+        .order("created_at", { ascending: true });
 
-        if (error) {
-          console.error("❌ Error fetching instruction sections:", error);
-          toast.error("Failed to load instruction sections");
-        } else {
-          console.log("✅ Fetched instruction sections:", data);
-
-          // Sort to put cleaning section first in priority sections
-          const sortedData = data?.sort((a, b) => {
-            if (a.is_priority !== b.is_priority) {
-              return b.is_priority ? 1 : -1;
-            }
-
-            if (a.is_priority && b.is_priority) {
-              if (a.title === "Cleaning Procedures") return -1;
-              if (b.title === "Cleaning Procedures") return 1;
-            }
-
-            return (
-              new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-            );
-          });
-
-          setSections(sortedData || []);
-        }
-      } catch (error) {
-        console.error("❌ Unexpected error in fetchSections:", error);
-        toast.error("Failed to load instruction sections");
-      } finally {
-        setLoading(false);
-        fetchingRef.current = false;
+      if (!mountedRef.current) {
+        console.log("⚠️ Component unmounted, aborting");
+        return;
       }
-    },
-    [currentProperty?.name, createDefaultCleaningSection]
-  );
 
-  // Single useEffect with proper dependencies
-  useEffect(() => {
-    if (isLoading || !user?.id || !currentProperty?.id) {
-      if (!isLoading) {
+      if (error) {
+        console.error("❌ Error fetching instruction sections:", error);
+        setError("Failed to load instruction sections");
+        setSections([]);
+      } else {
+        console.log("✅ Fetched instruction sections:", data?.length || 0);
+        
+        // Sort sections with cleaning first among priorities
+        const sortedData = data?.sort((a, b) => {
+          if (a.is_priority !== b.is_priority) {
+            return b.is_priority ? 1 : -1;
+          }
+
+          if (a.is_priority && b.is_priority) {
+            if (a.title === "Cleaning Procedures") return -1;
+            if (b.title === "Cleaning Procedures") return 1;
+          }
+
+          return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+        });
+
+        setSections(sortedData || []);
+      }
+    } catch (error) {
+      console.error("❌ Unexpected error loading sections:", error);
+      if (mountedRef.current) {
+        setError("Failed to load instruction sections");
+        setSections([]);
+      }
+    } finally {
+      if (mountedRef.current) {
         setLoading(false);
+      }
+    }
+  }, [currentProperty?.id, currentProperty?.name, user?.id, createDefaultCleaningSection]);
+
+  // Main loading effect
+  useEffect(() => {
+    if (isInitializing) {
+      return;
+    }
+
+    if (!user?.id || !currentProperty?.id) {
+      console.log("⏳ Waiting for user and property...");
+      if (mountedRef.current) {
+        setLoading(false);
+        hasLoadedRef.current = true;
       }
       return;
     }
 
-    // Call fetch with specific IDs instead of using callback in deps
-    fetchSections(currentProperty.id, user.id);
-  }, [user?.id, currentProperty?.id, isLoading]); // REMOVED fetchSections from deps
-
-  // Reset fetch tracking when property changes
-  useEffect(() => {
-    if (currentProperty?.id !== hasFetchedRef.current) {
-      hasFetchedRef.current = null;
-      hasCreatedDefaultRef.current = null;
-      fetchingRef.current = false;
-      setLoading(true);
+    // Check if we need to reload due to property change
+    const propertyChanged = currentPropertyIdRef.current !== currentProperty.id;
+    
+    if (!hasLoadedRef.current || propertyChanged) {
+      console.log("🔄 Loading sections:", { 
+        propertyChanged, 
+        hasLoaded: hasLoadedRef.current,
+        propertyName: currentProperty.name 
+      });
+      
+      currentPropertyIdRef.current = currentProperty.id;
+      hasLoadedRef.current = true;
+      loadSections();
     }
-  }, [currentProperty?.id]);
+  }, [user?.id, currentProperty?.id, isInitializing, loadSections]);
 
   // Optimized toggle pin function
   const handleTogglePin = useCallback(
     async (sectionId: string, isPriority: boolean) => {
+      if (!currentProperty?.id || !mountedRef.current) {
+        return;
+      }
+
       try {
         const { error } = await supabase
           .from("manual_sections")
           .update({ is_priority: isPriority })
           .eq("id", sectionId);
+
+        if (!mountedRef.current) {
+          return;
+        }
 
         if (error) {
           console.error("Error updating section priority:", error);
@@ -180,23 +199,33 @@ export default function ManualPage() {
         } else {
           toast.success(isPriority ? "Section pinned" : "Section unpinned");
 
-          // Only refresh if we have a property (avoid unnecessary fetch)
-          if (currentProperty?.id && user?.id) {
-            // Reset fetch tracking to allow refresh
-            hasFetchedRef.current = null;
-            fetchingRef.current = false;
-            fetchSections(currentProperty.id, user.id);
-          }
+          // Update local state optimistically
+          setSections(prev => prev.map(section => 
+            section.id === sectionId 
+              ? { ...section, is_priority: isPriority }
+              : section
+          ));
         }
       } catch (error) {
         console.error("Unexpected error updating section:", error);
-        toast.error("Failed to update section");
+        if (mountedRef.current) {
+          toast.error("Failed to update section");
+        }
       }
     },
-    [currentProperty?.id, user?.id, fetchSections]
+    [currentProperty?.id]
   );
 
-  // Memoize filtered sections to prevent recalculation
+  // Retry function
+  const retryLoad = useCallback(() => {
+    if (currentProperty?.id && user?.id) {
+      hasLoadedRef.current = false;
+      setError(null);
+      loadSections();
+    }
+  }, [currentProperty?.id, user?.id, loadSections]);
+
+  // Memoized filtered sections
   const { prioritySections, regularSections } = useMemo(() => {
     const priority = sections
       .filter((section) => section.is_priority)
@@ -212,20 +241,20 @@ export default function ManualPage() {
   }, [sections]);
 
   // Loading states
-  if (isLoading) {
+  if (isInitializing) {
     return (
-      <MainLayout>
+      <StandardPageLayout theme="dark" showHeader={true}>
         <div className="p-6">
           <StandardCard>
             <div className="flex items-center justify-center min-h-[400px]">
               <div className="text-center">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
-                <p className="text-gray-600">⏳ Waiting for user and property to load...</p>
+                <p className="text-gray-600">⏳ Initializing...</p>
               </div>
             </div>
           </StandardCard>
         </div>
-      </MainLayout>
+      </StandardPageLayout>
     );
   }
 
@@ -235,7 +264,7 @@ export default function ManualPage() {
 
   if (!currentProperty) {
     return (
-      <MainLayout>
+      <StandardPageLayout theme="dark" showHeader={true}>
         <div className="p-6">
           <StandardCard>
             <div className="text-center py-8">
@@ -249,7 +278,35 @@ export default function ManualPage() {
             </div>
           </StandardCard>
         </div>
-      </MainLayout>
+      </StandardPageLayout>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <StandardPageLayout theme="dark" showHeader={true}>
+        <div className="p-6">
+          <StandardCard
+            title="Property Manual"
+            subtitle={`Instructions and procedures for ${currentProperty.name}`}
+          >
+            <div className="text-center py-8">
+              <BookOpen className="mx-auto h-12 w-12 text-red-300 mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                Failed to Load Sections
+              </h3>
+              <p className="text-red-600 mb-4">{error}</p>
+              <button
+                onClick={retryLoad}
+                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                Try Again
+              </button>
+            </div>
+          </StandardCard>
+        </div>
+      </StandardPageLayout>
     );
   }
 
@@ -328,10 +385,7 @@ export default function ManualPage() {
                 <ul className="space-y-1">
                   <li>• Click the pin icon to mark sections as priority</li>
                   <li>• Priority sections appear at the top for quick access</li>
-                  <li>
-                    • The cleaning section is automatically created for each
-                    property
-                  </li>
+                  <li>• The cleaning section is automatically created for each property</li>
                 </ul>
               </div>
             </div>
@@ -344,7 +398,7 @@ export default function ManualPage() {
   );
 }
 
-// Priority Section Card Component (Compact Cards) - WITH ICONS
+// Optimized Priority Section Card Component
 function PrioritySectionCard({
   section,
   onTogglePin,
@@ -352,22 +406,21 @@ function PrioritySectionCard({
   section: ManualSection;
   onTogglePin: (sectionId: string, isPriority: boolean) => void;
 }) {
+  const [isToggling, setIsToggling] = useState(false);
+
   // Check if this is the cleaning section
   if (section.title === "Cleaning Procedures") {
     return <CleaningSectionCard section={section} onTogglePin={onTogglePin} />;
   }
 
-  // Regular priority section card for other sections
-  const [isToggling, setIsToggling] = useState(false);
-
-  const handleUnpin = async (e: React.MouseEvent) => {
+  const handleUnpin = useCallback(async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
 
     setIsToggling(true);
     await onTogglePin(section.id, false);
     setIsToggling(false);
-  };
+  }, [section.id, onTogglePin]);
 
   return (
     <Link href={`/manual/sections/${section.id}`}>
@@ -388,7 +441,6 @@ function PrioritySectionCard({
         <div className="flex items-start justify-between mb-3 pr-8">
           <div className="flex items-center">
             <Pin className="h-4 w-4 text-yellow-600 mr-2" />
-            {/* Display the icon from database */}
             {section.icon ? (
               <span className="text-2xl mr-2">{section.icon}</span>
             ) : (
@@ -425,7 +477,7 @@ function PrioritySectionCard({
   );
 }
 
-// ✅ Special card component for cleaning section
+// Special card component for cleaning section
 function CleaningSectionCard({
   section,
   onTogglePin,
@@ -435,26 +487,22 @@ function CleaningSectionCard({
 }) {
   const [isToggling, setIsToggling] = useState(false);
 
-  const handleUnpin = async (e: React.MouseEvent) => {
+  const handleUnpin = useCallback(async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
 
     setIsToggling(true);
     await onTogglePin(section.id, false);
     setIsToggling(false);
-  };
+  }, [section.id, onTogglePin]);
 
   return (
     <Link href="/cleaning">
-      {" "}
-      {/* ✅ Changed to /cleaning */}
       <div className="bg-gradient-to-br from-green-50 to-blue-50 rounded-lg shadow border-2 border-green-200 hover:border-green-300 transition-colors p-6 h-full relative">
-        {/* Special badge for cleaning */}
         <div className="absolute top-2 left-2 bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full font-medium">
           Cleaning Hub
         </div>
 
-        {/* Unpin Button */}
         <button
           onClick={handleUnpin}
           disabled={isToggling}
@@ -469,7 +517,6 @@ function CleaningSectionCard({
 
         <div className="flex items-start justify-between mb-4 pr-8 pt-6">
           <div className="flex items-center">
-            {/* Use Sparkles icon with gradient background */}
             <div className="w-12 h-12 rounded-full bg-gradient-to-br from-green-100 to-blue-100 flex items-center justify-center mr-3 border-2 border-green-200">
               <Sparkles className="h-6 w-6 text-green-600" />
             </div>
@@ -484,11 +531,9 @@ function CleaningSectionCard({
         </h3>
 
         <p className="text-sm text-gray-600 mb-4">
-          {section.description ||
-            "Manage all your cleaning tasks and procedures"}
+          {section.description || "Manage all your cleaning tasks and procedures"}
         </p>
 
-        {/* Quick actions with sparkle theme */}
         <div className="flex items-center space-x-2 text-xs">
           <span className="bg-green-100 text-green-800 px-2 py-1 rounded flex items-center">
             <Sparkles className="h-3 w-3 mr-1" />
@@ -510,14 +555,13 @@ function CleaningSectionCard({
   );
 }
 
-// ✅ SectionCard component for regular sections
+// SectionCard component for regular sections
 function SectionCard({ section }: { section: ManualSection }) {
   return (
     <Link href={`/manual/sections/${section.id}`}>
       <div className="bg-white rounded-lg shadow hover:shadow-md transition-shadow p-6 h-full border border-gray-200">
         <div className="flex items-start justify-between mb-3">
           <div className="flex items-center">
-            {/* Display the icon from database */}
             {section.icon ? (
               <span className="text-2xl mr-3">{section.icon}</span>
             ) : (

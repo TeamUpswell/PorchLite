@@ -63,7 +63,9 @@ export default function RecommendationsPage() {
   const { currentProperty, loading: propertyLoading } = useProperty();
 
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
-  const [filteredRecommendations, setFilteredRecommendations] = useState<Recommendation[]>([]);
+  const [filteredRecommendations, setFilteredRecommendations] = useState<
+    Recommendation[]
+  >([]);
   const [loadingRecommendations, setLoading] = useState(true);
   const [selectedPlace, setSelectedPlace] = useState<PlacesResult | null>(null);
   const [placesLoading, setPlacesLoading] = useState(false);
@@ -77,7 +79,8 @@ export default function RecommendationsPage() {
   const [showManualModal, setShowManualModal] = useState(false);
   const [showGoogleSearchModal, setShowGoogleSearchModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [recommendationToDelete, setRecommendationToDelete] = useState<Recommendation | null>(null);
+  const [recommendationToDelete, setRecommendationToDelete] =
+    useState<Recommendation | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const [manualForm, setManualForm] = useState({
@@ -91,17 +94,20 @@ export default function RecommendationsPage() {
   });
 
   // Memoize categories to prevent recreation
-  const categories = useMemo(() => [
-    { id: "all", name: "All Categories", icon: "🏪" },
-    { id: "restaurant", name: "Restaurants", icon: "🍽️" },
-    { id: "grocery", name: "Grocery", icon: "🛒" },
-    { id: "entertainment", name: "Entertainment", icon: "🎭" },
-    { id: "healthcare", name: "Healthcare", icon: "🏥" },
-    { id: "shopping", name: "Shopping", icon: "🛍️" },
-    { id: "services", name: "Services", icon: "🔧" },
-    { id: "outdoor", name: "Outdoor", icon: "🌲" },
-    { id: "emergency", name: "Emergency", icon: "🚨" },
-  ], []);
+  const categories = useMemo(
+    () => [
+      { id: "all", name: "All Categories", icon: "🏪" },
+      { id: "restaurant", name: "Restaurants", icon: "🍽️" },
+      { id: "grocery", name: "Grocery", icon: "🛒" },
+      { id: "entertainment", name: "Entertainment", icon: "🎭" },
+      { id: "healthcare", name: "Healthcare", icon: "🏥" },
+      { id: "shopping", name: "Shopping", icon: "🛍️" },
+      { id: "services", name: "Services", icon: "🔧" },
+      { id: "outdoor", name: "Outdoor", icon: "🌲" },
+      { id: "emergency", name: "Emergency", icon: "🚨" },
+    ],
+    []
+  );
 
   // Memoize loading states
   const isLoading = useMemo(() => {
@@ -139,7 +145,10 @@ export default function RecommendationsPage() {
 
       // Only update state if component is still mounted
       if (mountedRef.current) {
-        console.log("✅ Fetched recommendations:", recommendationsData?.length || 0);
+        console.log(
+          "✅ Fetched recommendations:",
+          recommendationsData?.length || 0
+        );
         setRecommendations(recommendationsData || []);
         setFilteredRecommendations(recommendationsData || []);
       }
@@ -219,50 +228,58 @@ export default function RecommendationsPage() {
   }, []);
 
   // Optimized CRUD operations
-  const addPlaceAsRecommendation = useCallback(async (place: PlacesResult) => {
-    try {
-      const category = getCategoryFromTypes(place.types);
+  const addPlaceAsRecommendation = useCallback(
+    async (place: PlacesResult) => {
+      try {
+        const category = getCategoryFromTypes(place.types);
 
-      const newRecommendation = {
-        name: place.name,
-        category,
-        address: place.formatted_address,
-        coordinates: place.geometry.location,
-        description: `Found via Google Places - ${place.types.slice(0, 3).join(", ")}`,
-        rating: place.rating || 0,
-        website: place.website || null,
-        phone_number: place.formatted_phone_number || null,
-        images: [],
-        place_id: place.place_id,
-        property_id: currentProperty?.id || null,
-        is_recommended: true,
-      };
+        const newRecommendation = {
+          name: place.name,
+          category,
+          address: place.formatted_address,
+          coordinates: place.geometry.location,
+          description: `Found via Google Places - ${place.types
+            .slice(0, 3)
+            .join(", ")}`,
+          rating: place.rating || 0,
+          website: place.website || null,
+          phone_number: place.formatted_phone_number || null,
+          images: [],
+          place_id: place.place_id,
+          property_id: currentProperty?.id || null,
+          is_recommended: true,
+        };
 
-      const { data, error } = await supabase
-        .from("recommendations")
-        .insert([newRecommendation])
-        .select()
-        .single();
+        const { data, error } = await supabase
+          .from("recommendations")
+          .insert([newRecommendation])
+          .select()
+          .single();
 
-      if (error) throw error;
+        if (error) throw error;
 
-      if (mountedRef.current) {
-        setRecommendations((prev) => [data, ...prev]);
-        setFilteredRecommendations((prev) => [data, ...prev]);
-        setSelectedPlace(null);
-        alert("✅ Place added as recommendation!");
+        if (mountedRef.current) {
+          setRecommendations((prev) => [data, ...prev]);
+          setFilteredRecommendations((prev) => [data, ...prev]);
+          setSelectedPlace(null);
+          alert("✅ Place added as recommendation!");
+        }
+      } catch (error) {
+        console.error("Error adding recommendation:", error);
+        alert(`Failed to add recommendation: ${error.message}`);
       }
-    } catch (error) {
-      console.error("Error adding recommendation:", error);
-      alert(`Failed to add recommendation: ${error.message}`);
-    }
-  }, [getCategoryFromTypes, currentProperty?.id]);
+    },
+    [getCategoryFromTypes, currentProperty?.id]
+  );
 
   const addManualRecommendation = useCallback(async () => {
     try {
       const newRecommendation = {
         ...manualForm,
-        coordinates: currentProperty?.coordinates || { lat: 40.7128, lng: -74.006 },
+        coordinates: currentProperty?.coordinates || {
+          lat: 40.7128,
+          lng: -74.006,
+        },
         images: [],
         property_id: currentProperty?.id || null,
         is_recommended: true,
@@ -309,8 +326,12 @@ export default function RecommendationsPage() {
       if (error) throw error;
 
       if (mountedRef.current) {
-        setRecommendations((prev) => prev.filter((rec) => rec.id !== recommendationId));
-        setFilteredRecommendations((prev) => prev.filter((rec) => rec.id !== recommendationId));
+        setRecommendations((prev) =>
+          prev.filter((rec) => rec.id !== recommendationId)
+        );
+        setFilteredRecommendations((prev) =>
+          prev.filter((rec) => rec.id !== recommendationId)
+        );
         setShowDeleteModal(false);
         setRecommendationToDelete(null);
         alert("✅ Recommendation deleted successfully!");
@@ -347,7 +368,9 @@ export default function RecommendationsPage() {
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">⏳ Waiting for user and property to load...</p>
+          <p className="text-gray-600">
+            ⏳ Waiting for user and property to load...
+          </p>
         </div>
       </div>
     );
@@ -493,11 +516,14 @@ export default function RecommendationsPage() {
                       <div className="mt-4 pt-3 border-t border-gray-100 flex justify-between items-center">
                         <span className="text-xs text-gray-500">
                           Added{" "}
-                          {new Date(rec.created_at).toLocaleDateString("en-US", {
-                            year: "numeric",
-                            month: "short",
-                            day: "numeric",
-                          })}
+                          {new Date(rec.created_at).toLocaleDateString(
+                            "en-US",
+                            {
+                              year: "numeric",
+                              month: "short",
+                              day: "numeric",
+                            }
+                          )}
                         </span>
                         <div className="flex items-center space-x-2">
                           <a
