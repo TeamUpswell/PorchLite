@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { useAuth } from "@/components/auth";
+import { useAuth } from "@/components/auth/AuthProvider";
 import Header from "@/components/layout/Header";
 import PageContainer from "@/components/layout/PageContainer";
 import StandardCard from "@/components/ui/StandardCard";
@@ -155,89 +155,93 @@ export default function CleaningRoomsPage() {
   }, [currentProperty?.id]);
 
   // Memoized form handlers
-  const handleChange = useCallback((
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
-  ) => {
-    const { name, value } = e.target;
+  const handleChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+      const { name, value } = e.target;
 
-    // Auto-generate slug if name is being changed
-    if (name === "name") {
-      const slug = value.toLowerCase().replace(/[^a-z0-9]/g, "_");
-      setFormData((prev) => ({
-        ...prev,
-        name: value,
-        slug,
-      }));
-    } else {
-      setFormData((prev) => ({
-        ...prev,
-        [name]: value,
-      }));
-    }
-  }, []);
-
-  const handleSubmit = useCallback(async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!user || !currentProperty) {
-      toast.error("You must be logged in and have a property selected");
-      return;
-    }
-
-    if (!formData.name || !formData.slug) {
-      toast.error("Name and identifier are required");
-      return;
-    }
-
-    try {
-      setLoading(true);
-
-      if (editingRoom) {
-        // Update existing room
-        const { error } = await supabase
-          .from("cleaning_room_types")
-          .update({
-            name: formData.name,
-            slug: formData.slug,
-            icon: formData.icon,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", editingRoom.id);
-
-        if (error) throw error;
-        toast.success("Room updated successfully");
+      // Auto-generate slug if name is being changed
+      if (name === "name") {
+        const slug = value.toLowerCase().replace(/[^a-z0-9]/g, "_");
+        setFormData((prev) => ({
+          ...prev,
+          name: value,
+          slug,
+        }));
       } else {
-        // Create new room
-        const { error } = await supabase.from("cleaning_room_types").insert([
-          {
-            property_id: currentProperty.id,
-            name: formData.name,
-            slug: formData.slug,
-            icon: formData.icon,
-            created_by: user.id,
-          },
-        ]);
+        setFormData((prev) => ({
+          ...prev,
+          [name]: value,
+        }));
+      }
+    },
+    []
+  );
 
-        if (error) throw error;
-        toast.success("Room added successfully");
+  const handleSubmit = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault();
+
+      if (!user || !currentProperty) {
+        toast.error("You must be logged in and have a property selected");
+        return;
       }
 
-      // Reset form and refetch rooms
-      setFormData({ name: "", slug: "", icon: "Home" });
-      setShowAddForm(false);
-      setEditingRoom(null);
-      
-      // Refresh data by resetting cache
-      hasFetchedRef.current = null;
-      fetchingRef.current = false;
-      await fetchCustomRooms(currentProperty.id);
-    } catch (error) {
-      console.error("Error saving room:", error);
-      toast.error("Failed to save room");
-    } finally {
-      setLoading(false);
-    }
-  }, [user, currentProperty, formData, editingRoom, fetchCustomRooms]);
+      if (!formData.name || !formData.slug) {
+        toast.error("Name and identifier are required");
+        return;
+      }
+
+      try {
+        setLoading(true);
+
+        if (editingRoom) {
+          // Update existing room
+          const { error } = await supabase
+            .from("cleaning_room_types")
+            .update({
+              name: formData.name,
+              slug: formData.slug,
+              icon: formData.icon,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", editingRoom.id);
+
+          if (error) throw error;
+          toast.success("Room updated successfully");
+        } else {
+          // Create new room
+          const { error } = await supabase.from("cleaning_room_types").insert([
+            {
+              property_id: currentProperty.id,
+              name: formData.name,
+              slug: formData.slug,
+              icon: formData.icon,
+              created_by: user.id,
+            },
+          ]);
+
+          if (error) throw error;
+          toast.success("Room added successfully");
+        }
+
+        // Reset form and refetch rooms
+        setFormData({ name: "", slug: "", icon: "Home" });
+        setShowAddForm(false);
+        setEditingRoom(null);
+
+        // Refresh data by resetting cache
+        hasFetchedRef.current = null;
+        fetchingRef.current = false;
+        await fetchCustomRooms(currentProperty.id);
+      } catch (error) {
+        console.error("Error saving room:", error);
+        toast.error("Failed to save room");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [user, currentProperty, formData, editingRoom, fetchCustomRooms]
+  );
 
   const handleEdit = useCallback((room: CustomRoom) => {
     setEditingRoom(room);
@@ -250,40 +254,43 @@ export default function CleaningRoomsPage() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, []);
 
-  const handleDelete = useCallback(async (roomId: string) => {
-    if (
-      !confirm(
-        "Are you sure you want to delete this room? All associated tasks will also be deleted."
-      )
-    ) {
-      return;
-    }
-
-    try {
-      setLoading(true);
-
-      const { error } = await supabase
-        .from("cleaning_room_types")
-        .delete()
-        .eq("id", roomId);
-
-      if (error) throw error;
-
-      toast.success("Room deleted successfully");
-      
-      // Refresh data by resetting cache
-      if (currentProperty?.id) {
-        hasFetchedRef.current = null;
-        fetchingRef.current = false;
-        await fetchCustomRooms(currentProperty.id);
+  const handleDelete = useCallback(
+    async (roomId: string) => {
+      if (
+        !confirm(
+          "Are you sure you want to delete this room? All associated tasks will also be deleted."
+        )
+      ) {
+        return;
       }
-    } catch (error) {
-      console.error("Error deleting room:", error);
-      toast.error("Failed to delete room");
-    } finally {
-      setLoading(false);
-    }
-  }, [currentProperty?.id, fetchCustomRooms]);
+
+      try {
+        setLoading(true);
+
+        const { error } = await supabase
+          .from("cleaning_room_types")
+          .delete()
+          .eq("id", roomId);
+
+        if (error) throw error;
+
+        toast.success("Room deleted successfully");
+
+        // Refresh data by resetting cache
+        if (currentProperty?.id) {
+          hasFetchedRef.current = null;
+          fetchingRef.current = false;
+          await fetchCustomRooms(currentProperty.id);
+        }
+      } catch (error) {
+        console.error("Error deleting room:", error);
+        toast.error("Failed to delete room");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [currentProperty?.id, fetchCustomRooms]
+  );
 
   const resetForm = useCallback(() => {
     setShowAddForm(false);
@@ -292,23 +299,20 @@ export default function CleaningRoomsPage() {
   }, []);
 
   // Memoized standard rooms list
-  const standardRoomsList = useMemo(() => 
-    STANDARD_ROOMS.map((room, index) => (
-      <li
-        key={index}
-        className="p-4 flex items-center justify-between"
-      >
-        <div className="flex items-center">
-          <div className="p-2 bg-blue-100 rounded-full mr-3">
-            <HomeIcon className="h-4 w-4 text-blue-600" />
+  const standardRoomsList = useMemo(
+    () =>
+      STANDARD_ROOMS.map((room, index) => (
+        <li key={index} className="p-4 flex items-center justify-between">
+          <div className="flex items-center">
+            <div className="p-2 bg-blue-100 rounded-full mr-3">
+              <HomeIcon className="h-4 w-4 text-blue-600" />
+            </div>
+            <span>{room}</span>
           </div>
-          <span>{room}</span>
-        </div>
-        <span className="text-xs bg-gray-100 py-1 px-2 rounded">
-          Default
-        </span>
-      </li>
-    )), []
+          <span className="text-xs bg-gray-100 py-1 px-2 rounded">Default</span>
+        </li>
+      )),
+    []
   );
 
   // Loading states
@@ -362,7 +366,8 @@ export default function CleaningRoomsPage() {
                     No Property Selected
                   </h2>
                   <p className="text-gray-600">
-                    Please select a property from your account settings to manage rooms.
+                    Please select a property from your account settings to
+                    manage rooms.
                   </p>
                 </div>
               ) : (
@@ -477,8 +482,10 @@ export default function CleaningRoomsPage() {
                                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
                                 Saving...
                               </div>
+                            ) : editingRoom ? (
+                              "Save Changes"
                             ) : (
-                              editingRoom ? "Save Changes" : "Add Room"
+                              "Add Room"
                             )}
                           </button>
                         </div>

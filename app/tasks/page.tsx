@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { useAuth } from "@/components/auth";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { useProperty } from "@/lib/hooks/useProperty";
 import { supabase } from "@/lib/supabase";
 import StandardPageLayout from "@/components/layout/StandardPageLayout";
@@ -11,7 +11,12 @@ import CreateTaskModal from "@/components/tasks/CreateTaskModal";
 import EditTaskModal from "@/components/tasks/EditTaskModal";
 import PhotoViewer from "@/components/tasks/PhotoViewer";
 import DeleteTaskModal from "@/components/tasks/DeleteTaskModal";
-import { PlusIcon, CheckSquareIcon, AlertTriangle, RefreshCw } from "lucide-react";
+import {
+  PlusIcon,
+  CheckSquareIcon,
+  AlertTriangle,
+  RefreshCw,
+} from "lucide-react";
 import { toast } from "react-hot-toast";
 import { CreatePattern } from "@/components/ui/FloatingActionPresets";
 import { useViewMode } from "@/lib/hooks/useViewMode";
@@ -37,7 +42,13 @@ interface Task {
   tenant_id?: string;
   user_id?: string;
   is_recurring?: boolean;
-  recurrence_pattern?: "daily" | "weekly" | "monthly" | "quarterly" | "yearly" | null;
+  recurrence_pattern?:
+    | "daily"
+    | "weekly"
+    | "monthly"
+    | "quarterly"
+    | "yearly"
+    | null;
   recurrence_interval?: number;
   parent_task_id?: string | null;
   next_due_date?: string | null;
@@ -130,7 +141,10 @@ export default function TasksPage() {
 
   const propertyId = useMemo(() => currentProperty?.id, [currentProperty?.id]);
   const userId = useMemo(() => user?.id, [user?.id]);
-  const tenantId = useMemo(() => currentProperty?.tenant_id, [currentProperty?.tenant_id]);
+  const tenantId = useMemo(
+    () => currentProperty?.tenant_id,
+    [currentProperty?.tenant_id]
+  );
 
   // Memoized user permission check
   const hasTaskPermissions = useMemo(() => {
@@ -138,224 +152,238 @@ export default function TasksPage() {
   }, [isManagerView, isFamilyView]);
 
   // Calculate next due date for recurring tasks
-  const calculateNextDueDate = useCallback((
-    currentDate: string,
-    pattern: string,
-    interval: number = 1
-  ): string => {
-    const date = new Date(currentDate);
+  const calculateNextDueDate = useCallback(
+    (currentDate: string, pattern: string, interval: number = 1): string => {
+      const date = new Date(currentDate);
 
-    switch (pattern) {
-      case "daily":
-        date.setDate(date.getDate() + interval);
-        break;
-      case "weekly":
-        date.setDate(date.getDate() + interval * 7);
-        break;
-      case "monthly":
-        date.setMonth(date.getMonth() + interval);
-        break;
-      case "quarterly":
-        date.setMonth(date.getMonth() + interval * 3);
-        break;
-      case "yearly":
-        date.setFullYear(date.getFullYear() + interval);
-        break;
-      default:
-        date.setDate(date.getDate() + 1);
-    }
-
-    return date.toISOString().split("T")[0];
-  }, []);
-
-  // Enhanced data loading function
-  const loadTasksAndUsers = useCallback(async (
-    userIdParam: string,
-    propertyIdParam: string,
-    tenantIdParam: string,
-    filterParam: string,
-    showRefreshFeedback = false
-  ) => {
-    // Create cache key
-    const cacheKey = `${userIdParam}-${propertyIdParam}-${tenantIdParam}-${filterParam}`;
-    
-    // Prevent duplicate requests
-    if (loadingRef.current || lastLoadParamsRef.current === cacheKey) {
-      return;
-    }
-
-    loadingRef.current = true;
-    lastLoadParamsRef.current = cacheKey;
-
-    try {
-      if (showRefreshFeedback) {
-        setRefreshing(true);
-      } else {
-        setState(prev => ({ ...prev, loading: true, error: null }));
+      switch (pattern) {
+        case "daily":
+          date.setDate(date.getDate() + interval);
+          break;
+        case "weekly":
+          date.setDate(date.getDate() + interval * 7);
+          break;
+        case "monthly":
+          date.setMonth(date.getMonth() + interval);
+          break;
+        case "quarterly":
+          date.setMonth(date.getMonth() + interval * 3);
+          break;
+        case "yearly":
+          date.setFullYear(date.getFullYear() + interval);
+          break;
+        default:
+          date.setDate(date.getDate() + 1);
       }
 
-      console.log("🔄 Loading tasks and users...", { propertyIdParam, filterParam });
+      return date.toISOString().split("T")[0];
+    },
+    []
+  );
 
-      // Load tasks and users in parallel
-      const [tasksResult, usersResult] = await Promise.allSettled([
-        // Tasks query
-        (async () => {
-          let query = supabase
-            .from("tasks")
-            .select("*")
-            .eq("property_id", propertyIdParam);
+  // Enhanced data loading function
+  const loadTasksAndUsers = useCallback(
+    async (
+      userIdParam: string,
+      propertyIdParam: string,
+      tenantIdParam: string,
+      filterParam: string,
+      showRefreshFeedback = false
+    ) => {
+      // Create cache key
+      const cacheKey = `${userIdParam}-${propertyIdParam}-${tenantIdParam}-${filterParam}`;
 
-          // Apply filters
-          switch (filterParam) {
-            case "pending":
-              query = query.eq("status", "pending");
-              break;
-            case "in-progress":
-              query = query.eq("status", "in_progress");
-              break;
-            case "completed":
-              query = query.eq("status", "completed");
-              break;
-            case "open":
-              query = query.in("status", ["pending", "in_progress"]);
-              break;
-            case "mine":
-              query = query
-                .eq("assigned_to", userIdParam)
-                .in("status", ["pending", "in_progress"]);
-              break;
-            case "created-by-me":
-              query = query
-                .eq("created_by", userIdParam)
-                .in("status", ["pending", "in_progress"]);
-              break;
-          }
-
-          return query.order("created_at", { ascending: false });
-        })(),
-
-        // Users query
-        (async () => {
-          const { data: tenantUsers } = await supabase
-            .from("tenant_users")
-            .select("user_id, role")
-            .eq("tenant_id", tenantIdParam)
-            .eq("status", "active");
-
-          if (!tenantUsers?.length) return { data: [] };
-
-          const userIds = tenantUsers.map(tu => tu.user_id);
-          const { data: profiles } = await supabase
-            .from("profiles")
-            .select("id, full_name, email")
-            .in("id", userIds);
-
-          return {
-            data: tenantUsers.map(tenantUser => {
-              const profile = profiles?.find(p => p.id === tenantUser.user_id);
-              return {
-                id: tenantUser.user_id,
-                name: profile?.full_name || profile?.email || "Unknown User",
-                role: tenantUser.role,
-                email: profile?.email,
-              };
-            })
-          };
-        })()
-      ]);
-
-      if (!mountedRef.current) {
-        console.log("⚠️ Component unmounted, aborting");
+      // Prevent duplicate requests
+      if (loadingRef.current || lastLoadParamsRef.current === cacheKey) {
         return;
       }
 
-      // Process tasks
-      let tasks: Task[] = [];
-      if (tasksResult.status === "fulfilled" && tasksResult.value.data) {
-        // Get all unique user IDs for name lookup
-        const allUserIds = Array.from(
-          new Set([
-            ...tasksResult.value.data.map(task => task.assigned_to).filter(Boolean),
-            ...tasksResult.value.data.map(task => task.created_by).filter(Boolean),
-          ])
-        );
+      loadingRef.current = true;
+      lastLoadParamsRef.current = cacheKey;
 
-        // Load user names for tasks
-        let userNames: Record<string, string> = {};
-        if (allUserIds.length > 0) {
-          try {
+      try {
+        if (showRefreshFeedback) {
+          setRefreshing(true);
+        } else {
+          setState((prev) => ({ ...prev, loading: true, error: null }));
+        }
+
+        console.log("🔄 Loading tasks and users...", {
+          propertyIdParam,
+          filterParam,
+        });
+
+        // Load tasks and users in parallel
+        const [tasksResult, usersResult] = await Promise.allSettled([
+          // Tasks query
+          (async () => {
+            let query = supabase
+              .from("tasks")
+              .select("*")
+              .eq("property_id", propertyIdParam);
+
+            // Apply filters
+            switch (filterParam) {
+              case "pending":
+                query = query.eq("status", "pending");
+                break;
+              case "in-progress":
+                query = query.eq("status", "in_progress");
+                break;
+              case "completed":
+                query = query.eq("status", "completed");
+                break;
+              case "open":
+                query = query.in("status", ["pending", "in_progress"]);
+                break;
+              case "mine":
+                query = query
+                  .eq("assigned_to", userIdParam)
+                  .in("status", ["pending", "in_progress"]);
+                break;
+              case "created-by-me":
+                query = query
+                  .eq("created_by", userIdParam)
+                  .in("status", ["pending", "in_progress"]);
+                break;
+            }
+
+            return query.order("created_at", { ascending: false });
+          })(),
+
+          // Users query
+          (async () => {
+            const { data: tenantUsers } = await supabase
+              .from("tenant_users")
+              .select("user_id, role")
+              .eq("tenant_id", tenantIdParam)
+              .eq("status", "active");
+
+            if (!tenantUsers?.length) return { data: [] };
+
+            const userIds = tenantUsers.map((tu) => tu.user_id);
             const { data: profiles } = await supabase
               .from("profiles")
               .select("id, full_name, email")
-              .in("id", allUserIds);
+              .in("id", userIds);
 
-            if (profiles) {
-              profiles.forEach(profile => {
-                userNames[profile.id] = profile.full_name || profile.email || "Unknown User";
-              });
+            return {
+              data: tenantUsers.map((tenantUser) => {
+                const profile = profiles?.find(
+                  (p) => p.id === tenantUser.user_id
+                );
+                return {
+                  id: tenantUser.user_id,
+                  name: profile?.full_name || profile?.email || "Unknown User",
+                  role: tenantUser.role,
+                  email: profile?.email,
+                };
+              }),
+            };
+          })(),
+        ]);
+
+        if (!mountedRef.current) {
+          console.log("⚠️ Component unmounted, aborting");
+          return;
+        }
+
+        // Process tasks
+        let tasks: Task[] = [];
+        if (tasksResult.status === "fulfilled" && tasksResult.value.data) {
+          // Get all unique user IDs for name lookup
+          const allUserIds = Array.from(
+            new Set([
+              ...tasksResult.value.data
+                .map((task) => task.assigned_to)
+                .filter(Boolean),
+              ...tasksResult.value.data
+                .map((task) => task.created_by)
+                .filter(Boolean),
+            ])
+          );
+
+          // Load user names for tasks
+          let userNames: Record<string, string> = {};
+          if (allUserIds.length > 0) {
+            try {
+              const { data: profiles } = await supabase
+                .from("profiles")
+                .select("id, full_name, email")
+                .in("id", allUserIds);
+
+              if (profiles) {
+                profiles.forEach((profile) => {
+                  userNames[profile.id] =
+                    profile.full_name || profile.email || "Unknown User";
+                });
+              }
+            } catch (error) {
+              console.warn("Could not load user profiles for tasks:", error);
             }
-          } catch (error) {
-            console.warn("Could not load user profiles for tasks:", error);
+          }
+
+          // Add user names to tasks
+          tasks = tasksResult.value.data.map((task) => ({
+            ...task,
+            assigned_user_name: task.assigned_to
+              ? userNames[task.assigned_to] ||
+                (task.assigned_to === userIdParam ? "You" : "Team Member")
+              : null,
+            created_by_name:
+              task.created_by === userIdParam
+                ? "You"
+                : userNames[task.created_by] || "Team Member",
+          }));
+        }
+
+        // Process users
+        const users =
+          usersResult.status === "fulfilled" ? usersResult.value.data : [];
+
+        // Update state
+        if (mountedRef.current) {
+          setState((prev) => ({
+            ...prev,
+            tasks,
+            users,
+            loading: false,
+            error: null,
+            lastFetch: new Date().toISOString(),
+          }));
+
+          if (showRefreshFeedback) {
+            toast.success("Tasks refreshed successfully");
+          }
+
+          console.log("✅ Tasks and users loaded successfully", {
+            tasks: tasks.length,
+            users: users.length,
+          });
+        }
+      } catch (error) {
+        console.error("❌ Error loading tasks and users:", error);
+        if (mountedRef.current) {
+          const errorMessage = "Failed to load tasks";
+          setState((prev) => ({
+            ...prev,
+            loading: false,
+            error: errorMessage,
+          }));
+
+          if (showRefreshFeedback) {
+            toast.error(errorMessage);
           }
         }
-
-        // Add user names to tasks
-        tasks = tasksResult.value.data.map(task => ({
-          ...task,
-          assigned_user_name: task.assigned_to
-            ? userNames[task.assigned_to] || (task.assigned_to === userIdParam ? "You" : "Team Member")
-            : null,
-          created_by_name: task.created_by === userIdParam
-            ? "You"
-            : userNames[task.created_by] || "Team Member",
-        }));
-      }
-
-      // Process users
-      const users = usersResult.status === "fulfilled" ? usersResult.value.data : [];
-
-      // Update state
-      if (mountedRef.current) {
-        setState(prev => ({
-          ...prev,
-          tasks,
-          users,
-          loading: false,
-          error: null,
-          lastFetch: new Date().toISOString(),
-        }));
-
-        if (showRefreshFeedback) {
-          toast.success("Tasks refreshed successfully");
-        }
-
-        console.log("✅ Tasks and users loaded successfully", { 
-          tasks: tasks.length, 
-          users: users.length 
-        });
-      }
-
-    } catch (error) {
-      console.error("❌ Error loading tasks and users:", error);
-      if (mountedRef.current) {
-        const errorMessage = "Failed to load tasks";
-        setState(prev => ({
-          ...prev,
-          loading: false,
-          error: errorMessage,
-        }));
-
-        if (showRefreshFeedback) {
-          toast.error(errorMessage);
+      } finally {
+        loadingRef.current = false;
+        if (mountedRef.current) {
+          setRefreshing(false);
         }
       }
-    } finally {
-      loadingRef.current = false;
-      if (mountedRef.current) {
-        setRefreshing(false);
-      }
-    }
-  }, []);
+    },
+    []
+  );
 
   // Main loading effect
   useEffect(() => {
@@ -364,7 +392,7 @@ export default function TasksPage() {
     }
 
     if (!userId || !propertyId || !tenantId) {
-      setState(prev => ({ ...prev, loading: false }));
+      setState((prev) => ({ ...prev, loading: false }));
       return;
     }
 
@@ -396,99 +424,113 @@ export default function TasksPage() {
   }, [userId, propertyId, tenantId, filter, loadTasksAndUsers]);
 
   // Task actions
-  const claimTask = useCallback(async (taskId: string) => {
-    if (!userId) return;
+  const claimTask = useCallback(
+    async (taskId: string) => {
+      if (!userId) return;
 
-    try {
-      const { error } = await supabase
-        .from("tasks")
-        .update({
-          assigned_to: userId,
-          status: "in_progress",
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", taskId);
-
-      if (error) throw error;
-
-      toast.success("Task claimed successfully!");
-      refreshTasks();
-    } catch (error) {
-      console.error("❌ Error claiming task:", error);
-      toast.error("Failed to claim task");
-    }
-  }, [userId, refreshTasks]);
-
-  const completeTask = useCallback(async (taskId: string) => {
-    try {
-      const task = state.tasks.find(t => t.id === taskId);
-      if (!task) return;
-
-      const { error: updateError } = await supabase
-        .from("tasks")
-        .update({
-          status: "completed",
-          completed_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", taskId);
-
-      if (updateError) throw updateError;
-
-      // Handle recurring tasks
-      if (task.is_recurring && task.recurrence_pattern && task.due_date) {
-        const nextDueDate = calculateNextDueDate(
-          task.due_date,
-          task.recurrence_pattern,
-          task.recurrence_interval || 1
-        );
-
-        const shouldCreateNext = !task.recurring_end_date || 
-          new Date(nextDueDate) <= new Date(task.recurring_end_date);
-
-        if (shouldCreateNext) {
-          const nextTaskData = {
-            title: task.title,
-            description: task.description,
-            priority: task.priority,
-            category: task.category,
-            due_date: nextDueDate,
-            assigned_to: task.assigned_to,
-            status: task.assigned_to ? "in_progress" : "pending",
-            created_by: task.created_by,
-            property_id: task.property_id,
-            tenant_id: task.tenant_id,
-            is_recurring: true,
-            recurrence_pattern: task.recurrence_pattern,
-            recurrence_interval: task.recurrence_interval,
-            parent_task_id: task.parent_task_id || task.id,
-            recurring_end_date: task.recurring_end_date,
+      try {
+        const { error } = await supabase
+          .from("tasks")
+          .update({
+            assigned_to: userId,
+            status: "in_progress",
             updated_at: new Date().toISOString(),
-          };
+          })
+          .eq("id", taskId);
 
-          const { error: createError } = await supabase
-            .from("tasks")
-            .insert(nextTaskData);
+        if (error) throw error;
 
-          if (createError) {
-            console.error("❌ Error creating next recurring task:", createError);
-            toast.error("Task completed but failed to create next occurrence");
+        toast.success("Task claimed successfully!");
+        refreshTasks();
+      } catch (error) {
+        console.error("❌ Error claiming task:", error);
+        toast.error("Failed to claim task");
+      }
+    },
+    [userId, refreshTasks]
+  );
+
+  const completeTask = useCallback(
+    async (taskId: string) => {
+      try {
+        const task = state.tasks.find((t) => t.id === taskId);
+        if (!task) return;
+
+        const { error: updateError } = await supabase
+          .from("tasks")
+          .update({
+            status: "completed",
+            completed_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", taskId);
+
+        if (updateError) throw updateError;
+
+        // Handle recurring tasks
+        if (task.is_recurring && task.recurrence_pattern && task.due_date) {
+          const nextDueDate = calculateNextDueDate(
+            task.due_date,
+            task.recurrence_pattern,
+            task.recurrence_interval || 1
+          );
+
+          const shouldCreateNext =
+            !task.recurring_end_date ||
+            new Date(nextDueDate) <= new Date(task.recurring_end_date);
+
+          if (shouldCreateNext) {
+            const nextTaskData = {
+              title: task.title,
+              description: task.description,
+              priority: task.priority,
+              category: task.category,
+              due_date: nextDueDate,
+              assigned_to: task.assigned_to,
+              status: task.assigned_to ? "in_progress" : "pending",
+              created_by: task.created_by,
+              property_id: task.property_id,
+              tenant_id: task.tenant_id,
+              is_recurring: true,
+              recurrence_pattern: task.recurrence_pattern,
+              recurrence_interval: task.recurrence_interval,
+              parent_task_id: task.parent_task_id || task.id,
+              recurring_end_date: task.recurring_end_date,
+              updated_at: new Date().toISOString(),
+            };
+
+            const { error: createError } = await supabase
+              .from("tasks")
+              .insert(nextTaskData);
+
+            if (createError) {
+              console.error(
+                "❌ Error creating next recurring task:",
+                createError
+              );
+              toast.error(
+                "Task completed but failed to create next occurrence"
+              );
+            } else {
+              toast.success(
+                "Task completed! Next occurrence created automatically 🔄"
+              );
+            }
           } else {
-            toast.success("Task completed! Next occurrence created automatically 🔄");
+            toast.success("Task completed! Recurring series has ended ✅");
           }
         } else {
-          toast.success("Task completed! Recurring series has ended ✅");
+          toast.success("Task completed! Great job! 🎉");
         }
-      } else {
-        toast.success("Task completed! Great job! 🎉");
-      }
 
-      refreshTasks();
-    } catch (error) {
-      console.error("❌ Error completing task:", error);
-      toast.error("Failed to complete task");
-    }
-  }, [state.tasks, calculateNextDueDate, refreshTasks]);
+        refreshTasks();
+      } catch (error) {
+        console.error("❌ Error completing task:", error);
+        toast.error("Failed to complete task");
+      }
+    },
+    [state.tasks, calculateNextDueDate, refreshTasks]
+  );
 
   // Modal handlers
   const editTask = useCallback((task: Task) => {
@@ -496,18 +538,21 @@ export default function TasksPage() {
     setIsEditModalOpen(true);
   }, []);
 
-  const deleteTask = useCallback((taskId: string) => {
-    const task = state.tasks.find(t => t.id === taskId);
-    if (!task) return;
+  const deleteTask = useCallback(
+    (taskId: string) => {
+      const task = state.tasks.find((t) => t.id === taskId);
+      if (!task) return;
 
-    if (task.created_by !== userId) {
-      toast.error("You can only delete tasks you created");
-      return;
-    }
+      if (task.created_by !== userId) {
+        toast.error("You can only delete tasks you created");
+        return;
+      }
 
-    setTaskToDelete(task);
-    setIsDeleteModalOpen(true);
-  }, [state.tasks, userId]);
+      setTaskToDelete(task);
+      setIsDeleteModalOpen(true);
+    },
+    [state.tasks, userId]
+  );
 
   const confirmDeleteTask = useCallback(async () => {
     if (!taskToDelete) return;
@@ -526,8 +571,8 @@ export default function TasksPage() {
       if (taskToDelete.attachments?.length) {
         try {
           const filePaths = taskToDelete.attachments
-            .filter(url => url.includes("task-attachments"))
-            .map(url => {
+            .filter((url) => url.includes("task-attachments"))
+            .map((url) => {
               const path = url.split("task-attachments/")[1];
               return path?.split("?")[0];
             })
@@ -555,7 +600,7 @@ export default function TasksPage() {
 
   // Memoized filtered tasks with better performance
   const filteredTasks = useMemo(() => {
-    return state.tasks.filter(task => {
+    return state.tasks.filter((task) => {
       // Apply view mode filtering
       if (isGuestView) {
         return task.is_public || task.visibility === "guest";
@@ -580,32 +625,38 @@ export default function TasksPage() {
     ];
 
     // Add counts to filters
-    return filters.map(filter => {
+    return filters.map((filter) => {
       let count = 0;
       switch (filter.value) {
         case "open":
-          count = state.tasks.filter(t => ["pending", "in_progress"].includes(t.status)).length;
+          count = state.tasks.filter((t) =>
+            ["pending", "in_progress"].includes(t.status)
+          ).length;
           break;
         case "all":
           count = state.tasks.length;
           break;
         case "pending":
-          count = state.tasks.filter(t => t.status === "pending").length;
+          count = state.tasks.filter((t) => t.status === "pending").length;
           break;
         case "in-progress":
-          count = state.tasks.filter(t => t.status === "in_progress").length;
+          count = state.tasks.filter((t) => t.status === "in_progress").length;
           break;
         case "completed":
-          count = state.tasks.filter(t => t.status === "completed").length;
+          count = state.tasks.filter((t) => t.status === "completed").length;
           break;
         case "mine":
-          count = state.tasks.filter(t => 
-            t.assigned_to === userId && ["pending", "in_progress"].includes(t.status)
+          count = state.tasks.filter(
+            (t) =>
+              t.assigned_to === userId &&
+              ["pending", "in_progress"].includes(t.status)
           ).length;
           break;
         case "created-by-me":
-          count = state.tasks.filter(t => 
-            t.created_by === userId && ["pending", "in_progress"].includes(t.status)
+          count = state.tasks.filter(
+            (t) =>
+              t.created_by === userId &&
+              ["pending", "in_progress"].includes(t.status)
           ).length;
           break;
       }
@@ -616,10 +667,7 @@ export default function TasksPage() {
   // Loading states
   if (isInitializing) {
     return (
-      <StandardPageLayout 
-        title="Tasks" 
-        subtitle="Loading..."
-      >
+      <StandardPageLayout title="Tasks" subtitle="Loading...">
         <StandardCard>
           <div className="flex items-center justify-center min-h-[400px]">
             <div className="text-center">
@@ -647,10 +695,7 @@ export default function TasksPage() {
   // Error state
   if (state.error) {
     return (
-      <StandardPageLayout 
-        title="Tasks" 
-        subtitle="Error loading tasks"
-      >
+      <StandardPageLayout title="Tasks" subtitle="Error loading tasks">
         <StandardCard>
           <div className="text-center py-12">
             <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
@@ -671,12 +716,10 @@ export default function TasksPage() {
   }
 
   return (
-    <StandardPageLayout 
-      title="Tasks" 
+    <StandardPageLayout
+      title="Tasks"
       subtitle={`Property management tasks • ${currentProperty.name}`}
-      breadcrumb={[
-        { label: "Tasks" }
-      ]}
+      breadcrumb={[{ label: "Tasks" }]}
     >
       <div className="space-y-6">
         <StandardCard
@@ -690,7 +733,9 @@ export default function TasksPage() {
                 className="flex items-center px-3 py-1 text-sm border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 disabled:opacity-50"
                 title="Refresh tasks"
               >
-                <RefreshCw className={`h-3 w-3 mr-1 ${refreshing ? 'animate-spin' : ''}`} />
+                <RefreshCw
+                  className={`h-3 w-3 mr-1 ${refreshing ? "animate-spin" : ""}`}
+                />
                 Refresh
               </button>
               <span className="text-xs text-gray-500">
@@ -703,7 +748,7 @@ export default function TasksPage() {
               >
                 {taskFilters.map(({ value, label, count }) => (
                   <option key={value} value={value}>
-                    {label} {count !== undefined ? `(${count})` : ''}
+                    {label} {count !== undefined ? `(${count})` : ""}
                   </option>
                 ))}
               </select>
@@ -753,7 +798,8 @@ export default function TasksPage() {
                       Everything is running smoothly!
                     </p>
                     <p className="text-sm text-gray-400 mb-8">
-                      Check back later or create a new task if something needs attention.
+                      Check back later or create a new task if something needs
+                      attention.
                     </p>
 
                     <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
@@ -847,7 +893,9 @@ export default function TasksPage() {
                       <div className="text-center py-8 border-t border-gray-200 mt-8">
                         <div className="flex items-center justify-center mb-3">
                           <div className="h-px bg-gray-200 flex-1 max-w-20"></div>
-                          <span className="px-4 text-sm text-gray-400">That's it!</span>
+                          <span className="px-4 text-sm text-gray-400">
+                            That's it!
+                          </span>
                           <div className="h-px bg-gray-200 flex-1 max-w-20"></div>
                         </div>
                         <p className="text-sm text-gray-500">
@@ -927,10 +975,7 @@ export default function TasksPage() {
 // Custom fallback for dashboard when no property is selected
 function DashboardNoPropertyFallback() {
   return (
-    <StandardPageLayout 
-      title="Tasks" 
-      subtitle="No property selected"
-    >
+    <StandardPageLayout title="Tasks" subtitle="No property selected">
       <StandardCard>
         <div className="text-center py-8">
           <CheckSquareIcon className="h-12 w-12 text-gray-300 mx-auto mb-3" />

@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { Plus, Edit, ArrowLeft, BookOpen, AlertTriangle } from "lucide-react";
 import Link from "next/link";
-import { useAuth } from "@/components/auth";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { useProperty } from "@/lib/hooks/useProperty";
 import Header from "@/components/layout/Header";
 import PageContainer from "@/components/layout/PageContainer";
@@ -39,7 +39,7 @@ export default function ManualSectionDetailPage() {
   const { currentProperty, loading: propertyLoading } = useProperty();
   const router = useRouter();
   const params = useParams();
-  
+
   const [section, setSection] = useState<ManualSection | null>(null);
   const [items, setItems] = useState<ManualItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -88,7 +88,7 @@ export default function ManualSectionDetailPage() {
           .from("manual_items")
           .select("*")
           .eq("section_id", sectionId)
-          .order("order_index", { ascending: true })
+          .order("order_index", { ascending: true }),
       ]);
 
       if (!mountedRef.current) {
@@ -98,7 +98,7 @@ export default function ManualSectionDetailPage() {
 
       // Handle section response
       if (sectionResponse.error) {
-        if (sectionResponse.error.code === 'PGRST116') {
+        if (sectionResponse.error.code === "PGRST116") {
           setError("Section not found");
         } else {
           console.error("❌ Error fetching section:", sectionResponse.error);
@@ -120,7 +120,6 @@ export default function ManualSectionDetailPage() {
         console.log("✅ Items loaded:", itemsResponse.data?.length || 0);
         setItems(itemsResponse.data || []);
       }
-
     } catch (error) {
       console.error("❌ Unexpected error loading section:", error);
       if (mountedRef.current) {
@@ -160,14 +159,14 @@ export default function ManualSectionDetailPage() {
 
     // Check if we need to reload due to section change
     const sectionChanged = currentSectionIdRef.current !== sectionId;
-    
+
     if (!hasLoadedRef.current || sectionChanged) {
-      console.log("🔄 Loading section data:", { 
-        sectionChanged, 
+      console.log("🔄 Loading section data:", {
+        sectionChanged,
         hasLoaded: hasLoadedRef.current,
-        sectionId 
+        sectionId,
       });
-      
+
       currentSectionIdRef.current = sectionId;
       hasLoadedRef.current = true;
       loadSectionData();
@@ -184,11 +183,14 @@ export default function ManualSectionDetailPage() {
   }, [sectionId, user?.id, loadSectionData]);
 
   // Memoized navigation handlers
-  const navigationHandlers = useMemo(() => ({
-    goToManual: () => router.push("/manual"),
-    goToAddItem: () => router.push(`/manual/sections/${sectionId}/items/new`),
-    goToEditSection: () => router.push(`/manual/sections/${sectionId}/edit`),
-  }), [router, sectionId]);
+  const navigationHandlers = useMemo(
+    () => ({
+      goToManual: () => router.push("/manual"),
+      goToAddItem: () => router.push(`/manual/sections/${sectionId}/items/new`),
+      goToEditSection: () => router.push(`/manual/sections/${sectionId}/edit`),
+    }),
+    [router, sectionId]
+  );
 
   // Loading state
   if (isInitializing || loading) {
@@ -201,7 +203,9 @@ export default function ManualSectionDetailPage() {
               <div className="text-center">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-3"></div>
                 <p className="text-gray-600">
-                  {isInitializing ? "⏳ Initializing..." : "📖 Loading section..."}
+                  {isInitializing
+                    ? "⏳ Initializing..."
+                    : "📖 Loading section..."}
                 </p>
               </div>
             </div>
@@ -228,7 +232,9 @@ export default function ManualSectionDetailPage() {
             <div className="text-center py-8">
               <AlertTriangle className="mx-auto h-12 w-12 text-red-500 mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">
-                {error === "Section not found" ? "Section Not Found" : "Error Loading Section"}
+                {error === "Section not found"
+                  ? "Section Not Found"
+                  : "Error Loading Section"}
               </h3>
               <p className="text-red-600 mb-4">{error}</p>
               <div className="flex gap-3 justify-center">
@@ -267,7 +273,8 @@ export default function ManualSectionDetailPage() {
                 Section Not Found
               </h3>
               <p className="text-gray-600 mb-4">
-                The manual section you're looking for doesn't exist or you don't have access to it.
+                The manual section you're looking for doesn't exist or you don't
+                have access to it.
               </p>
               <Link
                 href="/manual"
@@ -299,7 +306,9 @@ export default function ManualSectionDetailPage() {
 
           <StandardCard
             title="Section Details"
-            subtitle={`Manage content for this manual section${currentProperty ? ` • ${currentProperty.name}` : ''}`}
+            subtitle={`Manage content for this manual section${
+              currentProperty ? ` • ${currentProperty.name}` : ""
+            }`}
             headerActions={
               <div className="flex items-center gap-2">
                 <Link
@@ -393,7 +402,8 @@ export default function ManualSectionDetailPage() {
                                 : item.content}
                             </p>
                             <div className="text-xs text-gray-400 mt-1">
-                              Created {new Date(item.created_at).toLocaleDateString()}
+                              Created{" "}
+                              {new Date(item.created_at).toLocaleDateString()}
                             </div>
                           </Link>
                         </div>

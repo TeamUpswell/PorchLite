@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useAuth } from "@/components/auth";
+import { useAuth } from "@/components/auth/AuthProvider";
 import {
   getUserRole,
   canManageProperties,

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { useAuth } from "@/components/auth";
+import { useAuth } from "@/components/auth/AuthProvider";
 import Header from "@/components/layout/Header";
 import PageContainer from "@/components/layout/PageContainer";
 import StandardCard from "@/components/ui/StandardCard";
@@ -86,85 +86,98 @@ export default function CreateCleaningIssuePage() {
       issueData.location !== "" &&
       currentProperty?.id
     );
-  }, [issueData.description, issueData.severity, issueData.location, currentProperty?.id]);
+  }, [
+    issueData.description,
+    issueData.severity,
+    issueData.location,
+    currentProperty?.id,
+  ]);
 
   // Optimized form handlers
-  const handleChange = useCallback((
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
-  ) => {
-    const { name, value } = e.target;
-    setIssueData((prev) => ({ ...prev, [name]: value }));
-  }, []);
+  const handleChange = useCallback(
+    (
+      e: React.ChangeEvent<
+        HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+      >
+    ) => {
+      const { name, value } = e.target;
+      setIssueData((prev) => ({ ...prev, [name]: value }));
+    },
+    []
+  );
 
   const handlePhotosChange = useCallback((newPhotos: string[]) => {
     setPhotos(newPhotos);
   }, []);
 
-  const handleSubmit = useCallback(async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault();
 
-    if (!user || !currentProperty) {
-      toast.error("You must be logged in and have a property selected");
-      return;
-    }
-
-    if (!isFormValid) {
-      toast.error("Please fill in all required fields");
-      return;
-    }
-
-    setFormLoading(true);
-
-    try {
-      console.log("🐛 Submitting cleaning issue:", {
-        propertyId: currentProperty.id,
-        description: issueData.description,
-        severity: issueData.severity,
-        location: issueData.location,
-        photoCount: photos.length,
-      });
-
-      // Create the issue record
-      const { data, error } = await supabase
-        .from("cleaning_issues")
-        .insert([
-          {
-            property_id: currentProperty.id,
-            description: issueData.description.trim(),
-            severity: issueData.severity,
-            location: issueData.location,
-            photo_urls: photos,
-            reported_by: user.id,
-            notes: issueData.notes.trim() || null,
-            created_at: new Date().toISOString(),
-          },
-        ])
-        .select();
-
-      if (error) throw error;
-
-      console.log("✅ Cleaning issue created successfully:", data?.[0]?.id);
-
-      if (mountedRef.current) {
-        toast.success("Issue reported successfully");
-        // Small delay to show success message before redirecting
-        setTimeout(() => {
-          if (mountedRef.current) {
-            router.push("/cleaning/issues");
-          }
-        }, 1000);
+      if (!user || !currentProperty) {
+        toast.error("You must be logged in and have a property selected");
+        return;
       }
-    } catch (error) {
-      console.error("❌ Error reporting issue:", error);
-      if (mountedRef.current) {
-        toast.error("Failed to report issue");
+
+      if (!isFormValid) {
+        toast.error("Please fill in all required fields");
+        return;
       }
-    } finally {
-      if (mountedRef.current) {
-        setFormLoading(false);
+
+      setFormLoading(true);
+
+      try {
+        console.log("🐛 Submitting cleaning issue:", {
+          propertyId: currentProperty.id,
+          description: issueData.description,
+          severity: issueData.severity,
+          location: issueData.location,
+          photoCount: photos.length,
+        });
+
+        // Create the issue record
+        const { data, error } = await supabase
+          .from("cleaning_issues")
+          .insert([
+            {
+              property_id: currentProperty.id,
+              description: issueData.description.trim(),
+              severity: issueData.severity,
+              location: issueData.location,
+              photo_urls: photos,
+              reported_by: user.id,
+              notes: issueData.notes.trim() || null,
+              created_at: new Date().toISOString(),
+            },
+          ])
+          .select();
+
+        if (error) throw error;
+
+        console.log("✅ Cleaning issue created successfully:", data?.[0]?.id);
+
+        if (mountedRef.current) {
+          toast.success("Issue reported successfully");
+          // Small delay to show success message before redirecting
+          setTimeout(() => {
+            if (mountedRef.current) {
+              router.push("/cleaning/issues");
+            }
+          }, 1000);
+        }
+      } catch (error) {
+        console.error("❌ Error reporting issue:", error);
+        if (mountedRef.current) {
+          toast.error("Failed to report issue");
+        }
+      } finally {
+        if (mountedRef.current) {
+          setFormLoading(false);
+        }
       }
-    }
-  }, [user, currentProperty, isFormValid, issueData, photos, router]);
+    },
+    [user, currentProperty, isFormValid, issueData, photos, router]
+  );
 
   const handleCancel = useCallback(() => {
     // TODO: Add confirmation if form has been modified
@@ -172,38 +185,42 @@ export default function CreateCleaningIssuePage() {
   }, [router]);
 
   // Memoized severity level buttons
-  const severityButtons = useMemo(() => 
-    SEVERITY_LEVELS.map((level) => (
-      <label key={level.id} className="flex items-center">
-        <input
-          type="radio"
-          name="severity"
-          value={level.id}
-          checked={issueData.severity === level.id}
-          onChange={handleChange}
-          className="sr-only"
-          disabled={formLoading}
-        />
-        <div
-          className={`px-3 py-1 rounded-full text-sm font-medium cursor-pointer transition-all ${
-            issueData.severity === level.id
-              ? level.color + " ring-2 ring-offset-2 ring-gray-500"
-              : "bg-gray-100 text-gray-800 hover:bg-gray-200"
-          } ${formLoading ? "opacity-50 cursor-not-allowed" : ""}`}
-        >
-          {level.label}
-        </div>
-      </label>
-    )), [issueData.severity, handleChange, formLoading]
+  const severityButtons = useMemo(
+    () =>
+      SEVERITY_LEVELS.map((level) => (
+        <label key={level.id} className="flex items-center">
+          <input
+            type="radio"
+            name="severity"
+            value={level.id}
+            checked={issueData.severity === level.id}
+            onChange={handleChange}
+            className="sr-only"
+            disabled={formLoading}
+          />
+          <div
+            className={`px-3 py-1 rounded-full text-sm font-medium cursor-pointer transition-all ${
+              issueData.severity === level.id
+                ? level.color + " ring-2 ring-offset-2 ring-gray-500"
+                : "bg-gray-100 text-gray-800 hover:bg-gray-200"
+            } ${formLoading ? "opacity-50 cursor-not-allowed" : ""}`}
+          >
+            {level.label}
+          </div>
+        </label>
+      )),
+    [issueData.severity, handleChange, formLoading]
   );
 
   // Memoized location options
-  const locationOptions = useMemo(() => 
-    LOCATIONS.map((location) => (
-      <option key={location} value={location}>
-        {location}
-      </option>
-    )), []
+  const locationOptions = useMemo(
+    () =>
+      LOCATIONS.map((location) => (
+        <option key={location} value={location}>
+          {location}
+        </option>
+      )),
+    []
   );
 
   // Loading states
@@ -330,9 +347,7 @@ export default function CreateCleaningIssuePage() {
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Severity <span className="text-red-500">*</span>
                     </label>
-                    <div className="flex space-x-4">
-                      {severityButtons}
-                    </div>
+                    <div className="flex space-x-4">{severityButtons}</div>
                   </div>
                 </div>
 
@@ -375,7 +390,9 @@ export default function CreateCleaningIssuePage() {
                   <div className="text-sm text-gray-500 bg-gray-50 p-3 rounded-md">
                     <p className="font-medium mb-1">Please complete:</p>
                     <ul className="space-y-1 text-xs">
-                      {!issueData.description.trim() && <li>• Issue description</li>}
+                      {!issueData.description.trim() && (
+                        <li>• Issue description</li>
+                      )}
                       {!issueData.location && <li>• Location selection</li>}
                       {!currentProperty && <li>• Property selection</li>}
                     </ul>

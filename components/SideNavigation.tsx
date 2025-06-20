@@ -3,7 +3,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useAuth } from "@/components/auth";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { useProperty } from "@/lib/hooks/useProperty";
 import { useTheme } from "@/components/ThemeProvider";
 import { getUserRole } from "@/lib/utils/roles";

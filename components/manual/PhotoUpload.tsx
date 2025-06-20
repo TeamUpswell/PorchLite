@@ -3,8 +3,7 @@
 import { useState, useRef } from "react";
 import { Camera, X, Upload, Image as ImageIcon } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-import { useAuth } from "@/components/auth";
-
+import { useAuth } from "@/components/auth/AuthProvider";
 interface PhotoUploadProps {
   onPhotosChange: (urls: string[]) => void;
   existingPhotos: string[];

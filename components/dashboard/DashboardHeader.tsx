@@ -2,7 +2,7 @@
 
 import { PropertySwitcher } from "@/components/property/PropertySwitcher";
 import { useProperty } from "@/lib/hooks/useProperty";
-import { useAuth } from "@/components/auth";
+import { useAuth } from "@/components/auth/AuthProvider";
 import {
   Home as HomeIcon,
   Camera,

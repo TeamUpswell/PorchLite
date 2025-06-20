@@ -19,7 +19,7 @@ import {
 import Header from "@/components/layout/Header";
 import PageContainer from "@/components/layout/PageContainer";
 import StandardCard from "@/components/ui/StandardCard";
-import { useAuth } from "@/components/auth";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { canManageUsers } from "@/lib/utils/roles";
 import { createClient } from "@supabase/supabase-js";
 import CreateUserModal from "@/components/admin/CreateUserModal";

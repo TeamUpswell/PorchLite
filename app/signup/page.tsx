@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/components/auth";
+import { useAuth } from "@/components/auth/AuthProvider";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -53,7 +53,9 @@ export default function SignUpPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Partial<FormData>>({});
-  const [touched, setTouched] = useState<Partial<Record<keyof FormData, boolean>>>({});
+  const [touched, setTouched] = useState<
+    Partial<Record<keyof FormData, boolean>>
+  >({});
 
   // Refs for optimization
   const mountedRef = useRef(true);
@@ -192,29 +194,33 @@ export default function SignUpPage() {
   }, [formData, isValidEmail, passwordStrength.score, formValidation]);
 
   // Handle input changes with validation
-  const handleInputChange = useCallback((field: keyof FormData) => {
-    return (e: React.ChangeEvent<HTMLInputElement>) => {
-      if (!mountedRef.current) return;
+  const handleInputChange = useCallback(
+    (field: keyof FormData) => {
+      return (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (!mountedRef.current) return;
 
-      const value = field === "acceptTerms" ? e.target.checked : e.target.value;
+        const value =
+          field === "acceptTerms" ? e.target.checked : e.target.value;
 
-      setFormData((prev) => ({
-        ...prev,
-        [field]: value,
-      }));
+        setFormData((prev) => ({
+          ...prev,
+          [field]: value,
+        }));
 
-      // Mark field as touched
-      setTouched((prev) => ({
-        ...prev,
-        [field]: true,
-      }));
+        // Mark field as touched
+        setTouched((prev) => ({
+          ...prev,
+          [field]: true,
+        }));
 
-      // Clear global error when user starts typing
-      if (error) {
-        setError("");
-      }
-    };
-  }, [error]);
+        // Clear global error when user starts typing
+        if (error) {
+          setError("");
+        }
+      };
+    },
+    [error]
+  );
 
   // Handle form submission
   const handleSubmit = useCallback(
@@ -246,10 +252,14 @@ export default function SignUpPage() {
       try {
         console.log("🔐 Creating account for:", formData.email);
 
-        const { data, error: signUpError } = await signUp(formData.email, formData.password, {
-          full_name: formData.fullName.trim(),
-          email_confirm: true,
-        });
+        const { data, error: signUpError } = await signUp(
+          formData.email,
+          formData.password,
+          {
+            full_name: formData.fullName.trim(),
+            email_confirm: true,
+          }
+        );
 
         if (!mountedRef.current) {
           console.log("⚠️ Component unmounted, aborting");
@@ -274,7 +284,8 @@ export default function SignUpPage() {
       } catch (error) {
         console.error("❌ Unexpected signup error:", error);
         if (mountedRef.current) {
-          const errorMessage = error instanceof Error ? error.message : "Failed to create account";
+          const errorMessage =
+            error instanceof Error ? error.message : "Failed to create account";
           setError(errorMessage);
           toast.error(errorMessage);
         }
@@ -323,7 +334,9 @@ export default function SignUpPage() {
             <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-full mb-4">
               <UserPlus className="w-8 h-8 text-white" />
             </div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Join PorchLite</h1>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">
+              Join PorchLite
+            </h1>
             <p className="text-gray-600">
               Create your account to start managing your properties
             </p>
@@ -475,17 +488,21 @@ export default function SignUpPage() {
                     <div className="w-full bg-gray-200 rounded-full h-2">
                       <div
                         className={`h-2 rounded-full transition-all duration-300 ${passwordStrength.color}`}
-                        style={{ width: `${(passwordStrength.score / 5) * 100}%` }}
+                        style={{
+                          width: `${(passwordStrength.score / 5) * 100}%`,
+                        }}
                       />
                     </div>
                     {passwordStrength.feedback.length > 0 && (
                       <ul className="mt-1 text-xs text-gray-500 space-y-1">
-                        {passwordStrength.feedback.slice(0, 3).map((item, index) => (
-                          <li key={index} className="flex items-center">
-                            <span className="w-1 h-1 bg-gray-400 rounded-full mr-2"></span>
-                            {item}
-                          </li>
-                        ))}
+                        {passwordStrength.feedback
+                          .slice(0, 3)
+                          .map((item, index) => (
+                            <li key={index} className="flex items-center">
+                              <span className="w-1 h-1 bg-gray-400 rounded-full mr-2"></span>
+                              {item}
+                            </li>
+                          ))}
                       </ul>
                     )}
                   </div>
@@ -549,7 +566,8 @@ export default function SignUpPage() {
                 )}
                 {touched.confirmPassword &&
                   formData.password === formData.confirmPassword &&
-                  formData.confirmPassword && !fieldErrors.confirmPassword && (
+                  formData.confirmPassword &&
+                  !fieldErrors.confirmPassword && (
                     <p className="mt-1 text-xs text-green-600 flex items-center">
                       <CheckCircle className="h-3 w-3 mr-1" />
                       Passwords match

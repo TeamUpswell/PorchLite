@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useAuth } from "@/components/auth";
+import { useAuth } from "@/components/auth/AuthProvider";
 import PageContainer from "@/components/layout/PageContainer";
 import Header from "@/components/layout/Header";
 import StandardCard from "@/components/ui/StandardCard";

@@ -2,12 +2,18 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/components/auth";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { debugLog } from "@/lib/utils/debug";
 
 export default function AuthPage() {
   const router = useRouter();
-  const { user, signIn, signUp, loading: authLoading, refreshSession } = useAuth();
+  const {
+    user,
+    signIn,
+    signUp,
+    loading: authLoading,
+    refreshSession,
+  } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -160,9 +166,7 @@ export default function AuthPage() {
           <div className="text-center">
             <button
               type="button"
-              onClick={() =>
-                setMode(mode === "signin" ? "signup" : "signin")
-              }
+              onClick={() => setMode(mode === "signin" ? "signup" : "signin")}
               className="text-indigo-600 hover:text-indigo-500"
             >
               {mode === "signin"

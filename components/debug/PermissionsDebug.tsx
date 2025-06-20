@@ -1,6 +1,6 @@
 "use client";
 
-import { useAuth } from "@/components/auth";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { useProperty } from "@/lib/hooks/useProperty";
 import { usePermissions } from "@/lib/hooks/usePermissions";
 import StandardCard from "@/components/ui/StandardCard";

@@ -1,6 +1,6 @@
 "use client";
 
-import { useAuth } from "@/components/auth";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { useEffect, useRef } from "react";
 
 export default function AuthStateMonitor() {
@@ -10,34 +10,38 @@ export default function AuthStateMonitor() {
 
   useEffect(() => {
     checkCount.current++;
-    
+
     const currentState = {
       hasUser: !!auth.user,
       hasSession: !!auth.session,
       loading: auth.loading,
       initialized: auth.initialized,
       userId: auth.user?.id,
-      sessionExpiry: auth.session?.expires_at
+      sessionExpiry: auth.session?.expires_at,
     };
 
-    if (lastAuthState.current && lastAuthState.current.hasUser && !currentState.hasUser) {
-      console.error('🚨 USER LOST UNEXPECTEDLY:', {
+    if (
+      lastAuthState.current &&
+      lastAuthState.current.hasUser &&
+      !currentState.hasUser
+    ) {
+      console.error("🚨 USER LOST UNEXPECTEDLY:", {
         previous: lastAuthState.current,
         current: currentState,
         checkCount: checkCount.current,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
-      
-      if (process.env.NODE_ENV === 'production') {
-        fetch('/api/log-error', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+
+      if (process.env.NODE_ENV === "production") {
+        fetch("/api/log-error", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            type: 'auth_state_loss',
+            type: "auth_state_loss",
             previous: lastAuthState.current,
             current: currentState,
-            timestamp: new Date().toISOString()
-          })
+            timestamp: new Date().toISOString(),
+          }),
         }).catch(() => {});
       }
     }
@@ -46,11 +50,11 @@ export default function AuthStateMonitor() {
       const expiryTime = new Date(currentState.sessionExpiry * 1000);
       const now = new Date();
       const timeToExpiry = expiryTime.getTime() - now.getTime();
-      
+
       if (timeToExpiry < 60000 && timeToExpiry > 0) {
-        console.warn('⚠️ Session expiring soon:', {
+        console.warn("⚠️ Session expiring soon:", {
           expiresAt: expiryTime.toISOString(),
-          timeToExpiry: Math.round(timeToExpiry / 1000) + 's'
+          timeToExpiry: Math.round(timeToExpiry / 1000) + "s",
         });
       }
     }

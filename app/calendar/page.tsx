@@ -3,7 +3,7 @@
 
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { PageErrorBoundary } from "@/components/PageErrorBoundary";
-import { useAuth } from "@/components/auth";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { useProperty } from "@/lib/hooks/useProperty";
 import { debugLog } from "@/lib/utils/debug";
 import StandardPageLayout from "@/components/layout/StandardPageLayout";
@@ -14,10 +14,10 @@ import { Calendar as CalendarIcon } from "lucide-react";
 function CalendarPageContent() {
   const { user, loading: authLoading } = useAuth();
   const { currentProperty, loading: propertyLoading } = useProperty();
-  
+
   // Simplified state management
   const [refreshKey, setRefreshKey] = useState(0);
-  
+
   // Refs to prevent excessive updates
   const lastRefreshRef = useRef(Date.now());
   const mountTimeRef = useRef(Date.now());
@@ -32,11 +32,11 @@ function CalendarPageContent() {
   // Single initialization effect
   useEffect(() => {
     if (hasInitializedRef.current) return;
-    
+
     debugLog("📅 Calendar page component mounted");
     mountTimeRef.current = Date.now();
     hasInitializedRef.current = true;
-    
+
     return () => {
       debugLog("📅 Calendar page unmounted");
       hasInitializedRef.current = false;
@@ -47,15 +47,15 @@ function CalendarPageContent() {
   const refreshCalendar = useCallback(() => {
     const now = Date.now();
     const timeSinceLastRefresh = now - lastRefreshRef.current;
-    
+
     // Prevent refreshes more than once every 5 seconds
     if (timeSinceLastRefresh < 5000) {
       console.log("🚫 Calendar refresh throttled");
       return;
     }
-    
+
     lastRefreshRef.current = now;
-    setRefreshKey(prev => prev + 1);
+    setRefreshKey((prev) => prev + 1);
     debugLog("🔄 Calendar refreshed");
   }, []);
 
@@ -66,34 +66,38 @@ function CalendarPageContent() {
     }
 
     // If property changed, refresh calendar (but throttled)
-    if (lastPropertyIdRef.current && lastPropertyIdRef.current !== currentProperty.id) {
+    if (
+      lastPropertyIdRef.current &&
+      lastPropertyIdRef.current !== currentProperty.id
+    ) {
       console.log("🏠 Property changed, refreshing calendar");
       refreshCalendar();
     }
-    
+
     lastPropertyIdRef.current = currentProperty.id;
   }, [currentProperty?.id, refreshCalendar]);
 
   // Simplified visibility handling - REMOVED refreshCalendar dependency
   useEffect(() => {
     const handleVisibilityChange = () => {
-      const isVisible = document.visibilityState === 'visible';
-      
+      const isVisible = document.visibilityState === "visible";
+
       if (isVisible) {
         console.log("👁️ Calendar page became visible");
-        
+
         // Only refresh if it's been hidden for more than 5 minutes
         const timeSinceMount = Date.now() - mountTimeRef.current;
-        if (timeSinceMount > 300000) { // 5 minutes
+        if (timeSinceMount > 300000) {
+          // 5 minutes
           console.log("🔄 Calendar: Refreshing after long absence");
-          
+
           // Call refresh directly instead of using the callback
           const now = Date.now();
           const timeSinceLastRefresh = now - lastRefreshRef.current;
-          
+
           if (timeSinceLastRefresh >= 5000) {
             lastRefreshRef.current = now;
-            setRefreshKey(prev => prev + 1);
+            setRefreshKey((prev) => prev + 1);
             debugLog("🔄 Calendar refreshed after visibility change");
           }
         }
@@ -102,9 +106,9 @@ function CalendarPageContent() {
       }
     };
 
-    document.addEventListener('visibilitychange', handleVisibilityChange);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
     return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, []); // Empty dependency array - only set up once
 
@@ -123,11 +127,7 @@ function CalendarPageContent() {
   // No user state
   if (!user) {
     return (
-      <StandardPageLayout
-        theme="dark"
-        showHeader={false}
-        showSideNav={true}
-      >
+      <StandardPageLayout theme="dark" showHeader={false} showSideNav={true}>
         <StandardCard>
           <div className="text-center py-8">
             <CalendarIcon className="mx-auto h-12 w-12 text-gray-400" />
@@ -145,11 +145,7 @@ function CalendarPageContent() {
 
   // Main calendar - stable, no forced re-mounting
   return (
-    <StandardPageLayout
-      theme="dark"
-      showHeader={false}
-      showSideNav={true}
-    >
+    <StandardPageLayout theme="dark" showHeader={false} showSideNav={true}>
       <div className="space-y-6">
         <Calendar
           refreshTrigger={refreshKey}

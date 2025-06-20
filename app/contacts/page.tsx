@@ -6,7 +6,7 @@ import { Users, Phone, Mail, MapPin, Edit, Plus } from "lucide-react";
 import Link from "next/link";
 import StandardPageLayout from "@/components/layout/StandardPageLayout";
 import StandardCard from "@/components/ui/StandardCard";
-import { useAuth } from "@/components/auth";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { useProperty } from "@/lib/hooks/useProperty";
 import { supabase } from "@/lib/supabase";
 import FloatingActionButton from "@/components/ui/FloatingActionButton";
@@ -47,7 +47,7 @@ export default function ContactsPage() {
   const { user, loading: authLoading } = useAuth();
   const { currentProperty, loading: propertyLoading } = useProperty();
   const { isManagerView, isFamilyView, isGuestView } = useViewMode();
-  
+
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -88,7 +88,7 @@ export default function ContactsPage() {
       const { data, error } = await supabase
         .from("contacts")
         .select("*")
-        .eq('property_id', propertyId)
+        .eq("property_id", propertyId)
         .order("name");
 
       if (error) throw error;
@@ -99,12 +99,13 @@ export default function ContactsPage() {
       }
     } catch (error) {
       console.error("❌ Error fetching contacts:", error);
-      
+
       if (mountedRef.current) {
         // Only use demo data if it's a "not found" or "no data" scenario
-        const isNoDataError = error instanceof Error && 
-          (error.message.includes('does not exist') || 
-           error.message.includes('not found'));
+        const isNoDataError =
+          error instanceof Error &&
+          (error.message.includes("does not exist") ||
+            error.message.includes("not found"));
 
         if (isNoDataError) {
           console.log("📞 Using demo data for testing");
@@ -180,11 +181,13 @@ export default function ContactsPage() {
 
   // Memoized category lookup
   const getCategoryInfo = useCallback((categoryId: string): CategoryInfo => {
-    return CATEGORIES.find((cat) => cat.id === categoryId) || {
-      id: categoryId,
-      name: categoryId,
-      icon: "👤",
-    };
+    return (
+      CATEGORIES.find((cat) => cat.id === categoryId) || {
+        id: categoryId,
+        name: categoryId,
+        icon: "👤",
+      }
+    );
   }, []);
 
   // Memoized filtered contacts
@@ -194,25 +197,30 @@ export default function ContactsPage() {
         return contact.category === "emergency" || contact.is_public;
       }
       if (isFamilyView) {
-        return contact.category !== "vendor" && contact.category !== "financial";
+        return (
+          contact.category !== "vendor" && contact.category !== "financial"
+        );
       }
       return true; // Managers see all contacts
     });
   }, [contacts, isGuestView, isFamilyView]);
 
   // Memoized contact groups
-  const contactGroups = useMemo(() => ({
-    emergency: filteredContacts.filter((c) => c.category === "emergency"),
-    property: filteredContacts.filter((c) => 
-      c.category === "property" || 
-      c.category === "maintenance" || 
-      c.category === "service"
-    ),
-    vendor: filteredContacts.filter((c) => 
-      c.category === "vendor" || 
-      c.category === "contractor"
-    ),
-  }), [filteredContacts]);
+  const contactGroups = useMemo(
+    () => ({
+      emergency: filteredContacts.filter((c) => c.category === "emergency"),
+      property: filteredContacts.filter(
+        (c) =>
+          c.category === "property" ||
+          c.category === "maintenance" ||
+          c.category === "service"
+      ),
+      vendor: filteredContacts.filter(
+        (c) => c.category === "vendor" || c.category === "contractor"
+      ),
+    }),
+    [filteredContacts]
+  );
 
   // Retry function
   const retryFetch = useCallback(() => {
@@ -225,113 +233,119 @@ export default function ContactsPage() {
   }, [currentProperty?.id, fetchContacts]);
 
   // Memoized ContactCard component
-  const ContactCard = useCallback(({ contact }: { contact: Contact }) => {
-    const categoryInfo = getCategoryInfo(contact.category);
+  const ContactCard = useCallback(
+    ({ contact }: { contact: Contact }) => {
+      const categoryInfo = getCategoryInfo(contact.category);
 
-    return (
-      <div className="border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow relative group">
-        <div className="p-4">
-          <div className="flex items-start justify-between mb-3">
-            <h3 className="font-semibold text-gray-900 text-lg pr-2">
-              {contact.name}
-            </h3>
-            <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded flex-shrink-0">
-              {categoryInfo.icon} {categoryInfo.name}
-            </span>
-          </div>
-
-          <div className="space-y-2 text-sm">
-            {contact.email && (
-              <div className="flex items-center text-gray-600">
-                <Mail className="h-4 w-4 mr-2 flex-shrink-0" />
-                <a
-                  href={`mailto:${contact.email}`}
-                  className="hover:text-blue-600 truncate"
-                >
-                  {contact.email}
-                </a>
-              </div>
-            )}
-
-            {contact.phone && (
-              <div className="flex items-center text-gray-600">
-                <Phone className="h-4 w-4 mr-2 flex-shrink-0" />
-                <a
-                  href={`tel:${contact.phone}`}
-                  className="hover:text-blue-600"
-                >
-                  {contact.phone}
-                </a>
-              </div>
-            )}
-
-            {contact.address && (
-              <div className="flex items-center text-gray-600">
-                <MapPin className="h-4 w-4 mr-2 flex-shrink-0" />
-                <span className="truncate">{contact.address}</span>
-              </div>
-            )}
-          </div>
-
-          {contact.notes && (
-            <div className="mt-3 p-2 bg-gray-50 rounded-lg">
-              <p className="text-sm text-gray-600 line-clamp-2">
-                {contact.notes}
-              </p>
+      return (
+        <div className="border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow relative group">
+          <div className="p-4">
+            <div className="flex items-start justify-between mb-3">
+              <h3 className="font-semibold text-gray-900 text-lg pr-2">
+                {contact.name}
+              </h3>
+              <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded flex-shrink-0">
+                {categoryInfo.icon} {categoryInfo.name}
+              </span>
             </div>
-          )}
 
-          <div className="mt-4 pt-3 border-t border-gray-100 flex justify-between items-center">
-            <span className="text-xs text-gray-500">
-              Added{" "}
-              {new Date(contact.created_at).toLocaleDateString("en-US", {
-                year: "numeric",
-                month: "short",
-                day: "numeric",
-              })}
-            </span>
-            {(isManagerView || isFamilyView) && (
-              <Link
-                href={`/contacts/edit/${contact.id}`}
-                className="flex items-center text-blue-600 hover:text-blue-800 text-sm font-medium transition-colors"
-              >
-                <Edit className="h-3 w-3 mr-1" />
-                Edit
-              </Link>
+            <div className="space-y-2 text-sm">
+              {contact.email && (
+                <div className="flex items-center text-gray-600">
+                  <Mail className="h-4 w-4 mr-2 flex-shrink-0" />
+                  <a
+                    href={`mailto:${contact.email}`}
+                    className="hover:text-blue-600 truncate"
+                  >
+                    {contact.email}
+                  </a>
+                </div>
+              )}
+
+              {contact.phone && (
+                <div className="flex items-center text-gray-600">
+                  <Phone className="h-4 w-4 mr-2 flex-shrink-0" />
+                  <a
+                    href={`tel:${contact.phone}`}
+                    className="hover:text-blue-600"
+                  >
+                    {contact.phone}
+                  </a>
+                </div>
+              )}
+
+              {contact.address && (
+                <div className="flex items-center text-gray-600">
+                  <MapPin className="h-4 w-4 mr-2 flex-shrink-0" />
+                  <span className="truncate">{contact.address}</span>
+                </div>
+              )}
+            </div>
+
+            {contact.notes && (
+              <div className="mt-3 p-2 bg-gray-50 rounded-lg">
+                <p className="text-sm text-gray-600 line-clamp-2">
+                  {contact.notes}
+                </p>
+              </div>
             )}
+
+            <div className="mt-4 pt-3 border-t border-gray-100 flex justify-between items-center">
+              <span className="text-xs text-gray-500">
+                Added{" "}
+                {new Date(contact.created_at).toLocaleDateString("en-US", {
+                  year: "numeric",
+                  month: "short",
+                  day: "numeric",
+                })}
+              </span>
+              {(isManagerView || isFamilyView) && (
+                <Link
+                  href={`/contacts/edit/${contact.id}`}
+                  className="flex items-center text-blue-600 hover:text-blue-800 text-sm font-medium transition-colors"
+                >
+                  <Edit className="h-3 w-3 mr-1" />
+                  Edit
+                </Link>
+              )}
+            </div>
           </div>
         </div>
-      </div>
-    );
-  }, [getCategoryInfo, isManagerView, isFamilyView]);
+      );
+    },
+    [getCategoryInfo, isManagerView, isFamilyView]
+  );
 
   // Memoized EmptyState component
-  const EmptyState = useCallback(({ 
-    title, 
-    description, 
-    buttonText, 
-    category 
-  }: { 
-    title: string; 
-    description: string; 
-    buttonText: string; 
-    category?: string; 
-  }) => (
-    <div className="text-center py-8 text-gray-500">
-      <Users className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-      <p className="font-medium">{title}</p>
-      <p className="text-sm mt-1 mb-4">{description}</p>
-      {(isManagerView || isFamilyView) && (
-        <Link
-          href={`/contacts/add${category ? `?category=${category}` : ''}`}
-          className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          {buttonText}
-        </Link>
-      )}
-    </div>
-  ), [isManagerView, isFamilyView]);
+  const EmptyState = useCallback(
+    ({
+      title,
+      description,
+      buttonText,
+      category,
+    }: {
+      title: string;
+      description: string;
+      buttonText: string;
+      category?: string;
+    }) => (
+      <div className="text-center py-8 text-gray-500">
+        <Users className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+        <p className="font-medium">{title}</p>
+        <p className="text-sm mt-1 mb-4">{description}</p>
+        {(isManagerView || isFamilyView) && (
+          <Link
+            href={`/contacts/add${category ? `?category=${category}` : ""}`}
+            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            {buttonText}
+          </Link>
+        )}
+      </div>
+    ),
+    [isManagerView, isFamilyView]
+  );
 
   // Loading states
   if (isLoading) {
@@ -415,7 +429,8 @@ export default function ContactsPage() {
                 Property: <strong>{currentProperty.name}</strong>
                 {filteredContacts.length > 0 && (
                   <span className="ml-2 text-sm">
-                    ({filteredContacts.length} contact{filteredContacts.length !== 1 ? 's' : ''})
+                    ({filteredContacts.length} contact
+                    {filteredContacts.length !== 1 ? "s" : ""})
                   </span>
                 )}
               </p>
@@ -497,7 +512,7 @@ export default function ContactsPage() {
                   buttonText="Add Vendor Contact"
                   category="vendor"
                 />
-                )}
+              )}
             </StandardCard>
           )}
         </div>

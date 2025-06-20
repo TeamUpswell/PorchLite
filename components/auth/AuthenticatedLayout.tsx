@@ -1,6 +1,7 @@
 "use client";
 
-import { useAuth } from "@/components/auth";
+import React from "react";
+import { useAuth } from "./AuthProvider"; // ✅ Relative import instead of absolute
 import SideNavigation from "@/components/SideNavigation";
 import Script from "next/script";
 

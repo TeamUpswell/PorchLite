@@ -2,7 +2,7 @@
 
 import { PlusCircle } from "lucide-react";
 import { useState } from "react";
-import { useAuth } from "@/components/auth";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { useProperty } from "@/lib/hooks/useProperty";
 import Header from "@/components/layout/Header";
 import PageContainer from "@/components/layout/PageContainer";

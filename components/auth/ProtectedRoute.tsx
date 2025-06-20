@@ -1,6 +1,7 @@
 "use client";
 
-import { useAuth } from "@/components/auth";
+import React from "react";
+import { useAuth } from "./AuthProvider"; // ✅ Relative import instead of absolute
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
@@ -25,7 +26,7 @@ export default function ProtectedRoute({
 
   useEffect(() => {
     if (!loading && !user) {
-      console.log('🔒 No authenticated user, redirecting to auth...');
+      console.log("🔒 No authenticated user, redirecting to auth...");
       router.push("/auth");
     }
   }, [user, loading, router]); // ✅ Fix: Use 'loading' instead of 'isLoading'

@@ -2,12 +2,11 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/components/auth";
-
+import { useAuth } from "@/components/auth/AuthProvider";
 export default function LoginPage() {
   const router = useRouter();
   const { user, signIn, signUp, loading: authLoading, initialized } = useAuth();
-  
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -28,18 +27,18 @@ export default function LoginPage() {
 
   // Optimized redirect logic with deduplication
   useEffect(() => {
-    console.log('🔍 Login redirect check:', { 
-      user: !!user, 
-      authLoading, 
-      initialized, 
-      hasRedirected: hasRedirectedRef.current 
+    console.log("🔍 Login redirect check:", {
+      user: !!user,
+      authLoading,
+      initialized,
+      hasRedirected: hasRedirectedRef.current,
     });
-    
+
     // Prevent multiple redirects
     if (hasRedirectedRef.current) return;
-    
+
     if (initialized && !authLoading && user && mountedRef.current) {
-      console.log('🔄 Login: User already logged in, redirecting to home...');
+      console.log("🔄 Login: User already logged in, redirecting to home...");
       hasRedirectedRef.current = true;
       router.push("/");
     }
@@ -53,60 +52,71 @@ export default function LoginPage() {
   }, [error]);
 
   // Memoized input handlers
-  const handleEmailChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setEmail(e.target.value);
-    clearError();
-  }, [clearError]);
+  const handleEmailChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      setEmail(e.target.value);
+      clearError();
+    },
+    [clearError]
+  );
 
-  const handlePasswordChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setPassword(e.target.value);
-    clearError();
-  }, [clearError]);
+  const handlePasswordChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      setPassword(e.target.value);
+      clearError();
+    },
+    [clearError]
+  );
 
   // Optimized login handler with deduplication
-  const handleLogin = useCallback(async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    // Prevent duplicate submissions
-    if (submittingRef.current || loading || !mountedRef.current) {
-      console.log('🛑 Login: Preventing duplicate submission');
-      return;
-    }
+  const handleLogin = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault();
 
-    submittingRef.current = true;
-    setLoading(true);
-    setError("");
-
-    try {
-      console.log('🔍 Login: Attempting login...');
-      const result = await signIn(email, password);
-      
-      if (!mountedRef.current) {
-        console.log('⚠️ Login: Component unmounted, aborting');
+      // Prevent duplicate submissions
+      if (submittingRef.current || loading || !mountedRef.current) {
+        console.log("🛑 Login: Preventing duplicate submission");
         return;
       }
-      
-      if (result.error) {
-        setError(result.error.message || "Login failed");
-        console.log('❌ Login error:', result.error);
-      } else {
-        console.log('✅ Login successful, auth state will handle redirect');
-        // Clear form on success
-        setEmail("");
-        setPassword("");
+
+      submittingRef.current = true;
+      setLoading(true);
+      setError("");
+
+      try {
+        console.log("🔍 Login: Attempting login...");
+        const result = await signIn(email, password);
+
+        if (!mountedRef.current) {
+          console.log("⚠️ Login: Component unmounted, aborting");
+          return;
+        }
+
+        if (result.error) {
+          setError(result.error.message || "Login failed");
+          console.log("❌ Login error:", result.error);
+        } else {
+          console.log("✅ Login successful, auth state will handle redirect");
+          // Clear form on success
+          setEmail("");
+          setPassword("");
+        }
+      } catch (error) {
+        console.log("❌ Login exception:", error);
+        if (mountedRef.current) {
+          setError(
+            error instanceof Error ? error.message : "An error occurred"
+          );
+        }
+      } finally {
+        if (mountedRef.current) {
+          setLoading(false);
+        }
+        submittingRef.current = false;
       }
-    } catch (error) {
-      console.log('❌ Login exception:', error);
-      if (mountedRef.current) {
-        setError(error instanceof Error ? error.message : "An error occurred");
-      }
-    } finally {
-      if (mountedRef.current) {
-        setLoading(false);
-      }
-      submittingRef.current = false;
-    }
-  }, [email, password, signIn, loading]);
+    },
+    [email, password, signIn, loading]
+  );
 
   // Optimized quick signup handler
   const handleQuickSignup = useCallback(async () => {
@@ -119,19 +129,19 @@ export default function LoginPage() {
     setError("");
 
     try {
-      console.log('🔍 Quick signup: Creating test account...');
+      console.log("🔍 Quick signup: Creating test account...");
       const result = await signUp("test@example.com", "password123");
-      
+
       if (!mountedRef.current) {
-        console.log('⚠️ Quick signup: Component unmounted, aborting');
+        console.log("⚠️ Quick signup: Component unmounted, aborting");
         return;
       }
-      
+
       if (result.error) {
         setError(result.error.message || "Signup failed");
-        console.log('❌ Quick signup error:', result.error);
+        console.log("❌ Quick signup error:", result.error);
       } else {
-        console.log('✅ Quick signup successful');
+        console.log("✅ Quick signup successful");
       }
     } catch (error) {
       console.error("❌ Quick signup exception:", error);

@@ -2,7 +2,7 @@
 
 import { useState, FormEvent, ChangeEvent, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/components/auth";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { useProperty } from "@/lib/hooks/useProperty";
 import { supabase } from "@/lib/supabase";
 import { ArrowLeft, Save } from "lucide-react";
@@ -113,18 +113,16 @@ export default function AddContactPage() {
   }
 
   return (
-      <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50">
       <div className="container mx-auto px-4 py-8">
         {/* Page Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">
-            Add New Contact
-          </h1>
+          <h1 className="text-3xl font-bold text-gray-900">Add New Contact</h1>
           <p className="text-gray-600 mt-2">
             Enter details for the new contact
           </p>
         </div>
-        
+
         {/* Page Content */}
         <div className="space-y-6">
           <Header title="Add New Contact" />

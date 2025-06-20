@@ -6,7 +6,7 @@ export const fetchCache = "force-no-store";
 export const runtime = "nodejs";
 
 import { useState, useEffect } from "react";
-import { useAuth } from "@/components/auth";
+import { useAuth } from "@/components/auth/AuthProvider";
 import Header from "@/components/layout/Header";
 import PageContainer from "@/components/layout/PageContainer";
 import StandardCard from "@/components/ui/StandardCard";

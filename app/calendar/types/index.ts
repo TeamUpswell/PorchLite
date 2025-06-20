@@ -37,3 +37,22 @@ export const roleHierarchy = {
 } as const;
 
 export type UserRole = keyof typeof roleHierarchy;
+
+export interface Profile {
+  id: string;
+  full_name?: string;
+  phone_number?: string;
+  email?: string;
+  avatar_url?: string;
+  created_at: string;
+  updated_at: string;
+  address?: string;
+  show_in_contacts: boolean;
+  role?: string;
+}
+
+export interface User {
+  id: string;
+  email: string;
+  // ... other user fields
+}

@@ -2,14 +2,9 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import Link from "next/link";
-import {
-  Plus,
-  BookOpen,
-  Pin,
-  Sparkles,
-} from "lucide-react";
+import { Plus, BookOpen, Pin, Sparkles } from "lucide-react";
 import { toast } from "react-hot-toast";
-import { useAuth } from "@/components/auth";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { useProperty } from "@/lib/hooks/useProperty";
 import { supabase } from "@/lib/supabase";
 import { CreatePattern } from "@/components/ui/FloatingActionPresets";
@@ -69,7 +64,9 @@ export default function ManualPage() {
         });
 
         if (!response.ok) {
-          console.warn("⚠️ Default cleaning section creation failed, continuing...");
+          console.warn(
+            "⚠️ Default cleaning section creation failed, continuing..."
+          );
         }
       } catch (error) {
         console.warn("⚠️ Error creating default section:", error);
@@ -92,14 +89,18 @@ export default function ManualPage() {
       console.log("🏠 Loading sections for property:", currentProperty.name);
 
       // Create default cleaning section in background (don't await)
-      createDefaultCleaningSection(currentProperty.id, user.id).catch(console.warn);
+      createDefaultCleaningSection(currentProperty.id, user.id).catch(
+        console.warn
+      );
 
       const { data, error } = await supabase
         .from("manual_sections")
-        .select(`
+        .select(
+          `
           *,
           manual_items(count)
-        `)
+        `
+        )
         .eq("property_id", currentProperty.id)
         .order("is_priority", { ascending: false })
         .order("created_at", { ascending: true });
@@ -115,7 +116,7 @@ export default function ManualPage() {
         setSections([]);
       } else {
         console.log("✅ Fetched instruction sections:", data?.length || 0);
-        
+
         // Sort sections with cleaning first among priorities
         const sortedData = data?.sort((a, b) => {
           if (a.is_priority !== b.is_priority) {
@@ -127,7 +128,9 @@ export default function ManualPage() {
             if (b.title === "Cleaning Procedures") return 1;
           }
 
-          return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+          return (
+            new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+          );
         });
 
         setSections(sortedData || []);
@@ -143,7 +146,12 @@ export default function ManualPage() {
         setLoading(false);
       }
     }
-  }, [currentProperty?.id, currentProperty?.name, user?.id, createDefaultCleaningSection]);
+  }, [
+    currentProperty?.id,
+    currentProperty?.name,
+    user?.id,
+    createDefaultCleaningSection,
+  ]);
 
   // Main loading effect
   useEffect(() => {
@@ -162,14 +170,14 @@ export default function ManualPage() {
 
     // Check if we need to reload due to property change
     const propertyChanged = currentPropertyIdRef.current !== currentProperty.id;
-    
+
     if (!hasLoadedRef.current || propertyChanged) {
-      console.log("🔄 Loading sections:", { 
-        propertyChanged, 
+      console.log("🔄 Loading sections:", {
+        propertyChanged,
         hasLoaded: hasLoadedRef.current,
-        propertyName: currentProperty.name 
+        propertyName: currentProperty.name,
       });
-      
+
       currentPropertyIdRef.current = currentProperty.id;
       hasLoadedRef.current = true;
       loadSections();
@@ -200,11 +208,13 @@ export default function ManualPage() {
           toast.success(isPriority ? "Section pinned" : "Section unpinned");
 
           // Update local state optimistically
-          setSections(prev => prev.map(section => 
-            section.id === sectionId 
-              ? { ...section, is_priority: isPriority }
-              : section
-          ));
+          setSections((prev) =>
+            prev.map((section) =>
+              section.id === sectionId
+                ? { ...section, is_priority: isPriority }
+                : section
+            )
+          );
         }
       } catch (error) {
         console.error("Unexpected error updating section:", error);
@@ -232,7 +242,9 @@ export default function ManualPage() {
       .sort((a, b) => {
         if (a.title === "Cleaning Procedures") return -1;
         if (b.title === "Cleaning Procedures") return 1;
-        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+        return (
+          new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+        );
       });
 
     const regular = sections.filter((section) => !section.is_priority);
@@ -384,8 +396,13 @@ export default function ManualPage() {
                 </p>
                 <ul className="space-y-1">
                   <li>• Click the pin icon to mark sections as priority</li>
-                  <li>• Priority sections appear at the top for quick access</li>
-                  <li>• The cleaning section is automatically created for each property</li>
+                  <li>
+                    • Priority sections appear at the top for quick access
+                  </li>
+                  <li>
+                    • The cleaning section is automatically created for each
+                    property
+                  </li>
                 </ul>
               </div>
             </div>
@@ -413,14 +430,17 @@ function PrioritySectionCard({
     return <CleaningSectionCard section={section} onTogglePin={onTogglePin} />;
   }
 
-  const handleUnpin = useCallback(async (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
+  const handleUnpin = useCallback(
+    async (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
 
-    setIsToggling(true);
-    await onTogglePin(section.id, false);
-    setIsToggling(false);
-  }, [section.id, onTogglePin]);
+      setIsToggling(true);
+      await onTogglePin(section.id, false);
+      setIsToggling(false);
+    },
+    [section.id, onTogglePin]
+  );
 
   return (
     <Link href={`/manual/sections/${section.id}`}>
@@ -487,14 +507,17 @@ function CleaningSectionCard({
 }) {
   const [isToggling, setIsToggling] = useState(false);
 
-  const handleUnpin = useCallback(async (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
+  const handleUnpin = useCallback(
+    async (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
 
-    setIsToggling(true);
-    await onTogglePin(section.id, false);
-    setIsToggling(false);
-  }, [section.id, onTogglePin]);
+      setIsToggling(true);
+      await onTogglePin(section.id, false);
+      setIsToggling(false);
+    },
+    [section.id, onTogglePin]
+  );
 
   return (
     <Link href="/cleaning">
@@ -531,7 +554,8 @@ function CleaningSectionCard({
         </h3>
 
         <p className="text-sm text-gray-600 mb-4">
-          {section.description || "Manage all your cleaning tasks and procedures"}
+          {section.description ||
+            "Manage all your cleaning tasks and procedures"}
         </p>
 
         <div className="flex items-center space-x-2 text-xs">

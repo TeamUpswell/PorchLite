@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { useAuth } from "@/components/auth";
+import { useAuth } from "@/components/auth/AuthProvider";
 import Header from "@/components/layout/Header";
 import PageContainer from "@/components/layout/PageContainer";
 import StandardCard from "@/components/ui/StandardCard";
@@ -425,9 +425,7 @@ export default function HouseGearPage() {
 
                 {/* Category Filter */}
                 <StandardCard>
-                  <div className="flex flex-wrap gap-2">
-                    {categoryButtons}
-                  </div>
+                  <div className="flex flex-wrap gap-2">{categoryButtons}</div>
                 </StandardCard>
 
                 {/* Gear Grid */}
@@ -445,9 +443,10 @@ export default function HouseGearPage() {
                       <p className="text-gray-500">
                         {selectedCategory === "all"
                           ? "No gear items available yet."
-                          : `No items available in the ${CATEGORIES.find(
-                              (c) => c.id === selectedCategory
-                            )?.name} category.`}
+                          : `No items available in the ${
+                              CATEGORIES.find((c) => c.id === selectedCategory)
+                                ?.name
+                            } category.`}
                       </p>
                       {selectedCategory !== "all" && (
                         <button

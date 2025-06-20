@@ -1,7 +1,7 @@
 // components/LoadingWrapper.tsx
 "use client";
 
-import { useAuth } from "@/components/auth";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { useTenant } from "@/lib/hooks/useTenant";
 import { useProperty } from "@/lib/hooks/useProperty";
 

@@ -1,8 +1,7 @@
 "use client";
 
 import { LogOut } from "lucide-react";
-import { useAuth } from "@/components/auth";
-
+import { useAuth } from "@/components/auth/AuthProvider";
 interface SignOutButtonProps {
   variant?: "button" | "card";
   className?: string;

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { useAuth } from "@/components/auth";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { useProperty } from "@/lib/hooks/useProperty";
 import { supabase } from "@/lib/supabase";
 import StandardPageLayout from "@/components/layout/StandardPageLayout";
@@ -51,7 +51,7 @@ interface GuestBookEntry {
 export default function GuestBookPage() {
   const { user, loading: authLoading } = useAuth();
   const { currentProperty, loading: propertyLoading } = useProperty();
-  
+
   const [entries, setEntries] = useState<GuestBookEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -86,7 +86,7 @@ export default function GuestBookPage() {
     if (topCardTimerRef.current) {
       clearTimeout(topCardTimerRef.current);
     }
-    
+
     topCardTimerRef.current = setTimeout(() => {
       if (mountedRef.current) {
         setShowTopCard(false);
@@ -118,7 +118,8 @@ export default function GuestBookPage() {
       // Try to fetch with photos in a single query first
       let { data: entriesData, error: entriesError } = await supabase
         .from("guest_book_entries")
-        .select(`
+        .select(
+          `
           *,
           guest_book_photos (
             id,
@@ -126,7 +127,8 @@ export default function GuestBookPage() {
             caption,
             order_index
           )
-        `)
+        `
+        )
         .eq("property_id", propertyId)
         .eq("is_approved", true)
         .eq("is_public", true)
@@ -134,7 +136,7 @@ export default function GuestBookPage() {
         .limit(20);
 
       // If photo join fails (table doesn't exist), fetch entries only
-      if (entriesError && entriesError.message.includes('guest_book_photos')) {
+      if (entriesError && entriesError.message.includes("guest_book_photos")) {
         console.log("📸 Photos table not found, fetching entries only");
         const { data: fallbackData, error: fallbackError } = await supabase
           .from("guest_book_entries")
@@ -205,9 +207,12 @@ export default function GuestBookPage() {
   }, []);
 
   // Memoized edit permission check
-  const canEditEntry = useCallback((entry: GuestBookEntry) => {
-    return user && entry.created_by === user.id;
-  }, [user]);
+  const canEditEntry = useCallback(
+    (entry: GuestBookEntry) => {
+      return user && entry.created_by === user.id;
+    },
+    [user]
+  );
 
   // Memoized handlers
   const handleEditEntry = useCallback((entry: GuestBookEntry) => {
@@ -241,159 +246,175 @@ export default function GuestBookPage() {
   }, [currentProperty?.id, fetchGuestBookEntries]);
 
   // Memoized ContactCard component
-  const EntryCard = useCallback(({ entry, index }: { entry: GuestBookEntry; index: number }) => (
-    <div key={entry.id} className="relative mb-8 last:mb-0">
-      {/* Timeline dot */}
-      <div className="absolute left-0 w-4 h-4 bg-gradient-to-r from-rose-400 to-amber-400 rounded-full border-4 border-white shadow-lg z-10 transform -translate-x-[7px]"></div>
+  const EntryCard = useCallback(
+    ({ entry, index }: { entry: GuestBookEntry; index: number }) => (
+      <div key={entry.id} className="relative mb-8 last:mb-0">
+        {/* Timeline dot */}
+        <div className="absolute left-0 w-4 h-4 bg-gradient-to-r from-rose-400 to-amber-400 rounded-full border-4 border-white shadow-lg z-10 transform -translate-x-[7px]"></div>
 
-      {/* Date badge */}
-      <div className="absolute left-8 -top-1">
-        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700 border">
-          <Calendar className="h-3 w-3 mr-1" />
-          {new Date(entry.visit_date).toLocaleDateString("en-US", {
-            month: "short",
-            day: "numeric",
-            year: "numeric",
-          })}
-        </span>
-      </div>
+        {/* Date badge */}
+        <div className="absolute left-8 -top-1">
+          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700 border">
+            <Calendar className="h-3 w-3 mr-1" />
+            {new Date(entry.visit_date).toLocaleDateString("en-US", {
+              month: "short",
+              day: "numeric",
+              year: "numeric",
+            })}
+          </span>
+        </div>
 
-      {/* Entry content */}
-      <div className="ml-10 mt-3">
-        <StandardCard className="overflow-hidden hover:shadow-lg transition-shadow duration-200">
-          <div className="p-4">
-            {/* Header */}
-            <div className="flex items-start justify-between mb-3">
-              <div className="flex-1 min-w-0">
-                <h3 className="text-lg font-bold text-gray-900 mb-1 leading-tight truncate">
-                  {entry.title || `A wonderful stay`}
-                </h3>
-                <div className="flex items-center space-x-3 text-sm text-gray-500">
-                  <span className="flex items-center font-medium">
-                    <Heart className="h-3 w-3 mr-1 text-rose-400" />
-                    {entry.guest_name}
-                  </span>
-                  <span className="text-gray-300">•</span>
-                  <span className="truncate">
-                    {new Date(entry.visit_date).toLocaleDateString("en-US", {
-                      weekday: "long",
-                    })}
+        {/* Entry content */}
+        <div className="ml-10 mt-3">
+          <StandardCard className="overflow-hidden hover:shadow-lg transition-shadow duration-200">
+            <div className="p-4">
+              {/* Header */}
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-lg font-bold text-gray-900 mb-1 leading-tight truncate">
+                    {entry.title || `A wonderful stay`}
+                  </h3>
+                  <div className="flex items-center space-x-3 text-sm text-gray-500">
+                    <span className="flex items-center font-medium">
+                      <Heart className="h-3 w-3 mr-1 text-rose-400" />
+                      {entry.guest_name}
+                    </span>
+                    <span className="text-gray-300">•</span>
+                    <span className="truncate">
+                      {new Date(entry.visit_date).toLocaleDateString("en-US", {
+                        weekday: "long",
+                      })}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Rating */}
+                <div className="flex items-center bg-gradient-to-r from-amber-50 to-yellow-50 px-3 py-1 rounded-lg border border-amber-200 ml-3">
+                  <div className="flex items-center">
+                    {renderStars(entry.rating)}
+                  </div>
+                  <span className="ml-1 text-sm font-bold text-amber-700">
+                    {entry.rating}
                   </span>
                 </div>
               </div>
 
-              {/* Rating */}
-              <div className="flex items-center bg-gradient-to-r from-amber-50 to-yellow-50 px-3 py-1 rounded-lg border border-amber-200 ml-3">
-                <div className="flex items-center">
-                  {renderStars(entry.rating)}
+              {/* Message */}
+              {entry.message && (
+                <div className="mb-4">
+                  <div className="bg-gradient-to-r from-gray-50 to-blue-50 rounded-lg p-3 border-l-3 border-blue-400">
+                    <p className="text-gray-800 leading-relaxed italic">
+                      "{entry.message}"
+                    </p>
+                  </div>
                 </div>
-                <span className="ml-1 text-sm font-bold text-amber-700">
-                  {entry.rating}
-                </span>
+              )}
+
+              {/* Photos */}
+              {((entry.guest_book_photos &&
+                entry.guest_book_photos.length > 0) ||
+                (entry.photos && entry.photos.length > 0)) && (
+                <div className="mb-4">
+                  <div className="flex items-center mb-2">
+                    <Camera className="h-4 w-4 text-gray-400 mr-1" />
+                    <span className="text-xs font-medium text-gray-600">
+                      Memory Snapshots
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                    {entry.guest_book_photos?.map((photo, photoIndex) => (
+                      <div key={photo.id} className="relative group">
+                        <div className="relative overflow-hidden rounded-lg bg-gray-100 aspect-square">
+                          <Image
+                            src={photo.photo_url}
+                            alt={photo.caption || `Memory ${photoIndex + 1}`}
+                            fill
+                            className="object-cover group-hover:scale-110 transition-transform duration-300"
+                            onError={() =>
+                              console.warn(
+                                "Failed to load photo:",
+                                photo.photo_url
+                              )
+                            }
+                          />
+                          {photo.caption && (
+                            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                              <p className="text-white text-xs">
+                                {photo.caption}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+
+                    {entry.photos?.map((photoUrl, photoIndex) => (
+                      <div key={photoIndex} className="relative group">
+                        <div className="relative overflow-hidden rounded-lg bg-gray-100 aspect-square">
+                          <Image
+                            src={photoUrl}
+                            alt={
+                              entry.photo_captions?.[photoIndex] ||
+                              `Memory ${photoIndex + 1}`
+                            }
+                            fill
+                            className="object-cover group-hover:scale-110 transition-transform duration-300"
+                            onError={() =>
+                              console.warn("Failed to load photo:", photoUrl)
+                            }
+                          />
+                          {entry.photo_captions?.[photoIndex] && (
+                            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                              <p className="text-white text-xs">
+                                {entry.photo_captions[photoIndex]}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Status and actions */}
+              <div className="flex flex-wrap items-center justify-between pt-3 border-t border-gray-100">
+                <div className="flex flex-wrap gap-1">
+                  {entry.everything_was_great && (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-800 font-medium">
+                      ✨ Perfect
+                    </span>
+                  )}
+                  {entry.everything_well_stocked && (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-blue-100 text-blue-800 font-medium">
+                      📦 Well stocked
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex items-center space-x-3 mt-1 md:mt-0">
+                  <div className="text-xs text-gray-500">
+                    {new Date(entry.created_at).toLocaleDateString()}
+                  </div>
+
+                  {canEditEntry(entry) && (
+                    <button
+                      onClick={() => handleEditEntry(entry)}
+                      className="inline-flex items-center px-2 py-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50 text-xs font-medium rounded transition-all duration-200"
+                    >
+                      <Edit className="h-3 w-3 mr-1" />
+                      Edit
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
-
-            {/* Message */}
-            {entry.message && (
-              <div className="mb-4">
-                <div className="bg-gradient-to-r from-gray-50 to-blue-50 rounded-lg p-3 border-l-3 border-blue-400">
-                  <p className="text-gray-800 leading-relaxed italic">
-                    "{entry.message}"
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {/* Photos */}
-            {((entry.guest_book_photos && entry.guest_book_photos.length > 0) ||
-              (entry.photos && entry.photos.length > 0)) && (
-              <div className="mb-4">
-                <div className="flex items-center mb-2">
-                  <Camera className="h-4 w-4 text-gray-400 mr-1" />
-                  <span className="text-xs font-medium text-gray-600">
-                    Memory Snapshots
-                  </span>
-                </div>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-                  {entry.guest_book_photos?.map((photo, photoIndex) => (
-                    <div key={photo.id} className="relative group">
-                      <div className="relative overflow-hidden rounded-lg bg-gray-100 aspect-square">
-                        <Image
-                          src={photo.photo_url}
-                          alt={photo.caption || `Memory ${photoIndex + 1}`}
-                          fill
-                          className="object-cover group-hover:scale-110 transition-transform duration-300"
-                          onError={() => console.warn("Failed to load photo:", photo.photo_url)}
-                        />
-                        {photo.caption && (
-                          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                            <p className="text-white text-xs">{photo.caption}</p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-
-                  {entry.photos?.map((photoUrl, photoIndex) => (
-                    <div key={photoIndex} className="relative group">
-                      <div className="relative overflow-hidden rounded-lg bg-gray-100 aspect-square">
-                        <Image
-                          src={photoUrl}
-                          alt={entry.photo_captions?.[photoIndex] || `Memory ${photoIndex + 1}`}
-                          fill
-                          className="object-cover group-hover:scale-110 transition-transform duration-300"
-                          onError={() => console.warn("Failed to load photo:", photoUrl)}
-                        />
-                        {entry.photo_captions?.[photoIndex] && (
-                          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                            <p className="text-white text-xs">
-                              {entry.photo_captions[photoIndex]}
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Status and actions */}
-            <div className="flex flex-wrap items-center justify-between pt-3 border-t border-gray-100">
-              <div className="flex flex-wrap gap-1">
-                {entry.everything_was_great && (
-                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-800 font-medium">
-                    ✨ Perfect
-                  </span>
-                )}
-                {entry.everything_well_stocked && (
-                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-blue-100 text-blue-800 font-medium">
-                    📦 Well stocked
-                  </span>
-                )}
-              </div>
-
-              <div className="flex items-center space-x-3 mt-1 md:mt-0">
-                <div className="text-xs text-gray-500">
-                  {new Date(entry.created_at).toLocaleDateString()}
-                </div>
-
-                {canEditEntry(entry) && (
-                  <button
-                    onClick={() => handleEditEntry(entry)}
-                    className="inline-flex items-center px-2 py-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50 text-xs font-medium rounded transition-all duration-200"
-                  >
-                    <Edit className="h-3 w-3 mr-1" />
-                    Edit
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-        </StandardCard>
+          </StandardCard>
+        </div>
       </div>
-    </div>
-  ), [renderStars, canEditEntry, handleEditEntry]);
+    ),
+    [renderStars, canEditEntry, handleEditEntry]
+  );
 
   // Loading states
   if (isLoading) {
@@ -565,7 +586,8 @@ export default function GuestBookPage() {
                   Memory Timeline
                 </h2>
                 <p className="text-gray-600 max-w-2xl mx-auto mb-2">
-                  The memories you create make this place magic ({entries.length} entries)
+                  The memories you create make this place magic (
+                  {entries.length} entries)
                 </p>
                 <div className="w-24 h-1 bg-gradient-to-r from-rose-400 to-amber-400 mx-auto rounded-full"></div>
               </div>
@@ -583,7 +605,8 @@ export default function GuestBookPage() {
                               📖 Add Your Chapter
                             </h3>
                             <p className="text-gray-600">
-                              Share your experience and become part of this home's story
+                              Share your experience and become part of this
+                              home's story
                             </p>
                           </div>
                           <button
@@ -638,18 +661,32 @@ export default function GuestBookPage() {
 
         <style jsx>{`
           @keyframes float {
-            0%, 100% { transform: translateY(0px); }
-            50% { transform: translateY(-10px); }
+            0%,
+            100% {
+              transform: translateY(0px);
+            }
+            50% {
+              transform: translateY(-10px);
+            }
           }
 
           @keyframes float-delayed {
-            0%, 100% { transform: translateY(0px); }
-            50% { transform: translateY(-15px); }
+            0%,
+            100% {
+              transform: translateY(0px);
+            }
+            50% {
+              transform: translateY(-15px);
+            }
           }
 
           @keyframes shrink {
-            0% { width: 100%; }
-            100% { width: 0%; }
+            0% {
+              width: 100%;
+            }
+            100% {
+              width: 0%;
+            }
           }
 
           .animate-float {

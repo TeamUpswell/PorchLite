@@ -1,4 +1,4 @@
-import { useAuth } from "@/components/auth";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { useProperty } from "@/lib/hooks/useProperty";
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";

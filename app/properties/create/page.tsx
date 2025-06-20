@@ -1,13 +1,20 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
-import { Building, Plus, Trash2, Edit, AlertTriangle, Home } from "lucide-react";
+import {
+  Building,
+  Plus,
+  Trash2,
+  Edit,
+  AlertTriangle,
+  Home,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import StandardPageLayout from "@/components/layout/StandardPageLayout";
 import StandardCard from "@/components/ui/StandardCard";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { PropertyGuard } from "@/components/ui/PropertyGuard";
-import { useAuth } from "@/components/auth";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { useProperty } from "@/lib/hooks/useProperty";
 import { supabase } from "@/lib/supabase";
 import { toast } from "react-hot-toast";
@@ -89,189 +96,223 @@ export default function PropertiesPage() {
   }, [createForm]);
 
   // Memoized form change handler
-  const handleCreateFormChange = useCallback((field: keyof CreatePropertyForm) => {
-    return (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-      if (!mountedRef.current) return;
+  const handleCreateFormChange = useCallback(
+    (field: keyof CreatePropertyForm) => {
+      return (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        if (!mountedRef.current) return;
 
-      setCreateForm(prev => ({ ...prev, [field]: e.target.value }));
+        setCreateForm((prev) => ({ ...prev, [field]: e.target.value }));
 
-      // Clear error when user starts typing
-      if (error) {
-        setError(null);
-      }
-    };
-  }, [error]);
+        // Clear error when user starts typing
+        if (error) {
+          setError(null);
+        }
+      };
+    },
+    [error]
+  );
 
   // Show confirmation dialog
-  const showConfirmation = useCallback((
-    title: string,
-    message: string,
-    onConfirm: () => void,
-    variant: "danger" | "warning" | "info" = "danger"
-  ) => {
-    setConfirmDialog({
-      isOpen: true,
-      title,
-      message,
-      onConfirm,
-      variant,
-    });
-  }, []);
+  const showConfirmation = useCallback(
+    (
+      title: string,
+      message: string,
+      onConfirm: () => void,
+      variant: "danger" | "warning" | "info" = "danger"
+    ) => {
+      setConfirmDialog({
+        isOpen: true,
+        title,
+        message,
+        onConfirm,
+        variant,
+      });
+    },
+    []
+  );
 
   // Close confirmation dialog
   const closeConfirmDialog = useCallback(() => {
-    setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+    setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
   }, []);
 
   // Create property handler
-  const handleCreateProperty = useCallback(async (e?: React.FormEvent) => {
-    if (e) {
-      e.preventDefault();
-    }
+  const handleCreateProperty = useCallback(
+    async (e?: React.FormEvent) => {
+      if (e) {
+        e.preventDefault();
+      }
 
-    // Prevent duplicate creates
-    if (creatingRef.current || creating || !mountedRef.current || !isCreateFormValid) {
-      return;
-    }
-
-    if (!user?.id) {
-      setError("User not authenticated");
-      return;
-    }
-
-    creatingRef.current = true;
-    setCreating(true);
-    setError(null);
-
-    try {
-      console.log("🏠 Creating new property...");
-
-      const { data, error } = await supabase
-        .from("properties")
-        .insert([
-          {
-            name: createForm.name.trim(),
-            address: createForm.address.trim(),
-            city: createForm.city.trim(),
-            state: createForm.state.trim(),
-            zip: createForm.zip.trim(),
-            description: createForm.description.trim() || null,
-            created_by: user.id,
-          },
-        ])
-        .select()
-        .single();
-
-      if (!mountedRef.current) {
-        console.log("⚠️ Component unmounted, aborting");
+      // Prevent duplicate creates
+      if (
+        creatingRef.current ||
+        creating ||
+        !mountedRef.current ||
+        !isCreateFormValid
+      ) {
         return;
       }
 
-      if (error) {
-        console.error("❌ Error creating property:", error);
-        setError(error.message || "Failed to create property");
-        toast.error("Failed to create property");
-      } else {
-        console.log("✅ Property created successfully:", data.name);
-        toast.success("Property created successfully!");
+      if (!user?.id) {
+        setError("User not authenticated");
+        return;
+      }
 
-        // Reset form and close modal
-        setCreateForm({
-          name: "",
-          address: "",
-          city: "",
-          state: "",
-          zip: "",
-          description: "",
-        });
-        setShowCreateForm(false);
+      creatingRef.current = true;
+      setCreating(true);
+      setError(null);
 
-        // Refresh properties and set as current
-        await refreshProperties();
-        if (data) {
-          setCurrentProperty(data);
+      try {
+        console.log("🏠 Creating new property...");
+
+        const { data, error } = await supabase
+          .from("properties")
+          .insert([
+            {
+              name: createForm.name.trim(),
+              address: createForm.address.trim(),
+              city: createForm.city.trim(),
+              state: createForm.state.trim(),
+              zip: createForm.zip.trim(),
+              description: createForm.description.trim() || null,
+              created_by: user.id,
+            },
+          ])
+          .select()
+          .single();
+
+        if (!mountedRef.current) {
+          console.log("⚠️ Component unmounted, aborting");
+          return;
         }
+
+        if (error) {
+          console.error("❌ Error creating property:", error);
+          setError(error.message || "Failed to create property");
+          toast.error("Failed to create property");
+        } else {
+          console.log("✅ Property created successfully:", data.name);
+          toast.success("Property created successfully!");
+
+          // Reset form and close modal
+          setCreateForm({
+            name: "",
+            address: "",
+            city: "",
+            state: "",
+            zip: "",
+            description: "",
+          });
+          setShowCreateForm(false);
+
+          // Refresh properties and set as current
+          await refreshProperties();
+          if (data) {
+            setCurrentProperty(data);
+          }
+        }
+      } catch (error) {
+        console.error("❌ Unexpected error creating property:", error);
+        if (mountedRef.current) {
+          const errorMessage =
+            error instanceof Error
+              ? error.message
+              : "Failed to create property";
+          setError(errorMessage);
+          toast.error(errorMessage);
+        }
+      } finally {
+        if (mountedRef.current) {
+          setCreating(false);
+        }
+        creatingRef.current = false;
       }
-    } catch (error) {
-      console.error("❌ Unexpected error creating property:", error);
-      if (mountedRef.current) {
-        const errorMessage = error instanceof Error ? error.message : "Failed to create property";
-        setError(errorMessage);
-        toast.error(errorMessage);
-      }
-    } finally {
-      if (mountedRef.current) {
-        setCreating(false);
-      }
-      creatingRef.current = false;
-    }
-  }, [createForm, user?.id, creating, isCreateFormValid, refreshProperties, setCurrentProperty]);
+    },
+    [
+      createForm,
+      user?.id,
+      creating,
+      isCreateFormValid,
+      refreshProperties,
+      setCurrentProperty,
+    ]
+  );
 
   // Delete property handler
-  const handleDeleteProperty = useCallback((propertyId: string) => {
-    const property = userProperties.find((p) => p.id === propertyId);
+  const handleDeleteProperty = useCallback(
+    (propertyId: string) => {
+      const property = userProperties.find((p) => p.id === propertyId);
 
-    if (!property) {
-      toast.error("Property not found");
-      return;
-    }
+      if (!property) {
+        toast.error("Property not found");
+        return;
+      }
 
-    // Check if user owns the property
-    if (property.created_by !== user?.id) {
-      toast.error("You don't have permission to delete this property");
-      return;
-    }
+      // Check if user owns the property
+      if (property.created_by !== user?.id) {
+        toast.error("You don't have permission to delete this property");
+        return;
+      }
 
-    showConfirmation(
-      "Delete Property",
-      `Are you sure you want to delete "${property.name}"? This will permanently delete all associated data including manual items, notes, and photos. This action cannot be undone.`,
-      async () => {
-        if (!mountedRef.current) return;
+      showConfirmation(
+        "Delete Property",
+        `Are you sure you want to delete "${property.name}"? This will permanently delete all associated data including manual items, notes, and photos. This action cannot be undone.`,
+        async () => {
+          if (!mountedRef.current) return;
 
-        setDeletingId(propertyId);
+          setDeletingId(propertyId);
 
-        try {
-          console.log("🗑️ Deleting property:", property.name);
+          try {
+            console.log("🗑️ Deleting property:", property.name);
 
-          const { error } = await supabase
-            .from("properties")
-            .delete()
-            .eq("id", propertyId)
-            .eq("created_by", user?.id); // Additional security check
+            const { error } = await supabase
+              .from("properties")
+              .delete()
+              .eq("id", propertyId)
+              .eq("created_by", user?.id); // Additional security check
 
-          if (!mountedRef.current) {
-            console.log("⚠️ Component unmounted, aborting");
-            return;
-          }
-
-          if (error) {
-            console.error("❌ Error deleting property:", error);
-            toast.error("Failed to delete property");
-          } else {
-            console.log("✅ Property deleted successfully");
-            toast.success("Property deleted successfully");
-
-            // If deleted property was current, clear it
-            if (currentProperty?.id === propertyId) {
-              setCurrentProperty(null);
+            if (!mountedRef.current) {
+              console.log("⚠️ Component unmounted, aborting");
+              return;
             }
 
-            await refreshProperties();
+            if (error) {
+              console.error("❌ Error deleting property:", error);
+              toast.error("Failed to delete property");
+            } else {
+              console.log("✅ Property deleted successfully");
+              toast.success("Property deleted successfully");
+
+              // If deleted property was current, clear it
+              if (currentProperty?.id === propertyId) {
+                setCurrentProperty(null);
+              }
+
+              await refreshProperties();
+            }
+          } catch (error) {
+            console.error("❌ Unexpected error deleting property:", error);
+            if (mountedRef.current) {
+              toast.error("Failed to delete property");
+            }
+          } finally {
+            if (mountedRef.current) {
+              setDeletingId(null);
+            }
           }
-        } catch (error) {
-          console.error("❌ Unexpected error deleting property:", error);
-          if (mountedRef.current) {
-            toast.error("Failed to delete property");
-          }
-        } finally {
-          if (mountedRef.current) {
-            setDeletingId(null);
-          }
-        }
-      },
-      "danger"
-    );
-  }, [userProperties, user?.id, currentProperty, showConfirmation, setCurrentProperty, refreshProperties]);
+        },
+        "danger"
+      );
+    },
+    [
+      userProperties,
+      user?.id,
+      currentProperty,
+      showConfirmation,
+      setCurrentProperty,
+      refreshProperties,
+    ]
+  );
 
   // Cancel create form
   const handleCancelCreate = useCallback(() => {
@@ -290,15 +331,21 @@ export default function PropertiesPage() {
   }, [creating]);
 
   // Navigate to edit page
-  const handleEditProperty = useCallback((propertyId: string) => {
-    router.push(`/properties/${propertyId}/edit`);
-  }, [router]);
+  const handleEditProperty = useCallback(
+    (propertyId: string) => {
+      router.push(`/properties/${propertyId}/edit`);
+    },
+    [router]
+  );
 
   // Set as current property
-  const handleSetCurrent = useCallback((property: any) => {
-    setCurrentProperty(property);
-    toast.success(`Switched to ${property.name}`);
-  }, [setCurrentProperty]);
+  const handleSetCurrent = useCallback(
+    (property: any) => {
+      setCurrentProperty(property);
+      toast.success(`Switched to ${property.name}`);
+    },
+    [setCurrentProperty]
+  );
 
   // Loading state
   if (isInitializing) {
@@ -329,7 +376,9 @@ export default function PropertiesPage() {
     <PropertyGuard>
       <StandardPageLayout
         title="Properties"
-        subtitle={`Manage your properties • ${userProperties.length} ${userProperties.length === 1 ? 'property' : 'properties'}`}
+        subtitle={`Manage your properties • ${userProperties.length} ${
+          userProperties.length === 1 ? "property" : "properties"
+        }`}
       >
         <div className="space-y-6">
           <StandardCard
@@ -353,7 +402,8 @@ export default function PropertiesPage() {
                     No properties found
                   </h3>
                   <p className="text-gray-600 mb-4">
-                    Create your first property to get started managing your rental portfolio.
+                    Create your first property to get started managing your
+                    rental portfolio.
                   </p>
                   <button
                     onClick={() => setShowCreateForm(true)}
@@ -399,11 +449,15 @@ export default function PropertiesPage() {
                         )}
                         <div className="flex items-center text-xs text-gray-500">
                           <span>
-                            Created {new Date(property.created_at).toLocaleDateString('en-US', {
-                              year: 'numeric',
-                              month: 'long',
-                              day: 'numeric'
-                            })}
+                            Created{" "}
+                            {new Date(property.created_at).toLocaleDateString(
+                              "en-US",
+                              {
+                                year: "numeric",
+                                month: "long",
+                                day: "numeric",
+                              }
+                            )}
                           </span>
                         </div>
                       </div>
@@ -475,7 +529,7 @@ export default function PropertiesPage() {
                   <input
                     type="text"
                     value={createForm.name}
-                    onChange={handleCreateFormChange('name')}
+                    onChange={handleCreateFormChange("name")}
                     disabled={creating}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed transition-colors"
                     placeholder="e.g., 123 Main Street Apartment"
@@ -491,7 +545,7 @@ export default function PropertiesPage() {
                   <input
                     type="text"
                     value={createForm.address}
-                    onChange={handleCreateFormChange('address')}
+                    onChange={handleCreateFormChange("address")}
                     disabled={creating}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed transition-colors"
                     placeholder="123 Main Street"
@@ -507,7 +561,7 @@ export default function PropertiesPage() {
                     <input
                       type="text"
                       value={createForm.city}
-                      onChange={handleCreateFormChange('city')}
+                      onChange={handleCreateFormChange("city")}
                       disabled={creating}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed transition-colors"
                       placeholder="City"
@@ -521,7 +575,7 @@ export default function PropertiesPage() {
                     <input
                       type="text"
                       value={createForm.state}
-                      onChange={handleCreateFormChange('state')}
+                      onChange={handleCreateFormChange("state")}
                       disabled={creating}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed transition-colors"
                       placeholder="State"
@@ -537,7 +591,7 @@ export default function PropertiesPage() {
                   <input
                     type="text"
                     value={createForm.zip}
-                    onChange={handleCreateFormChange('zip')}
+                    onChange={handleCreateFormChange("zip")}
                     disabled={creating}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed transition-colors"
                     placeholder="12345"
@@ -551,7 +605,7 @@ export default function PropertiesPage() {
                   </label>
                   <textarea
                     value={createForm.description}
-                    onChange={handleCreateFormChange('description')}
+                    onChange={handleCreateFormChange("description")}
                     disabled={creating}
                     rows={3}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed transition-colors"

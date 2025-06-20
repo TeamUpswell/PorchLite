@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useAuth } from "@/components/auth";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { useProperty } from "@/lib/hooks/useProperty";
 import Header from "@/components/layout/Header";
 import PageContainer from "@/components/layout/PageContainer";
@@ -21,14 +21,14 @@ export default function IssuesPage() {
   // ✅ ALL HOOKS FIRST
   const { user, loading: authLoading } = useAuth();
   const { currentProperty, loading: propertyLoading } = useProperty();
-  
+
   const [issues, setIssues] = useState<Issue[]>([]);
   const [loading, setLoading] = useState(true);
   const [hasInitialized, setHasInitialized] = useState(false);
 
   const loadIssues = async () => {
     if (!currentProperty?.id) return;
-    
+
     setLoading(true);
     try {
       // Add your issues loading logic here
@@ -66,9 +66,9 @@ export default function IssuesPage() {
       </div>
     );
   }
-  
+
   if (!user) return null;
-  
+
   if (!currentProperty) {
     return (
       <div className="p-6">
@@ -78,13 +78,15 @@ export default function IssuesPage() {
             title="No Property Selected"
             subtitle="Please select a property to view issues"
           >
-            <p className="text-gray-600">You need to select a property first to manage issues.</p>
+            <p className="text-gray-600">
+              You need to select a property first to manage issues.
+            </p>
           </StandardCard>
         </PageContainer>
       </div>
     );
   }
-  
+
   if (loading) {
     return (
       <div className="p-6">
@@ -117,7 +119,9 @@ export default function IssuesPage() {
                   {issues.map((issue) => (
                     <div key={issue.id} className="border rounded-lg p-4">
                       <h3 className="font-medium">{issue.title}</h3>
-                      <p className="text-gray-600 text-sm">{issue.description}</p>
+                      <p className="text-gray-600 text-sm">
+                        {issue.description}
+                      </p>
                     </div>
                   ))}
                 </div>

@@ -27,7 +27,7 @@ import { toast } from "react-hot-toast";
 
 import StandardPageLayout from "@/components/layout/StandardPageLayout";
 import StandardCard from "@/components/ui/StandardCard";
-import { useAuth } from "@/components/auth";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { useProperty } from "@/lib/hooks/useProperty";
 import { supabase } from "@/lib/supabase";
 import { Database } from "@/lib/database.types";
@@ -71,7 +71,12 @@ export default function PropertyDetailsPage() {
   const propertyId = params.id as string;
 
   const { user, loading: authLoading } = useAuth();
-  const { currentProperty, userProperties, setCurrentProperty, loading: propertyLoading } = useProperty();
+  const {
+    currentProperty,
+    userProperties,
+    setCurrentProperty,
+    loading: propertyLoading,
+  } = useProperty();
 
   const [property, setProperty] = useState<PropertyDetails | null>(null);
   const [loading, setLoading] = useState(true);
@@ -102,169 +107,197 @@ export default function PropertyDetailsPage() {
 
   // Find property in user's properties
   const userProperty = useMemo(() => {
-    return userProperties.find(p => p.id === propertyId);
+    return userProperties.find((p) => p.id === propertyId);
   }, [userProperties, propertyId]);
 
   // Fetch property details
-  const fetchPropertyDetails = useCallback(async (showRefreshFeedback = false) => {
-    if (!propertyId || !user?.id || !mountedRef.current) {
-      return;
-    }
-
-    try {
-      if (showRefreshFeedback) {
-        setRefreshing(true);
-      } else {
-        setLoading(true);
-      }
-      setError(null);
-
-      console.log("🏠 Fetching property details for:", propertyId);
-
-      // First check if user has access to this property
-      if (!userProperty) {
-        console.log("❌ Property not found in user's properties");
-        setError("Property not found or you don't have access to it");
+  const fetchPropertyDetails = useCallback(
+    async (showRefreshFeedback = false) => {
+      if (!propertyId || !user?.id || !mountedRef.current) {
         return;
       }
 
-      // Fetch additional stats in parallel
-      const [
-        roomsResult,
-        reservationsResult, 
-        inventoryResult,
-        manualSectionsResult,
-        manualItemsResult
-      ] = await Promise.allSettled([
-        supabase
-          .from("cleaning_rooms")
-          .select("id")
-          .eq("property_id", propertyId),
-
-        supabase
-          .from("reservations")
-          .select("id, rating, created_at")
-          .eq("property_id", propertyId)
-          .order("created_at", { ascending: false }),
-
-        supabase
-          .from("inventory")
-          .select("id, name, created_at")
-          .eq("property_id", propertyId)
-          .eq("is_active", true)
-          .order("created_at", { ascending: false }),
-
-        supabase
-          .from("manual_sections")
-          .select("id, title, created_at")
-          .eq("property_id", propertyId)
-          .order("created_at", { ascending: false }),
-
-        supabase
-          .from("manual_items")
-          .select("id, title, created_at, section_id")
-          .eq("property_id", propertyId)
-          .order("created_at", { ascending: false })
-          .limit(5)
-      ]);
-
-      if (!mountedRef.current) {
-        console.log("⚠️ Component unmounted, aborting");
-        return;
-      }
-
-      // Calculate stats
-      const rooms = roomsResult.status === "fulfilled" ? roomsResult.value.data || [] : [];
-      const reservations = reservationsResult.status === "fulfilled" ? reservationsResult.value.data || [] : [];
-      const inventory = inventoryResult.status === "fulfilled" ? inventoryResult.value.data || [] : [];
-      const manualSections = manualSectionsResult.status === "fulfilled" ? manualSectionsResult.value.data || [] : [];
-      const manualItems = manualItemsResult.status === "fulfilled" ? manualItemsResult.value.data || [] : [];
-
-      const stats: PropertyStats = {
-        total_rooms: rooms.length,
-        total_reservations: reservations.length,
-        total_inventory: inventory.length,
-        total_manual_sections: manualSections.length,
-        average_rating: reservations.length > 0 
-          ? reservations
-              .filter(r => r.rating !== null)
-              .reduce((sum, r, _, arr) => sum + (r.rating || 0) / arr.length, 0)
-          : 0,
-      };
-
-      // Generate recent activity
-      const recentActivity: PropertyDetails['recent_activity'] = [];
-
-      // Add recent reservations
-      reservations.slice(0, 2).forEach(reservation => {
-        recentActivity.push({
-          id: `reservation-${reservation.id}`,
-          type: "reservation",
-          description: "New reservation created",
-          timestamp: reservation.created_at,
-          metadata: { id: reservation.id }
-        });
-      });
-
-      // Add recent inventory
-      inventory.slice(0, 2).forEach(item => {
-        recentActivity.push({
-          id: `inventory-${item.id}`,
-          type: "inventory", 
-          description: `Inventory item "${item.name}" added`,
-          timestamp: item.created_at,
-          metadata: { id: item.id, name: item.name }
-        });
-      });
-
-      // Add recent manual items
-      manualItems.slice(0, 2).forEach(item => {
-        recentActivity.push({
-          id: `manual-${item.id}`,
-          type: "manual",
-          description: `Manual item "${item.title}" created`,
-          timestamp: item.created_at,
-          metadata: { id: item.id, title: item.title, section_id: item.section_id }
-        });
-      });
-
-      // Sort by timestamp and take most recent
-      recentActivity.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-
-      // Mock amenities based on property type or add to database later
-      const amenities = ["Wifi", "Parking", "Kitchen", "Laundry"];
-
-      const propertyDetails: PropertyDetails = {
-        ...userProperty,
-        stats,
-        amenities,
-        recent_activity: recentActivity.slice(0, 5),
-      };
-
-      console.log("✅ Property details loaded successfully");
-      setProperty(propertyDetails);
-
-      if (showRefreshFeedback) {
-        toast.success("Property details refreshed");
-      }
-
-    } catch (error) {
-      console.error("❌ Error fetching property details:", error);
-      if (mountedRef.current) {
-        const errorMessage = "Failed to load property details";
-        setError(errorMessage);
-        
+      try {
         if (showRefreshFeedback) {
-          toast.error(errorMessage);
+          setRefreshing(true);
+        } else {
+          setLoading(true);
+        }
+        setError(null);
+
+        console.log("🏠 Fetching property details for:", propertyId);
+
+        // First check if user has access to this property
+        if (!userProperty) {
+          console.log("❌ Property not found in user's properties");
+          setError("Property not found or you don't have access to it");
+          return;
+        }
+
+        // Fetch additional stats in parallel
+        const [
+          roomsResult,
+          reservationsResult,
+          inventoryResult,
+          manualSectionsResult,
+          manualItemsResult,
+        ] = await Promise.allSettled([
+          supabase
+            .from("cleaning_rooms")
+            .select("id")
+            .eq("property_id", propertyId),
+
+          supabase
+            .from("reservations")
+            .select("id, rating, created_at")
+            .eq("property_id", propertyId)
+            .order("created_at", { ascending: false }),
+
+          supabase
+            .from("inventory")
+            .select("id, name, created_at")
+            .eq("property_id", propertyId)
+            .eq("is_active", true)
+            .order("created_at", { ascending: false }),
+
+          supabase
+            .from("manual_sections")
+            .select("id, title, created_at")
+            .eq("property_id", propertyId)
+            .order("created_at", { ascending: false }),
+
+          supabase
+            .from("manual_items")
+            .select("id, title, created_at, section_id")
+            .eq("property_id", propertyId)
+            .order("created_at", { ascending: false })
+            .limit(5),
+        ]);
+
+        if (!mountedRef.current) {
+          console.log("⚠️ Component unmounted, aborting");
+          return;
+        }
+
+        // Calculate stats
+        const rooms =
+          roomsResult.status === "fulfilled"
+            ? roomsResult.value.data || []
+            : [];
+        const reservations =
+          reservationsResult.status === "fulfilled"
+            ? reservationsResult.value.data || []
+            : [];
+        const inventory =
+          inventoryResult.status === "fulfilled"
+            ? inventoryResult.value.data || []
+            : [];
+        const manualSections =
+          manualSectionsResult.status === "fulfilled"
+            ? manualSectionsResult.value.data || []
+            : [];
+        const manualItems =
+          manualItemsResult.status === "fulfilled"
+            ? manualItemsResult.value.data || []
+            : [];
+
+        const stats: PropertyStats = {
+          total_rooms: rooms.length,
+          total_reservations: reservations.length,
+          total_inventory: inventory.length,
+          total_manual_sections: manualSections.length,
+          average_rating:
+            reservations.length > 0
+              ? reservations
+                  .filter((r) => r.rating !== null)
+                  .reduce(
+                    (sum, r, _, arr) => sum + (r.rating || 0) / arr.length,
+                    0
+                  )
+              : 0,
+        };
+
+        // Generate recent activity
+        const recentActivity: PropertyDetails["recent_activity"] = [];
+
+        // Add recent reservations
+        reservations.slice(0, 2).forEach((reservation) => {
+          recentActivity.push({
+            id: `reservation-${reservation.id}`,
+            type: "reservation",
+            description: "New reservation created",
+            timestamp: reservation.created_at,
+            metadata: { id: reservation.id },
+          });
+        });
+
+        // Add recent inventory
+        inventory.slice(0, 2).forEach((item) => {
+          recentActivity.push({
+            id: `inventory-${item.id}`,
+            type: "inventory",
+            description: `Inventory item "${item.name}" added`,
+            timestamp: item.created_at,
+            metadata: { id: item.id, name: item.name },
+          });
+        });
+
+        // Add recent manual items
+        manualItems.slice(0, 2).forEach((item) => {
+          recentActivity.push({
+            id: `manual-${item.id}`,
+            type: "manual",
+            description: `Manual item "${item.title}" created`,
+            timestamp: item.created_at,
+            metadata: {
+              id: item.id,
+              title: item.title,
+              section_id: item.section_id,
+            },
+          });
+        });
+
+        // Sort by timestamp and take most recent
+        recentActivity.sort(
+          (a, b) =>
+            new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+        );
+
+        // Mock amenities based on property type or add to database later
+        const amenities = ["Wifi", "Parking", "Kitchen", "Laundry"];
+
+        const propertyDetails: PropertyDetails = {
+          ...userProperty,
+          stats,
+          amenities,
+          recent_activity: recentActivity.slice(0, 5),
+        };
+
+        console.log("✅ Property details loaded successfully");
+        setProperty(propertyDetails);
+
+        if (showRefreshFeedback) {
+          toast.success("Property details refreshed");
+        }
+      } catch (error) {
+        console.error("❌ Error fetching property details:", error);
+        if (mountedRef.current) {
+          const errorMessage = "Failed to load property details";
+          setError(errorMessage);
+
+          if (showRefreshFeedback) {
+            toast.error(errorMessage);
+          }
+        }
+      } finally {
+        if (mountedRef.current) {
+          setLoading(false);
+          setRefreshing(false);
         }
       }
-    } finally {
-      if (mountedRef.current) {
-        setLoading(false);
-        setRefreshing(false);
-      }
-    }
-  }, [propertyId, user?.id, userProperty]);
+    },
+    [propertyId, user?.id, userProperty]
+  );
 
   // Main loading effect
   useEffect(() => {
@@ -337,7 +370,9 @@ export default function PropertyDetailsPage() {
             <div className="text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-3"></div>
               <p className="text-gray-600">
-                {isInitializing ? "⏳ Initializing..." : "🏠 Loading property details..."}
+                {isInitializing
+                  ? "⏳ Initializing..."
+                  : "🏠 Loading property details..."}
               </p>
             </div>
           </div>
@@ -364,7 +399,9 @@ export default function PropertyDetailsPage() {
           <div className="text-center py-8">
             <AlertTriangle className="mx-auto h-12 w-12 text-red-500 mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">
-              {error.includes("not found") ? "Property Not Found" : "Error Loading Property"}
+              {error.includes("not found")
+                ? "Property Not Found"
+                : "Error Loading Property"}
             </h3>
             <p className="text-red-600 mb-4">{error}</p>
             <div className="flex gap-3 justify-center">
@@ -404,7 +441,8 @@ export default function PropertyDetailsPage() {
               Property Not Found
             </h3>
             <p className="text-gray-600 mb-4">
-              The property you're looking for doesn't exist or you don't have access to it.
+              The property you're looking for doesn't exist or you don't have
+              access to it.
             </p>
             <button
               onClick={handleBack}
@@ -422,7 +460,9 @@ export default function PropertyDetailsPage() {
   return (
     <StandardPageLayout
       title={property.name}
-      subtitle={`Property details • ${property.address || 'No address specified'}`}
+      subtitle={`Property details • ${
+        property.address || "No address specified"
+      }`}
       breadcrumb={[
         { label: "Properties", href: "/properties" },
         { label: property.name },
@@ -446,7 +486,9 @@ export default function PropertyDetailsPage() {
               className="flex items-center px-3 py-1 text-sm border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 disabled:opacity-50"
               title="Refresh data"
             >
-              <RefreshCw className={`h-3 w-3 mr-1 ${refreshing ? 'animate-spin' : ''}`} />
+              <RefreshCw
+                className={`h-3 w-3 mr-1 ${refreshing ? "animate-spin" : ""}`}
+              />
               Refresh
             </button>
             {!isCurrentProperty && (
@@ -502,27 +544,36 @@ export default function PropertyDetailsPage() {
               )}
 
               {property.description && (
-                <p className="text-gray-600 mb-4 line-clamp-3">{property.description}</p>
+                <p className="text-gray-600 mb-4 line-clamp-3">
+                  {property.description}
+                </p>
               )}
 
               <div className="flex flex-wrap items-center text-gray-500 text-sm gap-4">
                 <div className="flex items-center">
                   <Calendar className="h-4 w-4 mr-1" />
                   <span>
-                    Created {new Date(property.created_at).toLocaleDateString('en-US', {
-                      year: 'numeric',
-                      month: 'long', 
-                      day: 'numeric'
+                    Created{" "}
+                    {new Date(property.created_at).toLocaleDateString("en-US", {
+                      year: "numeric",
+                      month: "long",
+                      day: "numeric",
                     })}
                   </span>
                 </div>
                 {property.updated_at !== property.created_at && (
                   <div className="flex items-center">
-                    <span>Updated {new Date(property.updated_at).toLocaleDateString('en-US', {
-                      year: 'numeric',
-                      month: 'long',
-                      day: 'numeric'
-                    })}</span>
+                    <span>
+                      Updated{" "}
+                      {new Date(property.updated_at).toLocaleDateString(
+                        "en-US",
+                        {
+                          year: "numeric",
+                          month: "long",
+                          day: "numeric",
+                        }
+                      )}
+                    </span>
                   </div>
                 )}
               </div>
@@ -571,7 +622,7 @@ export default function PropertyDetailsPage() {
             <div className="text-center p-4 bg-yellow-50 rounded-lg">
               <Star className="h-8 w-8 text-yellow-600 mx-auto mb-2" />
               <div className="text-2xl font-bold text-yellow-600 mb-1">
-                {property.stats?.average_rating 
+                {property.stats?.average_rating
                   ? property.stats.average_rating.toFixed(1)
                   : "N/A"}
               </div>
@@ -588,7 +639,9 @@ export default function PropertyDetailsPage() {
           >
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {property.amenities.map((amenity, index) => {
-                const IconComponent = AMENITY_ICONS[amenity as keyof typeof AMENITY_ICONS] || Package;
+                const IconComponent =
+                  AMENITY_ICONS[amenity as keyof typeof AMENITY_ICONS] ||
+                  Package;
                 return (
                   <div
                     key={index}
@@ -615,21 +668,31 @@ export default function PropertyDetailsPage() {
               {property.recent_activity.map((activity) => {
                 const getActivityIcon = () => {
                   switch (activity.type) {
-                    case "reservation": return Calendar;
-                    case "inventory": return Package;
-                    case "manual": return Building;
-                    case "user": return Users;
-                    default: return Activity;
+                    case "reservation":
+                      return Calendar;
+                    case "inventory":
+                      return Package;
+                    case "manual":
+                      return Building;
+                    case "user":
+                      return Users;
+                    default:
+                      return Activity;
                   }
                 };
-                
+
                 const getActivityColor = () => {
                   switch (activity.type) {
-                    case "reservation": return "text-blue-600 bg-blue-100";
-                    case "inventory": return "text-green-600 bg-green-100";
-                    case "manual": return "text-purple-600 bg-purple-100";
-                    case "user": return "text-orange-600 bg-orange-100";
-                    default: return "text-gray-600 bg-gray-100";
+                    case "reservation":
+                      return "text-blue-600 bg-blue-100";
+                    case "inventory":
+                      return "text-green-600 bg-green-100";
+                    case "manual":
+                      return "text-purple-600 bg-purple-100";
+                    case "user":
+                      return "text-orange-600 bg-orange-100";
+                    default:
+                      return "text-gray-600 bg-gray-100";
                   }
                 };
 
@@ -649,13 +712,16 @@ export default function PropertyDetailsPage() {
                         {activity.description}
                       </p>
                       <p className="text-xs text-gray-500">
-                        {new Date(activity.timestamp).toLocaleDateString('en-US', {
-                          year: 'numeric',
-                          month: 'short',
-                          day: 'numeric',
-                          hour: 'numeric',
-                          minute: '2-digit'
-                        })}
+                        {new Date(activity.timestamp).toLocaleDateString(
+                          "en-US",
+                          {
+                            year: "numeric",
+                            month: "short",
+                            day: "numeric",
+                            hour: "numeric",
+                            minute: "2-digit",
+                          }
+                        )}
                       </p>
                     </div>
                   </div>

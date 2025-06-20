@@ -4,7 +4,7 @@ import { useState, useEffect, FormEvent } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/components/auth";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { canManageCleaning } from "@/lib/utils/roles";
 import { supabase } from "@/lib/supabase";
 import {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useAuth } from "@/components/auth";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import MainLayout from "./MainLayout";

@@ -1,6 +1,12 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import React, {
+  useState,
+  useEffect,
+  useMemo,
+  useCallback,
+  useRef,
+} from "react";
 import {
   Package,
   Plus,
@@ -19,7 +25,7 @@ import ItemModal from "@/components/inventory/ItemModal";
 import ManageItemsModal from "@/components/ManageItemsModal";
 import ShoppingListModal from "@/components/ShoppingListModal";
 import FloatingActionButton from "@/components/ui/FloatingActionButton";
-import { useAuth } from "@/components/auth";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { useInventory } from "@/components/inventory/hooks/useInventory";
 import { useProperty } from "@/lib/hooks/useProperty";
 import { PropertyGuard } from "@/components/ui/PropertyGuard";
@@ -52,7 +58,11 @@ export const dynamic = "force-dynamic";
 export default function InventoryPage() {
   // Hooks
   const { user, loading: authLoading } = useAuth();
-  const { currentProperty, loading: propertyLoading, error: propertyError } = useProperty();
+  const {
+    currentProperty,
+    loading: propertyLoading,
+    error: propertyError,
+  } = useProperty();
   const inventoryHook = useInventory();
   const router = useRouter();
 
@@ -78,7 +88,8 @@ export default function InventoryPage() {
     };
   }, [currentProperty?.created_by, user?.id]);
 
-  const { isManagerView, isFamilyView, isGuestView, userOwnsProperty } = viewPermissions;
+  const { isManagerView, isFamilyView, isGuestView, userOwnsProperty } =
+    viewPermissions;
 
   // Component cleanup
   useEffect(() => {
@@ -91,7 +102,7 @@ export default function InventoryPage() {
   // URL params processing - only once
   useEffect(() => {
     if (urlParamsProcessedRef.current) return;
-    
+
     const params = new URLSearchParams(window.location.search);
 
     if (params.get("create-shopping-list") === "true") {
@@ -114,14 +125,12 @@ export default function InventoryPage() {
     // Apply search filter
     if (searchTerm.trim()) {
       const search = searchTerm.toLowerCase();
-      items = items.filter(item => 
-        item.name.toLowerCase().includes(search)
-      );
+      items = items.filter((item) => item.name.toLowerCase().includes(search));
     }
 
     // Apply status filter
     if (filter !== "all") {
-      items = items.filter(item => item.status === filter);
+      items = items.filter((item) => item.status === filter);
     }
 
     return items;
@@ -129,8 +138,8 @@ export default function InventoryPage() {
 
   // Memoized shopping list items
   const shoppingListItems = useMemo(() => {
-    return filteredItems.filter(item => 
-      item.status === "low" || item.status === "out"
+    return filteredItems.filter(
+      (item) => item.status === "low" || item.status === "out"
     );
   }, [filteredItems]);
 
@@ -138,7 +147,7 @@ export default function InventoryPage() {
   const stats = useMemo(() => {
     const items = filteredItems;
 
-    const goodStockItems = items.filter(item => {
+    const goodStockItems = items.filter((item) => {
       if (item.status === "good") return true;
       if (item.status === "low" || item.status === "out") return false;
       if (item.quantity === 0) return false;
@@ -146,9 +155,11 @@ export default function InventoryPage() {
       return true;
     }).length;
 
-    const lowStockItems = items.filter(item => item.status === "low").length;
-    const outOfStockItems = items.filter(item => 
-      item.status === "out" || (item.status !== "good" && item.status !== "low" && item.quantity === 0)
+    const lowStockItems = items.filter((item) => item.status === "low").length;
+    const outOfStockItems = items.filter(
+      (item) =>
+        item.status === "out" ||
+        (item.status !== "good" && item.status !== "low" && item.quantity === 0)
     ).length;
 
     return {
@@ -160,9 +171,12 @@ export default function InventoryPage() {
   }, [filteredItems]);
 
   // Memoized handlers
-  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchTerm(e.target.value);
-  }, []);
+  const handleSearchChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      setSearchTerm(e.target.value);
+    },
+    []
+  );
 
   const handleFilterChange = useCallback((newFilter: string) => {
     setFilter(newFilter);
@@ -186,11 +200,14 @@ export default function InventoryPage() {
   }, []);
 
   // Memoized navigation handlers
-  const navigationHandlers = useMemo(() => ({
-    goToProperties: () => router.push("/properties"),
-    goToDashboard: () => router.push("/"),
-    reload: () => window.location.reload(),
-  }), [router]);
+  const navigationHandlers = useMemo(
+    () => ({
+      goToProperties: () => router.push("/properties"),
+      goToDashboard: () => router.push("/"),
+      reload: () => window.location.reload(),
+    }),
+    [router]
+  );
 
   // Debug effect - only in development
   useEffect(() => {
@@ -225,7 +242,9 @@ export default function InventoryPage() {
             <div className="text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-3"></div>
               <p className="text-gray-600">
-                {authLoading ? "⏳ Authenticating..." : "🏠 Loading property..."}
+                {authLoading
+                  ? "⏳ Authenticating..."
+                  : "🏠 Loading property..."}
               </p>
             </div>
           </div>
@@ -385,7 +404,9 @@ export default function InventoryPage() {
                     <div className="text-sm text-gray-600">Well Stocked</div>
                     <div className="text-xs text-gray-500 mt-1">
                       {stats.totalItems > 0
-                        ? Math.round((stats.goodStockItems / stats.totalItems) * 100)
+                        ? Math.round(
+                            (stats.goodStockItems / stats.totalItems) * 100
+                          )
                         : 0}
                       % of inventory
                     </div>
@@ -493,15 +514,16 @@ export default function InventoryPage() {
                         ? "Try adjusting your search or filters to see more items."
                         : "No items match your current view."}
                     </p>
-                    {(isManagerView || isFamilyView) && stats.totalItems === 0 && (
-                      <button
-                        onClick={handleAddItem}
-                        className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                      >
-                        <Plus className="h-5 w-5 mr-2" />
-                        Add Your First Item
-                      </button>
-                    )}
+                    {(isManagerView || isFamilyView) &&
+                      stats.totalItems === 0 && (
+                        <button
+                          onClick={handleAddItem}
+                          className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                        >
+                          <Plus className="h-5 w-5 mr-2" />
+                          Add Your First Item
+                        </button>
+                      )}
                   </div>
                 ) : (
                   <InventoryTable
@@ -537,7 +559,9 @@ export default function InventoryPage() {
 
               {shoppingListItems.length > 0 && (
                 <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-6 w-6 flex items-center justify-center font-bold shadow-lg ring-2 ring-white">
-                  {shoppingListItems.length > 99 ? "99+" : shoppingListItems.length}
+                  {shoppingListItems.length > 99
+                    ? "99+"
+                    : shoppingListItems.length}
                 </span>
               )}
             </div>

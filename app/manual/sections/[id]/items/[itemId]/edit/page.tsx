@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
-import { useAuth } from "@/components/auth";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { useProperty } from "@/lib/hooks/useProperty";
 import { supabase } from "@/lib/supabase";
 import { v4 as uuidv4 } from "uuid";
@@ -117,7 +117,7 @@ export default function EditItemPage() {
           .from("manual_sections")
           .select("id, title, property_id")
           .eq("id", sectionId)
-          .single()
+          .single(),
       ]);
 
       if (!mountedRef.current) {
@@ -127,7 +127,7 @@ export default function EditItemPage() {
 
       // Handle item response
       if (itemResponse.error) {
-        if (itemResponse.error.code === 'PGRST116') {
+        if (itemResponse.error.code === "PGRST116") {
           setError("Item not found");
         } else {
           console.error("❌ Error fetching item:", itemResponse.error);
@@ -138,7 +138,7 @@ export default function EditItemPage() {
 
       // Handle section response
       if (sectionResponse.error) {
-        if (sectionResponse.error.code === 'PGRST116') {
+        if (sectionResponse.error.code === "PGRST116") {
           setError("Section not found");
         } else {
           console.error("❌ Error fetching section:", sectionResponse.error);
@@ -151,7 +151,10 @@ export default function EditItemPage() {
       const sectionData = sectionResponse.data;
 
       // Verify property access
-      if (currentProperty?.id && sectionData.property_id !== currentProperty.id) {
+      if (
+        currentProperty?.id &&
+        sectionData.property_id !== currentProperty.id
+      ) {
         setError("Item belongs to a different property");
         return;
       }
@@ -170,7 +173,6 @@ export default function EditItemPage() {
 
       setFormData(initialFormData);
       originalDataRef.current = { ...initialFormData };
-
     } catch (error) {
       console.error("❌ Unexpected error loading data:", error);
       if (mountedRef.current) {
@@ -210,241 +212,265 @@ export default function EditItemPage() {
   }, [user?.id, sectionId, itemId, isInitializing, loadData]);
 
   // Memoized form change handler
-  const handleFormChange = useCallback((field: keyof FormData) => {
-    return (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-      if (!mountedRef.current) return;
-      
-      const value = e.target.type === 'checkbox' 
-        ? (e.target as HTMLInputElement).checked 
-        : e.target.value;
-      
-      setFormData(prev => ({ ...prev, [field]: value }));
-      
-      // Clear error when user starts typing
-      if (error) {
-        setError(null);
-      }
-    };
-  }, [error]);
+  const handleFormChange = useCallback(
+    (field: keyof FormData) => {
+      return (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        if (!mountedRef.current) return;
+
+        const value =
+          e.target.type === "checkbox"
+            ? (e.target as HTMLInputElement).checked
+            : e.target.value;
+
+        setFormData((prev) => ({ ...prev, [field]: value }));
+
+        // Clear error when user starts typing
+        if (error) {
+          setError(null);
+        }
+      };
+    },
+    [error]
+  );
 
   // Optimized photo upload handler
-  const handlePhotoUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    if (files.length === 0) return;
+  const handlePhotoUpload = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const files = Array.from(e.target.files || []);
+      if (files.length === 0) return;
 
-    // Reset the input
-    e.target.value = '';
+      // Reset the input
+      e.target.value = "";
 
-    for (const file of files) {
-      if (!file.type.match(/image\/(jpeg|jpg|png|webp|gif)/i)) {
-        toast.error(`Invalid file type: ${file.name}`);
-        continue;
+      for (const file of files) {
+        if (!file.type.match(/image\/(jpeg|jpg|png|webp|gif)/i)) {
+          toast.error(`Invalid file type: ${file.name}`);
+          continue;
+        }
+
+        if (file.size > 5 * 1024 * 1024) {
+          toast.error(`File too large: ${file.name} (max 5MB)`);
+          continue;
+        }
+
+        if (!mountedRef.current) return;
+
+        setIsUploading(true);
+        setUploadProgress(0);
+
+        try {
+          let fileToUpload = file;
+          let fileExt = file.name.split(".").pop()?.toLowerCase() || "jpg";
+
+          // WebP conversion for optimization
+          const webpSupported = await supportsWebP();
+          if (webpSupported && file.type !== "image/webp") {
+            const optimizedBlob = await convertToWebP(file, 1200, 0.8);
+            fileToUpload = new File([optimizedBlob], `manual-item.webp`, {
+              type: "image/webp",
+            });
+            fileExt = "webp";
+          }
+
+          if (!mountedRef.current) return;
+
+          const fileName = `manual-items/${itemId}/${uuidv4()}.${fileExt}`;
+
+          setUploadProgress(50);
+
+          const { error: uploadError } = await supabase.storage
+            .from("property-images")
+            .upload(fileName, fileToUpload, {
+              cacheControl: "31536000",
+              upsert: false,
+            });
+
+          if (!mountedRef.current) return;
+
+          setUploadProgress(100);
+
+          if (uploadError) {
+            console.error("❌ Upload error:", uploadError);
+            throw uploadError;
+          }
+
+          const { data: publicUrlData } = supabase.storage
+            .from("property-images")
+            .getPublicUrl(fileName);
+
+          const newMediaUrls = [
+            ...formData.media_urls,
+            publicUrlData.publicUrl,
+          ];
+
+          setFormData((prev) => ({
+            ...prev,
+            media_urls: newMediaUrls,
+          }));
+
+          // Update item in database immediately for better UX
+          const { error: updateError } = await supabase
+            .from("manual_items")
+            .update({ media_urls: newMediaUrls })
+            .eq("id", itemId);
+
+          if (updateError) {
+            console.warn(
+              "⚠️ Failed to auto-save photo, will save on form submit"
+            );
+          }
+
+          toast.success(`Photo uploaded: ${file.name}`);
+        } catch (error) {
+          console.error("❌ Error uploading photo:", error);
+          toast.error(`Failed to upload: ${file.name}`);
+        } finally {
+          if (mountedRef.current) {
+            setIsUploading(false);
+            setTimeout(() => setUploadProgress(0), 1000);
+          }
+        }
       }
+    },
+    [formData.media_urls, itemId]
+  );
 
-      if (file.size > 5 * 1024 * 1024) {
-        toast.error(`File too large: ${file.name} (max 5MB)`);
-        continue;
-      }
-
+  // Photo removal handler
+  const removePhoto = useCallback(
+    async (photoUrl: string) => {
       if (!mountedRef.current) return;
 
-      setIsUploading(true);
-      setUploadProgress(0);
-
       try {
-        let fileToUpload = file;
-        let fileExt = file.name.split(".").pop()?.toLowerCase() || "jpg";
+        const newMediaUrls = formData.media_urls.filter(
+          (url) => url !== photoUrl
+        );
 
-        // WebP conversion for optimization
-        const webpSupported = await supportsWebP();
-        if (webpSupported && file.type !== 'image/webp') {
-          const optimizedBlob = await convertToWebP(file, 1200, 0.8);
-          fileToUpload = new File([optimizedBlob], `manual-item.webp`, {
-            type: "image/webp",
-          });
-          fileExt = "webp";
-        }
-
-        if (!mountedRef.current) return;
-
-        const fileName = `manual-items/${itemId}/${uuidv4()}.${fileExt}`;
-        
-        setUploadProgress(50);
-
-        const { error: uploadError } = await supabase.storage
-          .from("property-images")
-          .upload(fileName, fileToUpload, {
-            cacheControl: "31536000",
-            upsert: false,
-          });
-
-        if (!mountedRef.current) return;
-
-        setUploadProgress(100);
-
-        if (uploadError) {
-          console.error("❌ Upload error:", uploadError);
-          throw uploadError;
-        }
-
-        const { data: publicUrlData } = supabase.storage
-          .from("property-images")
-          .getPublicUrl(fileName);
-
-        const newMediaUrls = [...formData.media_urls, publicUrlData.publicUrl];
-        
-        setFormData(prev => ({
+        setFormData((prev) => ({
           ...prev,
-          media_urls: newMediaUrls
+          media_urls: newMediaUrls,
         }));
 
-        // Update item in database immediately for better UX
-        const { error: updateError } = await supabase
+        // Update database immediately
+        const { error } = await supabase
           .from("manual_items")
           .update({ media_urls: newMediaUrls })
           .eq("id", itemId);
 
-        if (updateError) {
-          console.warn("⚠️ Failed to auto-save photo, will save on form submit");
+        if (error) {
+          console.warn("⚠️ Failed to auto-save photo removal");
         }
 
-        toast.success(`Photo uploaded: ${file.name}`);
+        // Optionally delete from storage (best effort)
+        try {
+          const fileName = photoUrl.split("/").pop();
+          if (fileName && fileName.includes("manual-items")) {
+            await supabase.storage
+              .from("property-images")
+              .remove([`manual-items/${itemId}/${fileName}`]);
+          }
+        } catch (storageError) {
+          console.warn("⚠️ Failed to delete file from storage:", storageError);
+        }
+
+        toast.success("Photo removed");
       } catch (error) {
-        console.error("❌ Error uploading photo:", error);
-        toast.error(`Failed to upload: ${file.name}`);
-      } finally {
-        if (mountedRef.current) {
-          setIsUploading(false);
-          setTimeout(() => setUploadProgress(0), 1000);
-        }
+        console.error("❌ Error removing photo:", error);
+        toast.error("Failed to remove photo");
       }
-    }
-  }, [formData.media_urls, itemId]);
-
-  // Photo removal handler
-  const removePhoto = useCallback(async (photoUrl: string) => {
-    if (!mountedRef.current) return;
-
-    try {
-      const newMediaUrls = formData.media_urls.filter(url => url !== photoUrl);
-      
-      setFormData(prev => ({
-        ...prev,
-        media_urls: newMediaUrls
-      }));
-
-      // Update database immediately
-      const { error } = await supabase
-        .from("manual_items")
-        .update({ media_urls: newMediaUrls })
-        .eq("id", itemId);
-
-      if (error) {
-        console.warn("⚠️ Failed to auto-save photo removal");
-      }
-
-      // Optionally delete from storage (best effort)
-      try {
-        const fileName = photoUrl.split("/").pop();
-        if (fileName && fileName.includes("manual-items")) {
-          await supabase.storage
-            .from("property-images")
-            .remove([`manual-items/${itemId}/${fileName}`]);
-        }
-      } catch (storageError) {
-        console.warn("⚠️ Failed to delete file from storage:", storageError);
-      }
-
-      toast.success("Photo removed");
-    } catch (error) {
-      console.error("❌ Error removing photo:", error);
-      toast.error("Failed to remove photo");
-    }
-  }, [formData.media_urls, itemId]);
+    },
+    [formData.media_urls, itemId]
+  );
 
   // Form validation
   const isFormValid = useMemo(() => {
-    return formData.title.trim().length > 0 && formData.content.trim().length > 0;
+    return (
+      formData.title.trim().length > 0 && formData.content.trim().length > 0
+    );
   }, [formData.title, formData.content]);
 
   // Check if form has changes
   const hasChanges = useMemo(() => {
     if (!originalDataRef.current) return false;
-    
+
     const original = originalDataRef.current;
     return (
       formData.title !== original.title ||
       formData.content !== original.content ||
       formData.important !== original.important ||
-      JSON.stringify(formData.media_urls) !== JSON.stringify(original.media_urls)
+      JSON.stringify(formData.media_urls) !==
+        JSON.stringify(original.media_urls)
     );
   }, [formData]);
 
   // Save handler
-  const handleSave = useCallback(async (e?: React.FormEvent) => {
-    if (e) {
-      e.preventDefault();
-    }
+  const handleSave = useCallback(
+    async (e?: React.FormEvent) => {
+      if (e) {
+        e.preventDefault();
+      }
 
-    // Prevent duplicate saves
-    if (savingRef.current || saving || !mountedRef.current || !isFormValid) {
-      return;
-    }
-
-    if (!item?.id) {
-      setError("Item not loaded");
-      return;
-    }
-
-    savingRef.current = true;
-    setSaving(true);
-    setError(null);
-
-    try {
-      console.log("💾 Saving manual item...");
-
-      const { error } = await supabase
-        .from("manual_items")
-        .update({
-          title: formData.title.trim(),
-          content: formData.content.trim(),
-          important: formData.important,
-          media_urls: formData.media_urls,
-        })
-        .eq("id", item.id);
-
-      if (!mountedRef.current) {
-        console.log("⚠️ Component unmounted, aborting");
+      // Prevent duplicate saves
+      if (savingRef.current || saving || !mountedRef.current || !isFormValid) {
         return;
       }
 
-      if (error) {
-        console.error("❌ Error updating item:", error);
-        setError(error.message || "Failed to update item");
-        toast.error("Failed to update item");
-      } else {
-        console.log("✅ Item updated successfully");
-        toast.success("Item updated successfully!");
-        
-        // Update original data reference
-        originalDataRef.current = { ...formData };
-        
-        router.push(`/manual/sections/${sectionId}/items/${itemId}`);
+      if (!item?.id) {
+        setError("Item not loaded");
+        return;
       }
-    } catch (error) {
-      console.error("❌ Unexpected error updating item:", error);
-      if (mountedRef.current) {
-        const errorMessage = error instanceof Error ? error.message : "Failed to update item";
-        setError(errorMessage);
-        toast.error(errorMessage);
+
+      savingRef.current = true;
+      setSaving(true);
+      setError(null);
+
+      try {
+        console.log("💾 Saving manual item...");
+
+        const { error } = await supabase
+          .from("manual_items")
+          .update({
+            title: formData.title.trim(),
+            content: formData.content.trim(),
+            important: formData.important,
+            media_urls: formData.media_urls,
+          })
+          .eq("id", item.id);
+
+        if (!mountedRef.current) {
+          console.log("⚠️ Component unmounted, aborting");
+          return;
+        }
+
+        if (error) {
+          console.error("❌ Error updating item:", error);
+          setError(error.message || "Failed to update item");
+          toast.error("Failed to update item");
+        } else {
+          console.log("✅ Item updated successfully");
+          toast.success("Item updated successfully!");
+
+          // Update original data reference
+          originalDataRef.current = { ...formData };
+
+          router.push(`/manual/sections/${sectionId}/items/${itemId}`);
+        }
+      } catch (error) {
+        console.error("❌ Unexpected error updating item:", error);
+        if (mountedRef.current) {
+          const errorMessage =
+            error instanceof Error ? error.message : "Failed to update item";
+          setError(errorMessage);
+          toast.error(errorMessage);
+        }
+      } finally {
+        if (mountedRef.current) {
+          setSaving(false);
+        }
+        savingRef.current = false;
       }
-    } finally {
-      if (mountedRef.current) {
-        setSaving(false);
-      }
-      savingRef.current = false;
-    }
-  }, [formData, item?.id, saving, isFormValid, router, sectionId, itemId]);
+    },
+    [formData, item?.id, saving, isFormValid, router, sectionId, itemId]
+  );
 
   // Retry function
   const retryLoad = useCallback(() => {
@@ -493,7 +519,9 @@ export default function EditItemPage() {
           <div className="text-center py-8">
             <AlertTriangle className="mx-auto h-12 w-12 text-red-500 mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">
-              {error === "Item not found" ? "Item Not Found" : "Error Loading Item"}
+              {error === "Item not found"
+                ? "Item Not Found"
+                : "Error Loading Item"}
             </h3>
             <p className="text-red-600 mb-4">{error}</p>
             <div className="flex gap-3 justify-center">
@@ -527,10 +555,7 @@ export default function EditItemPage() {
 
   if (!item || !section) {
     return (
-      <StandardPageLayout
-        title="Edit Manual Item"
-        subtitle="Item not found"
-      >
+      <StandardPageLayout title="Edit Manual Item" subtitle="Item not found">
         <StandardCard
           title="Item Not Found"
           subtitle="The requested manual item could not be found"
@@ -563,14 +588,19 @@ export default function EditItemPage() {
       breadcrumb={[
         { label: "Manual", href: "/manual" },
         { label: section.title, href: `/manual/sections/${sectionId}` },
-        { label: item.title, href: `/manual/sections/${sectionId}/items/${itemId}` },
+        {
+          label: item.title,
+          href: `/manual/sections/${sectionId}/items/${itemId}`,
+        },
         { label: "Edit" },
       ]}
     >
       <div className="space-y-6">
         <StandardCard
           title="Edit Item"
-          subtitle={`${section.title} • ${currentProperty?.name || 'Unknown Property'}`}
+          subtitle={`${section.title} • ${
+            currentProperty?.name || "Unknown Property"
+          }`}
           headerActions={
             <div className="flex items-center gap-2">
               <Link
@@ -597,7 +627,7 @@ export default function EditItemPage() {
               <input
                 type="text"
                 value={formData.title}
-                onChange={handleFormChange('title')}
+                onChange={handleFormChange("title")}
                 disabled={saving}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed transition-colors"
                 placeholder="Enter item title..."
@@ -615,7 +645,7 @@ export default function EditItemPage() {
               </label>
               <textarea
                 value={formData.content}
-                onChange={handleFormChange('content')}
+                onChange={handleFormChange("content")}
                 disabled={saving}
                 rows={8}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed font-mono text-sm transition-colors"
@@ -623,7 +653,8 @@ export default function EditItemPage() {
                 maxLength={5000}
               />
               <p className="text-xs text-gray-500 mt-1">
-                {formData.content.length}/5000 characters • Line breaks will be preserved
+                {formData.content.length}/5000 characters • Line breaks will be
+                preserved
               </p>
             </div>
 
@@ -720,7 +751,7 @@ export default function EditItemPage() {
                 type="checkbox"
                 id="important"
                 checked={formData.important}
-                onChange={handleFormChange('important')}
+                onChange={handleFormChange("important")}
                 disabled={saving}
                 className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded disabled:opacity-50"
               />

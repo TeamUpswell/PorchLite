@@ -5,7 +5,7 @@ export const fetchCache = "force-no-store";
 export const runtime = "nodejs";
 
 import { useState, useEffect } from "react";
-import { useAuth } from "@/components/auth";
+import { useAuth } from "@/components/auth/AuthProvider";
 import {
   canManageUsers,
   getUserRoleBadge,

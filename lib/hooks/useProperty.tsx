@@ -8,7 +8,7 @@ import React, {
   useCallback,
   useRef,
 } from "react";
-import { useAuth } from "@/components/auth";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { supabase } from "@/lib/supabase";
 
 interface Property {
@@ -50,29 +50,16 @@ const PropertyContext = createContext<PropertyContextType | undefined>(
 );
 
 export function PropertyProvider({ children }: { children: React.ReactNode }) {
-  const { user, loading: authLoading, initialized } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [currentProperty, setCurrentProperty] = useState<Property | null>(null);
   const [userProperties, setUserProperties] = useState<Property[]>([]);
   const [tenant, setTenant] = useState<Tenant | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Simple refs to track state
+  // Refs to prevent duplicate fetches
   const loadingRef = useRef(false);
   const lastUserIdRef = useRef<string | null>(null);
-  const fetchingRef = useRef(false);
-
-  // ✅ REDUCED: Only log critical state changes
-  const isDebugEnabled = process.env.NODE_ENV === 'development';
-  
-  if (isDebugEnabled && Math.random() < 0.1) { // Only log 10% of renders in dev
-    console.log("🏠 Property: Provider render", {
-      user: user?.id?.slice(0, 8) + '...',
-      authLoading,
-      currentProperty: currentProperty?.name,
-      propertiesCount: userProperties.length,
-    });
-  }
 
   const loadUserProperties = useCallback(async (): Promise<void> => {
     const userId = user?.id;
@@ -86,17 +73,14 @@ export function PropertyProvider({ children }: { children: React.ReactNode }) {
     setError(null);
 
     try {
-      // ✅ REDUCED: Only log start of fetch, not every detail
-      if (isDebugEnabled) {
-        console.log("🏠 Property: Loading properties for user");
-      }
-
       const { data: tenantData, error: tenantError } = await supabase
         .from("tenants")
-        .select(`
+        .select(
+          `
           *,
           property:properties(*)
-        `)
+        `
+        )
         .eq("user_id", userId);
 
       if (tenantError) throw tenantError;
@@ -128,23 +112,15 @@ export function PropertyProvider({ children }: { children: React.ReactNode }) {
         });
       }
 
-      // ✅ REDUCED: Only log significant changes
-      if (isDebugEnabled && properties.length !== userProperties.length) {
-        console.log("🏠 Property: Found", properties.length, "properties");
-      }
-
       setUserProperties(properties);
       setTenant(validTenants[0] || null);
 
+      // Set current property if none selected or current is invalid
       setCurrentProperty((prevCurrent) => {
         const currentStillValid =
-          prevCurrent &&
-          properties.some((p) => p.id === prevCurrent.id);
+          prevCurrent && properties.some((p) => p.id === prevCurrent.id);
 
         if (!currentStillValid && properties.length > 0) {
-          if (isDebugEnabled) {
-            console.log("🏠 Property: Set current to:", properties[0].name);
-          }
           return properties[0];
         } else if (properties.length === 0) {
           return null;
@@ -153,9 +129,10 @@ export function PropertyProvider({ children }: { children: React.ReactNode }) {
         return prevCurrent;
       });
     } catch (err) {
-      // ✅ KEEP: Always log errors
-      console.error("🏠 Property loading error:", err);
-      setError(err instanceof Error ? err.message : "Failed to load properties");
+      console.error("Property loading error:", err);
+      setError(
+        err instanceof Error ? err.message : "Failed to load properties"
+      );
       setUserProperties([]);
       setCurrentProperty(null);
       setTenant(null);
@@ -163,42 +140,27 @@ export function PropertyProvider({ children }: { children: React.ReactNode }) {
       setLoading(false);
       loadingRef.current = false;
     }
-  }, [user?.id, userProperties.length]); // Added userProperties.length for comparison
+  }, [user?.id]);
 
-  const cleanupRef = useRef<(() => void)[]>([]);
-
-  const registerCleanup = (cleanup: () => void) => {
-    cleanupRef.current.push(cleanup);
-  };
-
-  // ✅ REDUCED: Less verbose user effect logging
+  // Load properties when user changes
   useEffect(() => {
     let mounted = true;
 
     const handleUserChange = async () => {
-      if (!initialized) {
+      if (authLoading || !user?.id) {
+        if (!authLoading && mounted) {
+          setLoading(false);
+        }
         return;
       }
 
-      const newUserId = user?.id || null;
+      const newUserId = user.id;
 
       if (newUserId !== lastUserIdRef.current) {
-        // ✅ REDUCED: Only log user changes, not every check
-        if (isDebugEnabled) {
-          console.log("🏠 Property: User changed", {
-            hasUser: !!newUserId,
-            hadUser: !!lastUserIdRef.current
-          });
-        }
-
         lastUserIdRef.current = newUserId;
 
-        if (newUserId && mounted) {
+        if (mounted) {
           await loadUserProperties();
-        } else if (mounted) {
-          setUserProperties([]);
-          setCurrentProperty(null);
-          setLoading(false);
         }
       }
     };
@@ -208,24 +170,7 @@ export function PropertyProvider({ children }: { children: React.ReactNode }) {
     return () => {
       mounted = false;
     };
-  }, [user?.id, authLoading, initialized, loadUserProperties]);
-
-  // ✅ REDUCED: Only log cleanup in debug mode
-  useEffect(() => {
-    return () => {
-      if (isDebugEnabled) {
-        console.log("🏠 Property: Provider cleanup");
-      }
-      cleanupRef.current.forEach((cleanup) => {
-        try {
-          cleanup();
-        } catch (error) {
-          console.error("🏠 Property: Cleanup error:", error);
-        }
-      });
-      cleanupRef.current = [];
-    };
-  }, []);
+  }, [user?.id, authLoading, loadUserProperties]);
 
   const createProperty = useCallback(
     async (
@@ -241,15 +186,13 @@ export function PropertyProvider({ children }: { children: React.ReactNode }) {
 
       if (error) throw error;
 
-      await supabase
-        .from("tenants")
-        .insert([
-          {
-            property_id: data.id,
-            user_id: user.id,
-            role: "owner",
-          },
-        ]);
+      await supabase.from("tenants").insert([
+        {
+          property_id: data.id,
+          user_id: user.id,
+          role: "owner",
+        },
+      ]);
 
       await loadUserProperties();
       return data;
@@ -272,10 +215,7 @@ export function PropertyProvider({ children }: { children: React.ReactNode }) {
 
   const deleteProperty = useCallback(
     async (id: string): Promise<void> => {
-      const { error } = await supabase
-        .from("properties")
-        .delete()
-        .eq("id", id);
+      const { error } = await supabase.from("properties").delete().eq("id", id);
 
       if (error) throw error;
 
@@ -288,7 +228,7 @@ export function PropertyProvider({ children }: { children: React.ReactNode }) {
     [currentProperty?.id, loadUserProperties]
   );
 
-  const contextValue: PropertyContextType = {
+  const value = {
     currentProperty,
     userProperties,
     tenant,
@@ -302,7 +242,7 @@ export function PropertyProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <PropertyContext.Provider value={contextValue}>
+    <PropertyContext.Provider value={value}>
       {children}
     </PropertyContext.Provider>
   );
@@ -310,10 +250,8 @@ export function PropertyProvider({ children }: { children: React.ReactNode }) {
 
 export function useProperty() {
   const context = useContext(PropertyContext);
-  
-  if (!context) {
-    throw new Error('useProperty must be used within a PropertyProvider');
+  if (context === undefined) {
+    throw new Error("useProperty must be used within a PropertyProvider");
   }
-  
   return context;
 }

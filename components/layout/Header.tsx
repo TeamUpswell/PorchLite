@@ -1,6 +1,7 @@
+// components/layout/Header.tsx - Complete fix
 "use client";
 
-import { useAuth } from "@/components/auth";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { usePathname } from "next/navigation";
 import { useTheme } from "@/components/ThemeProvider";
 import {
@@ -25,8 +26,19 @@ import {
   Phone as PhoneIcon,
 } from "lucide-react";
 import Link from "next/link";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 
+// ✅ Move gradient colors outside component
+const GRADIENT_COLORS = [
+  "from-blue-500 to-purple-600",
+  "from-green-500 to-blue-600",
+  "from-purple-500 to-pink-600",
+  "from-orange-500 to-red-600",
+  "from-teal-500 to-cyan-600",
+  "from-indigo-500 to-purple-600",
+];
+
+// ✅ Move static data outside component
 const accountSection = {
   category: "Account",
   items: [
@@ -46,7 +58,6 @@ const accountSection = {
   ],
 };
 
-// Page titles and icons mapping
 const pageInfo: Record<
   string,
   { title: string; icon: any; description?: string }
@@ -113,58 +124,83 @@ const pageInfo: Record<
   },
 };
 
-// ✅ Updated UserAvatar component with cached profile data
-function UserAvatar({
-  user,
-  className = "w-8 h-8",
-}: {
-  user: any;
-  className?: string;
-}) {
+// ✅ FIXED UserAvatar component
+const UserAvatar = ({ user, className = "w-8 h-8" }) => {
   const [showFallback, setShowFallback] = useState(false);
-  const { theme } = useTheme();
-  const { profileData, profileLoading } = useAuth(); // ✅ Get cached profile data
-  const isDarkMode = theme === "dark";
+  const [avatarKey, setAvatarKey] = useState(0);
+  const { profileData, profileLoading } = useAuth();
 
-  // ✅ Use cached profile data from AuthProvider (no more useEffect!)
-  const avatarUrl =
-    profileData?.avatar_url ||
-    user?.user_metadata?.avatar_url ||
-    user?.user_metadata?.picture ||
-    user?.user_metadata?.image ||
-    user?.identities?.[0]?.identity_data?.avatar_url ||
-    user?.identities?.[0]?.identity_data?.picture ||
-    user?.avatar_url ||
-    user?.picture ||
-    user?.image;
+  console.log("🖼️ UserAvatar: Computing avatar URL...");
+  console.log("🖼️ Profile data:", profileData);
+  console.log("🖼️ Profile avatar_url:", profileData?.avatar_url);
 
-  const userName =
-    profileData?.full_name ||
-    user?.user_metadata?.name ||
-    user?.user_metadata?.full_name ||
-    user?.email?.split("@")[0] ||
-    "User";
+  // ✅ Get avatar URL with cache busting
+  const avatarUrl = useMemo(() => {
+    if (profileData?.avatar_url) {
+      const url = `${profileData.avatar_url}?t=${Date.now()}&key=${avatarKey}`;
+      console.log("🖼️ Final avatar URL:", url);
+      return url;
+    }
+    console.log("🖼️ No avatar URL found, will show fallback");
+    return null;
+  }, [profileData?.avatar_url, avatarKey]);
 
-  // Generate consistent colors based on name
-  const getGradientFromName = (name: string) => {
-    const colors = [
-      "from-blue-500 to-purple-600",
-      "from-green-500 to-blue-600",
-      "from-purple-500 to-pink-600",
-      "from-orange-500 to-red-600",
-      "from-teal-500 to-cyan-600",
-      "from-indigo-500 to-purple-600",
-    ];
+  // ✅ Get user name
+  const userName = useMemo(() => {
+    const name =
+      profileData?.full_name ||
+      user?.user_metadata?.name ||
+      user?.user_metadata?.full_name ||
+      user?.email?.split("@")[0] ||
+      "User";
+    console.log("👤 UserAvatar: Display name:", name);
+    return name;
+  }, [profileData?.full_name, user]);
 
-    const hash = name.split("").reduce((a, b) => {
+  // ✅ Generate gradient class based on name - FIXED!
+  const gradientClass = useMemo(() => {
+    if (!userName) return GRADIENT_COLORS[0];
+
+    const hash = userName.split("").reduce((a, b) => {
       a = (a << 5) - a + b.charCodeAt(0);
       return a & a;
     }, 0);
+    return GRADIENT_COLORS[Math.abs(hash) % GRADIENT_COLORS.length];
+  }, [userName]);
 
-    return colors[Math.abs(hash) % colors.length];
-  };
+  // ✅ Listen for profile data changes
+  useEffect(() => {
+    const handleProfileChange = (event: CustomEvent) => {
+      console.log("🔄 Header Avatar: Profile data changed:", event.detail);
+      setShowFallback(false);
+      setAvatarKey((prev) => prev + 1);
+    };
 
-  // ✅ Show loading only when profile is loading from AuthProvider
+    window.addEventListener(
+      "profileDataChanged",
+      handleProfileChange as EventListener
+    );
+
+    return () => {
+      window.removeEventListener(
+        "profileDataChanged",
+        handleProfileChange as EventListener
+      );
+    };
+  }, []);
+
+  // ✅ Handle image load error
+  const handleImageError = useCallback(() => {
+    console.log("❌ UserAvatar: Image failed to load:", avatarUrl);
+    setShowFallback(true);
+  }, [avatarUrl]);
+
+  // ✅ Handle image load success
+  const handleImageLoad = useCallback(() => {
+    console.log("✅ UserAvatar: Image loaded successfully:", avatarUrl);
+    setShowFallback(false);
+  }, [avatarUrl]);
+
   if (profileLoading) {
     return (
       <div
@@ -173,21 +209,14 @@ function UserAvatar({
     );
   }
 
-  // If no avatar URL or we should show fallback, show initials
   if (!avatarUrl || showFallback) {
-    const gradientClass = getGradientFromName(userName);
-
     return (
       <div
         className={`${className} rounded-full bg-gradient-to-br ${gradientClass} flex items-center justify-center shadow-lg ring-2 ring-white/20`}
       >
-        {userName ? (
-          <span className="text-sm font-bold text-white drop-shadow-sm">
-            {userName.charAt(0).toUpperCase()}
-          </span>
-        ) : (
-          <UserIcon className="h-4 w-4 text-white drop-shadow-sm" />
-        )}
+        <span className="text-sm font-bold text-white drop-shadow-sm">
+          {userName ? userName.charAt(0).toUpperCase() : "U"}
+        </span>
       </div>
     );
   }
@@ -195,15 +224,14 @@ function UserAvatar({
   return (
     <img
       src={avatarUrl}
-      alt={userName}
+      alt={`${userName}'s avatar`}
       className={`${className} rounded-full object-cover shadow-lg ring-2 ring-white/20`}
-      onError={() => {
-        console.log("❌ Avatar image failed to load:", avatarUrl);
-        setShowFallback(true);
-      }}
+      onLoad={handleImageLoad}
+      onError={handleImageError}
+      key={`avatar-${avatarKey}`}
     />
   );
-}
+};
 
 export default function Header() {
   const { user, signOut, profileData } = useAuth();
@@ -214,33 +242,62 @@ export default function Header() {
 
   const isDarkMode = actualTheme === "dark";
 
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node)
-      ) {
-        setIsDropdownOpen(false);
-      }
-    };
+  const currentPage = useMemo(() => {
+    return pageInfo[pathname] || { title: "Page", icon: HomeIcon };
+  }, [pathname]);
 
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+  const userName = useMemo(() => {
+    return (
+      profileData?.full_name ||
+      user?.user_metadata?.name ||
+      user?.user_metadata?.full_name ||
+      user?.email?.split("@")[0] ||
+      "User"
+    );
+  }, [profileData?.full_name, user]);
+
+  const userRole = useMemo(() => getUserRole(user), [user]);
+
+  const filteredAccountItems = useMemo(() => {
+    return accountSection.items.filter((item) => {
+      if (item.permissionCheck && !item.permissionCheck(user)) {
+        return false;
+      }
+      return true;
+    });
+  }, [user]);
+
+  const handleClickOutside = useCallback((event: MouseEvent) => {
+    if (
+      dropdownRef.current &&
+      !dropdownRef.current.contains(event.target as Node)
+    ) {
+      setIsDropdownOpen(false);
+    }
   }, []);
 
-  // ✅ Use profile data for display name, fallback to user metadata
-  const userName =
-    profileData?.full_name ||
-    user?.user_metadata?.name ||
-    user?.user_metadata?.full_name ||
-    user?.email?.split("@")[0] ||
-    "User";
+  const handleSignOut = useCallback(async () => {
+    try {
+      await signOut();
+      setIsDropdownOpen(false);
+    } catch (error) {
+      console.error("Error signing out:", error);
+    }
+  }, [signOut]);
 
-  const userRole = getUserRole(user);
+  const handleDropdownToggle = useCallback(() => {
+    setIsDropdownOpen((prev) => !prev);
+  }, []);
 
-  // Get current page info
-  const currentPage = pageInfo[pathname] || { title: "Page", icon: HomeIcon };
+  const handleCloseDropdown = useCallback(() => {
+    setIsDropdownOpen(false);
+  }, []);
+
+  useEffect(() => {
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [handleClickOutside]);
+
   const IconComponent = currentPage.icon;
 
   return (
@@ -288,7 +345,7 @@ export default function Header() {
         <div className="flex items-center gap-4">
           <div className="relative" ref={dropdownRef}>
             <button
-              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+              onClick={handleDropdownToggle}
               className={`
                 flex items-center space-x-3 p-2 rounded-lg transition-colors duration-200
                 ${
@@ -331,7 +388,7 @@ export default function Header() {
               />
             </button>
 
-            {/* 🔑 ENHANCED Dropdown Menu with Property Info */}
+            {/* Dropdown Menu */}
             {isDropdownOpen && (
               <div
                 className={`
@@ -344,19 +401,31 @@ export default function Header() {
                 }
               `}
               >
-                {/* Existing Account Items */}
-                {accountSection.items.map((item) => {
-                  if (item.permissionCheck && !item.permissionCheck(user)) {
-                    return null;
-                  }
+                {/* Profile info in dropdown */}
+                <div className="flex items-center px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+                  <UserAvatar user={user} className="w-10 h-10" />
+                  <div className="ml-3 flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                      {userName}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                      {user?.email}
+                    </p>
+                    <span className="inline-block bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 text-xs px-2 py-1 rounded-full mt-1">
+                      {userRole.replace("_", " ").toUpperCase()}
+                    </span>
+                  </div>
+                </div>
 
+                {/* Account Items */}
+                {filteredAccountItems.map((item) => {
                   const IconComponent = item.icon;
 
                   return (
                     <Link
                       key={item.name}
                       href={item.href}
-                      onClick={() => setIsDropdownOpen(false)}
+                      onClick={handleCloseDropdown}
                       className={`
                         flex items-center px-4 py-2 text-sm transition-colors duration-200
                         ${
@@ -385,14 +454,7 @@ export default function Header() {
                 />
 
                 <button
-                  onClick={async () => {
-                    try {
-                      await signOut();
-                      setIsDropdownOpen(false);
-                    } catch (error) {
-                      console.error("Error signing out:", error);
-                    }
-                  }}
+                  onClick={handleSignOut}
                   className={`
                     w-full flex items-center px-4 py-2 text-sm transition-colors duration-200
                     ${

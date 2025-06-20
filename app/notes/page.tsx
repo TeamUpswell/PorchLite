@@ -1,7 +1,13 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
-import { useAuth } from "@/components/auth";
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  useMemo,
+} from "react";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { useProperty } from "@/lib/hooks/useProperty";
 import Header from "@/components/layout/Header";
 import PageContainer from "@/components/layout/PageContainer";
@@ -143,18 +149,21 @@ export default function NotesPage() {
   }, [user?.id, currentProperty?.id, isInitializing, fetchNotes]);
 
   // Memoized form handlers
-  const handleFormChange = useCallback((field: keyof FormData) => {
-    return (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-      if (!mountedRef.current) return;
+  const handleFormChange = useCallback(
+    (field: keyof FormData) => {
+      return (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        if (!mountedRef.current) return;
 
-      setFormData((prev) => ({ ...prev, [field]: e.target.value }));
+        setFormData((prev) => ({ ...prev, [field]: e.target.value }));
 
-      // Clear error when user starts typing
-      if (error) {
-        setError(null);
-      }
-    };
-  }, [error]);
+        // Clear error when user starts typing
+        if (error) {
+          setError(null);
+        }
+      };
+    },
+    [error]
+  );
 
   // Form validation
   const isFormValid = useMemo(() => {
@@ -263,7 +272,9 @@ export default function NotesPage() {
               <div className="text-center">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-3"></div>
                 <p className="text-gray-600">
-                  {isInitializing ? "⏳ Initializing..." : "📝 Loading notes..."}
+                  {isInitializing
+                    ? "⏳ Initializing..."
+                    : "📝 Loading notes..."}
                 </p>
               </div>
             </div>
@@ -374,15 +385,19 @@ export default function NotesPage() {
                       <div className="flex items-center text-xs text-gray-500 space-x-4">
                         <div className="flex items-center">
                           <Calendar className="h-3 w-3 mr-1" />
-                          {new Date(note.created_at).toLocaleDateString("en-US", {
-                            month: "short",
-                            day: "numeric",
-                            year: "numeric",
-                          })}
+                          {new Date(note.created_at).toLocaleDateString(
+                            "en-US",
+                            {
+                              month: "short",
+                              day: "numeric",
+                              year: "numeric",
+                            }
+                          )}
                         </div>
-                        {note.updated_at && note.updated_at !== note.created_at && (
-                          <span className="text-blue-600">Updated</span>
-                        )}
+                        {note.updated_at &&
+                          note.updated_at !== note.created_at && (
+                            <span className="text-blue-600">Updated</span>
+                          )}
                       </div>
                     </div>
                   ))}
@@ -398,7 +413,9 @@ export default function NotesPage() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between p-6 border-b border-gray-200">
-              <h2 className="text-lg font-semibold text-gray-900">Add New Note</h2>
+              <h2 className="text-lg font-semibold text-gray-900">
+                Add New Note
+              </h2>
               <button
                 onClick={handleCancelModal}
                 disabled={saving}

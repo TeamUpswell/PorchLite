@@ -1,7 +1,7 @@
 // components/ui/PropertyGuard.tsx
 "use client";
 
-import { useAuth } from "@/components/auth";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { useProperty } from "@/lib/hooks/useProperty";
 import { useMemo, useRef } from "react";
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useAuth } from "@/components/auth";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { canManageUsers } from "@/lib/utils/roles";
 import { supabase } from "@/lib/supabase";
 import StandardPageLayout from "@/components/layout/StandardPageLayout";
@@ -10,7 +10,7 @@ import { Users, UserPlus, Mail, Shield, Edit, Trash2 } from "lucide-react";
 
 // ✅ Added environment-aware logging helper
 const logError = (message: string, error: any) => {
-  if (process.env.NODE_ENV === 'development') {
+  if (process.env.NODE_ENV === "development") {
     console.error(message, error);
   }
   // In production, you could use an error reporting service here instead
@@ -90,7 +90,6 @@ export default function UsersPage() {
     setIsInviting(true);
 
     try {
-     
       // Reset form
       setInviteEmail("");
       setInviteRole("guest");

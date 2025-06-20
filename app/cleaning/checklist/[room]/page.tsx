@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { useAuth } from "@/components/auth";
+import { useAuth } from "@/components/auth/AuthProvider";
 import AuthenticatedLayout from "@/components/auth/AuthenticatedLayout";
 import { supabase } from "@/lib/supabase";
 import { useProperty } from "@/lib/hooks/useProperty";

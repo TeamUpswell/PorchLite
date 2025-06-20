@@ -2,7 +2,7 @@
 "use client";
 
 import { useState } from "react";
-import { useAuth } from "@/components/auth";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { supabase } from "@/lib/supabase";
 
 export default function DebugPropertyPage() {
@@ -21,18 +21,18 @@ export default function DebugPropertyPage() {
 
     try {
       console.log("🔍 Testing property query for user:", user.id);
-      
+
       // Test the exact same query that's hanging
       const startTime = Date.now();
-      
+
       const { data, error } = await supabase
         .from("properties")
         .select("*")
         .eq("created_by", user.id)
-        .order('created_at', { ascending: false });
+        .order("created_at", { ascending: false });
 
       const endTime = Date.now();
-      
+
       setResults({
         success: true,
         data: data,
@@ -40,15 +40,14 @@ export default function DebugPropertyPage() {
         queryTime: endTime - startTime,
         userInfo: {
           id: user.id,
-          email: user.email
-        }
+          email: user.email,
+        },
       });
-      
     } catch (err: any) {
       setResults({
         success: false,
         error: err.message,
-        stack: err.stack
+        stack: err.stack,
       });
     } finally {
       setLoading(false);
@@ -58,12 +57,13 @@ export default function DebugPropertyPage() {
   return (
     <div className="p-6 space-y-6">
       <h1 className="text-2xl font-bold">Property Loading Debug</h1>
-      
+
       <div className="space-y-4">
         <div>
-          <strong>User Status:</strong> {user ? `Logged in as ${user.email}` : "Not logged in"}
+          <strong>User Status:</strong>{" "}
+          {user ? `Logged in as ${user.email}` : "Not logged in"}
         </div>
-        
+
         <button
           onClick={testPropertyQuery}
           disabled={loading || !user}
@@ -71,7 +71,7 @@ export default function DebugPropertyPage() {
         >
           {loading ? "Testing..." : "Test Property Query"}
         </button>
-        
+
         {results && (
           <div className="bg-gray-100 p-4 rounded">
             <h3 className="font-bold">Results:</h3>

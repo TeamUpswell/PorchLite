@@ -6,7 +6,7 @@ export const fetchCache = "force-no-store";
 export const runtime = "nodejs";
 
 import React, { useState } from "react";
-import { useAuth } from "@/components/auth";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { useTheme } from "@/components/ThemeProvider";
 import PageContainer from "@/components/layout/PageContainer";
 import Header from "@/components/layout/Header";

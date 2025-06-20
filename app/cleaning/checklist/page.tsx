@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { useAuth } from "@/components/auth";
+import { useAuth } from "@/components/auth/AuthProvider";
 import AuthenticatedLayout from "@/components/auth/AuthenticatedLayout";
 import { supabase } from "@/lib/supabase";
 import { useProperty } from "@/lib/hooks/useProperty";
@@ -160,7 +160,6 @@ export default function CleaningChecklist() {
                 >
                   <ArrowLeft className="h-4 w-4 mr-1" />
                   Back to Cleaning Hub
-                  
                 </Link>
               </div>
 

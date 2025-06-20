@@ -1,13 +1,22 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
-import { useAuth } from "@/components/auth";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { useProperty } from "@/lib/hooks/useProperty";
 import StandardPageLayout from "@/components/layout/StandardPageLayout";
 import StandardCard from "@/components/ui/StandardCard";
-import { User, Phone, Mail, MapPin, Save, AlertTriangle, CheckCircle } from "lucide-react";
+import {
+  User,
+  Phone,
+  Mail,
+  MapPin,
+  Save,
+  AlertTriangle,
+  CheckCircle,
+} from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { toast } from "react-hot-toast";
+import AvatarUpload from "@/components/AvatarUpload";
 
 interface UserProfile {
   id: string;
@@ -32,12 +41,15 @@ interface FormData {
 export default function ProfilePage() {
   const { user, loading: authLoading } = useAuth();
   const { currentProperty, loading: propertyLoading } = useProperty();
-  
+
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
+  const [message, setMessage] = useState<{
+    text: string;
+    type: "success" | "error";
+  } | null>(null);
 
   // Form state
   const [formData, setFormData] = useState<FormData>({
@@ -138,27 +150,30 @@ export default function ProfilePage() {
   }, [user, isInitializing, loadProfile]);
 
   // Memoized form change handler
-  const handleInputChange = useCallback((field: keyof FormData) => {
-    return (e: React.ChangeEvent<HTMLInputElement>) => {
-      if (!mountedRef.current) return;
-      
-      setFormData(prev => ({ ...prev, [field]: e.target.value }));
-      
-      // Clear messages when user starts typing
-      if (message) {
-        setMessage(null);
-        if (messageTimeoutRef.current) {
-          clearTimeout(messageTimeoutRef.current);
-          messageTimeoutRef.current = null;
+  const handleInputChange = useCallback(
+    (field: keyof FormData) => {
+      return (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (!mountedRef.current) return;
+
+        setFormData((prev) => ({ ...prev, [field]: e.target.value }));
+
+        // Clear messages when user starts typing
+        if (message) {
+          setMessage(null);
+          if (messageTimeoutRef.current) {
+            clearTimeout(messageTimeoutRef.current);
+            messageTimeoutRef.current = null;
+          }
         }
-      }
-      
-      // Clear error
-      if (error) {
-        setError(null);
-      }
-    };
-  }, [message, error]);
+
+        // Clear error
+        if (error) {
+          setError(null);
+        }
+      };
+    },
+    [message, error]
+  );
 
   // Form validation
   const isFormValid = useMemo(() => {
@@ -169,7 +184,7 @@ export default function ProfilePage() {
   // Check if form has changes
   const hasChanges = useMemo(() => {
     if (!originalDataRef.current) return false;
-    
+
     const original = originalDataRef.current;
     return (
       formData.name !== original.name ||
@@ -182,25 +197,28 @@ export default function ProfilePage() {
   }, [formData]);
 
   // Auto-clear message after delay
-  const setTemporaryMessage = useCallback((msg: { text: string; type: "success" | "error" }) => {
-    if (!mountedRef.current) return;
-    
-    setMessage(msg);
-    
-    // Clear any existing timeout
-    if (messageTimeoutRef.current) {
-      clearTimeout(messageTimeoutRef.current);
-    }
-    
-    // Set new timeout for success messages
-    if (msg.type === "success") {
-      messageTimeoutRef.current = setTimeout(() => {
-        if (mountedRef.current) {
-          setMessage(null);
-        }
-      }, 5000);
-    }
-  }, []);
+  const setTemporaryMessage = useCallback(
+    (msg: { text: string; type: "success" | "error" }) => {
+      if (!mountedRef.current) return;
+
+      setMessage(msg);
+
+      // Clear any existing timeout
+      if (messageTimeoutRef.current) {
+        clearTimeout(messageTimeoutRef.current);
+      }
+
+      // Set new timeout for success messages
+      if (msg.type === "success") {
+        messageTimeoutRef.current = setTimeout(() => {
+          if (mountedRef.current) {
+            setMessage(null);
+          }
+        }, 5000);
+      }
+    },
+    []
+  );
 
   // Save handler
   const handleSave = useCallback(async () => {
@@ -244,24 +262,25 @@ export default function ProfilePage() {
         toast.error("Failed to update profile");
       } else {
         console.log("✅ Profile updated successfully");
-        
+
         // Update local profile state
-        setProfile(prev => prev ? { ...prev, ...formData } : null);
-        
+        setProfile((prev) => (prev ? { ...prev, ...formData } : null));
+
         // Update original data reference
         originalDataRef.current = { ...formData };
-        
+
         setTemporaryMessage({
           text: "Profile updated successfully!",
           type: "success",
         });
-        
+
         toast.success("Profile updated successfully!");
       }
     } catch (error) {
       console.error("❌ Unexpected error updating profile:", error);
       if (mountedRef.current) {
-        const errorMessage = error instanceof Error ? error.message : "Failed to update profile";
+        const errorMessage =
+          error instanceof Error ? error.message : "Failed to update profile";
         setError(errorMessage);
         toast.error(errorMessage);
       }
@@ -281,19 +300,36 @@ export default function ProfilePage() {
     }
   }, [user, loadProfile]);
 
+  // Avatar change handler
+  const handleAvatarChange = async (avatarUrl: string) => {
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ avatar_url: avatarUrl })
+        .eq("id", user?.id);
+
+      if (error) throw error;
+
+      setProfile((prev) => ({ ...prev, avatar_url: avatarUrl }));
+      toast.success("Profile picture updated!");
+    } catch (error) {
+      console.error("Error updating avatar:", error);
+      toast.error("Failed to update profile picture");
+    }
+  };
+
   // Loading state
   if (isInitializing || loading) {
     return (
-      <StandardPageLayout
-        title="Profile"
-        subtitle="Loading your profile..."
-      >
+      <StandardPageLayout title="Profile" subtitle="Loading your profile...">
         <StandardCard>
           <div className="flex items-center justify-center py-12">
             <div className="text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-3"></div>
               <p className="text-gray-600">
-                {isInitializing ? "⏳ Initializing..." : "👤 Loading profile..."}
+                {isInitializing
+                  ? "⏳ Initializing..."
+                  : "👤 Loading profile..."}
               </p>
             </div>
           </div>
@@ -309,10 +345,7 @@ export default function ProfilePage() {
   // Error state
   if (error) {
     return (
-      <StandardPageLayout
-        title="Profile"
-        subtitle="Error loading profile"
-      >
+      <StandardPageLayout title="Profile" subtitle="Error loading profile">
         <StandardCard
           title="Error Loading Profile"
           subtitle="Unable to load your profile information"
@@ -337,10 +370,7 @@ export default function ProfilePage() {
 
   if (!profile) {
     return (
-      <StandardPageLayout
-        title="Profile"
-        subtitle="Profile not found"
-      >
+      <StandardPageLayout title="Profile" subtitle="Profile not found">
         <StandardCard
           title="Profile Not Found"
           subtitle="Unable to load your profile information"
@@ -368,7 +398,9 @@ export default function ProfilePage() {
   return (
     <StandardPageLayout
       title="Profile"
-      subtitle={`Manage your account information • ${currentProperty?.name || 'No property selected'}`}
+      subtitle={`Manage your account information • ${
+        currentProperty?.name || "No property selected"
+      }`}
     >
       <div className="space-y-6">
         {/* Success/Error Message */}
@@ -430,7 +462,7 @@ export default function ProfilePage() {
               <input
                 type="text"
                 value={formData.name}
-                onChange={handleInputChange('name')}
+                onChange={handleInputChange("name")}
                 disabled={saving}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed transition-colors"
                 placeholder="Your full name"
@@ -451,7 +483,7 @@ export default function ProfilePage() {
                 <input
                   type="tel"
                   value={formData.phone}
-                  onChange={handleInputChange('phone')}
+                  onChange={handleInputChange("phone")}
                   disabled={saving}
                   className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed transition-colors"
                   placeholder="(555) 123-4567"
@@ -477,7 +509,7 @@ export default function ProfilePage() {
               <input
                 type="text"
                 value={formData.address}
-                onChange={handleInputChange('address')}
+                onChange={handleInputChange("address")}
                 disabled={saving}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed transition-colors"
                 placeholder="123 Main Street"
@@ -494,7 +526,7 @@ export default function ProfilePage() {
                 <input
                   type="text"
                   value={formData.city}
-                  onChange={handleInputChange('city')}
+                  onChange={handleInputChange("city")}
                   disabled={saving}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed transition-colors"
                   placeholder="City"
@@ -508,7 +540,7 @@ export default function ProfilePage() {
                 <input
                   type="text"
                   value={formData.state}
-                  onChange={handleInputChange('state')}
+                  onChange={handleInputChange("state")}
                   disabled={saving}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed transition-colors"
                   placeholder="State"
@@ -522,7 +554,7 @@ export default function ProfilePage() {
                 <input
                   type="text"
                   value={formData.zip}
-                  onChange={handleInputChange('zip')}
+                  onChange={handleInputChange("zip")}
                   disabled={saving}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed transition-colors"
                   placeholder="12345"
@@ -530,6 +562,21 @@ export default function ProfilePage() {
                 />
               </div>
             </div>
+          </div>
+        </StandardCard>
+
+        {/* Profile Picture */}
+        <StandardCard
+          title="Profile Picture"
+          subtitle="Update your profile photo"
+          icon={<User className="h-5 w-5 text-gray-600" />}
+        >
+          <div className="flex items-center">
+            <AvatarUpload
+              currentAvatar={profile.avatar_url}
+              onAvatarChange={handleAvatarChange}
+              size="lg"
+            />
           </div>
         </StandardCard>
 

@@ -6,8 +6,7 @@ import Image from "next/image";
 import { toast } from "react-hot-toast";
 import { supabase } from "@/lib/supabase";
 import { useProperty } from "@/lib/hooks/useProperty";
-import { useAuth } from "@/components/auth";
-
+import { useAuth } from "@/components/auth/AuthProvider";
 // Role permissions for header image management
 const ALLOWED_ROLES = ["owner", "manager", "admin"]; // ← Added 'admin'
 

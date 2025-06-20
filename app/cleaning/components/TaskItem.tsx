@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
-import { useAuth } from "@/components/auth";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { Check, Camera, Info, Loader2 } from "lucide-react";
 import Image from "next/image";
 import { toast } from "react-hot-toast";
@@ -142,9 +142,9 @@ export default function TaskItem({ task, onUpdate, visitId }: TaskItemProps) {
         if (uploadError) throw uploadError;
 
         // Get the public URL
-        const { data } = supabase.storage.from("cleaning-photos").getPublicUrl(
-          filePath
-        );
+        const { data } = supabase.storage
+          .from("cleaning-photos")
+          .getPublicUrl(filePath);
 
         if (!data.publicUrl) {
           throw new Error("Failed to get public URL for uploaded photo");
@@ -305,7 +305,10 @@ export default function TaskItem({ task, onUpdate, visitId }: TaskItemProps) {
                   style={{ objectFit: "cover" }}
                   className="transition-opacity duration-200"
                   onError={() => {
-                    console.warn("Failed to load reference photo:", task.photo_url);
+                    console.warn(
+                      "Failed to load reference photo:",
+                      task.photo_url
+                    );
                   }}
                 />
               </div>

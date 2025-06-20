@@ -3,15 +3,15 @@
 import { useState, useEffect } from "react";
 import { Building, Plus } from "lucide-react";
 import StandardPageLayout from "@/components/layout/StandardPageLayout";
-import { useAuth } from "@/components/auth";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { useRouter } from "next/navigation";
 
 export default function AccountPropertiesPage() {
   const { user, loading, initialized } = useAuth();
   const router = useRouter();
-  
+
   const [properties] = useState([
-    { id: '1', name: 'Bend House Test', address: '123 Test St' }
+    { id: "1", name: "Bend House Test", address: "123 Test St" },
   ]);
 
   // Auth check at page level
@@ -72,19 +72,26 @@ export default function AccountPropertiesPage() {
       {/* Properties List */}
       <div className="bg-white rounded-lg border">
         <div className="p-6 border-b">
-          <h2 className="text-xl font-semibold text-gray-900">All Properties</h2>
+          <h2 className="text-xl font-semibold text-gray-900">
+            All Properties
+          </h2>
         </div>
-        
+
         <div className="p-6">
           {properties.map((property) => (
-            <div key={property.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
+            <div
+              key={property.id}
+              className="border rounded-lg p-4 hover:shadow-md transition-shadow"
+            >
               <div className="flex items-start justify-between">
                 <div className="flex items-start space-x-3">
                   <div className="p-2 bg-blue-100 rounded-lg">
                     <Building className="h-5 w-5 text-blue-600" />
                   </div>
                   <div>
-                    <h3 className="font-medium text-gray-900">{property.name}</h3>
+                    <h3 className="font-medium text-gray-900">
+                      {property.name}
+                    </h3>
                     <p className="text-gray-600 text-sm">{property.address}</p>
                   </div>
                 </div>

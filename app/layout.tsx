@@ -1,7 +1,8 @@
 // app/layout.tsx - Fixed Version
 import "./globals.css";
+import "@/lib/global-debug"; // ✅ Add this line
 import { Inter } from "next/font/google";
-import { AuthProvider } from "@/components/auth";
+import { AuthProvider } from "@/components/auth/AuthProvider"; // ✅ Direct import to enhanced version
 import { PropertyProvider } from "@/lib/hooks/useProperty";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { Toaster } from "react-hot-toast";

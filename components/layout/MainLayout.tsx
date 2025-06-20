@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Menu, X } from "lucide-react";
-import { useAuth } from "@/components/auth";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { useProperty } from "@/lib/hooks/useProperty"; // 🔑 ADD THIS
 import { PropertySwitcher } from "@/components/property/PropertySwitcher"; // 🔑 ADD THIS
 import SideNavigation from "@/components/SideNavigation";

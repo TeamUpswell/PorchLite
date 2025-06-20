@@ -2,7 +2,7 @@
 "use client";
 
 import { useEffect, useRef, useCallback } from "react";
-import { useAuth } from "@/components/auth";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { supabase } from "@/lib/supabase";
 import { toast } from "react-hot-toast";
 

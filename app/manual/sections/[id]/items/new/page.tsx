@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
-import { useAuth } from "@/components/auth";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { useProperty } from "@/lib/hooks/useProperty";
 import { supabase } from "@/lib/supabase";
 import { v4 as uuidv4 } from "uuid";
@@ -41,12 +41,12 @@ export default function NewItemPage() {
   const { currentProperty, loading: propertyLoading } = useProperty();
   const router = useRouter();
   const params = useParams();
-  
+
   const [section, setSection] = useState<ManualSection | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  
+
   // Form state - consolidated
   const [formData, setFormData] = useState<FormData>({
     title: "",
@@ -104,7 +104,7 @@ export default function NewItemPage() {
       }
 
       if (error) {
-        if (error.code === 'PGRST116') {
+        if (error.code === "PGRST116") {
           setError("Section not found");
         } else {
           console.error("❌ Error loading section:", error);
@@ -116,7 +116,10 @@ export default function NewItemPage() {
         setSection(sectionData);
 
         // Verify property access
-        if (currentProperty?.id && sectionData.property_id !== currentProperty.id) {
+        if (
+          currentProperty?.id &&
+          sectionData.property_id !== currentProperty.id
+        ) {
           setError("Section belongs to a different property");
           return;
         }
@@ -160,120 +163,129 @@ export default function NewItemPage() {
   }, [user?.id, sectionId, isInitializing, loadSection]);
 
   // Memoized form handlers
-  const handleFormChange = useCallback((field: keyof FormData) => {
-    return (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-      if (!mountedRef.current) return;
-      
-      const value = e.target.type === 'checkbox' 
-        ? (e.target as HTMLInputElement).checked 
-        : e.target.value;
-      
-      setFormData(prev => ({ ...prev, [field]: value }));
-      
-      // Clear error when user starts typing
-      if (error) {
-        setError(null);
-      }
-    };
-  }, [error]);
+  const handleFormChange = useCallback(
+    (field: keyof FormData) => {
+      return (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        if (!mountedRef.current) return;
+
+        const value =
+          e.target.type === "checkbox"
+            ? (e.target as HTMLInputElement).checked
+            : e.target.value;
+
+        setFormData((prev) => ({ ...prev, [field]: value }));
+
+        // Clear error when user starts typing
+        if (error) {
+          setError(null);
+        }
+      };
+    },
+    [error]
+  );
 
   // Optimized photo upload handler
-  const handlePhotoUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    if (files.length === 0) return;
+  const handlePhotoUpload = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const files = Array.from(e.target.files || []);
+      if (files.length === 0) return;
 
-    // Reset the input
-    e.target.value = '';
+      // Reset the input
+      e.target.value = "";
 
-    for (const file of files) {
-      if (!file.type.match(/image\/(jpeg|jpg|png|webp|gif)/i)) {
-        toast.error(`Invalid file type: ${file.name}`);
-        continue;
-      }
+      for (const file of files) {
+        if (!file.type.match(/image\/(jpeg|jpg|png|webp|gif)/i)) {
+          toast.error(`Invalid file type: ${file.name}`);
+          continue;
+        }
 
-      if (file.size > 5 * 1024 * 1024) {
-        toast.error(`File too large: ${file.name} (max 5MB)`);
-        continue;
-      }
-
-      if (!mountedRef.current) return;
-
-      setIsUploading(true);
-      setUploadProgress(0);
-
-      try {
-        let fileToUpload = file;
-        let fileExt = file.name.split(".").pop()?.toLowerCase() || "jpg";
-
-        // WebP conversion for optimization
-        const webpSupported = await supportsWebP();
-        if (webpSupported && file.type !== 'image/webp') {
-          const optimizedBlob = await convertToWebP(file, 1200, 0.8);
-          fileToUpload = new File([optimizedBlob], `manual-item.webp`, {
-            type: "image/webp",
-          });
-          fileExt = "webp";
+        if (file.size > 5 * 1024 * 1024) {
+          toast.error(`File too large: ${file.name} (max 5MB)`);
+          continue;
         }
 
         if (!mountedRef.current) return;
 
-        const tempId = uuidv4();
-        const fileName = `manual-items/${sectionId}/${uuidv4()}.${fileExt}`;
+        setIsUploading(true);
+        setUploadProgress(0);
 
-        setUploadProgress(50);
+        try {
+          let fileToUpload = file;
+          let fileExt = file.name.split(".").pop()?.toLowerCase() || "jpg";
 
-        const { error: uploadError } = await supabase.storage
-          .from("property-images")
-          .upload(fileName, fileToUpload, {
-            cacheControl: "31536000",
-            upsert: false,
-          });
+          // WebP conversion for optimization
+          const webpSupported = await supportsWebP();
+          if (webpSupported && file.type !== "image/webp") {
+            const optimizedBlob = await convertToWebP(file, 1200, 0.8);
+            fileToUpload = new File([optimizedBlob], `manual-item.webp`, {
+              type: "image/webp",
+            });
+            fileExt = "webp";
+          }
 
-        if (!mountedRef.current) return;
+          if (!mountedRef.current) return;
 
-        setUploadProgress(100);
+          const tempId = uuidv4();
+          const fileName = `manual-items/${sectionId}/${uuidv4()}.${fileExt}`;
 
-        if (uploadError) {
-          console.error("❌ Upload error:", uploadError);
-          throw uploadError;
-        }
+          setUploadProgress(50);
 
-        const { data: publicUrlData } = supabase.storage
-          .from("property-images")
-          .getPublicUrl(fileName);
+          const { error: uploadError } = await supabase.storage
+            .from("property-images")
+            .upload(fileName, fileToUpload, {
+              cacheControl: "31536000",
+              upsert: false,
+            });
 
-        setFormData(prev => ({
-          ...prev,
-          media_urls: [...prev.media_urls, publicUrlData.publicUrl]
-        }));
+          if (!mountedRef.current) return;
 
-        toast.success(`Photo uploaded: ${file.name}`);
-      } catch (error) {
-        console.error("❌ Error uploading photo:", error);
-        toast.error(`Failed to upload: ${file.name}`);
-      } finally {
-        if (mountedRef.current) {
-          setIsUploading(false);
-          setTimeout(() => setUploadProgress(0), 1000);
+          setUploadProgress(100);
+
+          if (uploadError) {
+            console.error("❌ Upload error:", uploadError);
+            throw uploadError;
+          }
+
+          const { data: publicUrlData } = supabase.storage
+            .from("property-images")
+            .getPublicUrl(fileName);
+
+          setFormData((prev) => ({
+            ...prev,
+            media_urls: [...prev.media_urls, publicUrlData.publicUrl],
+          }));
+
+          toast.success(`Photo uploaded: ${file.name}`);
+        } catch (error) {
+          console.error("❌ Error uploading photo:", error);
+          toast.error(`Failed to upload: ${file.name}`);
+        } finally {
+          if (mountedRef.current) {
+            setIsUploading(false);
+            setTimeout(() => setUploadProgress(0), 1000);
+          }
         }
       }
-    }
-  }, [sectionId]);
+    },
+    [sectionId]
+  );
 
   // Photo removal handler
   const removePhoto = useCallback((photoUrl: string) => {
     if (!mountedRef.current) return;
-    
-    setFormData(prev => ({
+
+    setFormData((prev) => ({
       ...prev,
-      media_urls: prev.media_urls.filter(url => url !== photoUrl)
+      media_urls: prev.media_urls.filter((url) => url !== photoUrl),
     }));
     toast.success("Photo removed");
   }, []);
 
   // Form validation
   const isFormValid = useMemo(() => {
-    return formData.title.trim().length > 0 && formData.content.trim().length > 0;
+    return (
+      formData.title.trim().length > 0 && formData.content.trim().length > 0
+    );
   }, [formData.title, formData.content]);
 
   // Save handler
@@ -337,7 +349,8 @@ export default function NewItemPage() {
     } catch (error) {
       console.error("❌ Unexpected error creating item:", error);
       if (mountedRef.current) {
-        const errorMessage = error instanceof Error ? error.message : "Failed to create item";
+        const errorMessage =
+          error instanceof Error ? error.message : "Failed to create item";
         setError(errorMessage);
         toast.error(errorMessage);
       }
@@ -368,7 +381,9 @@ export default function NewItemPage() {
               <div className="text-center">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-3"></div>
                 <p className="text-gray-600">
-                  {isInitializing ? "⏳ Initializing..." : "📖 Loading section..."}
+                  {isInitializing
+                    ? "⏳ Initializing..."
+                    : "📖 Loading section..."}
                 </p>
               </div>
             </div>
@@ -395,7 +410,9 @@ export default function NewItemPage() {
             <div className="text-center py-8">
               <AlertTriangle className="mx-auto h-12 w-12 text-red-500 mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">
-                {error === "Section not found" ? "Section Not Found" : "Error Loading Section"}
+                {error === "Section not found"
+                  ? "Section Not Found"
+                  : "Error Loading Section"}
               </h3>
               <p className="text-red-600 mb-4">{error}</p>
               <div className="flex gap-3 justify-center">
@@ -434,7 +451,8 @@ export default function NewItemPage() {
                 Section Not Found
               </h3>
               <p className="text-gray-600 mb-4">
-                The manual section you're trying to add an item to doesn't exist.
+                The manual section you're trying to add an item to doesn't
+                exist.
               </p>
               <Link
                 href="/manual"
@@ -461,7 +479,10 @@ export default function NewItemPage() {
               Manual
             </Link>
             <span>›</span>
-            <Link href={`/manual/sections/${section.id}`} className="hover:text-blue-600">
+            <Link
+              href={`/manual/sections/${section.id}`}
+              className="hover:text-blue-600"
+            >
               {section.title}
             </Link>
             <span>›</span>
@@ -490,7 +511,7 @@ export default function NewItemPage() {
                 <input
                   type="text"
                   value={formData.title}
-                  onChange={handleFormChange('title')}
+                  onChange={handleFormChange("title")}
                   disabled={saving}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed transition-colors"
                   placeholder="Enter item title..."
@@ -509,7 +530,7 @@ export default function NewItemPage() {
                 </label>
                 <textarea
                   value={formData.content}
-                  onChange={handleFormChange('content')}
+                  onChange={handleFormChange("content")}
                   disabled={saving}
                   rows={8}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed font-mono text-sm transition-colors"
@@ -520,7 +541,8 @@ Each new line will be preserved when displayed."
                   maxLength={5000}
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  {formData.content.length}/5000 characters • Line breaks will be preserved
+                  {formData.content.length}/5000 characters • Line breaks will
+                  be preserved
                 </p>
               </div>
 
@@ -617,7 +639,7 @@ Each new line will be preserved when displayed."
                   type="checkbox"
                   id="important"
                   checked={formData.important}
-                  onChange={handleFormChange('important')}
+                  onChange={handleFormChange("important")}
                   disabled={saving}
                   className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded disabled:opacity-50"
                 />

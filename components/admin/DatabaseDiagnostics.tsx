@@ -4,7 +4,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { robustSupabaseRequest } from "@/lib/network-helper"; // ✅ Updated import
-import { useAuth } from "@/components/auth";
+import { useAuth } from "@/components/auth/AuthProvider";
 import {
   Database,
   AlertTriangle,
@@ -84,10 +84,7 @@ export default function DatabaseDiagnostics({
         try {
           // ✅ Using your existing robustSupabaseRequest
           const result = await robustSupabaseRequest(
-            () => supabase
-              .from(table)
-              .select("*", { count: "exact" })
-              .limit(3),
+            () => supabase.from(table).select("*", { count: "exact" }).limit(3),
             { timeout: 10000, retries: 2 }
           );
 
@@ -111,11 +108,8 @@ export default function DatabaseDiagnostics({
         try {
           // ✅ Check user profile with robust request
           const profileResult = await robustSupabaseRequest(
-            () => supabase
-              .from("profiles")
-              .select("*")
-              .eq("id", user.id)
-              .single(),
+            () =>
+              supabase.from("profiles").select("*").eq("id", user.id).single(),
             { timeout: 10000, retries: 2 }
           );
 
@@ -128,10 +122,11 @@ export default function DatabaseDiagnostics({
 
           // ✅ Check user's tenant associations with robust request
           const tenantUsersResult = await robustSupabaseRequest(
-            () => supabase
-              .from("tenant_users")
-              .select("tenant_id, role, created_at")
-              .eq("user_id", user.id),
+            () =>
+              supabase
+                .from("tenant_users")
+                .select("tenant_id, role, created_at")
+                .eq("user_id", user.id),
             { timeout: 10000, retries: 2 }
           );
 
@@ -139,16 +134,18 @@ export default function DatabaseDiagnostics({
             diagnosticResults.userRelationships.errors.push(
               `Tenant Users: ${tenantUsersResult.error.message}`
             );
-          } else if (tenantUsersResult.data && tenantUsersResult.data.length > 0) {
+          } else if (
+            tenantUsersResult.data &&
+            tenantUsersResult.data.length > 0
+          ) {
             // Get tenant details for each tenant_id
-            const tenantIds = tenantUsersResult.data.map((tu: any) => tu.tenant_id);
+            const tenantIds = tenantUsersResult.data.map(
+              (tu: any) => tu.tenant_id
+            );
 
             // ✅ Get tenant details with robust request
             const tenantsResult = await robustSupabaseRequest(
-              () => supabase
-                .from("tenants")
-                .select("*")
-                .in("id", tenantIds),
+              () => supabase.from("tenants").select("*").in("id", tenantIds),
               { timeout: 10000, retries: 2 }
             );
 
@@ -157,7 +154,8 @@ export default function DatabaseDiagnostics({
                 `Tenants: ${tenantsResult.error.message}`
               );
             } else {
-              diagnosticResults.userRelationships.userTenants = tenantsResult.data || [];
+              diagnosticResults.userRelationships.userTenants =
+                tenantsResult.data || [];
               diagnosticResults.userRelationships.tenantCount =
                 tenantsResult.data?.length || 0;
 
@@ -165,11 +163,12 @@ export default function DatabaseDiagnostics({
               if (tenantsResult.data && tenantsResult.data.length > 0) {
                 // ✅ Get properties with robust request
                 const propertiesResult = await robustSupabaseRequest(
-                  () => supabase
-                    .from("properties")
-                    .select("*")
-                    .in("tenant_id", tenantIds)
-                    .eq("is_active", true),
+                  () =>
+                    supabase
+                      .from("properties")
+                      .select("*")
+                      .in("tenant_id", tenantIds)
+                      .eq("is_active", true),
                   { timeout: 10000, retries: 2 }
                 );
 
@@ -229,20 +228,23 @@ export default function DatabaseDiagnostics({
         console.log("Creating profile...");
         // ✅ Use robust request for profile creation
         const profileResult = await robustSupabaseRequest(
-          () => supabase.from("profiles").upsert([
-            {
-              id: user.id,
-              email: user.email,
-              full_name: user.email?.split("@")[0] || "Test User",
-              created_at: new Date().toISOString(),
-            },
-          ]),
+          () =>
+            supabase.from("profiles").upsert([
+              {
+                id: user.id,
+                email: user.email,
+                full_name: user.email?.split("@")[0] || "Test User",
+                created_at: new Date().toISOString(),
+              },
+            ]),
           { timeout: 15000, retries: 3 }
         );
 
         if (profileResult.error) {
           console.error("Profile creation error:", profileResult.error);
-          throw new Error(`Profile creation failed: ${profileResult.error.message}`);
+          throw new Error(
+            `Profile creation failed: ${profileResult.error.message}`
+          );
         }
         console.log("✅ Profile created");
       }
@@ -252,22 +254,25 @@ export default function DatabaseDiagnostics({
         console.log("Creating tenant...");
         // ✅ Use robust request for tenant creation
         const tenantResult = await robustSupabaseRequest(
-          () => supabase
-            .from("tenants")
-            .insert([
-              {
-                name: `${user.email?.split("@")[0] || "User"}'s Organization`,
-                created_at: new Date().toISOString(),
-              },
-            ])
-            .select()
-            .single(),
+          () =>
+            supabase
+              .from("tenants")
+              .insert([
+                {
+                  name: `${user.email?.split("@")[0] || "User"}'s Organization`,
+                  created_at: new Date().toISOString(),
+                },
+              ])
+              .select()
+              .single(),
           { timeout: 15000, retries: 3 }
         );
 
         if (tenantResult.error) {
           console.error("Tenant creation error:", tenantResult.error);
-          throw new Error(`Tenant creation failed: ${tenantResult.error.message}`);
+          throw new Error(
+            `Tenant creation failed: ${tenantResult.error.message}`
+          );
         }
         console.log("✅ Tenant created:", tenantResult.data);
 
@@ -275,9 +280,8 @@ export default function DatabaseDiagnostics({
         console.log("Creating tenant user association...");
         // ✅ Use robust request for tenant user association
         const tenantUserResult = await robustSupabaseRequest(
-          () => supabase
-            .from("tenant_users")
-            .insert([
+          () =>
+            supabase.from("tenant_users").insert([
               {
                 tenant_id: tenantResult.data.id,
                 user_id: user.id,
@@ -300,9 +304,8 @@ export default function DatabaseDiagnostics({
         console.log("Creating property...");
         // ✅ Use robust request for property creation
         const propertyResult = await robustSupabaseRequest(
-          () => supabase
-            .from("properties")
-            .insert([
+          () =>
+            supabase.from("properties").insert([
               {
                 name: "My First Property",
                 address: "123 Main Street",
@@ -317,7 +320,9 @@ export default function DatabaseDiagnostics({
 
         if (propertyResult.error) {
           console.error("Property creation error:", propertyResult.error);
-          throw new Error(`Property creation failed: ${propertyResult.error.message}`);
+          throw new Error(
+            `Property creation failed: ${propertyResult.error.message}`
+          );
         }
         console.log("✅ Property created");
       }

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { useAuth } from "@/components/auth";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { useProperty } from "@/lib/hooks/useProperty";
 import { supabase } from "@/lib/supabase";
 import Header from "@/components/layout/Header";
@@ -713,7 +713,8 @@ export default function HouseTasksPage() {
                           className="flex items-center justify-between text-sm"
                         >
                           <span className="text-yellow-800">
-                            {issue.location}: {issue.description.substring(0, 50)}
+                            {issue.location}:{" "}
+                            {issue.description.substring(0, 50)}
                             ...
                           </span>
                           <button

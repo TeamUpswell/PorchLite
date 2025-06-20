@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
-import { useAuth } from "@/components/auth";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { useProperty } from "@/lib/hooks/useProperty";
 import { supabase } from "@/lib/supabase";
 import MainLayout from "@/components/layout/MainLayout";
@@ -70,7 +70,7 @@ export default function CleaningPage() {
 
       // TODO: Replace with real API call when ready
       // For now, simulate API delay and return mock data
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise((resolve) => setTimeout(resolve, 500));
 
       // Mock data - replace with real Supabase query
       const mockStats: CleaningStats = {
@@ -154,56 +154,59 @@ export default function CleaningPage() {
   }, [stats.totalTasks, stats.completedTasks]);
 
   // Memoized stat cards data
-  const statCards = useMemo(() => [
-    {
-      title: "Total Tasks",
-      value: stats.totalTasks,
-      icon: CheckCircle,
-      color: "blue",
-      bgColor: "bg-blue-50",
-      borderColor: "border-blue-200",
-      iconBg: "bg-blue-100",
-      iconColor: "text-blue-600",
-      textColor: "text-blue-900",
-      valueColor: "text-blue-600",
-    },
-    {
-      title: "Completed",
-      value: stats.completedTasks,
-      icon: CheckCircle,
-      color: "green",
-      bgColor: "bg-green-50",
-      borderColor: "border-green-200",
-      iconBg: "bg-green-100",
-      iconColor: "text-green-600",
-      textColor: "text-green-900",
-      valueColor: "text-green-600",
-    },
-    {
-      title: "Pending",
-      value: stats.pendingTasks,
-      icon: Clock,
-      color: "yellow",
-      bgColor: "bg-yellow-50",
-      borderColor: "border-yellow-200",
-      iconBg: "bg-yellow-100",
-      iconColor: "text-yellow-600",
-      textColor: "text-yellow-900",
-      valueColor: "text-yellow-600",
-    },
-    {
-      title: "Overdue",
-      value: stats.overdueTasks,
-      icon: AlertCircle,
-      color: "red",
-      bgColor: "bg-red-50",
-      borderColor: "border-red-200",
-      iconBg: "bg-red-100",
-      iconColor: "text-red-600",
-      textColor: "text-red-900",
-      valueColor: "text-red-600",
-    },
-  ], [stats]);
+  const statCards = useMemo(
+    () => [
+      {
+        title: "Total Tasks",
+        value: stats.totalTasks,
+        icon: CheckCircle,
+        color: "blue",
+        bgColor: "bg-blue-50",
+        borderColor: "border-blue-200",
+        iconBg: "bg-blue-100",
+        iconColor: "text-blue-600",
+        textColor: "text-blue-900",
+        valueColor: "text-blue-600",
+      },
+      {
+        title: "Completed",
+        value: stats.completedTasks,
+        icon: CheckCircle,
+        color: "green",
+        bgColor: "bg-green-50",
+        borderColor: "border-green-200",
+        iconBg: "bg-green-100",
+        iconColor: "text-green-600",
+        textColor: "text-green-900",
+        valueColor: "text-green-600",
+      },
+      {
+        title: "Pending",
+        value: stats.pendingTasks,
+        icon: Clock,
+        color: "yellow",
+        bgColor: "bg-yellow-50",
+        borderColor: "border-yellow-200",
+        iconBg: "bg-yellow-100",
+        iconColor: "text-yellow-600",
+        textColor: "text-yellow-900",
+        valueColor: "text-yellow-600",
+      },
+      {
+        title: "Overdue",
+        value: stats.overdueTasks,
+        icon: AlertCircle,
+        color: "red",
+        bgColor: "bg-red-50",
+        borderColor: "border-red-200",
+        iconBg: "bg-red-100",
+        iconColor: "text-red-600",
+        textColor: "text-red-900",
+        valueColor: "text-red-600",
+      },
+    ],
+    [stats]
+  );
 
   // Loading states
   if (isLoading) {
@@ -214,7 +217,9 @@ export default function CleaningPage() {
             <div className="flex items-center justify-center py-12">
               <div className="text-center">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
-                <p className="text-gray-600">⏳ Loading cleaning dashboard...</p>
+                <p className="text-gray-600">
+                  ⏳ Loading cleaning dashboard...
+                </p>
               </div>
             </div>
           </StandardCard>
@@ -296,7 +301,9 @@ export default function CleaningPage() {
                         <card.icon className="h-6 w-6" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className={`text-xs font-semibold ${card.textColor}`}>
+                        <p
+                          className={`text-xs font-semibold ${card.textColor}`}
+                        >
                           {card.title}
                         </p>
                         <p className={`text-lg font-bold ${card.valueColor}`}>

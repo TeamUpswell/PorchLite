@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
-import { useAuth } from "@/components/auth";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { useProperty } from "@/lib/hooks/useProperty";
 import { supabase } from "@/lib/supabase";
 import StandardPageLayout from "@/components/layout/StandardPageLayout";
@@ -31,14 +31,18 @@ interface InventoryItem {
 export default function HomePage() {
   const { user, loading: authLoading } = useAuth();
   const { currentProperty, loading: propertyLoading } = useProperty();
-  
+
   // Prevent multiple simultaneous fetches
   const fetchingRef = useRef(false);
   const hasFetchedRef = useRef<string | null>(null);
-  
+
   // Use the weather hook with stable reference
-  const { weather: realWeather, loading: weatherLoading, error: weatherError } = usePropertyWeather();
-  
+  const {
+    weather: realWeather,
+    loading: weatherLoading,
+    error: weatherError,
+  } = usePropertyWeather();
+
   const [upcomingVisits, setUpcomingVisits] = useState<UpcomingVisit[]>([]);
   const [inventoryAlerts, setInventoryAlerts] = useState<InventoryItem[]>([]);
   const [taskAlerts, setTaskAlerts] = useState<any[]>([]);
@@ -54,26 +58,29 @@ export default function HomePage() {
   const router = useRouter();
 
   // Memoize fallback weather to prevent re-creation
-  const mockWeather = useMemo(() => ({
-    current: {
-      temp: 72,
-      condition: "Partly Cloudy",
-      humidity: 65,
-      wind_speed: 8,
-      icon: "partly-cloudy",
-    },
-    forecast: [
-      { date: "Today", high: 75, low: 62, condition: "Sunny", icon: "sunny" },
-      {
-        date: "Tomorrow",
-        high: 78,
-        low: 64,
+  const mockWeather = useMemo(
+    () => ({
+      current: {
+        temp: 72,
         condition: "Partly Cloudy",
+        humidity: 65,
+        wind_speed: 8,
         icon: "partly-cloudy",
       },
-      { date: "Wed", high: 73, low: 60, condition: "Rain", icon: "rain" },
-    ],
-  }), []);
+      forecast: [
+        { date: "Today", high: 75, low: 62, condition: "Sunny", icon: "sunny" },
+        {
+          date: "Tomorrow",
+          high: 78,
+          low: 64,
+          condition: "Partly Cloudy",
+          icon: "partly-cloudy",
+        },
+        { date: "Wed", high: 73, low: 60, condition: "Rain", icon: "rain" },
+      ],
+    }),
+    []
+  );
 
   // Memoize weather data to prevent unnecessary re-renders
   const weatherData = useMemo(() => {
@@ -81,80 +88,88 @@ export default function HomePage() {
   }, [realWeather, mockWeather]);
 
   // Memoize the fetch function - REMOVED from useEffect dependency
-  const fetchDashboardData = useCallback(async (propertyId: string, userId: string) => {
-    // Prevent duplicate fetches for the same property
-    if (fetchingRef.current || hasFetchedRef.current === propertyId) {
-      return;
-    }
+  const fetchDashboardData = useCallback(
+    async (propertyId: string, userId: string) => {
+      // Prevent duplicate fetches for the same property
+      if (fetchingRef.current || hasFetchedRef.current === propertyId) {
+        return;
+      }
 
-    fetchingRef.current = true;
-    hasFetchedRef.current = propertyId;
+      fetchingRef.current = true;
+      hasFetchedRef.current = propertyId;
 
-    try {
-      console.log('🏠 Property and user loaded, fetching dashboard:', currentProperty?.name);
-      
-      const today = new Date().toISOString().split("T")[0];
-      console.log("🔍 Fetching dashboard data for property:", propertyId);
-      console.log("🔍 Dashboard: Looking for reservations after:", today);
+      try {
+        console.log(
+          "🏠 Property and user loaded, fetching dashboard:",
+          currentProperty?.name
+        );
 
-      // Fetch visits
-      const visitsData = await supabase
-        .from("reservations")
-        .select("id, title, start_date, end_date, status")
-        .eq("property_id", propertyId)
-        .gte("start_date", today)
-        .order("start_date", { ascending: true })
-        .limit(10);
+        const today = new Date().toISOString().split("T")[0];
+        console.log("🔍 Fetching dashboard data for property:", propertyId);
+        console.log("🔍 Dashboard: Looking for reservations after:", today);
 
-      console.log("📊 Dashboard: Found reservations:", visitsData.data?.length || 0);
-      setUpcomingVisits(visitsData.data || []);
-      setComponentLoading((prev) => ({ ...prev, visits: false }));
+        // Fetch visits
+        const visitsData = await supabase
+          .from("reservations")
+          .select("id, title, start_date, end_date, status")
+          .eq("property_id", propertyId)
+          .gte("start_date", today)
+          .order("start_date", { ascending: true })
+          .limit(10);
 
-      // Fetch inventory
-      const inventoryData = await supabase
-        .from("inventory")
-        .select("id, name, quantity")
-        .eq("property_id", propertyId)
-        .eq("is_active", true);
+        console.log(
+          "📊 Dashboard: Found reservations:",
+          visitsData.data?.length || 0
+        );
+        setUpcomingVisits(visitsData.data || []);
+        setComponentLoading((prev) => ({ ...prev, visits: false }));
 
-      const inventoryItems = inventoryData.data || [];
-      const lowStockItems = inventoryItems
-        .filter((item) => item.quantity !== null && item.quantity < 5)
-        .map((item) => ({
-          ...item,
-          status:
-            (item.quantity === 0
+        // Fetch inventory
+        const inventoryData = await supabase
+          .from("inventory")
+          .select("id, name, quantity")
+          .eq("property_id", propertyId)
+          .eq("is_active", true);
+
+        const inventoryItems = inventoryData.data || [];
+        const lowStockItems = inventoryItems
+          .filter((item) => item.quantity !== null && item.quantity < 5)
+          .map((item) => ({
+            ...item,
+            status: (item.quantity === 0
               ? "critical"
               : item.quantity < 2
               ? "critical"
               : "low") as "good" | "low" | "critical",
-        }));
+          }));
 
-      setInventoryAlerts(lowStockItems);
-      setTotalInventoryCount(inventoryItems.length);
-      setComponentLoading((prev) => ({ ...prev, inventory: false }));
+        setInventoryAlerts(lowStockItems);
+        setTotalInventoryCount(inventoryItems.length);
+        setComponentLoading((prev) => ({ ...prev, inventory: false }));
 
-      // Fetch tasks
-      const tasksData = await supabase
-        .from("tasks")
-        .select("id, title, status, priority, due_date")
-        .eq("property_id", propertyId)
-        .in("status", ["pending", "in_progress"])
-        .order("due_date", { ascending: true })
-        .limit(10);
+        // Fetch tasks
+        const tasksData = await supabase
+          .from("tasks")
+          .select("id, title, status, priority, due_date")
+          .eq("property_id", propertyId)
+          .in("status", ["pending", "in_progress"])
+          .order("due_date", { ascending: true })
+          .limit(10);
 
-      setTaskAlerts(tasksData.data || []);
-      setComponentLoading((prev) => ({ ...prev, tasks: false }));
+        setTaskAlerts(tasksData.data || []);
+        setComponentLoading((prev) => ({ ...prev, tasks: false }));
 
-      console.log("✅ Dashboard data fetched successfully");
-    } catch (error) {
-      console.error("❌ Error fetching dashboard data:", error);
-      setComponentLoading({ visits: false, inventory: false, tasks: false });
-    } finally {
-      setLoading(false);
-      fetchingRef.current = false;
-    }
-  }, [currentProperty?.name]); // Minimal dependencies
+        console.log("✅ Dashboard data fetched successfully");
+      } catch (error) {
+        console.error("❌ Error fetching dashboard data:", error);
+        setComponentLoading({ visits: false, inventory: false, tasks: false });
+      } finally {
+        setLoading(false);
+        fetchingRef.current = false;
+      }
+    },
+    [currentProperty?.name]
+  ); // Minimal dependencies
 
   // FIXED: Removed fetchDashboardData from dependency array
   useEffect(() => {
@@ -181,14 +196,17 @@ export default function HomePage() {
   }, [currentProperty?.id]);
 
   // Memoize navigation handlers to prevent re-creation
-  const navigationHandlers = useMemo(() => ({
-    handleUpcomingVisitsClick: () => router.push("/calendar"),
-    handleLowStockClick: () => router.push("/inventory"),
-    handleTasksClick: () => router.push("/tasks"),
-    handleAddReservation: () => router.push("/calendar"),
-    handleInventoryClick: () => router.push("/inventory"),
-    handleCreateTaskClick: () => router.push("/tasks"),
-  }), [router]);
+  const navigationHandlers = useMemo(
+    () => ({
+      handleUpcomingVisitsClick: () => router.push("/calendar"),
+      handleLowStockClick: () => router.push("/inventory"),
+      handleTasksClick: () => router.push("/tasks"),
+      handleAddReservation: () => router.push("/calendar"),
+      handleInventoryClick: () => router.push("/inventory"),
+      handleCreateTaskClick: () => router.push("/tasks"),
+    }),
+    [router]
+  );
 
   // Auth redirect effect
   useEffect(() => {
@@ -263,10 +281,7 @@ export default function HomePage() {
   return (
     <StandardPageLayout theme="dark" showHeader={false}>
       <div className="mb-6">
-        <DashboardHeader 
-          weather={weatherData}
-          showWeather={true}
-        >
+        <DashboardHeader weather={weatherData} showWeather={true}>
           <h1 className="text-3xl md:text-4xl font-bold mb-1 text-white drop-shadow-lg tracking-tight">
             {currentProperty.name}
           </h1>
@@ -362,7 +377,9 @@ export default function HomePage() {
                     Low Stock Alerts
                   </p>
                   <p className="text-2xl font-semibold text-gray-900">
-                    {componentLoading.inventory ? "..." : inventoryAlerts.length}
+                    {componentLoading.inventory
+                      ? "..."
+                      : inventoryAlerts.length}
                   </p>
                   <p className="text-xs text-yellow-600 font-medium opacity-0 group-hover:opacity-100 transition-opacity">
                     Click to manage inventory →

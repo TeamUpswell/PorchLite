@@ -5,8 +5,7 @@ import { Calendar as BigCalendar, dateFnsLocalizer } from "react-big-calendar";
 import { format, parse, startOfWeek, getDay } from "date-fns";
 import { toast } from "react-hot-toast";
 import { supabase } from "@/lib/supabase";
-import { useAuth } from "@/components/auth";
-
+import { useAuth } from "@/components/auth/AuthProvider";
 // CSS imports
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import styles from "../calendar.module.css";
@@ -56,7 +55,7 @@ export default function Calendar({
   const { user } = useAuth();
 
   // ✅ REDUCED: Only enable debug logs in development mode
-  const isDebugEnabled = process.env.NODE_ENV === 'development';
+  const isDebugEnabled = process.env.NODE_ENV === "development";
 
   const {
     reservations,
@@ -85,7 +84,7 @@ export default function Calendar({
   const backupCalendarData = useCallback(() => {
     if (reservations && reservations.length > 0) {
       dataBackupRef.current = [...reservations];
-      
+
       if (isDebugEnabled) {
         console.log("💾 Calendar data backed up");
       }
@@ -149,7 +148,7 @@ export default function Calendar({
           propertyId: user?.id || "unknown",
         };
         localStorage.setItem(CALENDAR_CACHE_KEY, JSON.stringify(cacheData));
-        
+
         if (isDebugEnabled) {
           console.log("💾 Calendar data cached");
         }
@@ -177,7 +176,7 @@ export default function Calendar({
       try {
         await fetchReservations();
         setHasLoadedOnce(true);
-        
+
         if (isDebugEnabled) {
           console.log("✅ Calendar data fetched successfully");
         }

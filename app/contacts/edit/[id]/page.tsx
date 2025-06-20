@@ -2,7 +2,7 @@
 
 import { useState, useEffect, FormEvent, ChangeEvent } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { useAuth } from "@/components/auth";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { supabase } from "@/lib/supabase";
 import { ArrowLeft, Save, Trash2 } from "lucide-react";
 import Link from "next/link";
@@ -332,9 +332,8 @@ export default function EditContactPage() {
                 Delete Contact
               </h3>
               <p className="text-gray-600 mb-6">
-                Are you sure you want to delete{" "}
-                <strong>{formData.name}</strong>? This action cannot be
-                undone.
+                Are you sure you want to delete <strong>{formData.name}</strong>
+                ? This action cannot be undone.
               </p>
               <div className="flex gap-3 justify-end">
                 <button

@@ -1,6 +1,6 @@
 "use client";
 
-import { useAuth } from "@/components/auth";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import StandardCard from "@/components/ui/StandardCard";

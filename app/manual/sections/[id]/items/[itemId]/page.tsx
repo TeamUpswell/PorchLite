@@ -2,10 +2,16 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Edit, ExternalLink, BookOpen, AlertTriangle } from "lucide-react";
+import {
+  ArrowLeft,
+  Edit,
+  ExternalLink,
+  BookOpen,
+  AlertTriangle,
+} from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
-import { useAuth } from "@/components/auth";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { useProperty } from "@/lib/hooks/useProperty";
 import { supabase } from "@/lib/supabase";
 import StandardCard from "@/components/ui/StandardCard";
@@ -35,7 +41,7 @@ export default function ItemDetailPage() {
   const { currentProperty, loading: propertyLoading } = useProperty();
   const router = useRouter();
   const params = useParams();
-  
+
   const [item, setItem] = useState<ManualItem | null>(null);
   const [section, setSection] = useState<ManualSection | null>(null);
   const [loading, setLoading] = useState(true);
@@ -86,7 +92,7 @@ export default function ItemDetailPage() {
           .from("manual_sections")
           .select("id, title, property_id")
           .eq("id", sectionId)
-          .single()
+          .single(),
       ]);
 
       if (!mountedRef.current) {
@@ -96,7 +102,7 @@ export default function ItemDetailPage() {
 
       // Handle item response
       if (itemResponse.error) {
-        if (itemResponse.error.code === 'PGRST116') {
+        if (itemResponse.error.code === "PGRST116") {
           setError("Item not found");
         } else {
           console.error("❌ Error fetching item:", itemResponse.error);
@@ -110,7 +116,7 @@ export default function ItemDetailPage() {
 
       // Handle section response
       if (sectionResponse.error) {
-        if (sectionResponse.error.code === 'PGRST116') {
+        if (sectionResponse.error.code === "PGRST116") {
           setError("Section not found");
         } else {
           console.error("❌ Error fetching section:", sectionResponse.error);
@@ -122,7 +128,10 @@ export default function ItemDetailPage() {
         setSection(sectionResponse.data);
 
         // Verify property access
-        if (currentProperty?.id && sectionResponse.data.property_id !== currentProperty.id) {
+        if (
+          currentProperty?.id &&
+          sectionResponse.data.property_id !== currentProperty.id
+        ) {
           setError("Item belongs to a different property");
           return;
         }
@@ -132,7 +141,6 @@ export default function ItemDetailPage() {
       if (itemResponse.error && sectionResponse.error) {
         setError("Failed to load item data");
       }
-
     } catch (error) {
       console.error("❌ Unexpected error loading item:", error);
       if (mountedRef.current) {
@@ -172,14 +180,14 @@ export default function ItemDetailPage() {
 
     // Check if we need to reload due to item change
     const itemChanged = currentItemIdRef.current !== itemId;
-    
+
     if (!hasLoadedRef.current || itemChanged) {
-      console.log("🔄 Loading item data:", { 
-        itemChanged, 
+      console.log("🔄 Loading item data:", {
+        itemChanged,
         hasLoaded: hasLoadedRef.current,
-        itemId 
+        itemId,
       });
-      
+
       currentItemIdRef.current = itemId;
       hasLoadedRef.current = true;
       loadItemData();
@@ -196,16 +204,20 @@ export default function ItemDetailPage() {
   }, [sectionId, itemId, user?.id, loadItemData]);
 
   // Memoized navigation handlers
-  const navigationHandlers = useMemo(() => ({
-    goToSection: () => router.push(`/manual/sections/${sectionId}`),
-    goToEdit: () => router.push(`/manual/sections/${sectionId}/items/${itemId}/edit`),
-    goToManual: () => router.push("/manual"),
-  }), [router, sectionId, itemId]);
+  const navigationHandlers = useMemo(
+    () => ({
+      goToSection: () => router.push(`/manual/sections/${sectionId}`),
+      goToEdit: () =>
+        router.push(`/manual/sections/${sectionId}/items/${itemId}/edit`),
+      goToManual: () => router.push("/manual"),
+    }),
+    [router, sectionId, itemId]
+  );
 
   // Memoized photo click handler
   const handlePhotoClick = useCallback((url: string, index: number) => {
     // Open in new tab
-    window.open(url, '_blank', 'noopener,noreferrer');
+    window.open(url, "_blank", "noopener,noreferrer");
   }, []);
 
   // Loading state
@@ -246,7 +258,9 @@ export default function ItemDetailPage() {
             <div className="text-center py-8">
               <AlertTriangle className="mx-auto h-12 w-12 text-red-500 mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">
-                {error === "Item not found" ? "Item Not Found" : "Error Loading Item"}
+                {error === "Item not found"
+                  ? "Item Not Found"
+                  : "Error Loading Item"}
               </h3>
               <p className="text-red-600 mb-4">{error}</p>
               <div className="flex gap-3 justify-center">
@@ -294,7 +308,8 @@ export default function ItemDetailPage() {
                 Item Not Found
               </h3>
               <p className="text-gray-600 mb-4">
-                The manual item you're looking for doesn't exist or you don't have access to it.
+                The manual item you're looking for doesn't exist or you don't
+                have access to it.
               </p>
               <div className="flex gap-3 justify-center">
                 {sectionId ? (
@@ -333,7 +348,10 @@ export default function ItemDetailPage() {
               Manual
             </Link>
             <span>›</span>
-            <Link href={`/manual/sections/${sectionId}`} className="hover:text-blue-600">
+            <Link
+              href={`/manual/sections/${sectionId}`}
+              className="hover:text-blue-600"
+            >
               {section.title}
             </Link>
             <span>›</span>
@@ -342,7 +360,9 @@ export default function ItemDetailPage() {
 
           <StandardCard
             title="Manual Item"
-            subtitle={`${section.title} • ${currentProperty?.name || 'Unknown Property'}`}
+            subtitle={`${section.title} • ${
+              currentProperty?.name || "Unknown Property"
+            }`}
             headerActions={
               <div className="flex items-center gap-2">
                 <Link
@@ -371,18 +391,18 @@ export default function ItemDetailPage() {
                   </div>
                   <div className="flex items-center text-sm text-gray-500 space-x-4">
                     <span>
-                      Created {new Date(item.created_at).toLocaleDateString('en-US', {
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric'
+                      Created{" "}
+                      {new Date(item.created_at).toLocaleDateString("en-US", {
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
                       })}
                     </span>
-                    {item.order_index && (
-                      <span>Item #{item.order_index}</span>
-                    )}
+                    {item.order_index && <span>Item #{item.order_index}</span>}
                     {item.media_urls && item.media_urls.length > 0 && (
                       <span className="flex items-center">
-                        📸 {item.media_urls.length} photo{item.media_urls.length !== 1 ? 's' : ''}
+                        📸 {item.media_urls.length} photo
+                        {item.media_urls.length !== 1 ? "s" : ""}
                       </span>
                     )}
                   </div>
@@ -391,7 +411,9 @@ export default function ItemDetailPage() {
 
               {/* Content */}
               <div className="border-t border-gray-200 pt-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-3">Content</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">
+                  Content
+                </h3>
                 <div className="prose prose-lg max-w-none">
                   <div className="whitespace-pre-wrap leading-relaxed bg-gray-50 rounded-lg p-6 border text-gray-700">
                     {item.content}

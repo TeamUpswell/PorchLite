@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { useAuth } from "@/components/auth";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { useProperty } from "@/lib/hooks/useProperty";
 import { supabase } from "@/lib/supabase";
 import Header from "@/components/layout/Header";
@@ -108,7 +108,7 @@ export default function EditManualSectionPage() {
       }
 
       if (error) {
-        if (error.code === 'PGRST116') {
+        if (error.code === "PGRST116") {
           setError("Section not found");
         } else {
           console.error("❌ Error fetching section:", error);
@@ -119,14 +119,19 @@ export default function EditManualSectionPage() {
       }
 
       // Verify property access
-      if (currentProperty?.id && sectionData.property_id !== currentProperty.id) {
+      if (
+        currentProperty?.id &&
+        sectionData.property_id !== currentProperty.id
+      ) {
         setError("Section belongs to a different property");
         return;
       }
 
       // Verify ownership or admin access
       if (sectionData.created_by !== user.id) {
-        console.warn("⚠️ User doesn't own this section, checking admin access...");
+        console.warn(
+          "⚠️ User doesn't own this section, checking admin access..."
+        );
         // You might want to add admin check here
       }
 
@@ -143,7 +148,6 @@ export default function EditManualSectionPage() {
 
       setFormData(initialFormData);
       originalDataRef.current = { ...initialFormData };
-
     } catch (error) {
       console.error("❌ Unexpected error loading section:", error);
       if (mountedRef.current) {
@@ -183,22 +187,30 @@ export default function EditManualSectionPage() {
   }, [user?.id, sectionId, isInitializing, loadSection]);
 
   // Memoized form change handler
-  const handleFormChange = useCallback((field: keyof FormData) => {
-    return (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-      if (!mountedRef.current) return;
-      
-      const value = e.target.type === 'checkbox' 
-        ? (e.target as HTMLInputElement).checked 
-        : e.target.value;
-      
-      setFormData(prev => ({ ...prev, [field]: value }));
-      
-      // Clear error when user starts typing
-      if (error) {
-        setError(null);
-      }
-    };
-  }, [error]);
+  const handleFormChange = useCallback(
+    (field: keyof FormData) => {
+      return (
+        e: React.ChangeEvent<
+          HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+        >
+      ) => {
+        if (!mountedRef.current) return;
+
+        const value =
+          e.target.type === "checkbox"
+            ? (e.target as HTMLInputElement).checked
+            : e.target.value;
+
+        setFormData((prev) => ({ ...prev, [field]: value }));
+
+        // Clear error when user starts typing
+        if (error) {
+          setError(null);
+        }
+      };
+    },
+    [error]
+  );
 
   // Form validation
   const isFormValid = useMemo(() => {
@@ -208,7 +220,7 @@ export default function EditManualSectionPage() {
   // Check if form has changes
   const hasChanges = useMemo(() => {
     if (!originalDataRef.current) return false;
-    
+
     const original = originalDataRef.current;
     return (
       formData.title !== original.title ||
@@ -219,68 +231,72 @@ export default function EditManualSectionPage() {
   }, [formData]);
 
   // Save handler
-  const handleSave = useCallback(async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSave = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault();
 
-    // Prevent duplicate saves
-    if (savingRef.current || saving || !mountedRef.current || !isFormValid) {
-      return;
-    }
-
-    if (!section?.id) {
-      setError("Section not loaded");
-      return;
-    }
-
-    savingRef.current = true;
-    setSaving(true);
-    setError(null);
-
-    try {
-      console.log("💾 Saving section changes...");
-
-      const { error } = await supabase
-        .from("manual_sections")
-        .update({
-          title: formData.title.trim(),
-          description: formData.description.trim() || null,
-          icon: formData.icon,
-          is_priority: formData.is_priority,
-        })
-        .eq("id", section.id);
-
-      if (!mountedRef.current) {
-        console.log("⚠️ Component unmounted, aborting");
+      // Prevent duplicate saves
+      if (savingRef.current || saving || !mountedRef.current || !isFormValid) {
         return;
       }
 
-      if (error) {
-        console.error("❌ Error updating section:", error);
-        setError(error.message || "Failed to update section");
-        toast.error("Failed to update section");
-      } else {
-        console.log("✅ Section updated successfully");
-        toast.success("Section updated successfully!");
-        
-        // Update original data reference
-        originalDataRef.current = { ...formData };
-        
-        router.push(`/manual/sections/${section.id}`);
+      if (!section?.id) {
+        setError("Section not loaded");
+        return;
       }
-    } catch (error) {
-      console.error("❌ Unexpected error updating section:", error);
-      if (mountedRef.current) {
-        const errorMessage = error instanceof Error ? error.message : "Failed to update section";
-        setError(errorMessage);
-        toast.error(errorMessage);
+
+      savingRef.current = true;
+      setSaving(true);
+      setError(null);
+
+      try {
+        console.log("💾 Saving section changes...");
+
+        const { error } = await supabase
+          .from("manual_sections")
+          .update({
+            title: formData.title.trim(),
+            description: formData.description.trim() || null,
+            icon: formData.icon,
+            is_priority: formData.is_priority,
+          })
+          .eq("id", section.id);
+
+        if (!mountedRef.current) {
+          console.log("⚠️ Component unmounted, aborting");
+          return;
+        }
+
+        if (error) {
+          console.error("❌ Error updating section:", error);
+          setError(error.message || "Failed to update section");
+          toast.error("Failed to update section");
+        } else {
+          console.log("✅ Section updated successfully");
+          toast.success("Section updated successfully!");
+
+          // Update original data reference
+          originalDataRef.current = { ...formData };
+
+          router.push(`/manual/sections/${section.id}`);
+        }
+      } catch (error) {
+        console.error("❌ Unexpected error updating section:", error);
+        if (mountedRef.current) {
+          const errorMessage =
+            error instanceof Error ? error.message : "Failed to update section";
+          setError(errorMessage);
+          toast.error(errorMessage);
+        }
+      } finally {
+        if (mountedRef.current) {
+          setSaving(false);
+        }
+        savingRef.current = false;
       }
-    } finally {
-      if (mountedRef.current) {
-        setSaving(false);
-      }
-      savingRef.current = false;
-    }
-  }, [formData, section?.id, saving, isFormValid, router]);
+    },
+    [formData, section?.id, saving, isFormValid, router]
+  );
 
   // Retry function
   const retryLoad = useCallback(() => {
@@ -301,7 +317,9 @@ export default function EditManualSectionPage() {
               <div className="text-center">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-3"></div>
                 <p className="text-gray-600">
-                  {isInitializing ? "⏳ Initializing..." : "📝 Loading section..."}
+                  {isInitializing
+                    ? "⏳ Initializing..."
+                    : "📝 Loading section..."}
                 </p>
               </div>
             </div>
@@ -328,7 +346,9 @@ export default function EditManualSectionPage() {
             <div className="text-center py-8">
               <AlertTriangle className="mx-auto h-12 w-12 text-red-500 mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">
-                {error === "Section not found" ? "Section Not Found" : "Error Loading Section"}
+                {error === "Section not found"
+                  ? "Section Not Found"
+                  : "Error Loading Section"}
               </h3>
               <p className="text-red-600 mb-4">{error}</p>
               <div className="flex gap-3 justify-center">
@@ -394,7 +414,10 @@ export default function EditManualSectionPage() {
               Manual
             </Link>
             <span>›</span>
-            <Link href={`/manual/sections/${section.id}`} className="hover:text-blue-600">
+            <Link
+              href={`/manual/sections/${section.id}`}
+              className="hover:text-blue-600"
+            >
               {section.title}
             </Link>
             <span>›</span>
@@ -403,7 +426,9 @@ export default function EditManualSectionPage() {
 
           <StandardCard
             title={`Edit Section: ${section.title}`}
-            subtitle={`${currentProperty?.name || 'Unknown Property'} • Created ${new Date(section.created_at).toLocaleDateString()}`}
+            subtitle={`${
+              currentProperty?.name || "Unknown Property"
+            } • Created ${new Date(section.created_at).toLocaleDateString()}`}
             headerActions={
               <div className="flex items-center gap-2">
                 <Link
@@ -430,7 +455,7 @@ export default function EditManualSectionPage() {
                 <input
                   type="text"
                   value={formData.title}
-                  onChange={handleFormChange('title')}
+                  onChange={handleFormChange("title")}
                   disabled={saving}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed transition-colors"
                   placeholder="Enter section title..."
@@ -449,7 +474,7 @@ export default function EditManualSectionPage() {
                 </label>
                 <textarea
                   value={formData.description}
-                  onChange={handleFormChange('description')}
+                  onChange={handleFormChange("description")}
                   disabled={saving}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed transition-colors"
                   rows={3}
@@ -468,7 +493,7 @@ export default function EditManualSectionPage() {
                 </label>
                 <select
                   value={formData.icon}
-                  onChange={handleFormChange('icon')}
+                  onChange={handleFormChange("icon")}
                   disabled={saving}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed transition-colors"
                 >
@@ -486,7 +511,7 @@ export default function EditManualSectionPage() {
                   type="checkbox"
                   id="is_priority"
                   checked={formData.is_priority}
-                  onChange={handleFormChange('is_priority')}
+                  onChange={handleFormChange("is_priority")}
                   disabled={saving}
                   className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded disabled:opacity-50"
                 />
@@ -534,9 +559,13 @@ export default function EditManualSectionPage() {
                 <div className="flex items-center space-x-3">
                   <span className="text-2xl">{formData.icon}</span>
                   <div>
-                    <h3 className="font-semibold text-gray-900">{formData.title}</h3>
+                    <h3 className="font-semibold text-gray-900">
+                      {formData.title}
+                    </h3>
                     {formData.description && (
-                      <p className="text-sm text-gray-600">{formData.description}</p>
+                      <p className="text-sm text-gray-600">
+                        {formData.description}
+                      </p>
                     )}
                   </div>
                   {formData.is_priority && (
