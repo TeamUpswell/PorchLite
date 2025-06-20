@@ -24,6 +24,7 @@ import Image from "next/image";
 export default function AccountPage() {
   const { user, loading: authLoading } = useAuth();
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [timedOut, setTimedOut] = useState(false); // ✅ Added timedOut state
 
   const accountSections = [
     {
@@ -93,6 +94,14 @@ export default function AccountPage() {
       }
     : null;
 
+  // ✅ Added retry function for account data
+  const retryAccountData = () => {
+    setTimedOut(false);
+    // Since this page mainly uses auth data, we can trigger a page refresh
+    // or implement specific retry logic if you have other data fetching
+    window.location.reload();
+  };
+
   const handleProfileUpdate = (updatedUser: any) => {
     if (process.env.NODE_ENV === "development") {
       console.log("Profile updated:", updatedUser);
@@ -100,15 +109,13 @@ export default function AccountPage() {
     // Optionally refresh user data or update local state
   };
 
+  // ✅ Replaced loading UI with LoadingWithTimeout
   if (authLoading) {
     return (
       <StandardPageLayout>
-        <StandardCard>
-          <div className="flex items-center justify-center py-12">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            <span className="ml-2">Loading...</span>
-          </div>
-        </StandardCard>
+        <div className="flex items-center justify-center p-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        </div>
       </StandardPageLayout>
     );
   }

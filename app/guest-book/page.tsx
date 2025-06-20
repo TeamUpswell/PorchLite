@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useAuth } from "@/components/auth";
 import { useProperty } from "@/lib/hooks/useProperty";
 import { supabase } from "@/lib/supabase";
@@ -21,6 +21,15 @@ import Link from "next/link";
 import Image from "next/image";
 import TripReportWizard from "@/components/guest-book/TripReportWizard";
 
+// Types
+interface GuestBookPhoto {
+  id: string;
+  photo_url: string;
+  caption: string;
+  order_index: number;
+  guest_book_entry_id: string;
+}
+
 interface GuestBookEntry {
   id: string;
   guest_name: string;
@@ -36,134 +45,155 @@ interface GuestBookEntry {
   created_by?: string;
   photos?: string[];
   photo_captions?: string[];
-  guest_book_photos?: {
-    id: string;
-    photo_url: string;
-    caption: string;
-    order_index: number;
-    guest_book_entry_id: string;
-  }[];
+  guest_book_photos?: GuestBookPhoto[];
 }
 
 export default function GuestBookPage() {
   const { user, loading: authLoading } = useAuth();
   const { currentProperty, loading: propertyLoading } = useProperty();
+  
   const [entries, setEntries] = useState<GuestBookEntry[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [showTopCard, setShowTopCard] = useState(true);
   const [showWizardModal, setShowWizardModal] = useState(false);
-  const [editingEntry, setEditingEntry] = useState<any>(null);
+  const [editingEntry, setEditingEntry] = useState<GuestBookEntry | null>(null);
 
-  // Debug current state
-  useEffect(() => {
-    console.log("🔍 Guest Book Debug:", {
-      user: user?.email || "none",
-      authLoading,
-      propertyLoading,
-      currentProperty: currentProperty?.name || "none",
-      propertyId: currentProperty?.id || "none",
-      entriesCount: entries.length,
-      loading,
-    });
-  }, [
-    user,
-    authLoading,
-    propertyLoading,
-    currentProperty,
-    entries.length,
-    loading,
-  ]);
+  // Refs to prevent multiple fetches and track component mount
+  const fetchingRef = useRef(false);
+  const hasFetchedRef = useRef<string | null>(null);
+  const mountedRef = useRef(true);
+  const topCardTimerRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Memoize loading states
+  const isLoading = useMemo(() => {
+    return authLoading || propertyLoading;
+  }, [authLoading, propertyLoading]);
+
+  // Component cleanup
   useEffect(() => {
-    if (currentProperty?.id && user) {
-      fetchGuestBookEntries();
-    } else if (!authLoading && !propertyLoading) {
-      setLoading(false);
-    }
-  }, [currentProperty?.id, user, authLoading, propertyLoading]);
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      if (topCardTimerRef.current) {
+        clearTimeout(topCardTimerRef.current);
+      }
+    };
+  }, []);
 
   // Timer to hide top card
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setShowTopCard(false);
+    if (topCardTimerRef.current) {
+      clearTimeout(topCardTimerRef.current);
+    }
+    
+    topCardTimerRef.current = setTimeout(() => {
+      if (mountedRef.current) {
+        setShowTopCard(false);
+      }
     }, 20000);
 
-    return () => clearTimeout(timer);
+    return () => {
+      if (topCardTimerRef.current) {
+        clearTimeout(topCardTimerRef.current);
+      }
+    };
   }, []);
 
-  const fetchGuestBookEntries = async () => {
-    if (!currentProperty?.id) {
-      console.log("❌ No property ID available");
-      setLoading(false);
+  // Optimized fetch function with photo joining
+  const fetchGuestBookEntries = useCallback(async (propertyId: string) => {
+    // Prevent duplicate fetches
+    if (fetchingRef.current || hasFetchedRef.current === propertyId) {
       return;
     }
 
-    try {
-      setLoading(true);
-      console.log("🔍 Fetching entries for property:", currentProperty.id);
+    fetchingRef.current = true;
+    hasFetchedRef.current = propertyId;
 
-      const { data, error } = await supabase
+    try {
+      console.log("📖 Fetching guest book entries for property:", propertyId);
+      setLoading(true);
+      setError(null);
+
+      // Try to fetch with photos in a single query first
+      let { data: entriesData, error: entriesError } = await supabase
         .from("guest_book_entries")
-        .select("*")
-        .eq("property_id", currentProperty.id)
+        .select(`
+          *,
+          guest_book_photos (
+            id,
+            photo_url,
+            caption,
+            order_index
+          )
+        `)
+        .eq("property_id", propertyId)
         .eq("is_approved", true)
         .eq("is_public", true)
         .order("visit_date", { ascending: false })
         .limit(20);
 
-      console.log("📋 Guest book query result:", {
-        data,
-        error,
-        count: data?.length,
-      });
+      // If photo join fails (table doesn't exist), fetch entries only
+      if (entriesError && entriesError.message.includes('guest_book_photos')) {
+        console.log("📸 Photos table not found, fetching entries only");
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from("guest_book_entries")
+          .select("*")
+          .eq("property_id", propertyId)
+          .eq("is_approved", true)
+          .eq("is_public", true)
+          .order("visit_date", { ascending: false })
+          .limit(20);
 
-      if (error) {
-        console.error("❌ Guest book query error:", error);
-        throw error;
+        if (fallbackError) throw fallbackError;
+        entriesData = fallbackData;
+      } else if (entriesError) {
+        throw entriesError;
       }
 
-      setEntries(data || []);
-
-      if (data && data.length > 0) {
-        await fetchPhotosForEntries(data);
+      if (mountedRef.current) {
+        console.log("✅ Guest book entries loaded:", entriesData?.length || 0);
+        setEntries(entriesData || []);
       }
     } catch (error) {
-      console.error("💥 Error fetching guest book entries:", error);
-      setEntries([]);
+      console.error("❌ Error fetching guest book entries:", error);
+      if (mountedRef.current) {
+        setError("Failed to load guest book entries. Please try again.");
+        setEntries([]);
+      }
     } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchPhotosForEntries = async (entries: GuestBookEntry[]) => {
-    try {
-      const entryIds = entries.map((e) => e.id);
-
-      const { data: photos, error } = await supabase
-        .from("guest_book_photos")
-        .select("*")
-        .in("guest_book_entry_id", entryIds)
-        .order("order_index", { ascending: true });
-
-      if (!error && photos) {
-        console.log("📸 Found photos:", photos.length);
-        const entriesWithPhotos = entries.map((entry) => ({
-          ...entry,
-          guest_book_photos: photos.filter(
-            (photo) => photo.guest_book_entry_id === entry.id
-          ),
-        }));
-
-        setEntries(entriesWithPhotos);
-      } else if (error) {
-        console.log("📸 Photos query error (table might not exist):", error);
+      if (mountedRef.current) {
+        setLoading(false);
       }
-    } catch (error) {
-      console.log("📸 Photos table might not exist, continuing without photos");
+      fetchingRef.current = false;
     }
-  };
+  }, []);
 
-  const renderStars = (rating: number) => {
+  // Single useEffect with proper dependencies
+  useEffect(() => {
+    if (isLoading || !user || !currentProperty?.id) {
+      if (!isLoading) {
+        setLoading(false);
+      }
+      return;
+    }
+
+    console.log("📖 User and property loaded, fetching guest book entries");
+    fetchGuestBookEntries(currentProperty.id);
+  }, [user, currentProperty?.id, isLoading, fetchGuestBookEntries]);
+
+  // Reset fetch tracking when property changes
+  useEffect(() => {
+    if (currentProperty?.id !== hasFetchedRef.current) {
+      hasFetchedRef.current = null;
+      fetchingRef.current = false;
+      setEntries([]);
+      setError(null);
+    }
+  }, [currentProperty?.id]);
+
+  // Memoized star renderer
+  const renderStars = useCallback((rating: number) => {
     return Array.from({ length: 5 }, (_, i) => (
       <Star
         key={i}
@@ -172,36 +202,213 @@ export default function GuestBookPage() {
         }`}
       />
     ));
-  };
+  }, []);
 
-  const canEditEntry = (entry: any) => {
-    console.log("🔍 Edit check for entry:", {
-      entryId: entry.id,
-      entryTitle: entry.title,
-      hasUser: !!user,
-      userId: user?.id,
-      entryCreatedBy: entry.created_by,
-      createdByType: typeof entry.created_by,
-      canEdit: user && entry.created_by === user.id,
-    });
+  // Memoized edit permission check
+  const canEditEntry = useCallback((entry: GuestBookEntry) => {
     return user && entry.created_by === user.id;
-  };
+  }, [user]);
 
-  // Show loading while auth or property is loading
-  if (authLoading || propertyLoading) {
+  // Memoized handlers
+  const handleEditEntry = useCallback((entry: GuestBookEntry) => {
+    setEditingEntry(entry);
+    setShowWizardModal(true);
+  }, []);
+
+  const handleCloseWizard = useCallback(() => {
+    setShowWizardModal(false);
+    setEditingEntry(null);
+  }, []);
+
+  const handleWizardComplete = useCallback(() => {
+    // Refresh data by resetting cache
+    if (currentProperty?.id) {
+      hasFetchedRef.current = null;
+      fetchingRef.current = false;
+      fetchGuestBookEntries(currentProperty.id);
+    }
+    setShowWizardModal(false);
+    setEditingEntry(null);
+  }, [currentProperty?.id, fetchGuestBookEntries]);
+
+  const retryFetch = useCallback(() => {
+    if (currentProperty?.id) {
+      hasFetchedRef.current = null;
+      fetchingRef.current = false;
+      setError(null);
+      fetchGuestBookEntries(currentProperty.id);
+    }
+  }, [currentProperty?.id, fetchGuestBookEntries]);
+
+  // Memoized ContactCard component
+  const EntryCard = useCallback(({ entry, index }: { entry: GuestBookEntry; index: number }) => (
+    <div key={entry.id} className="relative mb-8 last:mb-0">
+      {/* Timeline dot */}
+      <div className="absolute left-0 w-4 h-4 bg-gradient-to-r from-rose-400 to-amber-400 rounded-full border-4 border-white shadow-lg z-10 transform -translate-x-[7px]"></div>
+
+      {/* Date badge */}
+      <div className="absolute left-8 -top-1">
+        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700 border">
+          <Calendar className="h-3 w-3 mr-1" />
+          {new Date(entry.visit_date).toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+          })}
+        </span>
+      </div>
+
+      {/* Entry content */}
+      <div className="ml-10 mt-3">
+        <StandardCard className="overflow-hidden hover:shadow-lg transition-shadow duration-200">
+          <div className="p-4">
+            {/* Header */}
+            <div className="flex items-start justify-between mb-3">
+              <div className="flex-1 min-w-0">
+                <h3 className="text-lg font-bold text-gray-900 mb-1 leading-tight truncate">
+                  {entry.title || `A wonderful stay`}
+                </h3>
+                <div className="flex items-center space-x-3 text-sm text-gray-500">
+                  <span className="flex items-center font-medium">
+                    <Heart className="h-3 w-3 mr-1 text-rose-400" />
+                    {entry.guest_name}
+                  </span>
+                  <span className="text-gray-300">•</span>
+                  <span className="truncate">
+                    {new Date(entry.visit_date).toLocaleDateString("en-US", {
+                      weekday: "long",
+                    })}
+                  </span>
+                </div>
+              </div>
+
+              {/* Rating */}
+              <div className="flex items-center bg-gradient-to-r from-amber-50 to-yellow-50 px-3 py-1 rounded-lg border border-amber-200 ml-3">
+                <div className="flex items-center">
+                  {renderStars(entry.rating)}
+                </div>
+                <span className="ml-1 text-sm font-bold text-amber-700">
+                  {entry.rating}
+                </span>
+              </div>
+            </div>
+
+            {/* Message */}
+            {entry.message && (
+              <div className="mb-4">
+                <div className="bg-gradient-to-r from-gray-50 to-blue-50 rounded-lg p-3 border-l-3 border-blue-400">
+                  <p className="text-gray-800 leading-relaxed italic">
+                    "{entry.message}"
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Photos */}
+            {((entry.guest_book_photos && entry.guest_book_photos.length > 0) ||
+              (entry.photos && entry.photos.length > 0)) && (
+              <div className="mb-4">
+                <div className="flex items-center mb-2">
+                  <Camera className="h-4 w-4 text-gray-400 mr-1" />
+                  <span className="text-xs font-medium text-gray-600">
+                    Memory Snapshots
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                  {entry.guest_book_photos?.map((photo, photoIndex) => (
+                    <div key={photo.id} className="relative group">
+                      <div className="relative overflow-hidden rounded-lg bg-gray-100 aspect-square">
+                        <Image
+                          src={photo.photo_url}
+                          alt={photo.caption || `Memory ${photoIndex + 1}`}
+                          fill
+                          className="object-cover group-hover:scale-110 transition-transform duration-300"
+                          onError={() => console.warn("Failed to load photo:", photo.photo_url)}
+                        />
+                        {photo.caption && (
+                          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                            <p className="text-white text-xs">{photo.caption}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+
+                  {entry.photos?.map((photoUrl, photoIndex) => (
+                    <div key={photoIndex} className="relative group">
+                      <div className="relative overflow-hidden rounded-lg bg-gray-100 aspect-square">
+                        <Image
+                          src={photoUrl}
+                          alt={entry.photo_captions?.[photoIndex] || `Memory ${photoIndex + 1}`}
+                          fill
+                          className="object-cover group-hover:scale-110 transition-transform duration-300"
+                          onError={() => console.warn("Failed to load photo:", photoUrl)}
+                        />
+                        {entry.photo_captions?.[photoIndex] && (
+                          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                            <p className="text-white text-xs">
+                              {entry.photo_captions[photoIndex]}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Status and actions */}
+            <div className="flex flex-wrap items-center justify-between pt-3 border-t border-gray-100">
+              <div className="flex flex-wrap gap-1">
+                {entry.everything_was_great && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-800 font-medium">
+                    ✨ Perfect
+                  </span>
+                )}
+                {entry.everything_well_stocked && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-blue-100 text-blue-800 font-medium">
+                    📦 Well stocked
+                  </span>
+                )}
+              </div>
+
+              <div className="flex items-center space-x-3 mt-1 md:mt-0">
+                <div className="text-xs text-gray-500">
+                  {new Date(entry.created_at).toLocaleDateString()}
+                </div>
+
+                {canEditEntry(entry) && (
+                  <button
+                    onClick={() => handleEditEntry(entry)}
+                    className="inline-flex items-center px-2 py-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50 text-xs font-medium rounded transition-all duration-200"
+                  >
+                    <Edit className="h-3 w-3 mr-1" />
+                    Edit
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </StandardCard>
+      </div>
+    </div>
+  ), [renderStars, canEditEntry, handleEditEntry]);
+
+  // Loading states
+  if (isLoading) {
     return (
       <StandardPageLayout>
         <div className="flex items-center justify-center min-h-96">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
-            <p className="text-gray-600 mt-4">Loading guest book...</p>
+            <p className="text-gray-600 mt-4">⏳ Loading guest book...</p>
           </div>
         </div>
       </StandardPageLayout>
     );
   }
 
-  // Redirect to login if no user
   if (!user) {
     return (
       <StandardPageLayout>
@@ -219,7 +426,6 @@ export default function GuestBookPage() {
     );
   }
 
-  // Show message if no property
   if (!currentProperty) {
     return (
       <StandardPageLayout>
@@ -231,6 +437,26 @@ export default function GuestBookPage() {
           <p className="text-gray-600">
             Please select a property to view its guest book.
           </p>
+        </StandardCard>
+      </StandardPageLayout>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <StandardPageLayout>
+        <StandardCard>
+          <div className="text-center py-8">
+            <BookOpen className="h-12 w-12 text-red-300 mx-auto mb-4" />
+            <p className="text-red-600 mb-4">{error}</p>
+            <button
+              onClick={retryFetch}
+              className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              Try Again
+            </button>
+          </div>
         </StandardCard>
       </StandardPageLayout>
     );
@@ -261,8 +487,7 @@ export default function GuestBookPage() {
                 <p className="text-gray-600 leading-relaxed max-w-3xl mx-auto">
                   Every visit adds a unique chapter to our home's story. We'd
                   love to hear about the special moments, adventures, and
-                  connections you've experienced here. Your stories inspire us
-                  and become part of the legacy of this place.
+                  connections you've experienced here.
                 </p>
 
                 <div className="mt-4 w-full bg-gray-200 rounded-full h-2">
@@ -321,67 +546,13 @@ export default function GuestBookPage() {
                     your stay special.
                   </p>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-                    <div className="text-center p-4 bg-white/60 rounded-lg backdrop-blur-sm">
-                      <Camera className="h-8 w-8 text-blue-500 mx-auto mb-2" />
-                      <p className="text-sm font-medium text-gray-700">
-                        Capture Moments
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        Share your favorite memories
-                      </p>
-                    </div>
-                    <div className="text-center p-4 bg-white/60 rounded-lg backdrop-blur-sm">
-                      <MapPin className="h-8 w-8 text-green-500 mx-auto mb-2" />
-                      <p className="text-sm font-medium text-gray-700">
-                        Local Gems
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        Guide future adventurers
-                      </p>
-                    </div>
-                    <div className="text-center p-4 bg-white/60 rounded-lg backdrop-blur-sm">
-                      <Heart className="h-8 w-8 text-rose-500 mx-auto mb-2" />
-                      <p className="text-sm font-medium text-gray-700">
-                        Heartfelt Thanks
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        Show appreciation to owners
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="space-y-4">
-                    <button
-                      onClick={() => setShowWizardModal(true)}
-                      className="inline-flex items-center bg-gradient-to-r from-rose-600 to-amber-600 text-white px-8 py-4 rounded-xl hover:from-rose-700 hover:to-amber-700 transform hover:scale-105 transition-all duration-200 shadow-lg font-semibold text-lg"
-                    >
-                      <Plus className="h-5 w-5 mr-3" />
-                      Start This Home's Memory Collection
-                    </button>
-
-                    <div className="flex items-center justify-center space-x-6 text-sm text-gray-500 mt-6">
-                      <div className="flex items-center">
-                        <div className="w-2 h-2 bg-green-400 rounded-full mr-2"></div>
-                        Quick & meaningful
-                      </div>
-                      <div className="flex items-center">
-                        <div className="w-2 h-2 bg-blue-400 rounded-full mr-2"></div>
-                        Photos welcome
-                      </div>
-                      <div className="flex items-center">
-                        <div className="w-2 h-2 bg-rose-400 rounded-full mr-2"></div>
-                        Owners will treasure it
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="mt-8 p-4 bg-white/40 rounded-lg border-l-4 border-rose-400">
-                    <p className="text-gray-600 italic text-center">
-                      "A house becomes a home through the memories made while
-                      staying here. Help us celebrate yours."
-                    </p>
-                  </div>
+                  <button
+                    onClick={() => setShowWizardModal(true)}
+                    className="inline-flex items-center bg-gradient-to-r from-rose-600 to-amber-600 text-white px-8 py-4 rounded-xl hover:from-rose-700 hover:to-amber-700 transform hover:scale-105 transition-all duration-200 shadow-lg font-semibold text-lg"
+                  >
+                    <Plus className="h-5 w-5 mr-3" />
+                    Start This Home's Memory Collection
+                  </button>
                 </div>
               </StandardCard>
             </div>
@@ -394,12 +565,12 @@ export default function GuestBookPage() {
                   Memory Timeline
                 </h2>
                 <p className="text-gray-600 max-w-2xl mx-auto mb-2">
-                  The memories you create make this place magic
+                  The memories you create make this place magic ({entries.length} entries)
                 </p>
                 <div className="w-24 h-1 bg-gradient-to-r from-rose-400 to-amber-400 mx-auto rounded-full"></div>
               </div>
 
-              {/* Add new entry prompt - Timeline style */}
+              {/* Add new entry prompt */}
               <div className="relative">
                 <div className="flex items-center mb-8">
                   <div className="flex-shrink-0 w-4 h-4 bg-blue-500 rounded-full border-4 border-white shadow-lg z-10"></div>
@@ -412,8 +583,7 @@ export default function GuestBookPage() {
                               📖 Add Your Chapter
                             </h3>
                             <p className="text-gray-600">
-                              Share your experience and become part of this
-                              home's story
+                              Share your experience and become part of this home's story
                             </p>
                           </div>
                           <button
@@ -428,192 +598,14 @@ export default function GuestBookPage() {
                     </StandardCard>
                   </div>
                 </div>
-                {/* Vertical line */}
                 <div className="absolute left-2 top-8 bottom-0 w-0.5 bg-gray-200"></div>
               </div>
 
               {/* Timeline Entries */}
               <div className="relative">
-                {/* Main timeline line */}
                 <div className="absolute left-2 top-0 bottom-0 w-0.5 bg-gray-200"></div>
-
                 {entries.map((entry, index) => (
-                  <div key={entry.id} className="relative mb-8 last:mb-0">
-                    {/* Timeline dot */}
-                    <div className="absolute left-0 w-4 h-4 bg-gradient-to-r from-rose-400 to-amber-400 rounded-full border-4 border-white shadow-lg z-10 transform -translate-x-[7px]"></div>
-
-                    {/* Date badge */}
-                    <div className="absolute left-8 -top-1">
-                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700 border">
-                        <Calendar className="h-3 w-3 mr-1" />
-                        {new Date(entry.visit_date).toLocaleDateString(
-                          "en-US",
-                          {
-                            month: "short",
-                            day: "numeric",
-                            year: "numeric",
-                          }
-                        )}
-                      </span>
-                    </div>
-
-                    {/* Entry content - more compact */}
-                    <div className="ml-10 mt-3">
-                      <StandardCard className="overflow-hidden hover:shadow-lg transition-shadow duration-200">
-                        <div className="p-4">
-                          {/* Compact header */}
-                          <div className="flex items-start justify-between mb-3">
-                            <div className="flex-1 min-w-0">
-                              <h3 className="text-lg font-bold text-gray-900 mb-1 leading-tight truncate">
-                                {entry.title || `A wonderful stay`}
-                              </h3>
-                              <div className="flex items-center space-x-3 text-sm text-gray-500">
-                                <span className="flex items-center font-medium">
-                                  <Heart className="h-3 w-3 mr-1 text-rose-400" />
-                                  {entry.guest_name}
-                                </span>
-                                <span className="text-gray-300">•</span>
-                                <span className="truncate">
-                                  {new Date(
-                                    entry.visit_date
-                                  ).toLocaleDateString("en-US", {
-                                    weekday: "long",
-                                  })}
-                                </span>
-                              </div>
-                            </div>
-
-                            {/* Compact rating */}
-                            <div className="flex items-center bg-gradient-to-r from-amber-50 to-yellow-50 px-3 py-1 rounded-lg border border-amber-200 ml-3">
-                              <div className="flex items-center">
-                                {renderStars(entry.rating)}
-                              </div>
-                              <span className="ml-1 text-sm font-bold text-amber-700">
-                                {entry.rating}
-                              </span>
-                            </div>
-                          </div>
-
-                          {/* Compact message */}
-                          {entry.message && (
-                            <div className="mb-4">
-                              <div className="bg-gradient-to-r from-gray-50 to-blue-50 rounded-lg p-3 border-l-3 border-blue-400">
-                                <p className="text-gray-800 leading-relaxed italic">
-                                  "{entry.message}"
-                                </p>
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Compact photos grid */}
-                          {((entry.guest_book_photos &&
-                            entry.guest_book_photos.length > 0) ||
-                            (entry.photos && entry.photos.length > 0)) && (
-                            <div className="mb-4">
-                              <div className="flex items-center mb-2">
-                                <Camera className="h-4 w-4 text-gray-400 mr-1" />
-                                <span className="text-xs font-medium text-gray-600">
-                                  Memory Snapshots
-                                </span>
-                              </div>
-                              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-                                {entry.guest_book_photos?.map(
-                                  (photo, photoIndex) => (
-                                    <div
-                                      key={photo.id}
-                                      className="relative group"
-                                    >
-                                      <div className="relative overflow-hidden rounded-lg bg-gray-100 aspect-square">
-                                        <Image
-                                          src={photo.photo_url}
-                                          alt={
-                                            photo.caption ||
-                                            `Memory ${photoIndex + 1}`
-                                          }
-                                          fill
-                                          className="object-cover group-hover:scale-110 transition-transform duration-300"
-                                        />
-                                        {photo.caption && (
-                                          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                                            <p className="text-white text-xs">
-                                              {photo.caption}
-                                            </p>
-                                          </div>
-                                        )}
-                                      </div>
-                                    </div>
-                                  )
-                                )}
-
-                                {entry.photos?.map((photoUrl, photoIndex) => (
-                                  <div
-                                    key={photoIndex}
-                                    className="relative group"
-                                  >
-                                    <div className="relative overflow-hidden rounded-lg bg-gray-100 aspect-square">
-                                      <Image
-                                        src={photoUrl}
-                                        alt={
-                                          entry.photo_captions?.[photoIndex] ||
-                                          `Memory ${photoIndex + 1}`
-                                        }
-                                        fill
-                                        className="object-cover group-hover:scale-110 transition-transform duration-300"
-                                      />
-                                      {entry.photo_captions?.[photoIndex] && (
-                                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                                          <p className="text-white text-xs">
-                                            {entry.photo_captions[photoIndex]}
-                                          </p>
-                                        </div>
-                                      )}
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Compact status and actions */}
-                          <div className="flex flex-wrap items-center justify-between pt-3 border-t border-gray-100">
-                            <div className="flex flex-wrap gap-1">
-                              {entry.everything_was_great && (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-800 font-medium">
-                                  ✨ Perfect
-                                </span>
-                              )}
-                              {entry.everything_well_stocked && (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-blue-100 text-blue-800 font-medium">
-                                  📦 Well stocked
-                                </span>
-                              )}
-                            </div>
-
-                            <div className="flex items-center space-x-3 mt-1 md:mt-0">
-                              <div className="text-xs text-gray-500">
-                                {new Date(
-                                  entry.created_at
-                                ).toLocaleDateString()}
-                              </div>
-
-                              {canEditEntry(entry) && (
-                                <button
-                                  onClick={() => {
-                                    setEditingEntry(entry);
-                                    setShowWizardModal(true);
-                                  }}
-                                  className="inline-flex items-center px-2 py-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50 text-xs font-medium rounded transition-all duration-200"
-                                >
-                                  <Edit className="h-3 w-3 mr-1" />
-                                  Edit
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      </StandardCard>
-                    </div>
-                  </div>
+                  <EntryCard key={entry.id} entry={entry} index={index} />
                 ))}
 
                 {/* Timeline end marker */}
@@ -633,51 +625,31 @@ export default function GuestBookPage() {
           )}
         </div>
 
+        {/* Trip Report Wizard Modal */}
         {showWizardModal && currentProperty && (
           <TripReportWizard
             isOpen={showWizardModal}
-            onClose={() => {
-              setShowWizardModal(false);
-              setEditingEntry(null);
-            }}
+            onClose={handleCloseWizard}
             property={currentProperty}
             editEntry={editingEntry}
-            onComplete={() => {
-              fetchGuestBookEntries();
-              setShowWizardModal(false);
-              setEditingEntry(null);
-            }}
+            onComplete={handleWizardComplete}
           />
         )}
 
         <style jsx>{`
           @keyframes float {
-            0%,
-            100% {
-              transform: translateY(0px);
-            }
-            50% {
-              transform: translateY(-10px);
-            }
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
           }
 
           @keyframes float-delayed {
-            0%,
-            100% {
-              transform: translateY(0px);
-            }
-            50% {
-              transform: translateY(-15px);
-            }
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-15px); }
           }
 
           @keyframes shrink {
-            0% {
-              width: 100%;
-            }
-            100% {
-              width: 0%;
-            }
+            0% { width: 100%; }
+            100% { width: 0%; }
           }
 
           .animate-float {

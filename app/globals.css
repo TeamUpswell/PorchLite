@@ -1,27 +1,439 @@
-/* app/globals.css - Fixed input styling */
+/* app/globals.css - Fixed and Working */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Basic styles */
-body {
-  @apply bg-gray-100 text-gray-900;
+/* CSS Custom Properties for consistent theming */
+:root {
+  /* Color System */
+  --color-primary: theme('colors.blue.600');
+  --color-primary-hover: theme('colors.blue.700');
+  --color-secondary: theme('colors.gray.600');
+  --color-success: theme('colors.green.600');
+  --color-danger: theme('colors.red.600');
+  --color-warning: theme('colors.yellow.600');
+  
+  /* Text Colors */
+  --color-text-primary: theme('colors.gray.900');
+  --color-text-secondary: theme('colors.gray.600');
+  --color-text-muted: theme('colors.gray.500');
+  
+  /* Background Colors */
+  --color-bg-primary: theme('colors.white');
+  --color-bg-secondary: theme('colors.gray.50');
+  --color-bg-accent: theme('colors.gray.100');
+  
+  /* Border and Shadow */
+  --color-border: theme('colors.gray.300');
+  --color-border-focus: theme('colors.blue.500');
+  --shadow-sm: theme('boxShadow.sm');
+  --shadow-md: theme('boxShadow.md');
+  
+  /* Spacing */
+  --spacing-xs: theme('spacing.1');
+  --spacing-sm: theme('spacing.2');
+  --spacing-md: theme('spacing.4');
+  --spacing-lg: theme('spacing.6');
+  --spacing-xl: theme('spacing.8');
+  
+  /* Border Radius */
+  --radius-sm: theme('borderRadius.md');
+  --radius-md: theme('borderRadius.lg');
+  --radius-lg: theme('borderRadius.xl');
+  
+  /* Transitions */
+  --transition-fast: theme('transitionDuration.150');
+  --transition-normal: theme('transitionDuration.200');
+  --transition-slow: theme('transitionDuration.300');
 }
 
-h1,
-h2,
-h3,
-h4,
-h5,
-h6 {
-  @apply font-bold text-gray-900;
+/* Dark theme color overrides */
+[data-theme="dark"] {
+  --color-text-primary: theme('colors.gray.100');
+  --color-text-secondary: theme('colors.gray.300');
+  --color-text-muted: theme('colors.gray.400');
+  --color-bg-primary: theme('colors.gray.900');
+  --color-bg-secondary: theme('colors.gray.800');
+  --color-bg-accent: theme('colors.gray.700');
+  --color-border: theme('colors.gray.600');
 }
 
-a {
-  @apply text-blue-600 hover:text-blue-800;
+@layer base {
+  /* Reset and base styles */
+  html {
+    @apply scroll-smooth;
+  }
+  
+  body {
+    @apply bg-gray-100 text-gray-900 antialiased;
+    font-feature-settings: 'rlig' 1, 'calt' 1;
+  }
+
+  /* Typography hierarchy */
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-bold text-gray-900 leading-tight;
+  }
+
+  h1 { @apply text-3xl lg:text-4xl; }
+  h2 { @apply text-2xl lg:text-3xl; }
+  h3 { @apply text-xl lg:text-2xl; }
+  h4 { @apply text-lg lg:text-xl; }
+  h5 { @apply text-base lg:text-lg; }
+  h6 { @apply text-sm lg:text-base; }
+
+  /* Links */
+  a {
+    @apply text-blue-600 hover:text-blue-800 transition-colors;
+    @apply focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2;
+  }
+
+  /* Remove default button styles */
+  button {
+    @apply focus:outline-none;
+  }
+
+  /* Improved focus states */
+  :focus-visible {
+    @apply outline-none ring-2 ring-blue-500 ring-offset-2;
+  }
 }
 
-/* Standard light input fields with dark text */
+@layer components {
+  /* Form Controls - Optimized */
+  .form-input {
+    @apply w-full bg-white text-gray-900 border border-gray-300 rounded-md px-3 py-2;
+    @apply placeholder:text-gray-500 transition-all duration-200;
+    @apply focus:ring-2 focus:ring-blue-500 focus:border-blue-500;
+    @apply disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed;
+  }
+
+  .form-textarea {
+    @apply form-input resize-y min-h-[80px];
+  }
+
+  .form-select {
+    @apply form-input cursor-pointer;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+    background-position: right 0.5rem center;
+    background-repeat: no-repeat;
+    background-size: 1.5em 1.5em;
+    padding-right: 2.5rem;
+  }
+
+  .form-select option {
+    @apply text-gray-900 bg-white;
+  }
+
+  /* Form validation states */
+  .form-input-error {
+    @apply border-red-500 focus:border-red-500 focus:ring-red-500;
+  }
+
+  .form-input-success {
+    @apply border-green-500 focus:border-green-500 focus:ring-green-500;
+  }
+
+  /* Button System - Enhanced */
+  .btn {
+    @apply inline-flex items-center justify-center font-medium rounded-md transition-all duration-200;
+    @apply focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply shadow-sm hover:shadow-md active:shadow-sm;
+  }
+
+  /* Button sizes */
+  .btn-xs { @apply text-xs px-2 py-1; }
+  .btn-sm { @apply text-sm px-3 py-1.5; }
+  .btn-md { @apply text-sm px-4 py-2; }
+  .btn-lg { @apply text-base px-6 py-3; }
+  .btn-xl { @apply text-lg px-8 py-4; }
+
+  /* Button variants */
+  .btn-primary {
+    @apply bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500;
+    @apply active:bg-blue-800;
+  }
+
+  .btn-secondary {
+    @apply bg-white text-gray-900 border border-gray-300 hover:bg-gray-50 focus:ring-blue-500;
+    @apply active:bg-gray-100;
+  }
+
+  .btn-success {
+    @apply bg-green-600 text-white hover:bg-green-700 focus:ring-green-500;
+    @apply active:bg-green-800;
+  }
+
+  .btn-danger {
+    @apply bg-red-600 text-white hover:bg-red-700 focus:ring-red-500;
+    @apply active:bg-red-800;
+  }
+
+  .btn-warning {
+    @apply bg-yellow-500 text-white hover:bg-yellow-600 focus:ring-yellow-500;
+    @apply active:bg-yellow-700;
+  }
+
+  .btn-ghost {
+    @apply text-gray-700 hover:bg-gray-100 focus:ring-gray-500;
+    @apply active:bg-gray-200;
+  }
+
+  .btn-outline {
+    @apply border-2 bg-transparent;
+  }
+
+  .btn-outline.btn-primary {
+    @apply border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white;
+  }
+
+  /* Loading button state */
+  .btn-loading {
+    @apply cursor-wait opacity-75;
+  }
+
+  .btn-loading::before {
+    content: "";
+    @apply inline-block w-4 h-4 mr-2 border-2 border-current border-t-transparent rounded-full animate-spin;
+  }
+
+  /* Card System */
+  .card {
+    @apply bg-white border border-gray-200 rounded-lg shadow-sm;
+  }
+
+  .card-header {
+    @apply px-6 py-4 border-b border-gray-200;
+  }
+
+  .card-body {
+    @apply px-6 py-4;
+  }
+
+  .card-footer {
+    @apply px-6 py-4 border-t border-gray-200 bg-gray-50;
+  }
+
+  /* Modal System */
+  .modal-overlay {
+    @apply fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm z-50;
+    @apply flex items-center justify-center p-4;
+  }
+
+  .modal-content {
+    @apply bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-hidden;
+    @apply text-gray-900;
+  }
+
+  .modal-header {
+    @apply px-6 py-4 border-b border-gray-200 flex items-center justify-between;
+  }
+
+  .modal-body {
+    @apply px-6 py-4 overflow-y-auto;
+  }
+
+  .modal-footer {
+    @apply px-6 py-4 border-t border-gray-200 flex justify-end space-x-2 bg-gray-50;
+  }
+
+  /* Navigation */
+  .nav-link {
+    @apply flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors;
+    @apply hover:bg-gray-100 focus:bg-gray-100 focus:outline-none;
+  }
+
+  .nav-link-active {
+    @apply bg-blue-50 text-blue-700 border-r-2 border-blue-700;
+  }
+
+  /* Alert System */
+  .alert {
+    @apply px-4 py-3 rounded-md border-l-4 text-sm;
+  }
+
+  .alert-info {
+    @apply bg-blue-50 border-blue-400 text-blue-800;
+  }
+
+  .alert-success {
+    @apply bg-green-50 border-green-400 text-green-800;
+  }
+
+  .alert-warning {
+    @apply bg-yellow-50 border-yellow-400 text-yellow-800;
+  }
+
+  .alert-error {
+    @apply bg-red-50 border-red-400 text-red-800;
+  }
+
+  /* Badge System */
+  .badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+
+  .badge-primary { @apply bg-blue-100 text-blue-800; }
+  .badge-secondary { @apply bg-gray-100 text-gray-800; }
+  .badge-success { @apply bg-green-100 text-green-800; }
+  .badge-danger { @apply bg-red-100 text-red-800; }
+  .badge-warning { @apply bg-yellow-100 text-yellow-800; }
+
+  /* Loading States */
+  .loading-spinner {
+    @apply inline-block w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin;
+  }
+
+  .loading-dots::after {
+    content: '';
+    @apply inline-block w-1 h-1 bg-current rounded-full animate-pulse;
+    animation-delay: 0.2s;
+  }
+
+  /* Skeleton Loading */
+  .skeleton {
+    @apply bg-gray-200 animate-pulse rounded;
+  }
+
+  .skeleton-text {
+    @apply skeleton h-4;
+  }
+
+  .skeleton-title {
+    @apply skeleton h-6 w-3/4;
+  }
+
+  .skeleton-button {
+    @apply skeleton h-10 w-24;
+  }
+}
+
+@layer utilities {
+  /* Dark Theme Support */
+  .dark-theme {
+    @apply bg-gray-900 text-gray-100;
+  }
+
+  .dark-theme .card {
+    @apply bg-gray-800 border-gray-700 text-gray-100;
+  }
+
+  .dark-theme .form-input {
+    @apply bg-gray-800 border-gray-600 text-gray-100 placeholder:text-gray-400;
+    @apply focus:border-blue-400 focus:ring-blue-400;
+  }
+
+  .dark-theme .btn-secondary {
+    @apply bg-gray-700 border-gray-600 text-gray-100 hover:bg-gray-600;
+  }
+
+  /* Navigation Dark Theme */
+  .dark-theme .nav-link {
+    @apply text-gray-300 hover:text-white hover:bg-gray-700;
+  }
+
+  .dark-theme .nav-link-active {
+    @apply bg-gray-700 text-white border-blue-400;
+  }
+
+  /* Force light content (for cards, modals, etc.) */
+  .force-light-content {
+    @apply bg-white text-gray-900 !important;
+  }
+
+  .force-light-content * {
+    @apply text-gray-900 !important;
+  }
+
+  /* Text shadow utilities for readability */
+  .text-shadow-sm {
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  }
+
+  .text-shadow-md {
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
+  }
+
+  .text-shadow-lg {
+    text-shadow: 0 4px 8px rgba(0, 0, 0, 0.7);
+  }
+
+  /* Improved focus indicators */
+  .focus-ring {
+    @apply focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2;
+  }
+
+  .focus-ring-white {
+    @apply focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-gray-800;
+  }
+
+  /* Responsive text utilities */
+  .text-responsive-sm {
+    @apply text-sm sm:text-base;
+  }
+
+  .text-responsive-md {
+    @apply text-base sm:text-lg;
+  }
+
+  .text-responsive-lg {
+    @apply text-lg sm:text-xl md:text-2xl;
+  }
+
+  /* Container utilities */
+  .container-tight {
+    @apply max-w-4xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+
+  .container-wide {
+    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+
+  /* Animation utilities */
+  .animate-fade-in {
+    animation: fadeIn 0.3s ease-in-out;
+  }
+
+  .animate-slide-up {
+    animation: slideUp 0.3s ease-out;
+  }
+
+  .animate-bounce-gentle {
+    animation: bounceGentle 0.6s ease-in-out;
+  }
+
+  /* Gradient utilities */
+  .bg-gradient-radial {
+    background: radial-gradient(circle, var(--tw-gradient-stops));
+  }
+
+  .bg-gradient-conic {
+    background: conic-gradient(from 180deg at 50% 50%, var(--tw-gradient-stops));
+  }
+
+  /* Improved scrollbar styling */
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: theme('colors.gray.400') theme('colors.gray.100');
+  }
+
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-track {
+    @apply bg-gray-100;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    @apply bg-gray-400 rounded-full;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    @apply bg-gray-500;
+  }
+}
+
+/* Standard light input fields with dark text - keeping your original styles */
 input,
 textarea,
 select {
@@ -32,63 +444,6 @@ select {
 
 select option {
   @apply text-gray-900 bg-white;
-}
-
-.card {
-  @apply bg-white shadow-md rounded-lg p-4;
-}
-
-/* Modal and light background text - always dark */
-.modal,
-.modal h1,
-.modal h2,
-.modal h3,
-.modal h4,
-.modal h5,
-.modal h6,
-.bg-white,
-.bg-white h1,
-.bg-white h2,
-.bg-white h3,
-.bg-white h4,
-.bg-white h5,
-.bg-white h6 {
-  @apply text-gray-900;
-}
-
-/* Main content areas - always dark text */
-main,
-main h1,
-main h2,
-main h3,
-main h4,
-main h5,
-main h6,
-.content,
-.content h1,
-.content h2,
-.content h3,
-.content h4,
-.content h5,
-.content h6 {
-  @apply text-gray-900;
-}
-
-/* Dark mode - only for navigation and dark backgrounds */
-.dark nav,
-.dark .sidebar,
-.dark .sidebar * {
-  @apply bg-gray-900 text-gray-100;
-}
-
-.dark nav a,
-.dark .sidebar a {
-  @apply text-gray-100 hover:text-white;
-}
-
-.dark nav button,
-.dark .sidebar button {
-  @apply text-gray-100 hover:text-white;
 }
 
 /* Keep inputs light even in dark mode for better readability */
@@ -104,134 +459,75 @@ main h6,
   @apply text-gray-900 bg-white;
 }
 
-/* Input focus states for better accessibility */
-input:focus,
-textarea:focus,
-select:focus {
-  @apply outline-none ring-2 ring-blue-500 border-blue-500;
+/* Custom Animations */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
-/* Disabled input styling */
-input:disabled,
-textarea:disabled,
-select:disabled {
-  @apply bg-gray-100 text-gray-500 cursor-not-allowed;
-}
-
-.dark input:disabled,
-.dark textarea:disabled,
-.dark select:disabled {
-  @apply bg-gray-200 text-gray-500;
-}
-
-/* Force dark text on light backgrounds regardless of theme */
-.force-dark-text,
-.force-dark-text * {
-  @apply text-gray-900 !important;
-}
-
-/* Specific modal styling */
-[role="dialog"],
-.modal-content,
-.modal-header,
-.modal-body {
-  @apply text-gray-900;
-}
-
-/* Task cards and content areas */
-.task-card,
-.task-card h3,
-.task-card p,
-.content-card,
-.content-card h3,
-.content-card p {
-  @apply text-gray-900;
-}
-
-.bg-gradient-radial {
-  background: radial-gradient(circle, var(--tw-gradient-stops));
-}
-
-/* Common button styles */
-.btn {
-  @apply font-medium py-2.5 px-4 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-md;
-}
-
-.btn-primary {
-  @apply bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50;
-}
-
-.btn-secondary {
-  @apply bg-white text-gray-900 border border-gray-300 hover:bg-gray-50 disabled:opacity-50;
-}
-
-.btn-success {
-  @apply bg-green-600 text-white hover:bg-green-700 disabled:opacity-50;
-}
-
-.btn-danger {
-  @apply bg-red-600 text-white hover:bg-red-700 disabled:opacity-50;
-}
-
-/* Full width button variant */
-.btn-full {
-  @apply w-full;
-}
-
-/* Space between buttons */
-.space-y-3 > * {
-  @apply mb-3;
-}
-
-/* globals.css - Add these dark theme utilities */
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-@layer base {
-  /* Dark theme body background */
-  .dark-theme {
-    @apply bg-gray-900;
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
   }
-
-  /* Ensure proper text contrast on dark backgrounds */
-  .dark-theme .card-content {
-    @apply bg-white text-gray-900;
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
-@layer components {
-  /* Consistent card styling for dark theme */
-  .standard-card-dark {
-    @apply bg-white border border-gray-200 rounded-lg shadow-sm;
+@keyframes bounceGentle {
+  0%, 20%, 50%, 80%, 100% {
+    transform: translateY(0);
   }
-
-  /* Header styling for dark theme */
-  .header-dark {
-    @apply bg-gray-800 border-gray-700 text-white;
+  40% {
+    transform: translateY(-4px);
+  }
+  60% {
+    transform: translateY(-2px);
   }
 }
 
-@layer utilities {
-  /* Strengthen text shadow utilities for better readability */
-  .text-shadow-sm {
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+/* Print styles */
+@media print {
+  .no-print {
+    @apply hidden;
   }
+  
+  .print-break-before {
+    break-before: page;
+  }
+  
+  .print-break-after {
+    break-after: page;
+  }
+  
+  * {
+    @apply text-black bg-white;
+  }
+}
 
-  .text-shadow-md {
-    text-shadow: 0 3px 6px rgba(0, 0, 0, 0.9);
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .btn {
+    @apply border-2 border-current;
   }
+  
+  .form-input {
+    @apply border-2 border-gray-900;
+  }
+}
 
-  .text-shadow-lg {
-    text-shadow: 0 4px 8px rgba(0, 0, 0, 0.9), 0 2px 4px rgba(0, 0, 0, 0.8);
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
+}
 
-  /* Add text stroke utility for extra contrast */
-  .text-stroke {
-    -webkit-text-stroke: 1px rgba(0, 0, 0, 0.8);
-  }
-
-  .text-stroke-2 {
-    -webkit-text-stroke: 2px rgba(0, 0, 0, 0.6);
-  }
+/* Focus-visible polyfill support */
+.js-focus-visible :focus:not(.focus-visible) {
+  outline: none;
 }

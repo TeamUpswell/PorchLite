@@ -1,7 +1,7 @@
-// app/recommendations/page.tsx
+// app/recommendations/page.tsx - Optimized version
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { Star, Plus, MapPin, Phone, Globe, Trash2, Search } from "lucide-react";
 import { useAuth } from "@/components/auth";
 import StandardPageLayout from "@/components/layout/StandardPageLayout";
@@ -59,8 +59,8 @@ interface PlacesResult {
 }
 
 export default function RecommendationsPage() {
-  const { user, loading } = useAuth();
-  const { currentProperty } = useProperty();
+  const { user, loading: authLoading } = useAuth();
+  const { currentProperty, loading: propertyLoading } = useProperty();
 
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [filteredRecommendations, setFilteredRecommendations] = useState<
@@ -69,6 +69,11 @@ export default function RecommendationsPage() {
   const [loadingRecommendations, setLoading] = useState(true);
   const [selectedPlace, setSelectedPlace] = useState<PlacesResult | null>(null);
   const [placesLoading, setPlacesLoading] = useState(false);
+
+  // Refs to prevent multiple fetches and cleanup
+  const fetchingRef = useRef(false);
+  const hasFetchedRef = useRef(false);
+  const mountedRef = useRef(true);
 
   // Modal states
   const [showManualModal, setShowManualModal] = useState(false);
@@ -88,46 +93,100 @@ export default function RecommendationsPage() {
     phone_number: "",
   });
 
-  const categories = [
-    { id: "all", name: "All Categories", icon: "🏪" },
-    { id: "restaurant", name: "Restaurants", icon: "🍽️" },
-    { id: "grocery", name: "Grocery", icon: "🛒" },
-    { id: "entertainment", name: "Entertainment", icon: "🎭" },
-    { id: "healthcare", name: "Healthcare", icon: "🏥" },
-    { id: "shopping", name: "Shopping", icon: "🛍️" },
-    { id: "services", name: "Services", icon: "🔧" },
-    { id: "outdoor", name: "Outdoor", icon: "🌲" },
-    { id: "emergency", name: "Emergency", icon: "🚨" },
-  ];
+  // Memoize categories to prevent recreation
+  const categories = useMemo(
+    () => [
+      { id: "all", name: "All Categories", icon: "🏪" },
+      { id: "restaurant", name: "Restaurants", icon: "🍽️" },
+      { id: "grocery", name: "Grocery", icon: "🛒" },
+      { id: "entertainment", name: "Entertainment", icon: "🎭" },
+      { id: "healthcare", name: "Healthcare", icon: "🏥" },
+      { id: "shopping", name: "Shopping", icon: "🛍️" },
+      { id: "services", name: "Services", icon: "🔧" },
+      { id: "outdoor", name: "Outdoor", icon: "🌲" },
+      { id: "emergency", name: "Emergency", icon: "🚨" },
+    ],
+    []
+  );
 
-  // Fetch recommendations
+  // Memoize loading states
+  const isLoading = useMemo(() => {
+    return authLoading || propertyLoading;
+  }, [authLoading, propertyLoading]);
+
+  // Component cleanup
   useEffect(() => {
-    async function fetchRecommendations() {
-      try {
-        setLoading(true);
-        const { data: recommendationsData, error } = await supabase
-          .from("recommendations")
-          .select("*")
-          .order("rating", { ascending: false });
-
-        if (error) throw error;
-
-        setRecommendations(recommendationsData || []);
-        setFilteredRecommendations(recommendationsData || []);
-      } catch (error) {
-        console.error("Error loading recommendations:", error);
-        setRecommendations([]);
-        setFilteredRecommendations([]);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    fetchRecommendations();
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
   }, []);
 
-  // Helper functions
-  const getCategoryFromTypes = (types: string[]): string => {
+  // Optimized fetch function
+  const fetchRecommendations = useCallback(async () => {
+    // Prevent multiple simultaneous fetches
+    if (fetchingRef.current || hasFetchedRef.current) {
+      return;
+    }
+
+    fetchingRef.current = true;
+    hasFetchedRef.current = true;
+
+    try {
+      console.log("🔍 Fetching recommendations...");
+      setLoading(true);
+
+      const { data: recommendationsData, error } = await supabase
+        .from("recommendations")
+        .select("*")
+        .order("rating", { ascending: false });
+
+      if (error) throw error;
+
+      // Only update state if component is still mounted
+      if (mountedRef.current) {
+        console.log(
+          "✅ Fetched recommendations:",
+          recommendationsData?.length || 0
+        );
+        setRecommendations(recommendationsData || []);
+        setFilteredRecommendations(recommendationsData || []);
+      }
+    } catch (error) {
+      console.error("❌ Error loading recommendations:", error);
+      if (mountedRef.current) {
+        setRecommendations([]);
+        setFilteredRecommendations([]);
+      }
+    } finally {
+      if (mountedRef.current) {
+        setLoading(false);
+      }
+      fetchingRef.current = false;
+    }
+  }, []);
+
+  // Single useEffect with proper dependencies
+  useEffect(() => {
+    if (isLoading || !user) {
+      if (!isLoading) {
+        setLoading(false);
+      }
+      return;
+    }
+
+    console.log("🏠 User loaded, fetching recommendations");
+    fetchRecommendations();
+  }, [user?.id, isLoading, fetchRecommendations]);
+
+  // Reset fetch tracking when user changes
+  useEffect(() => {
+    hasFetchedRef.current = false;
+    fetchingRef.current = false;
+  }, [user?.id]);
+
+  // Memoized helper functions
+  const getCategoryFromTypes = useCallback((types: string[]): string => {
     const typeMap: Record<string, string> = {
       restaurant: "restaurant",
       food: "restaurant",
@@ -151,9 +210,9 @@ export default function RecommendationsPage() {
       }
     }
     return "services";
-  };
+  }, []);
 
-  const renderStars = (rating: number) => {
+  const renderStars = useCallback((rating: number) => {
     return Array.from({ length: 5 }, (_, i) => (
       <Star
         key={i}
@@ -166,48 +225,54 @@ export default function RecommendationsPage() {
         }`}
       />
     ));
-  };
+  }, []);
 
-  // CRUD Operations
-  const addPlaceAsRecommendation = async (place: PlacesResult) => {
-    try {
-      const category = getCategoryFromTypes(place.types);
+  // Optimized CRUD operations
+  const addPlaceAsRecommendation = useCallback(
+    async (place: PlacesResult) => {
+      try {
+        const category = getCategoryFromTypes(place.types);
 
-      const newRecommendation = {
-        name: place.name,
-        category,
-        address: place.formatted_address,
-        coordinates: place.geometry.location,
-        description: `Found via Google Places - ${place.types
-          .slice(0, 3)
-          .join(", ")}`,
-        rating: place.rating || 0,
-        website: place.website || null,
-        phone_number: place.formatted_phone_number || null,
-        images: [],
-        place_id: place.place_id,
-        property_id: currentProperty?.id || null,
-        is_recommended: true,
-      };
+        const newRecommendation = {
+          name: place.name,
+          category,
+          address: place.formatted_address,
+          coordinates: place.geometry.location,
+          description: `Found via Google Places - ${place.types
+            .slice(0, 3)
+            .join(", ")}`,
+          rating: place.rating || 0,
+          website: place.website || null,
+          phone_number: place.formatted_phone_number || null,
+          images: [],
+          place_id: place.place_id,
+          property_id: currentProperty?.id || null,
+          is_recommended: true,
+        };
 
-      const { data, error } = await supabase
-        .from("recommendations")
-        .insert([newRecommendation])
-        .select()
-        .single();
+        const { data, error } = await supabase
+          .from("recommendations")
+          .insert([newRecommendation])
+          .select()
+          .single();
 
-      if (error) throw error;
+        if (error) throw error;
 
-      setRecommendations((prev) => [data, ...prev]);
-      setSelectedPlace(null);
-      alert("✅ Place added as recommendation!");
-    } catch (error) {
-      console.error("Error adding recommendation:", error);
-      alert(`Failed to add recommendation: ${error.message}`);
-    }
-  };
+        if (mountedRef.current) {
+          setRecommendations((prev) => [data, ...prev]);
+          setFilteredRecommendations((prev) => [data, ...prev]);
+          setSelectedPlace(null);
+          alert("✅ Place added as recommendation!");
+        }
+      } catch (error) {
+        console.error("Error adding recommendation:", error);
+        alert(`Failed to add recommendation: ${error.message}`);
+      }
+    },
+    [getCategoryFromTypes, currentProperty?.id]
+  );
 
-  const addManualRecommendation = async () => {
+  const addManualRecommendation = useCallback(async () => {
     try {
       const newRecommendation = {
         ...manualForm,
@@ -228,25 +293,28 @@ export default function RecommendationsPage() {
 
       if (error) throw error;
 
-      setRecommendations((prev) => [data, ...prev]);
-      setShowManualModal(false);
-      setManualForm({
-        name: "",
-        category: "restaurant",
-        address: "",
-        description: "",
-        rating: 5,
-        website: "",
-        phone_number: "",
-      });
-      alert("✅ Recommendation added successfully!");
+      if (mountedRef.current) {
+        setRecommendations((prev) => [data, ...prev]);
+        setFilteredRecommendations((prev) => [data, ...prev]);
+        setShowManualModal(false);
+        setManualForm({
+          name: "",
+          category: "restaurant",
+          address: "",
+          description: "",
+          rating: 5,
+          website: "",
+          phone_number: "",
+        });
+        alert("✅ Recommendation added successfully!");
+      }
     } catch (error) {
       console.error("Error adding manual recommendation:", error);
       alert(`Failed to add recommendation: ${error.message}`);
     }
-  };
+  }, [manualForm, currentProperty?.coordinates, currentProperty?.id]);
 
-  const deleteRecommendation = async (recommendationId: string) => {
+  const deleteRecommendation = useCallback(async (recommendationId: string) => {
     try {
       setDeletingId(recommendationId);
 
@@ -257,40 +325,53 @@ export default function RecommendationsPage() {
 
       if (error) throw error;
 
-      setRecommendations((prev) =>
-        prev.filter((rec) => rec.id !== recommendationId)
-      );
-      setShowDeleteModal(false);
-      setRecommendationToDelete(null);
-      alert("✅ Recommendation deleted successfully!");
+      if (mountedRef.current) {
+        setRecommendations((prev) =>
+          prev.filter((rec) => rec.id !== recommendationId)
+        );
+        setFilteredRecommendations((prev) =>
+          prev.filter((rec) => rec.id !== recommendationId)
+        );
+        setShowDeleteModal(false);
+        setRecommendationToDelete(null);
+        alert("✅ Recommendation deleted successfully!");
+      }
     } catch (error) {
       console.error("Error deleting recommendation:", error);
       alert(`Failed to delete recommendation: ${error.message}`);
     } finally {
-      setDeletingId(null);
+      if (mountedRef.current) {
+        setDeletingId(null);
+      }
     }
-  };
+  }, []);
 
-  const confirmDelete = (recommendation: Recommendation) => {
+  // Memoized event handlers
+  const confirmDelete = useCallback((recommendation: Recommendation) => {
     setRecommendationToDelete(recommendation);
     setShowDeleteModal(true);
-  };
+  }, []);
 
-  const cancelDelete = () => {
+  const cancelDelete = useCallback(() => {
     setShowDeleteModal(false);
     setRecommendationToDelete(null);
-  };
+  }, []);
 
-  const handlePlaceSelect = (place: PlacesResult) => {
+  const handlePlaceSelect = useCallback((place: PlacesResult) => {
     setSelectedPlace(place);
     setPlacesLoading(false);
-  };
+  }, []);
 
   // Loading state
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">
+            ⏳ Waiting for user and property to load...
+          </p>
+        </div>
       </div>
     );
   }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useViewMode } from "@/lib/hooks/useViewMode";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { Users, Phone, Mail, MapPin, Edit, Plus } from "lucide-react";
 import Link from "next/link";
 import StandardPageLayout from "@/components/layout/StandardPageLayout";
@@ -12,6 +12,7 @@ import { supabase } from "@/lib/supabase";
 import FloatingActionButton from "@/components/ui/FloatingActionButton";
 import { PropertyGuard } from "@/components/ui/PropertyGuard";
 
+// Types
 interface Contact {
   id: string;
   name: string;
@@ -25,141 +26,206 @@ interface Contact {
   is_public?: boolean;
 }
 
+interface CategoryInfo {
+  id: string;
+  name: string;
+  icon: string;
+}
+
+// Constants
+const CATEGORIES: CategoryInfo[] = [
+  { id: "maintenance", name: "Maintenance", icon: "🔧" },
+  { id: "emergency", name: "Emergency", icon: "🚨" },
+  { id: "vendor", name: "Vendor", icon: "🏪" },
+  { id: "guest", name: "Guest", icon: "👤" },
+  { id: "contractor", name: "Contractor", icon: "👷" },
+  { id: "service", name: "Service", icon: "🛠️" },
+  { id: "property", name: "Property", icon: "🏠" },
+];
+
 export default function ContactsPage() {
-  const { user } = useAuth();
-  const { currentProperty } = useProperty();
+  const { user, loading: authLoading } = useAuth();
+  const { currentProperty, loading: propertyLoading } = useProperty();
   const { isManagerView, isFamilyView, isGuestView } = useViewMode();
+  
   const [contacts, setContacts] = useState<Contact[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  console.log('🔍 CONTACTS CLEAN VERSION:', {
-    user: user?.email,
-    currentProperty: currentProperty?.name,
-    propertyId: currentProperty?.id,
-    hasUser: !!user,
-    hasProperty: !!currentProperty
-  });
+  // Refs to prevent multiple fetches and track component mount
+  const fetchingRef = useRef(false);
+  const hasFetchedRef = useRef<string | null>(null);
+  const mountedRef = useRef(true);
 
-  const categories = [
-    { id: "maintenance", name: "Maintenance", icon: "🔧" },
-    { id: "emergency", name: "Emergency", icon: "🚨" },
-    { id: "vendor", name: "Vendor", icon: "🏪" },
-    { id: "guest", name: "Guest", icon: "👤" },
-    { id: "contractor", name: "Contractor", icon: "👷" },
-    { id: "service", name: "Service", icon: "🛠️" },
-    { id: "property", name: "Property", icon: "🏠" },
-  ];
+  // Memoize loading states
+  const isLoading = useMemo(() => {
+    return authLoading || propertyLoading;
+  }, [authLoading, propertyLoading]);
 
+  // Component cleanup
   useEffect(() => {
-    async function fetchContacts() {
-      if (!currentProperty) {
-        console.log('📞 No property selected, skipping contact fetch');
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  // Optimized fetch function
+  const fetchContacts = useCallback(async (propertyId: string) => {
+    // Prevent duplicate fetches
+    if (fetchingRef.current || hasFetchedRef.current === propertyId) {
+      return;
+    }
+
+    fetchingRef.current = true;
+    hasFetchedRef.current = propertyId;
+
+    try {
+      console.log("📞 Fetching contacts for property:", propertyId);
+      setLoading(true);
+      setError(null);
+
+      const { data, error } = await supabase
+        .from("contacts")
+        .select("*")
+        .eq('property_id', propertyId)
+        .order("name");
+
+      if (error) throw error;
+
+      if (mountedRef.current) {
+        console.log("✅ Contacts loaded:", data?.length || 0);
+        setContacts(data || []);
+      }
+    } catch (error) {
+      console.error("❌ Error fetching contacts:", error);
+      
+      if (mountedRef.current) {
+        // Only use demo data if it's a "not found" or "no data" scenario
+        const isNoDataError = error instanceof Error && 
+          (error.message.includes('does not exist') || 
+           error.message.includes('not found'));
+
+        if (isNoDataError) {
+          console.log("📞 Using demo data for testing");
+          const demoContacts: Contact[] = [
+            {
+              id: "demo-1",
+              name: "John's Plumbing",
+              email: "john@plumbing.com",
+              phone: "(555) 123-4567",
+              category: "maintenance",
+              address: "123 Main St, City, ST 12345",
+              notes: "Available 24/7 for emergencies",
+              property_id: propertyId,
+              created_at: new Date().toISOString(),
+            },
+            {
+              id: "demo-2",
+              name: "Emergency Services",
+              phone: "911",
+              category: "emergency",
+              notes: "Police, Fire, Medical",
+              property_id: propertyId,
+              created_at: new Date().toISOString(),
+            },
+            {
+              id: "demo-3",
+              name: "ABC Cleaning Service",
+              email: "info@abccleaning.com",
+              phone: "(555) 987-6543",
+              category: "service",
+              address: "456 Oak Ave, City, ST 12345",
+              property_id: propertyId,
+              created_at: new Date().toISOString(),
+            },
+          ];
+          setContacts(demoContacts);
+        } else {
+          // Real error - show error state
+          setError("Failed to load contacts. Please try again.");
+          setContacts([]);
+        }
+      }
+    } finally {
+      if (mountedRef.current) {
         setLoading(false);
-        return;
       }
+      fetchingRef.current = false;
+    }
+  }, []);
 
-      try {
-        setLoading(true);
-        console.log('📞 Fetching contacts for property:', currentProperty.id);
-        
-        const { data, error } = await supabase
-          .from("contacts")
-          .select("*")
-          .eq('property_id', currentProperty.id)
-          .order("name");
-
-        if (error) throw error;
-        
-        console.log('📞 Found contacts:', data?.length);
-        setContacts(data as Contact[]);
-      } catch (error) {
-        console.error("Error fetching contacts:", error);
-        
-        // Demo data for testing (with property_id)
-        const demoContacts = [
-          {
-            id: "1",
-            name: "John's Plumbing",
-            email: "john@plumbing.com",
-            phone: "(555) 123-4567",
-            category: "maintenance",
-            address: "123 Main St, City, ST 12345",
-            notes: "Available 24/7 for emergencies",
-            property_id: currentProperty.id,
-            created_at: new Date().toISOString(),
-          },
-          {
-            id: "2",
-            name: "Emergency Services",
-            phone: "911",
-            category: "emergency",
-            notes: "Police, Fire, Medical",
-            property_id: currentProperty.id,
-            created_at: new Date().toISOString(),
-          },
-          {
-            id: "3",
-            name: "ABC Cleaning Service",
-            email: "info@abccleaning.com",
-            phone: "(555) 987-6543",
-            category: "service",
-            address: "456 Oak Ave, City, ST 12345",
-            property_id: currentProperty.id,
-            created_at: new Date().toISOString(),
-          },
-        ];
-        setContacts(demoContacts);
-      } finally {
+  // Single useEffect with proper dependencies
+  useEffect(() => {
+    if (isLoading || !user || !currentProperty?.id) {
+      if (!isLoading) {
         setLoading(false);
       }
+      return;
     }
 
-    if (user && currentProperty) {
-      fetchContacts();
-    }
-  }, [user, currentProperty]);
+    console.log("🔍 CONTACTS - User and property loaded, fetching contacts");
+    fetchContacts(currentProperty.id);
+  }, [user, currentProperty?.id, isLoading, fetchContacts]);
 
-  const getCategoryInfo = (categoryId: string) => {
-    return (
-      categories.find((cat) => cat.id === categoryId) || {
-        name: categoryId,
-        icon: "👤",
+  // Reset fetch tracking when property changes
+  useEffect(() => {
+    if (currentProperty?.id !== hasFetchedRef.current) {
+      hasFetchedRef.current = null;
+      fetchingRef.current = false;
+      setContacts([]);
+      setError(null);
+    }
+  }, [currentProperty?.id]);
+
+  // Memoized category lookup
+  const getCategoryInfo = useCallback((categoryId: string): CategoryInfo => {
+    return CATEGORIES.find((cat) => cat.id === categoryId) || {
+      id: categoryId,
+      name: categoryId,
+      icon: "👤",
+    };
+  }, []);
+
+  // Memoized filtered contacts
+  const filteredContacts = useMemo(() => {
+    return contacts.filter((contact) => {
+      if (isGuestView) {
+        return contact.category === "emergency" || contact.is_public;
       }
-    );
-  };
+      if (isFamilyView) {
+        return contact.category !== "vendor" && contact.category !== "financial";
+      }
+      return true; // Managers see all contacts
+    });
+  }, [contacts, isGuestView, isFamilyView]);
 
-  // Filter contacts based on view mode
-  const filteredContacts = contacts.filter((contact) => {
-    if (isGuestView) {
-      return contact.category === "emergency" || contact.is_public;
+  // Memoized contact groups
+  const contactGroups = useMemo(() => ({
+    emergency: filteredContacts.filter((c) => c.category === "emergency"),
+    property: filteredContacts.filter((c) => 
+      c.category === "property" || 
+      c.category === "maintenance" || 
+      c.category === "service"
+    ),
+    vendor: filteredContacts.filter((c) => 
+      c.category === "vendor" || 
+      c.category === "contractor"
+    ),
+  }), [filteredContacts]);
+
+  // Retry function
+  const retryFetch = useCallback(() => {
+    if (currentProperty?.id) {
+      hasFetchedRef.current = null;
+      fetchingRef.current = false;
+      setError(null);
+      fetchContacts(currentProperty.id);
     }
-    if (isFamilyView) {
-      return contact.category !== "vendor" && contact.category !== "financial";
-    }
-    return true; // Managers see all contacts
-  });
+  }, [currentProperty?.id, fetchContacts]);
 
-  // Show loading state if waiting for property
-  if (!currentProperty) {
-    return (
-      <StandardPageLayout>
-        <StandardCard
-          title="Loading Property"
-          subtitle="Please wait while we load your property information"
-        >
-          <div className="flex flex-col items-center justify-center py-12">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
-            <p className="text-gray-600">Loading property information...</p>
-            <p className="text-sm text-gray-500 mt-2">
-              Contacts will appear once your property is loaded.
-            </p>
-          </div>
-        </StandardCard>
-      </StandardPageLayout>
-    );
-  }
-
-  const ContactCard = ({ contact }: { contact: Contact }) => {
+  // Memoized ContactCard component
+  const ContactCard = useCallback(({ contact }: { contact: Contact }) => {
     const categoryInfo = getCategoryInfo(contact.category);
 
     return (
@@ -227,7 +293,7 @@ export default function ContactsPage() {
             {(isManagerView || isFamilyView) && (
               <Link
                 href={`/contacts/edit/${contact.id}`}
-                className="flex items-center text-blue-600 hover:text-blue-800 text-sm font-medium"
+                className="flex items-center text-blue-600 hover:text-blue-800 text-sm font-medium transition-colors"
               >
                 <Edit className="h-3 w-3 mr-1" />
                 Edit
@@ -237,9 +303,10 @@ export default function ContactsPage() {
         </div>
       </div>
     );
-  };
+  }, [getCategoryInfo, isManagerView, isFamilyView]);
 
-  const EmptyState = ({ 
+  // Memoized EmptyState component
+  const EmptyState = useCallback(({ 
     title, 
     description, 
     buttonText, 
@@ -264,7 +331,77 @@ export default function ContactsPage() {
         </Link>
       )}
     </div>
-  );
+  ), [isManagerView, isFamilyView]);
+
+  // Loading states
+  if (isLoading) {
+    return (
+      <PropertyGuard>
+        <StandardPageLayout>
+          <StandardCard
+            title="Loading Contacts"
+            subtitle="Please wait while we load your contact information"
+          >
+            <div className="flex flex-col items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
+              <p className="text-gray-600">⏳ Loading contacts...</p>
+            </div>
+          </StandardCard>
+        </StandardPageLayout>
+      </PropertyGuard>
+    );
+  }
+
+  if (!currentProperty) {
+    return (
+      <PropertyGuard>
+        <StandardPageLayout>
+          <StandardCard
+            title="No Property Selected"
+            subtitle="Please select a property to view contacts"
+          >
+            <div className="flex flex-col items-center justify-center py-12">
+              <Users className="h-12 w-12 text-gray-300 mb-4" />
+              <p className="text-gray-600 mb-4">
+                Contacts will appear once your property is loaded.
+              </p>
+              <Link
+                href="/account/properties"
+                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                Select Property
+              </Link>
+            </div>
+          </StandardCard>
+        </StandardPageLayout>
+      </PropertyGuard>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <PropertyGuard>
+        <StandardPageLayout>
+          <StandardCard
+            title="Error Loading Contacts"
+            subtitle="There was a problem loading your contacts"
+          >
+            <div className="text-center py-8">
+              <Users className="h-12 w-12 text-red-300 mx-auto mb-4" />
+              <p className="text-red-600 mb-4">{error}</p>
+              <button
+                onClick={retryFetch}
+                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                Try Again
+              </button>
+            </div>
+          </StandardCard>
+        </StandardPageLayout>
+      </PropertyGuard>
+    );
+  }
 
   return (
     <PropertyGuard>
@@ -276,6 +413,11 @@ export default function ContactsPage() {
               <h1 className="text-2xl font-bold">Contacts</h1>
               <p className="text-gray-600 mt-1">
                 Property: <strong>{currentProperty.name}</strong>
+                {filteredContacts.length > 0 && (
+                  <span className="ml-2 text-sm">
+                    ({filteredContacts.length} contact{filteredContacts.length !== 1 ? 's' : ''})
+                  </span>
+                )}
               </p>
             </div>
           </div>
@@ -289,13 +431,11 @@ export default function ContactsPage() {
               <div className="flex justify-center py-8">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
               </div>
-            ) : filteredContacts.filter((c) => c.category === "emergency").length > 0 ? (
+            ) : contactGroups.emergency.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredContacts
-                  .filter((c) => c.category === "emergency")
-                  .map((contact) => (
-                    <ContactCard key={contact.id} contact={contact} />
-                  ))}
+                {contactGroups.emergency.map((contact) => (
+                  <ContactCard key={contact.id} contact={contact} />
+                ))}
               </div>
             ) : (
               <EmptyState
@@ -317,21 +457,11 @@ export default function ContactsPage() {
                 <div className="flex justify-center py-8">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
                 </div>
-              ) : filteredContacts.filter((c) => 
-                  c.category === "property" || 
-                  c.category === "maintenance" || 
-                  c.category === "service"
-                ).length > 0 ? (
+              ) : contactGroups.property.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {filteredContacts
-                    .filter((c) => 
-                      c.category === "property" || 
-                      c.category === "maintenance" || 
-                      c.category === "service"
-                    )
-                    .map((contact) => (
-                      <ContactCard key={contact.id} contact={contact} />
-                    ))}
+                  {contactGroups.property.map((contact) => (
+                    <ContactCard key={contact.id} contact={contact} />
+                  ))}
                 </div>
               ) : (
                 <EmptyState
@@ -354,19 +484,11 @@ export default function ContactsPage() {
                 <div className="flex justify-center py-8">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
                 </div>
-              ) : filteredContacts.filter((c) => 
-                  c.category === "vendor" || 
-                  c.category === "contractor"
-                ).length > 0 ? (
+              ) : contactGroups.vendor.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {filteredContacts
-                    .filter((c) => 
-                      c.category === "vendor" || 
-                      c.category === "contractor"
-                    )
-                    .map((contact) => (
-                      <ContactCard key={contact.id} contact={contact} />
-                    ))}
+                  {contactGroups.vendor.map((contact) => (
+                    <ContactCard key={contact.id} contact={contact} />
+                  ))}
                 </div>
               ) : (
                 <EmptyState

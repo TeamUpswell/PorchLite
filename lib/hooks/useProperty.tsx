@@ -54,12 +54,13 @@ export function PropertyProvider({ children }: { children: React.ReactNode }) {
   const [currentProperty, setCurrentProperty] = useState<Property | null>(null);
   const [userProperties, setUserProperties] = useState<Property[]>([]);
   const [tenant, setTenant] = useState<Tenant | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // Simple refs to track state
   const loadingRef = useRef(false);
   const lastUserIdRef = useRef<string | null>(null);
+  const fetchingRef = useRef(false);
 
   // ✅ REDUCED: Only log critical state changes
   const isDebugEnabled = process.env.NODE_ENV === 'development';
@@ -309,8 +310,10 @@ export function PropertyProvider({ children }: { children: React.ReactNode }) {
 
 export function useProperty() {
   const context = useContext(PropertyContext);
-  if (context === undefined) {
-    throw new Error("useProperty must be used within a PropertyProvider");
+  
+  if (!context) {
+    throw new Error('useProperty must be used within a PropertyProvider');
   }
+  
   return context;
 }

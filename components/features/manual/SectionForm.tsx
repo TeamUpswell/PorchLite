@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { XMarkIcon } from "@heroicons/react/24/outline";
 import { supabase } from "@/lib/supabase";
+import { robustSupabaseRequest } from "@/lib/network-helper"; // ✅ Added missing import
 
 type Property = {
   id: string;
@@ -19,13 +20,13 @@ interface SectionFormProps {
     property_id?: string;
   } | null;
   onClose: () => void;
-  onSaved: () => void;
+  onSaved: () => void; // ✅ Fixed: this should be onSaved, not onSave
 }
 
 export default function SectionForm({
   section,
   onClose,
-  onSaved,
+  onSaved, // ✅ Fixed: using correct prop name
 }: SectionFormProps) {
   const [formData, setFormData] = useState({
     title: "",
@@ -50,8 +51,17 @@ export default function SectionForm({
 
   useEffect(() => {
     async function loadProperties() {
-      const { data } = await supabase.from("properties").select("*");
-      if (data) setProperties(data);
+      // ✅ Updated to use robustSupabaseRequest properly
+      const { data, error } = await robustSupabaseRequest(
+        () => supabase.from('properties').select('id, name'), // ✅ Only select needed fields
+        { timeout: 10000, retries: 2 }
+      );
+      
+      if (data && !error) {
+        setProperties(data);
+      } else if (error) {
+        console.error('Error loading properties:', error);
+      }
     }
     loadProperties();
   }, []);
@@ -64,41 +74,59 @@ export default function SectionForm({
       // Get the next order index if creating a new section
       let orderIndex = 0;
       if (!section) {
-        const { data } = await supabase
-          .from("manual_sections")
-          .select("order_index")
-          .order("order_index", { ascending: false })
-          .limit(1);
+        // ✅ Use robustSupabaseRequest for order index query
+        const { data } = await robustSupabaseRequest(
+          () => supabase
+            .from("manual_sections")
+            .select("order_index")
+            .order("order_index", { ascending: false })
+            .limit(1),
+          { timeout: 10000, retries: 2 }
+        );
 
         orderIndex = data && data.length > 0 ? data[0].order_index + 1 : 0;
       }
 
       if (section) {
-        // Update existing section
-        await supabase
-          .from("manual_sections")
-          .update({
-            title: formData.title,
-            description: formData.description,
-            icon: formData.icon || null,
-            property_id: formData.property_id || null,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", section.id);
+        // ✅ Update existing section with robustSupabaseRequest
+        const { error } = await robustSupabaseRequest(
+          () => supabase
+            .from("manual_sections")
+            .update({
+              title: formData.title,
+              description: formData.description,
+              icon: formData.icon || null,
+              property_id: formData.property_id || null,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", section.id),
+          { timeout: 15000, retries: 3 }
+        );
+
+        if (error) {
+          throw new Error(`Update failed: ${error.message}`);
+        }
       } else {
-        // Create new section
-        await supabase.from("manual_sections").insert([
-          {
-            title: formData.title,
-            description: formData.description,
-            icon: formData.icon || null,
-            property_id: formData.property_id || null,
-            order_index: orderIndex,
-          },
-        ]);
+        // ✅ Create new section with robustSupabaseRequest
+        const { error } = await robustSupabaseRequest(
+          () => supabase.from("manual_sections").insert([
+            {
+              title: formData.title,
+              description: formData.description,
+              icon: formData.icon || null,
+              property_id: formData.property_id || null,
+              order_index: orderIndex,
+            },
+          ]),
+          { timeout: 15000, retries: 3 }
+        );
+
+        if (error) {
+          throw new Error(`Create failed: ${error.message}`);
+        }
       }
 
-      onSave();
+      onSaved(); // ✅ Fixed: calling the correct callback
     } catch (error) {
       console.error("Error saving section:", error);
       alert("Failed to save section. Please try again.");

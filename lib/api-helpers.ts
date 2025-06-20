@@ -1,41 +1,197 @@
 import { supabase } from './supabase';
+import { PostgrestFilterBuilder } from '@supabase/postgrest-js';
+
+interface RetryOptions {
+  maxAttempts?: number;
+  delay?: number;
+  exponentialBackoff?: boolean;
+  onRetry?: (attempt: number, error: any) => void;
+}
+
+const DEFAULT_RETRY_OPTIONS: Required<RetryOptions> = {
+  maxAttempts: 3,
+  delay: 1000,
+  exponentialBackoff: true,
+  onRetry: (attempt, error) => {
+    console.warn(`🔄 Retry attempt ${attempt} due to:`, error?.message || error);
+  },
+};
 
 /**
- * Helper function to automatically retry API calls with session refresh
- * when authentication errors occur
+ * Enhanced function to handle Supabase queries with automatic session refresh and retry logic
  */
 export async function withSessionRetry<T>(
-  apiCall: () => Promise<{ data: T | null; error: any }>, 
-  maxRetries = 1
+  queryFn: () => PostgrestFilterBuilder<any, any, any>,
+  options: RetryOptions = {}
 ): Promise<{ data: T | null; error: any }> {
-  let retryCount = 0;
-  
-  async function attempt(): Promise<{ data: T | null; error: any }> {
+  const config = { ...DEFAULT_RETRY_OPTIONS, ...options };
+  let lastError: any = null;
+
+  for (let attempt = 1; attempt <= config.maxAttempts; attempt++) {
     try {
-      const result = await apiCall();
+      // Check session before query
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
       
-      if (result.error) {
-        // Check if error is auth-related (401 Unauthorized)
-        if ((result.error.status === 401 || result.error.code === 'PGRST301') && retryCount < maxRetries) {
-          console.log(`Auth error detected (${result.error.code || result.error.status}), refreshing session...`);
-          // Try to refresh the session
-          const { error: refreshError } = await supabase.auth.refreshSession();
-          
-          if (!refreshError) {
-            // If session refresh was successful, retry the API call
-            retryCount++;
-            return attempt();
-          }
+      if (sessionError || !sessionData.session) {
+        console.warn('⚠️ Session invalid, attempting refresh...');
+        
+        const { error: refreshError } = await supabase.auth.refreshSession();
+        if (refreshError) {
+          throw new Error(`Session refresh failed: ${refreshError.message}`);
         }
       }
+
+      // Execute the query
+      const result = await queryFn();
       
-      return result;
+      // Check for auth-related errors
+      if (result.error?.code === 'PGRST301' || result.error?.message?.includes('JWT')) {
+        throw new Error('Authentication error');
+      }
+
+      // Return successful result
+      return { data: result.data as T, error: result.error };
+      
     } catch (error) {
-      // Handle unexpected errors
-      console.error("API call exception:", error);
-      return { data: null, error };
+      lastError = error;
+      
+      // Don't retry on the last attempt
+      if (attempt === config.maxAttempts) {
+        break;
+      }
+
+      // Call retry callback
+      config.onRetry(attempt, error);
+
+      // Calculate delay (with exponential backoff if enabled)
+      const delay = config.exponentialBackoff 
+        ? config.delay * Math.pow(2, attempt - 1)
+        : config.delay;
+
+      // Wait before retrying
+      await new Promise(resolve => setTimeout(resolve, delay));
     }
   }
-  
-  return attempt();
+
+  // All attempts failed
+  console.error(`❌ All ${config.maxAttempts} attempts failed. Last error:`, lastError);
+  return { data: null, error: lastError };
 }
+
+/**
+ * Simplified wrapper for common query patterns
+ */
+export const apiHelpers = {
+  /**
+   * Get data with automatic retry
+   */
+  async get<T>(
+    table: string,
+    filters?: Record<string, any>,
+    options?: RetryOptions
+  ): Promise<{ data: T[] | null; error: any }> {
+    return withSessionRetry(() => {
+      let query = supabase.from(table).select('*');
+      
+      if (filters) {
+        Object.entries(filters).forEach(([key, value]) => {
+          if (Array.isArray(value)) {
+            query = query.in(key, value);
+          } else {
+            query = query.eq(key, value);
+          }
+        });
+      }
+      
+      return query;
+    }, options);
+  },
+
+  /**
+   * Get single record with automatic retry
+   */
+  async getOne<T>(
+    table: string,
+    id: string,
+    options?: RetryOptions
+  ): Promise<{ data: T | null; error: any }> {
+    const result = await withSessionRetry(() => 
+      supabase.from(table).select('*').eq('id', id).single(),
+      options
+    );
+    
+    return { data: result.data as T, error: result.error };
+  },
+
+  /**
+   * Insert data with automatic retry
+   */
+  async insert<T>(
+    table: string,
+    data: any,
+    options?: RetryOptions
+  ): Promise<{ data: T | null; error: any }> {
+    return withSessionRetry(() => 
+      supabase.from(table).insert(data).select().single(),
+      options
+    );
+  },
+
+  /**
+   * Update data with automatic retry
+   */
+  async update<T>(
+    table: string,
+    id: string,
+    data: any,
+    options?: RetryOptions
+  ): Promise<{ data: T | null; error: any }> {
+    return withSessionRetry(() => 
+      supabase.from(table).update(data).eq('id', id).select().single(),
+      options
+    );
+  },
+
+  /**
+   * Delete data with automatic retry
+   */
+  async delete(
+    table: string,
+    id: string,
+    options?: RetryOptions
+  ): Promise<{ data: any; error: any }> {
+    return withSessionRetry(() => 
+      supabase.from(table).delete().eq('id', id),
+      options
+    );
+  },
+};
+
+/**
+ * Example usage in your existing functions
+ */
+export const fetchUpcomingVisits = async (propertyId: string) => {
+  try {
+    const today = new Date().toISOString().split("T")[0];
+    
+    const result = await withSessionRetry(() => 
+      supabase
+        .from("reservations")
+        .select("id, title, start_date, end_date, status")
+        .eq("property_id", propertyId)
+        .gte("start_date", today)
+        .order("start_date", { ascending: true })
+        .limit(10)
+    );
+    
+    if (result.error) {
+      console.error("Error fetching visits:", result.error);
+      return [];
+    }
+    
+    return result.data || [];
+  } catch (error) {
+    console.error("Exception fetching visits:", error);
+    return [];
+  }
+};

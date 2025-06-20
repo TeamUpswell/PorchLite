@@ -1,24 +1,19 @@
 import { createClient } from "@supabase/supabase-js";
-import { logSupabaseConfig, logError } from "./utils/logging";
 
 // Get Supabase credentials from environment variables
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-// Log safe version of config (only in development)
-logSupabaseConfig(supabaseUrl, supabaseAnonKey);
-
-// Validate configuration
-if (!supabaseUrl || !supabaseAnonKey) {
-  logError("Missing Supabase configuration");
+// Only basic logging in development
+if (process.env.NODE_ENV === "development") {
+  console.log("🔧 Supabase initialized");
 }
 
 // Create the Supabase client
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+export const supabase = createClient(supabaseUrl, supabaseKey, {
   auth: {
-    autoRefreshToken: true,
     persistSession: true,
-    detectSessionInUrl: true,
+    autoRefreshToken: true,
   },
 });
 

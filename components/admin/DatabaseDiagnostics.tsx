@@ -1,7 +1,9 @@
+// components/DatabaseDiagnostics.tsx (or wherever this file is located)
 "use client";
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
+import { robustSupabaseRequest } from "@/lib/network-helper"; // ✅ Updated import
 import { useAuth } from "@/components/auth";
 import {
   Database,
@@ -80,16 +82,20 @@ export default function DatabaseDiagnostics({
 
       for (const table of tablesToTest) {
         try {
-          const { data, error, count } = await supabase
-            .from(table)
-            .select("*", { count: "exact" })
-            .limit(3);
+          // ✅ Using your existing robustSupabaseRequest
+          const result = await robustSupabaseRequest(
+            () => supabase
+              .from(table)
+              .select("*", { count: "exact" })
+              .limit(3),
+            { timeout: 10000, retries: 2 }
+          );
 
           diagnosticResults.tableTests[table] = {
-            exists: !error,
-            count: count || 0,
-            error: error?.message,
-            sampleData: data?.slice(0, 2) || [],
+            exists: !result.error,
+            count: (result as any).count || 0,
+            error: result.error?.message,
+            sampleData: result.data?.slice(0, 2) || [],
           };
         } catch (err: any) {
           diagnosticResults.tableTests[table] = {
@@ -103,65 +109,79 @@ export default function DatabaseDiagnostics({
       // Test user-specific relationships
       if (user?.id) {
         try {
-          // Check user profile
-          const { data: profile, error: profileError } = await supabase
-            .from("profiles")
-            .select("*")
-            .eq("id", user.id)
-            .single();
+          // ✅ Check user profile with robust request
+          const profileResult = await robustSupabaseRequest(
+            () => supabase
+              .from("profiles")
+              .select("*")
+              .eq("id", user.id)
+              .single(),
+            { timeout: 10000, retries: 2 }
+          );
 
           diagnosticResults.userRelationships.hasProfile =
-            !profileError && !!profile;
-          if (profileError)
+            !profileResult.error && !!profileResult.data;
+          if (profileResult.error)
             diagnosticResults.userRelationships.errors.push(
-              `Profile: ${profileError.message}`
+              `Profile: ${profileResult.error.message}`
             );
 
-          // Check user's tenant associations (separate queries to avoid relationship issues)
-          const { data: tenantUsers, error: tenantUserError } = await supabase
-            .from("tenant_users")
-            .select("tenant_id, role, created_at")
-            .eq("user_id", user.id);
+          // ✅ Check user's tenant associations with robust request
+          const tenantUsersResult = await robustSupabaseRequest(
+            () => supabase
+              .from("tenant_users")
+              .select("tenant_id, role, created_at")
+              .eq("user_id", user.id),
+            { timeout: 10000, retries: 2 }
+          );
 
-          if (tenantUserError) {
+          if (tenantUsersResult.error) {
             diagnosticResults.userRelationships.errors.push(
-              `Tenant Users: ${tenantUserError.message}`
+              `Tenant Users: ${tenantUsersResult.error.message}`
             );
-          } else if (tenantUsers && tenantUsers.length > 0) {
+          } else if (tenantUsersResult.data && tenantUsersResult.data.length > 0) {
             // Get tenant details for each tenant_id
-            const tenantIds = tenantUsers.map((tu) => tu.tenant_id);
+            const tenantIds = tenantUsersResult.data.map((tu: any) => tu.tenant_id);
 
-            const { data: tenants, error: tenantsError } = await supabase
-              .from("tenants")
-              .select("*")
-              .in("id", tenantIds);
+            // ✅ Get tenant details with robust request
+            const tenantsResult = await robustSupabaseRequest(
+              () => supabase
+                .from("tenants")
+                .select("*")
+                .in("id", tenantIds),
+              { timeout: 10000, retries: 2 }
+            );
 
-            if (tenantsError) {
+            if (tenantsResult.error) {
               diagnosticResults.userRelationships.errors.push(
-                `Tenants: ${tenantsError.message}`
+                `Tenants: ${tenantsResult.error.message}`
               );
             } else {
-              diagnosticResults.userRelationships.userTenants = tenants || [];
+              diagnosticResults.userRelationships.userTenants = tenantsResult.data || [];
               diagnosticResults.userRelationships.tenantCount =
-                tenants?.length || 0;
+                tenantsResult.data?.length || 0;
 
               // Check user's properties (via tenants)
-              if (tenants && tenants.length > 0) {
-                const { data: properties, error: propError } = await supabase
-                  .from("properties")
-                  .select("*")
-                  .in("tenant_id", tenantIds)
-                  .eq("is_active", true);
+              if (tenantsResult.data && tenantsResult.data.length > 0) {
+                // ✅ Get properties with robust request
+                const propertiesResult = await robustSupabaseRequest(
+                  () => supabase
+                    .from("properties")
+                    .select("*")
+                    .in("tenant_id", tenantIds)
+                    .eq("is_active", true),
+                  { timeout: 10000, retries: 2 }
+                );
 
-                if (propError) {
+                if (propertiesResult.error) {
                   diagnosticResults.userRelationships.errors.push(
-                    `Properties: ${propError.message}`
+                    `Properties: ${propertiesResult.error.message}`
                   );
                 } else {
                   diagnosticResults.userRelationships.userProperties =
-                    properties || [];
+                    propertiesResult.data || [];
                   diagnosticResults.userRelationships.propertyCount =
-                    properties?.length || 0;
+                    propertiesResult.data?.length || 0;
                 }
               }
             }
@@ -207,18 +227,22 @@ export default function DatabaseDiagnostics({
       // Create profile if missing
       if (!results?.userRelationships.hasProfile) {
         console.log("Creating profile...");
-        const { error: profileError } = await supabase.from("profiles").upsert([
-          {
-            id: user.id,
-            email: user.email,
-            full_name: user.email?.split("@")[0] || "Test User",
-            created_at: new Date().toISOString(),
-          },
-        ]);
+        // ✅ Use robust request for profile creation
+        const profileResult = await robustSupabaseRequest(
+          () => supabase.from("profiles").upsert([
+            {
+              id: user.id,
+              email: user.email,
+              full_name: user.email?.split("@")[0] || "Test User",
+              created_at: new Date().toISOString(),
+            },
+          ]),
+          { timeout: 15000, retries: 3 }
+        );
 
-        if (profileError) {
-          console.error("Profile creation error:", profileError);
-          throw new Error(`Profile creation failed: ${profileError.message}`);
+        if (profileResult.error) {
+          console.error("Profile creation error:", profileResult.error);
+          throw new Error(`Profile creation failed: ${profileResult.error.message}`);
         }
         console.log("✅ Profile created");
       }
@@ -226,62 +250,74 @@ export default function DatabaseDiagnostics({
       // Create tenant if missing
       if (results?.userRelationships.tenantCount === 0) {
         console.log("Creating tenant...");
-        const { data: tenant, error: tenantError } = await supabase
-          .from("tenants")
-          .insert([
-            {
-              name: `${user.email?.split("@")[0] || "User"}'s Organization`,
-              created_at: new Date().toISOString(),
-            },
-          ])
-          .select()
-          .single();
+        // ✅ Use robust request for tenant creation
+        const tenantResult = await robustSupabaseRequest(
+          () => supabase
+            .from("tenants")
+            .insert([
+              {
+                name: `${user.email?.split("@")[0] || "User"}'s Organization`,
+                created_at: new Date().toISOString(),
+              },
+            ])
+            .select()
+            .single(),
+          { timeout: 15000, retries: 3 }
+        );
 
-        if (tenantError) {
-          console.error("Tenant creation error:", tenantError);
-          throw new Error(`Tenant creation failed: ${tenantError.message}`);
+        if (tenantResult.error) {
+          console.error("Tenant creation error:", tenantResult.error);
+          throw new Error(`Tenant creation failed: ${tenantResult.error.message}`);
         }
-        console.log("✅ Tenant created:", tenant);
+        console.log("✅ Tenant created:", tenantResult.data);
 
         // Associate user with tenant
         console.log("Creating tenant user association...");
-        const { error: tenantUserError } = await supabase
-          .from("tenant_users")
-          .insert([
-            {
-              tenant_id: tenant.id,
-              user_id: user.id,
-              role: "admin",
-              created_at: new Date().toISOString(),
-            },
-          ]);
+        // ✅ Use robust request for tenant user association
+        const tenantUserResult = await robustSupabaseRequest(
+          () => supabase
+            .from("tenant_users")
+            .insert([
+              {
+                tenant_id: tenantResult.data.id,
+                user_id: user.id,
+                role: "admin",
+                created_at: new Date().toISOString(),
+              },
+            ]),
+          { timeout: 15000, retries: 3 }
+        );
 
-        if (tenantUserError) {
-          console.error("Tenant user creation error:", tenantUserError);
+        if (tenantUserResult.error) {
+          console.error("Tenant user creation error:", tenantUserResult.error);
           throw new Error(
-            `Tenant user creation failed: ${tenantUserError.message}`
+            `Tenant user creation failed: ${tenantUserResult.error.message}`
           );
         }
         console.log("✅ Tenant user association created");
 
         // Create a property for this tenant
         console.log("Creating property...");
-        const { error: propertyError } = await supabase
-          .from("properties")
-          .insert([
-            {
-              name: "My First Property",
-              address: "123 Main Street",
-              tenant_id: tenant.id,
-              created_by: user.id,
-              is_active: true,
-              created_at: new Date().toISOString(),
-            },
-          ]);
+        // ✅ Use robust request for property creation
+        const propertyResult = await robustSupabaseRequest(
+          () => supabase
+            .from("properties")
+            .insert([
+              {
+                name: "My First Property",
+                address: "123 Main Street",
+                tenant_id: tenantResult.data.id,
+                created_by: user.id,
+                is_active: true,
+                created_at: new Date().toISOString(),
+              },
+            ]),
+          { timeout: 15000, retries: 3 }
+        );
 
-        if (propertyError) {
-          console.error("Property creation error:", propertyError);
-          throw new Error(`Property creation failed: ${propertyError.message}`);
+        if (propertyResult.error) {
+          console.error("Property creation error:", propertyResult.error);
+          throw new Error(`Property creation failed: ${propertyResult.error.message}`);
         }
         console.log("✅ Property created");
       }
