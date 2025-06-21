@@ -47,11 +47,11 @@ const AuthContext = createContext<AuthContextType>({
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  console.log("🚀 Auth Provider mounted");
-
   const [user, setUser] = useState<User | null>(null);
   const [profileData, setProfileData] = useState<Profile | null>(null);
   const [profileLoading, setProfileLoading] = useState(true);
+  const [fetchingProfile, setFetchingProfile] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   const updateProfileData = useCallback(
     (updates: Partial<Profile>) => {
@@ -70,105 +70,65 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const fetchProfile = async (userId: string) => {
+    // Prevent multiple simultaneous calls
+    if (fetchingProfile) {
+      console.log("🔄 fetchProfile already in progress, skipping");
+      return;
+    }
+
     try {
+      setFetchingProfile(true);
       console.log("🔄 fetchProfile called with userId:", userId);
       console.log(
         "🔍 Supabase client status:",
-        supabase ? "Available" : "Null"
+        supabase ? "Available" : "Not available"
       );
 
-      // Test basic connectivity
-      const { data: testData, error: testError } = await supabase
-        .from("profiles")
-        .select("count")
-        .limit(1);
+      if (!userId) {
+        console.log("❌ fetchProfile: No userId provided");
+        return;
+      }
 
-      console.log("🔍 Supabase connectivity test:", { testData, testError });
+      // Add 10 second timeout
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(
+          () => reject(new Error("Profile fetch timeout after 10s")),
+          10000
+        )
+      );
 
-      const { data, error } = await supabase
+      const fetchPromise = supabase
         .from("profiles")
         .select("*")
         .eq("id", userId)
         .single();
 
-      console.log("🔍 Profile query result:", { data, error, userId });
+      console.log("🔍 Starting profile query...");
+      const result = await Promise.race([fetchPromise, timeoutPromise]);
+      console.log("🔍 Profile query completed:", result);
+
+      const { data, error } = result;
 
       if (error) {
         console.error("❌ Error fetching profile:", error);
-        console.error("❌ Error details:", {
-          code: error.code,
-          message: error.message,
-          details: error.details,
-          hint: error.hint,
-        });
-
-        // If profile doesn't exist, create one
-        if (error.code === "PGRST116") {
-          console.log("📝 Profile doesn't exist, creating one...");
-
-          const newProfileData = {
-            id: userId,
-            full_name: null,
-            phone_number: null,
-            email: null, // We'll get this from the user object
-            avatar_url: null,
-            address: null,
-            show_in_contacts: true,
-            role: "guest",
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          };
-
-          console.log("📝 Creating profile with data:", newProfileData);
-
-          const { data: newProfile, error: createError } = await supabase
-            .from("profiles")
-            .insert([newProfileData])
-            .select()
-            .single();
-
-          console.log("📝 Profile creation result:", {
-            newProfile,
-            createError,
-          });
-
-          if (createError) {
-            console.error("❌ Error creating profile:", createError);
-            return null;
-          }
-
-          console.log("✅ Profile created successfully:", newProfile);
-          return newProfile;
-        }
-
-        return null;
+        setProfileData(null);
+        return;
       }
 
-      console.log("✅ Profile data fetched successfully:", data);
-
-      // Specifically log avatar URL
-      if (data?.avatar_url) {
-        console.log("🖼️ Avatar URL found in database:", data.avatar_url);
-
-        // Test if avatar URL is accessible
-        try {
-          const response = await fetch(data.avatar_url, { method: "HEAD" });
-          console.log("🔍 Avatar URL accessibility test:", {
-            url: data.avatar_url,
-            status: response.status,
-            ok: response.ok,
-          });
-        } catch (fetchError) {
-          console.error("❌ Avatar URL not accessible:", fetchError);
-        }
+      if (data) {
+        console.log("✅ Profile data fetched successfully:", data);
+        setProfileData(data);
       } else {
-        console.log("🖼️ No avatar URL in database");
+        console.log("⚠️ No profile data found");
+        setProfileData(null);
       }
-
-      return data;
     } catch (error) {
-      console.error("❌ Unexpected error in fetchProfile:", error);
-      return null;
+      console.error("❌ fetchProfile error:", error);
+      setProfileData(null);
+    } finally {
+      setFetchingProfile(false);
+      setProfileLoading(false);
+      console.log("🏁 fetchProfile completed");
     }
   };
 
@@ -379,7 +339,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 };

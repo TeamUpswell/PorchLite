@@ -3,64 +3,50 @@
 
 import { useState, useEffect } from 'react';
 import { useProperty } from '@/lib/hooks/useProperty';
+import { fetchWeatherByCoordinates, WeatherData } from '@/lib/services/openWeatherApi';
 
 export function usePropertyWeather() {
   const { currentProperty } = useProperty();
-  const [weather, setWeather] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [weather, setWeather] = useState<WeatherData | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!currentProperty?.id) {
+    if (!currentProperty?.latitude || !currentProperty?.longitude) {
+      setWeather(null);
       setLoading(false);
+      setError('No property coordinates available');
       return;
     }
 
     const fetchWeather = async () => {
+      setLoading(true);
+      setError(null);
+      
       try {
-        const mockWeather = {
-          current: {
-            temp: 72,
-            condition: "Partly Cloudy",
-            humidity: 65,
-            wind_speed: 8,
-            icon: "partly-cloudy",
-          },
-          forecast: [
-            { date: "Today", high: 75, low: 62, condition: "Sunny", icon: "sunny" },
-            { date: "Tomorrow", high: 78, low: 64, condition: "Partly Cloudy", icon: "partly-cloudy" },
-            { date: "Wed", high: 73, low: 60, condition: "Rain", icon: "rain" },
-          ],
-          location: formatLocationName(currentProperty)
-        };
+        console.log('🌤️ Fetching weather for coordinates:', {
+          lat: currentProperty.latitude,
+          lon: currentProperty.longitude
+        });
         
-        setWeather(mockWeather);
-      } catch (error) {
-        console.error('Weather error:', error);
+        const weatherData = await fetchWeatherByCoordinates(
+          currentProperty.latitude,
+          currentProperty.longitude
+        );
+        
+        console.log('✅ Weather data fetched:', weatherData);
+        setWeather(weatherData);
+      } catch (err) {
+        console.error('❌ Weather fetch error:', err);
+        setError(err instanceof Error ? err.message : 'Failed to fetch weather');
+        setWeather(null);
       } finally {
         setLoading(false);
       }
     };
 
     fetchWeather();
-  }, [currentProperty?.id]);
+  }, [currentProperty?.latitude, currentProperty?.longitude]);
 
-  return { weather, loading, error: null };
-}
-
-// Helper function to format location nicely
-function formatLocationName(property: any): string {
-  if (property.city && property.state) {
-    return `${property.city}, ${property.state}`;
-  }
-  if (property.city) {
-    return property.city;
-  }
-  if (property.address) {
-    // Extract city from address if needed
-    const parts = property.address.split(',');
-    if (parts.length >= 2) {
-      return parts[parts.length - 2].trim();
-    }
-  }
-  return 'Current Location';
+  return { weather, loading, error };
 }

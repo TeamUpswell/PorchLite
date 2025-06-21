@@ -36,9 +36,9 @@ export default function HomePage() {
   const fetchingRef = useRef(false);
   const hasFetchedRef = useRef<string | null>(null);
 
-  // Use the weather hook with stable reference
+  // Remove all mock weather code
   const {
-    weather: realWeather,
+    weather: weatherData,
     loading: weatherLoading,
     error: weatherError,
   } = usePropertyWeather();
@@ -56,36 +56,6 @@ export default function HomePage() {
   });
 
   const router = useRouter();
-
-  // Memoize fallback weather to prevent re-creation
-  const mockWeather = useMemo(
-    () => ({
-      current: {
-        temp: 72,
-        condition: "Partly Cloudy",
-        humidity: 65,
-        wind_speed: 8,
-        icon: "partly-cloudy",
-      },
-      forecast: [
-        { date: "Today", high: 75, low: 62, condition: "Sunny", icon: "sunny" },
-        {
-          date: "Tomorrow",
-          high: 78,
-          low: 64,
-          condition: "Partly Cloudy",
-          icon: "partly-cloudy",
-        },
-        { date: "Wed", high: 73, low: 60, condition: "Rain", icon: "rain" },
-      ],
-    }),
-    []
-  );
-
-  // Memoize weather data to prevent unnecessary re-renders
-  const weatherData = useMemo(() => {
-    return realWeather || mockWeather;
-  }, [realWeather, mockWeather]);
 
   // Memoize the fetch function - REMOVED from useEffect dependency
   const fetchDashboardData = useCallback(
@@ -288,19 +258,19 @@ export default function HomePage() {
           <p className="text-white/90 text-lg md:text-xl drop-shadow-md font-light tracking-wide">
             {currentProperty.address || "Your beautiful property"}
           </p>
-          {realWeather?.location && !weatherLoading && (
-            <p className="text-white/80 text-sm drop-shadow-md">
-              Current weather for {realWeather.location}
-            </p>
-          )}
           {weatherLoading && (
             <p className="text-white/80 text-sm drop-shadow-md">
-              Loading weather...
+              Loading weather data...
             </p>
           )}
           {weatherError && (
             <p className="text-white/80 text-sm drop-shadow-md">
-              Weather: Using default data
+              Weather unavailable: {weatherError}
+            </p>
+          )}
+          {weatherData?.location && !weatherLoading && (
+            <p className="text-white/80 text-sm drop-shadow-md">
+              Current weather for {weatherData.location}
             </p>
           )}
         </DashboardHeader>

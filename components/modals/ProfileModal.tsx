@@ -100,18 +100,23 @@ export default function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
       // Upload to Supabase
       const fileExt = file.name.split(".").pop();
       const fileName = `${user?.id}-${Date.now()}.${fileExt}`;
-      const filePath = `avatars/${fileName}`;
+      // ✅ FIXED: Don't include 'avatars/' in the path since .from('avatars') already specifies the bucket
+      const filePath = fileName; // Just use the filename
 
       console.log("📤 Uploading avatar:", { fileName, filePath });
 
       // Delete old avatar if exists
       if (profileData?.avatar_url) {
         try {
-          const oldPath = profileData.avatar_url.split("/").pop();
-          if (oldPath && oldPath.includes(user?.id || "")) {
+          // ✅ FIXED: Extract just the filename from the URL
+          const urlParts = profileData.avatar_url.split('/');
+          const oldFileName = urlParts[urlParts.length - 1];
+          
+          if (oldFileName && oldFileName.includes(user?.id || "")) {
+            console.log("🗑️ Deleting old avatar:", oldFileName);
             await supabase.storage
               .from("avatars")
-              .remove([`avatars/${oldPath}`]);
+              .remove([oldFileName]); // ✅ Just the filename, not avatars/filename
           }
         } catch (error) {
           console.log("⚠️ Could not delete old avatar:", error);
@@ -120,7 +125,10 @@ export default function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
 
       const { error: uploadError } = await supabase.storage
         .from("avatars")
-        .upload(filePath, file, { upsert: true });
+        .upload(filePath, file, { 
+          cacheControl: '3600',
+          upsert: true // ✅ Allow overwriting if file exists
+        });
 
       if (uploadError) {
         throw uploadError;
