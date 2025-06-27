@@ -1,7 +1,7 @@
 // components/inventory/InventoryTable.tsx
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import { Edit, Trash2 } from "lucide-react";
 
 interface InventoryTableProps {
@@ -12,7 +12,7 @@ interface InventoryTableProps {
   updateItemStatus: (itemId: string, status: "good" | "low" | "out") => void;
 }
 
-export default function InventoryTable({
+const InventoryTable = React.memo(function InventoryTable({
   items,
   handleEdit,
   handleDelete,
@@ -23,7 +23,7 @@ export default function InventoryTable({
     Record<string, string>
   >({});
 
-  const getItemStatus = (item: any) => {
+  const getItemStatus = useCallback((item: any) => {
     // Check optimistic status first
     if (optimisticStatuses[item.id]) {
       return optimisticStatuses[item.id];
@@ -34,12 +34,19 @@ export default function InventoryTable({
     if (item.status === "low") return "low";
     if (item.status === "good") return "good";
 
-    // ✅ SIMPLIFIED TEST - Only check for truly out of stock
+    // Only check for truly out of stock
     if (item.quantity === 0) return "out";
-    // ❌ TEMPORARILY COMMENT OUT THRESHOLD CHECK
-    // if (item.quantity <= (item.threshold || 5)) return "low";
     return "good";
-  };
+  }, [optimisticStatuses]);
+
+  const statusCounts = useMemo(() => {
+    const counts = { good: 0, low: 0, out: 0 };
+    items.forEach((item) => {
+      const status = getItemStatus(item);
+      counts[status as keyof typeof counts]++;
+    });
+    return counts;
+  }, [items, getItemStatus]);
 
   const handleStatusUpdate = async (
     itemId: string,
@@ -70,32 +77,6 @@ export default function InventoryTable({
     }
   };
 
-  console.log("🔍 Status Debug:", {
-    totalItems: items.length,
-    statusBreakdown: items.map((item) => ({
-      name: item.name,
-      dbStatus: item.status,
-      quantity: item.quantity,
-      threshold: item.threshold,
-      calculatedStatus: getItemStatus(item),
-    })),
-    counts: {
-      good: items.filter((item) => getItemStatus(item) === "good").length,
-      low: items.filter((item) => getItemStatus(item) === "low").length,
-      out: items.filter((item) => getItemStatus(item) === "out").length,
-    },
-  });
-  console.log(
-    "🔍 First 5 Items Detail:",
-    items.slice(0, 5).map((item) => ({
-      name: item.name,
-      quantity: item.quantity,
-      threshold: item.threshold,
-      status: item.status,
-      wouldBeLow: item.quantity <= (item.threshold || 5),
-      calculatedStatus: getItemStatus(item),
-    }))
-  );
 
   if (items.length === 0) {
     return (
@@ -110,27 +91,24 @@ export default function InventoryTable({
 
   return (
     <div className="overflow-x-auto">
-      {/* Status Summary */}
+      {/* Status Summary - Use memoized counts */}
       <div className="mb-4 flex space-x-4">
         <div className="flex items-center space-x-2">
           <div className="w-3 h-3 bg-green-400 rounded-full"></div>
           <span className="text-sm text-gray-600">
-            {items.filter((item) => getItemStatus(item) === "good").length} Well
-            Stocked
+            {statusCounts.good} Well Stocked
           </span>
         </div>
         <div className="flex items-center space-x-2">
           <div className="w-3 h-3 bg-yellow-400 rounded-full"></div>
           <span className="text-sm text-gray-600">
-            {items.filter((item) => getItemStatus(item) === "low").length}{" "}
-            Running Low
+            {statusCounts.low} Running Low
           </span>
         </div>
         <div className="flex items-center space-x-2">
           <div className="w-3 h-3 bg-red-400 rounded-full"></div>
           <span className="text-sm text-gray-600">
-            {items.filter((item) => getItemStatus(item) === "out").length} Out
-            of Stock
+            {statusCounts.out} Out of Stock
           </span>
         </div>
       </div>
@@ -270,4 +248,6 @@ export default function InventoryTable({
       </table>
     </div>
   );
-}
+});
+
+export default InventoryTable;
