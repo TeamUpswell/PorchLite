@@ -75,65 +75,34 @@ export function PropertyProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    console.log(
-      "🏠 useProperty: Starting to load properties for user:",
-      userId
-    );
+    console.log("🏠 useProperty: Starting to load properties for user:", userId);
     loadingRef.current = true;
     setLoading(true);
     setError(null);
 
     try {
-      // TEST: Can we query the properties table at all?
-      console.log("🧪 Testing basic properties table access...");
+      // ✅ SIMPLIFIED: Direct query using created_by (we know this works)
+      console.log("🔍 useProperty: Querying properties with created_by:", userId);
       
-      // Test 1: Simple count query
-      const { count, error: countError } = await supabase
-        .from("properties")
-        .select("*", { count: 'exact', head: true });
-
-      console.log("🧪 Properties count test:", { count, error: countError });
-
-      // Test 2: Basic select
-      const { data: testData, error: testError } = await supabase
-        .from("properties")
-        .select("id, name")
-        .limit(3);
-
-      console.log("🧪 Basic properties test:", {
-        data: testData,
-        error: testError,
-        count: testData?.length,
-      });
-
-      // Method 1: Direct properties query using created_by
-      console.log("🔍 useProperty: About to query properties with userId:", userId);
-
       const { data: properties, error: directError } = await supabase
         .from("properties")
         .select("*")
-        .or(`created_by.eq.${userId},owner_id.eq.${userId}`) // Try both fields
+        .eq("created_by", userId)
         .eq("is_active", true);
 
-      console.log("🏠 useProperty: Direct properties query result:", {
+      console.log("🏠 useProperty: Properties query result:", {
         data: properties,
         error: directError,
-        dataLength: properties?.length,
-        userId: userId,
+        count: properties?.length,
       });
 
-      // Add detailed error logging
       if (directError) {
-        console.error("🚨 useProperty: Direct query error:", directError);
+        console.error("🚨 useProperty: Query error:", directError);
+        throw directError;
       }
 
       if (properties?.length) {
-        console.log(
-          "🏠 useProperty: Found properties via direct query:",
-          properties.length,
-          "Properties:",
-          properties
-        );
+        console.log("✅ useProperty: Found properties:", properties.length);
         setUserProperties(properties);
         setCurrentProperty(properties[0]);
         setLoading(false);
@@ -141,110 +110,13 @@ export function PropertyProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      console.log(
-        "🏠 Direct query returned no results, trying alternative queries..."
-      );
-
-      // Try different query approaches
-      console.log("🔍 Trying query with just created_by...");
-      const { data: createdByProps, error: createdByError } = await supabase
-        .from("properties")
-        .select("*")
-        .eq("created_by", userId);
-
-      console.log("🔍 created_by query result:", {
-        data: createdByProps,
-        error: createdByError,
-      });
-
-      console.log("🔍 Trying query with just owner_id...");
-      const { data: ownerProps, error: ownerError } = await supabase
-        .from("properties")
-        .select("*")
-        .eq("owner_id", userId);
-
-      console.log("🔍 owner_id query result:", {
-        data: ownerProps,
-        error: ownerError,
-      });
-
-      // Use whichever query worked
-      const foundProperties =
-        createdByProps?.length > 0
-          ? createdByProps
-          : ownerProps?.length > 0
-          ? ownerProps
-          : null;
-
-      if (foundProperties?.length) {
-        console.log("✅ Found properties via alternative query:", foundProperties.length);
-        setUserProperties(foundProperties);
-        setCurrentProperty(foundProperties[0]);
-        setLoading(false);
-        setHasInitialized(true);
-        return;
-      }
-
-      console.log("🏠 Direct query failed, trying tenant_users approach...");
-
-      // Method 2: Through tenant_users relationship
-      const { data: tenantUsers, error: tenantError } = await supabase
-        .from("tenant_users")
-        .select(
-          `
-          user_id,
-          role,
-          status,
-          tenant_id,
-          tenants!inner (
-            id,
-            name,
-            owner_user_id
-          )
-        `
-        )
-        .eq("user_id", userId)
-        .eq("status", "active");
-
-      console.log("🏠 useProperty: Tenant user query result:", {
-        data: tenantUsers,
-        error: tenantError,
-      });
-
-      if (tenantError) {
-        throw tenantError;
-      }
-
-      if (!tenantUsers?.length) {
-        console.log("🏠 useProperty: No tenant users found");
-        setUserProperties([]);
-        setCurrentProperty(null);
-        setLoading(false);
-        setHasInitialized(true);
-        return;
-      }
-
-      // Get properties for the user's tenants
-      const tenantIds = tenantUsers.map((tu) => tu.tenant_id);
-      console.log("🏠 useProperty: Found tenant IDs:", tenantIds);
-
-      const { data: tenantProperties, error: propertiesError } = await supabase
-        .from("properties")
-        .select("*")
-        .in("tenant_id", tenantIds)
-        .eq("is_active", true);
-
-      if (propertiesError) {
-        throw propertiesError;
-      }
-
-      const finalProperties = tenantProperties || [];
-      console.log("🏠 useProperty: Final properties:", finalProperties.length);
-
-      setUserProperties(finalProperties);
-      setCurrentProperty(finalProperties[0] || null);
+      // If no properties found, that's okay - user just doesn't have any
+      console.log("ℹ️ useProperty: No properties found for user");
+      setUserProperties([]);
+      setCurrentProperty(null);
       setLoading(false);
       setHasInitialized(true);
+
     } catch (error) {
       console.error("🏠 useProperty: Property loading error:", error);
       setError(
