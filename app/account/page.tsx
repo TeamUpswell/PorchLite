@@ -9,7 +9,8 @@ import {
   getUserRole,
 } from "@/lib/utils/roles";
 import StandardCard from "@/components/ui/StandardCard";
-import ProfileModal from "@/components/modals/ProfileModal"; // ✅ Use your original ProfileModal location
+import StandardPageLayout from "@/components/layout/StandardPageLayout";
+import ProfileModal from "@/components/modals/ProfileModal";
 
 import {
   User,
@@ -25,14 +26,13 @@ import {
   Calendar,
 } from "lucide-react";
 import Link from "next/link";
-import StandardPageLayout from "@/components/layout/StandardPageLayout";
 
 export default function AccountPage() {
   const { user, profileData, profileLoading } = useAuth();
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [avatarKey, setAvatarKey] = useState(0);
 
-  // ✅ Listen for profile updates to refresh avatar
+  // Listen for profile updates to refresh avatar
   useEffect(() => {
     const handleProfileChange = (event: CustomEvent) => {
       console.log("🔄 Account Page: Profile data changed:", event.detail);
@@ -119,13 +119,16 @@ export default function AccountPage() {
     ? `${profileData.avatar_url}?t=${Date.now()}&key=${avatarKey}`
     : null;
 
+  // Loading state
   if (profileLoading) {
     return (
-      <StandardPageLayout>
+      <StandardPageLayout title="Account" subtitle="Loading...">
         <StandardCard>
-          <div className="flex items-center justify-center py-12">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            <span className="ml-2">Loading...</span>
+          <div className="flex items-center justify-center min-h-[400px]">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-3"></div>
+              <p className="text-gray-600">⏳ Loading account...</p>
+            </div>
           </div>
         </StandardCard>
       </StandardPageLayout>
@@ -137,10 +140,26 @@ export default function AccountPage() {
   }
 
   return (
-    <StandardPageLayout>
+    <StandardPageLayout
+      title="Account"
+      subtitle="Manage your profile and account settings"
+      breadcrumb={[{ label: "Account" }]}
+    >
       <div className="space-y-6">
         {/* Profile Card */}
-        <StandardCard title="Your Account">
+        <StandardCard
+          title="Your Profile"
+          subtitle="Personal information and account details"
+          headerActions={
+            <button
+              onClick={() => setIsProfileModalOpen(true)}
+              className="inline-flex items-center px-4 py-2 text-sm border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+            >
+              <Edit className="w-4 h-4 mr-2" />
+              Edit Profile
+            </button>
+          }
+        >
           <div className="flex items-center space-x-6">
             {/* Avatar */}
             <div className="relative flex-shrink-0">
@@ -188,32 +207,50 @@ export default function AccountPage() {
                 </span>
               </div>
             </div>
-
-            {/* Edit Button */}
-            <div className="flex-shrink-0">
-              <button
-                onClick={() => setIsProfileModalOpen(true)}
-                className="inline-flex items-center px-4 py-2 text-sm border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-              >
-                <Edit className="w-4 h-4 mr-2" />
-                Edit Profile
-              </button>
-            </div>
           </div>
         </StandardCard>
 
-        {/* Account Sections */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {visibleSections.map((section) => {
-            const Icon = section.icon;
+        {/* Account Settings */}
+        <StandardCard
+          title="Account Settings"
+          subtitle="Manage your preferences and configurations"
+        >
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {visibleSections.map((section) => {
+              const Icon = section.icon;
 
-            if (section.onClick) {
-              return (
-                <StandardCard key={section.title} hover>
-                  <button
-                    onClick={section.onClick}
-                    className="w-full text-left p-2"
+              if (section.onClick) {
+                return (
+                  <div
+                    key={section.title}
+                    className="border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors cursor-pointer"
                   >
+                    <button
+                      onClick={section.onClick}
+                      className="w-full text-left p-4"
+                    >
+                      <div className="flex items-center justify-between mb-3">
+                        <Icon className={`h-6 w-6 ${section.color}`} />
+                        <ArrowRight className="h-4 w-4 text-gray-400" />
+                      </div>
+                      <h3 className="font-semibold text-gray-900 dark:text-white mb-1">
+                        {section.title}
+                      </h3>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        {section.description}
+                      </p>
+                    </button>
+                  </div>
+                );
+              }
+
+              return (
+                <Link
+                  key={section.href}
+                  href={section.href}
+                  className="block border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                >
+                  <div className="p-4">
                     <div className="flex items-center justify-between mb-3">
                       <Icon className={`h-6 w-6 ${section.color}`} />
                       <ArrowRight className="h-4 w-4 text-gray-400" />
@@ -224,33 +261,19 @@ export default function AccountPage() {
                     <p className="text-sm text-gray-600 dark:text-gray-400">
                       {section.description}
                     </p>
-                  </button>
-                </StandardCard>
-              );
-            }
-
-            return (
-              <StandardCard key={section.href} hover>
-                <Link href={section.href} className="block p-2">
-                  <div className="flex items-center justify-between mb-3">
-                    <Icon className={`h-6 w-6 ${section.color}`} />
-                    <ArrowRight className="h-4 w-4 text-gray-400" />
                   </div>
-                  <h3 className="font-semibold text-gray-900 dark:text-white mb-1">
-                    {section.title}
-                  </h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    {section.description}
-                  </p>
                 </Link>
-              </StandardCard>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        </StandardCard>
 
         {/* Quick Actions */}
         {(canManageProperties(user) || canManageUsers(user)) && (
-          <StandardCard title="Quick Actions">
+          <StandardCard
+            title="Quick Actions"
+            subtitle="Frequently used management tools"
+          >
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {canManageProperties(user) && (
                 <Link
@@ -288,9 +311,12 @@ export default function AccountPage() {
           </StandardCard>
         )}
 
-        {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <StandardCard>
+        {/* Account Statistics */}
+        <StandardCard
+          title="Account Statistics"
+          subtitle="Overview of your account activity"
+        >
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="text-center p-4">
               <Shield className="h-8 w-8 text-green-600 mx-auto mb-2" />
               <div className="text-2xl font-bold text-gray-900 dark:text-white">
@@ -300,9 +326,7 @@ export default function AccountPage() {
                 Account Role
               </div>
             </div>
-          </StandardCard>
 
-          <StandardCard>
             <div className="text-center p-4">
               <Calendar className="h-8 w-8 text-blue-600 mx-auto mb-2" />
               <div className="text-2xl font-bold text-gray-900 dark:text-white">
@@ -317,9 +341,7 @@ export default function AccountPage() {
                 Days Active
               </div>
             </div>
-          </StandardCard>
 
-          <StandardCard>
             <div className="text-center p-4">
               <Bell className="h-8 w-8 text-purple-600 mx-auto mb-2" />
               <div className="text-2xl font-bold text-gray-900 dark:text-white">
@@ -329,8 +351,8 @@ export default function AccountPage() {
                 Available Sections
               </div>
             </div>
-          </StandardCard>
-        </div>
+          </div>
+        </StandardCard>
       </div>
 
       {/* Profile Modal */}

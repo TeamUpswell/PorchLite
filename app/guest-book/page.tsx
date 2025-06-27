@@ -101,17 +101,17 @@ export default function GuestBookPage() {
   }, []);
 
   // Optimized fetch function with photo joining
-  const fetchGuestBookEntries = useCallback(async (propertyId: string) => {
+  const fetchGuestBookEntries = useCallback(async (property_id: string) => {
     // Prevent duplicate fetches
-    if (fetchingRef.current || hasFetchedRef.current === propertyId) {
+    if (fetchingRef.current || hasFetchedRef.current === property_id) {
       return;
     }
 
     fetchingRef.current = true;
-    hasFetchedRef.current = propertyId;
+    hasFetchedRef.current = property_id;
 
     try {
-      console.log("📖 Fetching guest book entries for property:", propertyId);
+      console.log("📖 Fetching guest book entries for property:", property_id);
       setLoading(true);
       setError(null);
 
@@ -129,7 +129,7 @@ export default function GuestBookPage() {
           )
         `
         )
-        .eq("property_id", propertyId)
+        .eq("property_id", property_id)
         .eq("is_approved", true)
         .eq("is_public", true)
         .order("visit_date", { ascending: false })
@@ -141,7 +141,7 @@ export default function GuestBookPage() {
         const { data: fallbackData, error: fallbackError } = await supabase
           .from("guest_book_entries")
           .select("*")
-          .eq("property_id", propertyId)
+          .eq("property_id", property_id)
           .eq("is_approved", true)
           .eq("is_public", true)
           .order("visit_date", { ascending: false })

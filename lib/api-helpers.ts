@@ -1,5 +1,5 @@
-import { supabase } from './supabase';
-import { PostgrestFilterBuilder } from '@supabase/postgrest-js';
+import { supabase } from "./supabase";
+import { PostgrestFilterBuilder } from "@supabase/postgrest-js";
 
 interface RetryOptions {
   maxAttempts?: number;
@@ -13,7 +13,10 @@ const DEFAULT_RETRY_OPTIONS: Required<RetryOptions> = {
   delay: 1000,
   exponentialBackoff: true,
   onRetry: (attempt, error) => {
-    console.warn(`🔄 Retry attempt ${attempt} due to:`, error?.message || error);
+    console.warn(
+      `🔄 Retry attempt ${attempt} due to:`,
+      error?.message || error
+    );
   },
 };
 
@@ -30,11 +33,12 @@ export async function withSessionRetry<T>(
   for (let attempt = 1; attempt <= config.maxAttempts; attempt++) {
     try {
       // Check session before query
-      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-      
+      const { data: sessionData, error: sessionError } =
+        await supabase.auth.getSession();
+
       if (sessionError || !sessionData.session) {
-        console.warn('⚠️ Session invalid, attempting refresh...');
-        
+        console.warn("⚠️ Session invalid, attempting refresh...");
+
         const { error: refreshError } = await supabase.auth.refreshSession();
         if (refreshError) {
           throw new Error(`Session refresh failed: ${refreshError.message}`);
@@ -43,18 +47,20 @@ export async function withSessionRetry<T>(
 
       // Execute the query
       const result = await queryFn();
-      
+
       // Check for auth-related errors
-      if (result.error?.code === 'PGRST301' || result.error?.message?.includes('JWT')) {
-        throw new Error('Authentication error');
+      if (
+        result.error?.code === "PGRST301" ||
+        result.error?.message?.includes("JWT")
+      ) {
+        throw new Error("Authentication error");
       }
 
       // Return successful result
       return { data: result.data as T, error: result.error };
-      
     } catch (error) {
       lastError = error;
-      
+
       // Don't retry on the last attempt
       if (attempt === config.maxAttempts) {
         break;
@@ -64,17 +70,20 @@ export async function withSessionRetry<T>(
       config.onRetry(attempt, error);
 
       // Calculate delay (with exponential backoff if enabled)
-      const delay = config.exponentialBackoff 
+      const delay = config.exponentialBackoff
         ? config.delay * Math.pow(2, attempt - 1)
         : config.delay;
 
       // Wait before retrying
-      await new Promise(resolve => setTimeout(resolve, delay));
+      await new Promise((resolve) => setTimeout(resolve, delay));
     }
   }
 
   // All attempts failed
-  console.error(`❌ All ${config.maxAttempts} attempts failed. Last error:`, lastError);
+  console.error(
+    `❌ All ${config.maxAttempts} attempts failed. Last error:`,
+    lastError
+  );
   return { data: null, error: lastError };
 }
 
@@ -91,8 +100,8 @@ export const apiHelpers = {
     options?: RetryOptions
   ): Promise<{ data: T[] | null; error: any }> {
     return withSessionRetry(() => {
-      let query = supabase.from(table).select('*');
-      
+      let query = supabase.from(table).select("*");
+
       if (filters) {
         Object.entries(filters).forEach(([key, value]) => {
           if (Array.isArray(value)) {
@@ -102,7 +111,7 @@ export const apiHelpers = {
           }
         });
       }
-      
+
       return query;
     }, options);
   },
@@ -115,11 +124,11 @@ export const apiHelpers = {
     id: string,
     options?: RetryOptions
   ): Promise<{ data: T | null; error: any }> {
-    const result = await withSessionRetry(() => 
-      supabase.from(table).select('*').eq('id', id).single(),
+    const result = await withSessionRetry(
+      () => supabase.from(table).select("*").eq("id", id).single(),
       options
     );
-    
+
     return { data: result.data as T, error: result.error };
   },
 
@@ -131,8 +140,8 @@ export const apiHelpers = {
     data: any,
     options?: RetryOptions
   ): Promise<{ data: T | null; error: any }> {
-    return withSessionRetry(() => 
-      supabase.from(table).insert(data).select().single(),
+    return withSessionRetry(
+      () => supabase.from(table).insert(data).select().single(),
       options
     );
   },
@@ -146,8 +155,8 @@ export const apiHelpers = {
     data: any,
     options?: RetryOptions
   ): Promise<{ data: T | null; error: any }> {
-    return withSessionRetry(() => 
-      supabase.from(table).update(data).eq('id', id).select().single(),
+    return withSessionRetry(
+      () => supabase.from(table).update(data).eq("id", id).select().single(),
       options
     );
   },
@@ -160,35 +169,60 @@ export const apiHelpers = {
     id: string,
     options?: RetryOptions
   ): Promise<{ data: any; error: any }> {
-    return withSessionRetry(() => 
-      supabase.from(table).delete().eq('id', id),
+    return withSessionRetry(
+      () => supabase.from(table).delete().eq("id", id),
       options
     );
   },
 };
 
 /**
+ * Helper to ensure consistent API parameter naming
+ * Converts camelCase frontend state to snake_case for API calls
+ */
+export function createApiParams(params: Record<string, any>): URLSearchParams {
+  const apiParams = new URLSearchParams();
+
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null) {
+      // Convert property_id to property_id for API consistency
+      const apiKey = key === "property_id" ? "property_id" : key;
+      apiParams.append(apiKey, String(value));
+    }
+  });
+
+  return apiParams;
+}
+
+// Usage example:
+const params = createApiParams({
+  property_id: currentProperty.id, // Frontend uses camelCase
+  userId: user.id,
+});
+// Results in: ?property_id=xxx&userId=xxx
+
+/**
  * Example usage in your existing functions
  */
-export const fetchUpcomingVisits = async (propertyId: string) => {
+export const fetchUpcomingVisits = async (property_id: string) => {
   try {
     const today = new Date().toISOString().split("T")[0];
-    
-    const result = await withSessionRetry(() => 
+
+    const result = await withSessionRetry(() =>
       supabase
         .from("reservations")
         .select("id, title, start_date, end_date, status")
-        .eq("property_id", propertyId)
+        .eq("property_id", property_id)
         .gte("start_date", today)
         .order("start_date", { ascending: true })
         .limit(10)
     );
-    
+
     if (result.error) {
       console.error("Error fetching visits:", result.error);
       return [];
     }
-    
+
     return result.data || [];
   } catch (error) {
     console.error("Exception fetching visits:", error);

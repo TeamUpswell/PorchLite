@@ -1,10 +1,11 @@
-import { supabase } from './supabase';
+import { supabase } from "./supabase";
 
 // Get all properties user has access to (across all their tenants)
 export async function getPropertiesForUser() {
   const { data, error } = await supabase
     .from("properties")
-    .select(`
+    .select(
+      `
       *,
       tenants!inner(
         id,
@@ -15,11 +16,17 @@ export async function getPropertiesForUser() {
           status
         )
       )
-    `)
-    .eq("tenants.tenant_users.user_id", (await supabase.auth.getUser()).data.user?.id)
+    `
+    )
+    .eq(
+      "tenants.tenant_users.user_id",
+      (
+        await supabase.auth.getUser()
+      ).data.user?.id
+    )
     .eq("tenants.tenant_users.status", "active")
     .order("created_at", { ascending: false });
-  
+
   if (error) throw error;
   return data;
 }
@@ -31,16 +38,17 @@ export async function getPropertiesForTenant(tenantId: string) {
     .select("*")
     .eq("tenant_id", tenantId)
     .order("created_at", { ascending: false });
-  
+
   if (error) throw error;
   return data;
 }
 
 // Get single property with permission check
-export async function getPropertyForUser(propertyId: string) {
+export async function getPropertyForUser(property_id: string) {
   const { data, error } = await supabase
     .from("properties")
-    .select(`
+    .select(
+      `
       *,
       tenants!inner(
         id,
@@ -51,12 +59,18 @@ export async function getPropertyForUser(propertyId: string) {
           status
         )
       )
-    `)
-    .eq("id", propertyId)
-    .eq("tenants.tenant_users.user_id", (await supabase.auth.getUser()).data.user?.id)
+    `
+    )
+    .eq("id", property_id)
+    .eq(
+      "tenants.tenant_users.user_id",
+      (
+        await supabase.auth.getUser()
+      ).data.user?.id
+    )
     .eq("tenants.tenant_users.status", "active")
     .single();
-  
+
   if (error) throw error;
   return data;
 }

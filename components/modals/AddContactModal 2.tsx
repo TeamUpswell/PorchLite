@@ -8,7 +8,7 @@ interface AddContactModalProps {
   isOpen: boolean;
   onClose: () => void;
   onContactAdded: () => void;
-  propertyId: string;
+  property_id: string;
   userId: string;
 }
 
@@ -16,7 +16,7 @@ export default function AddContactModal({
   isOpen,
   onClose,
   onContactAdded,
-  propertyId,
+  property_id,
   userId,
 }: AddContactModalProps) {
   const [loading, setLoading] = useState(false);
@@ -59,14 +59,12 @@ export default function AddContactModal({
     try {
       const contactData = {
         ...formData,
-        property_id: propertyId,
+        property_id: property_id,
         created_by: userId,
         created_at: new Date().toISOString(),
       };
 
-      const { error } = await supabase
-        .from("contacts")
-        .insert([contactData]);
+      const { error } = await supabase.from("contacts").insert([contactData]);
 
       if (error) throw error;
 
@@ -81,7 +79,7 @@ export default function AddContactModal({
         website: "",
         priority: 5,
       });
-      
+
       onContactAdded();
       onClose();
     } catch (error: unknown) {
@@ -122,7 +120,9 @@ export default function AddContactModal({
             <div className="p-2 bg-blue-100 rounded-lg">
               <Plus className="h-5 w-5 text-blue-600" />
             </div>
-            <h2 className="text-xl font-semibold text-gray-900">Add New Contact</h2>
+            <h2 className="text-xl font-semibold text-gray-900">
+              Add New Contact
+            </h2>
           </div>
           <button
             onClick={handleClose}

@@ -66,11 +66,11 @@ export default function AdminPropertyPage() {
   // Add confirm dialog state
   const [confirmDialog, setConfirmDialog] = useState<{
     isOpen: boolean;
-    propertyId: string | null;
+    property_id: string | null;
     propertyName: string;
   }>({
     isOpen: false,
-    propertyId: null,
+    property_id: null,
     propertyName: "",
   });
 
@@ -82,7 +82,7 @@ export default function AdminPropertyPage() {
     try {
       setStatsLoading(true);
 
-      const propertyIds = userProperties.map((p) => p.id);
+      const property_ids = userProperties.map((p) => p.id);
 
       // Batch query all stats at once
       const [roomsData, reservationsData, usersData] = await Promise.allSettled(
@@ -90,17 +90,17 @@ export default function AdminPropertyPage() {
           supabase
             .from("cleaning_rooms")
             .select("property_id")
-            .in("property_id", propertyIds),
+            .in("property_id", property_ids),
 
           supabase
             .from("reservations")
             .select("property_id")
-            .in("property_id", propertyIds),
+            .in("property_id", property_ids),
 
           supabase
             .from("tenants")
             .select("property_id")
-            .in("property_id", propertyIds),
+            .in("property_id", property_ids),
         ]
       );
 
@@ -162,30 +162,30 @@ export default function AdminPropertyPage() {
   ]);
 
   // Replace confirm() with custom dialog
-  const handleDeleteProperty = (propertyId: string) => {
-    const property = userProperties.find((p) => p.id === propertyId);
+  const handleDeleteProperty = (property_id: string) => {
+    const property = userProperties.find((p) => p.id === property_id);
     setConfirmDialog({
       isOpen: true,
-      propertyId,
+      property_id,
       propertyName: property?.name || "this property",
     });
   };
 
   // Actual delete function
   const confirmDeleteProperty = async () => {
-    if (!confirmDialog.propertyId) return;
+    if (!confirmDialog.property_id) return;
 
     try {
       const { error } = await supabase
         .from("properties")
         .delete()
-        .eq("id", confirmDialog.propertyId);
+        .eq("id", confirmDialog.property_id);
 
       if (error) throw error;
 
       await refreshProperties();
 
-      if (currentProperty?.id === confirmDialog.propertyId) {
+      if (currentProperty?.id === confirmDialog.property_id) {
         setCurrentProperty(null);
       }
 
@@ -556,7 +556,7 @@ export default function AdminPropertyPage() {
                   onClick={() =>
                     setConfirmDialog({
                       isOpen: false,
-                      propertyId: null,
+                      property_id: null,
                       propertyName: "",
                     })
                   }

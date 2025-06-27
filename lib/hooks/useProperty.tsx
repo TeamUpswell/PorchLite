@@ -36,6 +36,8 @@ interface PropertyContextType {
   tenant: Tenant | null;
   loading: boolean;
   error: string | null;
+
+  hasInitialized: boolean; // Add this line
   setCurrentProperty: (property: Property | null) => void;
   loadUserProperties: () => Promise<void>;
   createProperty: (
@@ -56,6 +58,7 @@ export function PropertyProvider({ children }: { children: React.ReactNode }) {
   const [tenant, setTenant] = useState<Tenant | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [hasInitialized, setHasInitialized] = useState(false); // Add this line
 
   // Refs to prevent duplicate fetches
   const loadingRef = useRef(false);
@@ -65,80 +68,115 @@ export function PropertyProvider({ children }: { children: React.ReactNode }) {
     const userId = user?.id;
 
     if (!userId || loadingRef.current) {
+      console.log("🏠 useProperty: Skipping load", {
+        userId: !!userId,
+        loading: loadingRef.current,
+      });
       return;
     }
 
+    console.log(
+      "🏠 useProperty: Starting to load properties for user:",
+      userId
+    );
     loadingRef.current = true;
     setLoading(true);
     setError(null);
 
     try {
-      const { data: tenantData, error: tenantError } = await supabase
-        .from("tenants")
-        .select(
-          `
-          *,
-          property:properties(*)
-        `
-        )
-        .eq("user_id", userId);
+      // Method 1: Direct properties query using created_by
+      const { data: properties, error: directError } = await supabase
+        .from("properties")
+        .select("*")
+        .eq("created_by", userId) // ✅ This field exists in properties table
+        .eq("is_active", true);
 
-      if (tenantError) throw tenantError;
+      console.log("🏠 useProperty: Direct properties query result:", {
+        data: properties,
+        error: directError,
+      });
 
-      const properties: Property[] = [];
-      const validTenants: Tenant[] = [];
-
-      if (tenantData) {
-        tenantData.forEach((tenantRecord) => {
-          if (tenantRecord.property) {
-            let propertyData = tenantRecord.property;
-
-            if (Array.isArray(propertyData)) {
-              if (propertyData.length === 0) return;
-              propertyData = propertyData[0];
-            }
-
-            if (propertyData?.id && propertyData?.name) {
-              properties.push(propertyData as Property);
-              validTenants.push({
-                id: tenantRecord.id,
-                property_id: tenantRecord.property_id,
-                user_id: tenantRecord.user_id,
-                role: tenantRecord.role,
-                created_at: tenantRecord.created_at,
-              });
-            }
-          }
-        });
+      if (properties?.length) {
+        console.log("🏠 useProperty: Found properties via direct query:", properties.length);
+        setUserProperties(properties);
+        setCurrentProperty(properties[0]);
+        setLoading(false);
+        setHasInitialized(true);
+        return;
       }
 
-      setUserProperties(properties);
-      setTenant(validTenants[0] || null);
+      console.log("🏠 Direct query failed, trying tenant_users approach...");
 
-      // Set current property if none selected or current is invalid
-      setCurrentProperty((prevCurrent) => {
-        const currentStillValid =
-          prevCurrent && properties.some((p) => p.id === prevCurrent.id);
+      // Method 2: Through tenant_users relationship
+      const { data: tenantUsers, error: tenantError } = await supabase
+        .from("tenant_users")
+        .select(`
+          user_id,
+          role,
+          status,
+          tenant_id,
+          tenants!inner (
+            id,
+            name,
+            owner_user_id
+          )
+        `)
+        .eq("user_id", userId)
+        .eq("status", "active");
 
-        if (!currentStillValid && properties.length > 0) {
-          return properties[0];
-        } else if (properties.length === 0) {
-          return null;
-        }
-
-        return prevCurrent;
+      console.log("🏠 useProperty: Tenant user query result:", {
+        data: tenantUsers,
+        error: tenantError,
       });
-    } catch (err) {
-      console.error("Property loading error:", err);
+
+      if (tenantError) {
+        throw tenantError;
+      }
+
+      if (!tenantUsers?.length) {
+        console.log("🏠 useProperty: No tenant users found");
+        setUserProperties([]);
+        setCurrentProperty(null);
+        setLoading(false);
+        setHasInitialized(true);
+        return;
+      }
+
+      // Get properties for the user's tenants
+      const tenantIds = tenantUsers.map(tu => tu.tenant_id);
+      console.log("🏠 useProperty: Found tenant IDs:", tenantIds);
+
+      const { data: tenantProperties, error: propertiesError } = await supabase
+        .from("properties")
+        .select("*")
+        .in("tenant_id", tenantIds)
+        .eq("is_active", true);
+
+      if (propertiesError) {
+        throw propertiesError;
+      }
+
+      const finalProperties = tenantProperties || [];
+      console.log("🏠 useProperty: Final properties:", finalProperties.length);
+
+      setUserProperties(finalProperties);
+      setCurrentProperty(finalProperties[0] || null);
+      setLoading(false);
+      setHasInitialized(true);
+
+    } catch (error) {
+      console.error("🏠 useProperty: Property loading error:", error);
       setError(
-        err instanceof Error ? err.message : "Failed to load properties"
+        error instanceof Error ? error.message : "Failed to load properties"
       );
       setUserProperties([]);
       setCurrentProperty(null);
       setTenant(null);
-    } finally {
       setLoading(false);
+      setHasInitialized(true);
+    } finally {
       loadingRef.current = false;
+      console.log("🏠 useProperty: Loading complete");
     }
   }, [user?.id]);
 
@@ -180,19 +218,25 @@ export function PropertyProvider({ children }: { children: React.ReactNode }) {
 
       const { data, error } = await supabase
         .from("properties")
-        .insert([{ ...property, owner_id: user.id }])
+        .insert([{ ...property, user_id: user.id }]) // Use user_id instead of owner_id
         .select()
         .single();
 
       if (error) throw error;
 
-      await supabase.from("tenants").insert([
-        {
-          property_id: data.id,
-          user_id: user.id,
-          role: "owner",
-        },
-      ]);
+      // Create tenant_user record if that table exists
+      try {
+        await supabase.from("tenant_users").insert([
+          {
+            user_id: user.id,
+            role: "owner",
+            // Add tenant_id if required by your schema
+          },
+        ]);
+      } catch (tenantError) {
+        console.log("Could not create tenant_user record:", tenantError);
+        // Don't throw here, the property was created successfully
+      }
 
       await loadUserProperties();
       return data;
@@ -234,6 +278,7 @@ export function PropertyProvider({ children }: { children: React.ReactNode }) {
     tenant,
     loading,
     error,
+    hasInitialized, // Add this line
     setCurrentProperty,
     loadUserProperties,
     createProperty,

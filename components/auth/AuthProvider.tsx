@@ -1,4 +1,3 @@
-// components/auth/AuthProvider.tsx - Check for these issues
 "use client";
 
 import {
@@ -7,6 +6,7 @@ import {
   useEffect,
   useState,
   useCallback,
+  useRef,
 } from "react";
 import { User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
@@ -26,11 +26,14 @@ interface Profile {
 
 interface AuthContextType {
   user: User | null;
-  profileData: any;
+  profileData: Profile | null;
   loading: boolean;
   profileLoading: boolean;
-  signIn: (email: string, password: string) => Promise<any>; // ✅ Add this
-  signOut: () => Promise<void>; // ✅ Add this
+  initialized: boolean;
+  signIn: (email: string, password: string) => Promise<any>;
+  signOut: () => Promise<void>;
+  refreshProfile: () => Promise<void>;
+  updateProfileData: (updates: Partial<Profile>) => void;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -38,99 +41,183 @@ const AuthContext = createContext<AuthContextType>({
   profileData: null,
   loading: true,
   profileLoading: true,
+  initialized: false,
   signIn: async () => {
     throw new Error("Not implemented");
-  }, // ✅ Add this
+  },
   signOut: async () => {
     throw new Error("Not implemented");
-  }, // ✅ Add this
+  },
+  refreshProfile: async () => {
+    throw new Error("Not implemented");
+  },
+  updateProfileData: () => {
+    throw new Error("Not implemented");
+  },
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profileData, setProfileData] = useState<Profile | null>(null);
   const [profileLoading, setProfileLoading] = useState(true);
-  const [fetchingProfile, setFetchingProfile] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [initialized, setInitialized] = useState(false);
+  const [authLoading, setAuthLoading] = useState(true);
+  const fetchProfileRef = useRef(false);
 
   const updateProfileData = useCallback(
     (updates: Partial<Profile>) => {
       console.log("🔄 Updating profile data locally:", updates);
       setProfileData((prev) => (prev ? { ...prev, ...updates } : null));
-
       window.dispatchEvent(
-        new CustomEvent("profileDataChanged", {
-          detail: {
-            profileData: profileData ? { ...profileData, ...updates } : null,
-          },
-        })
+        new CustomEvent("profileUpdated", { detail: updates })
       );
     },
-    [profileData]
+    []
   );
 
-  const fetchProfile = async (userId: string) => {
-    // Prevent multiple simultaneous calls
-    if (fetchingProfile) {
-      console.log("🔄 fetchProfile already in progress, skipping");
-      return;
-    }
+  const createProfileSafely = useCallback(
+    async (userId: string): Promise<Profile | null> => {
+      try {
+        console.log("📝 Creating profile with upsert...");
 
-    try {
-      setFetchingProfile(true);
-      console.log("🔄 fetchProfile called with userId:", userId);
-      console.log(
-        "🔍 Supabase client status:",
-        supabase ? "Available" : "Not available"
-      );
+        const { data: userData } = await supabase.auth.getUser();
+        if (!userData.user) {
+          throw new Error("No user data available");
+        }
 
-      if (!userId) {
-        console.log("❌ fetchProfile: No userId provided");
-        return;
+        const newProfile = {
+          id: userId,
+          full_name:
+            userData.user.user_metadata?.full_name ||
+            userData.user.email?.split("@")[0] ||
+            "User",
+          email: userData.user.email || "",
+          avatar_url: "",
+          phone_number: "",
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          address: "",
+          show_in_contacts: true,
+          role: "user",
+        };
+
+        // Use upsert to avoid conflicts
+        const { data: createdProfile, error: createError } = await supabase
+          .from("profiles")
+          .upsert(newProfile, {
+            onConflict: "id",
+            ignoreDuplicates: false,
+          })
+          .select()
+          .single();
+
+        if (createError) {
+          console.error("❌ Error creating profile:", createError);
+          return null;
+        }
+
+        console.log("✅ Profile created successfully");
+        return createdProfile;
+      } catch (error) {
+        console.error("❌ createProfileSafely error:", error);
+        return null;
+      }
+    },
+    [supabase]
+  );
+
+  const fetchProfile = useCallback(
+    async (userId: string): Promise<Profile | null> => {
+      const startTime = Date.now();
+      console.log("🔄 fetchProfile called with userId:", userId, "at", new Date().toISOString());
+
+      if (!supabase || !userId) {
+        console.log("❌ fetchProfile: Missing supabase client or userId");
+        return null;
       }
 
-      // Add 10 second timeout
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(
-          () => reject(new Error("Profile fetch timeout after 10s")),
-          10000
-        )
-      );
-
-      const fetchPromise = supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", userId)
-        .single();
-
-      console.log("🔍 Starting profile query...");
-      const result = await Promise.race([fetchPromise, timeoutPromise]);
-      console.log("🔍 Profile query completed:", result);
-
-      const { data, error } = result;
-
-      if (error) {
-        console.error("❌ Error fetching profile:", error);
-        setProfileData(null);
-        return;
+      if (fetchProfileRef.current) {
+        console.log("🔄 fetchProfile already in progress, skipping");
+        return null;
       }
 
-      if (data) {
-        console.log("✅ Profile data fetched successfully:", data);
-        setProfileData(data);
-      } else {
-        console.log("⚠️ No profile data found");
-        setProfileData(null);
+      fetchProfileRef.current = true;
+
+      try {
+        console.log("🔍 Starting profile query...");
+
+        // Test basic connection first
+        const { data: testData, error: testError } = await supabase
+          .from("profiles")
+          .select("count")
+          .limit(1);
+
+        console.log("🧪 Connection test:", { testData, testError });
+
+        if (testError) {
+          console.error("❌ Connection test failed:", testError);
+          return null;
+        }
+
+        // Now try the actual query with timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+        try {
+          const queryStart = Date.now();
+          const { data, error } = await supabase
+            .from("profiles")
+            .select("*")
+            .eq("id", userId)
+            .single();
+
+          clearTimeout(timeoutId);
+          const queryDuration = Date.now() - queryStart;
+
+          console.log("🔍 Profile query completed in", queryDuration, "ms:", {
+            error: error
+              ? {
+                  message: error.message,
+                  code: error.code,
+                  hint: error.hint,
+                }
+              : null,
+            hasData: !!data,
+          });
+
+          if (error) {
+            if (error.code === "PGRST116") {
+              console.log("📝 Profile not found, creating new profile...");
+              return await createProfileSafely(userId);
+            }
+            throw error;
+          }
+
+          if (data) {
+            console.log("✅ Profile data fetched successfully");
+            return data;
+          }
+
+          return null;
+        } catch (queryError) {
+          clearTimeout(timeoutId);
+          if (queryError.name === "AbortError") {
+            throw new Error("Query timed out after 8 seconds");
+          }
+          throw queryError;
+        }
+      } catch (error) {
+        console.error("❌ fetchProfile error:", error);
+        return null;
+      } finally {
+        const totalDuration = Date.now() - startTime;
+        console.log("🏁 fetchProfile completed in", totalDuration, "ms");
+        fetchProfileRef.current = false;
       }
-    } catch (error) {
-      console.error("❌ fetchProfile error:", error);
-      setProfileData(null);
-    } finally {
-      setFetchingProfile(false);
-      setProfileLoading(false);
-      console.log("🏁 fetchProfile completed");
-    }
-  };
+    },
+    [supabase, createProfileSafely]
+  );
 
   const refreshProfile = useCallback(async () => {
     if (!user?.id) {
@@ -153,11 +240,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } else {
       console.log("❌ refreshProfile: Failed to refresh profile");
     }
-  }, [user?.id]);
+  }, [user?.id, fetchProfile]);
 
-  // ✅ Enhanced initialization with better error handling
+  // Enhanced initialization with better error handling
   useEffect(() => {
     let mounted = true;
+    setMounted(true);
 
     const initializeAuth = async () => {
       try {
@@ -198,38 +286,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const profile = await fetchProfile(session.user.id);
 
           if (mounted) {
-            console.log(
-              "✅ initializeAuth: Setting profile data:",
-              profile ? "Profile loaded" : "No profile"
-            );
+            console.log("✅ initializeAuth: Setting profile data:", profile ? "Profile loaded" : "No profile");
             setProfileData(profile);
             setProfileLoading(false);
+            setAuthLoading(false);
+            setInitialized(true);
 
             if (profile) {
               console.log("🎉 initializeAuth: Complete with profile data");
             } else {
               console.log("⚠️ initializeAuth: Complete but no profile data");
             }
-          } else {
-            console.log(
-              "⚠️ initializeAuth: Component unmounted during profile fetch"
-            );
           }
         } else {
           console.log("✅ initializeAuth: No user, completing without profile");
           setProfileLoading(false);
+          setAuthLoading(false);
+          setInitialized(true);
         }
       } catch (error) {
         console.error("❌ initializeAuth: Unexpected error:", error);
         if (mounted) {
           setProfileLoading(false);
+          setAuthLoading(false);
+          setInitialized(true);
         }
       }
     };
 
     initializeAuth();
 
-    // ✅ Enhanced auth state change listener
+    // Enhanced auth state change listener
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
@@ -246,7 +333,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       setUser(session?.user ?? null);
 
-      if (session?.user) {
+      // Only fetch profile on initial session and sign in, not on token refresh
+      if (session?.user && (event === "INITIAL_SESSION" || event === "SIGNED_IN")) {
         console.log("👤 Auth state change: User present, fetching profile...");
         setProfileLoading(true);
 
@@ -256,20 +344,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           console.log("✅ Auth state change: Profile fetch complete");
           setProfileData(profile);
           setProfileLoading(false);
+          setAuthLoading(false);
+          setInitialized(true);
         }
-      } else {
+      } else if (!session?.user) {
         console.log("✅ Auth state change: No user, clearing profile");
         setProfileData(null);
         setProfileLoading(false);
+        setAuthLoading(false);
+        setInitialized(true);
+      } else if (event === "TOKEN_REFRESHED") {
+        console.log("🔄 Token refreshed, keeping existing profile data");
+        // Keep initialized as true during token refresh
       }
     });
 
     return () => {
       console.log("🧹 AuthProvider cleanup");
       mounted = false;
+      setMounted(false);
       subscription.unsubscribe();
     };
-  }, []);
+  }, [fetchProfile, createProfileSafely]);
 
   const signIn = async (email: string, password: string) => {
     console.log("🔄 signIn: Starting login for:", email);
@@ -302,20 +398,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     console.log("✅ Signed out successfully");
   };
 
-  // ✅ Enhanced render logging
+  // Enhanced render logging
   console.log("🔍 AuthProvider render state:", {
     user: user ? `${user.email} (${user.id.substring(0, 8)}...)` : "null",
-    profileData: profileData
-      ? {
-          hasData: true,
-          fullName: profileData.full_name,
-          avatarUrl: profileData.avatar_url
-            ? `${profileData.avatar_url.substring(0, 50)}...`
-            : "null",
-          role: profileData.role,
-        }
-      : "null",
+    profileData:
+      profileData && {
+        hasData: true,
+        fullName: profileData.full_name,
+        avatarUrl: profileData.avatar_url
+          ? `${profileData.avatar_url.substring(0, 50)}...`
+          : "null",
+        role: profileData.role,
+      },
     profileLoading,
+  });
+
+  // Add this to your AuthProvider to debug the initialization process
+  console.log("🔍 Auth Debug - Current state:", {
+    user: !!user,
+    initialized: initialized,
+    authLoading: authLoading,
+    profileLoading: profileLoading,
+    profileData: !!profileData
   });
 
   return (
@@ -323,12 +427,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       value={{
         user,
         profileData,
-        loading: profileLoading, // This should not be undefined
-        initialized: true, // This should be set somewhere
+        loading: profileLoading,
+        profileLoading,
+        initialized,
+        signIn,
         signOut,
         refreshProfile,
         updateProfileData,
-        signIn,
       }}
     >
       {children}

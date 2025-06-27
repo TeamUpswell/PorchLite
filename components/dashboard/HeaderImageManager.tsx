@@ -350,7 +350,7 @@ export default function HeaderImageManager({
       console.log("🔍 Upload debug info:", {
         userId: user.id,
         tenantId: currentProperty.tenant_id,
-        propertyId: currentProperty.id,
+        property_id: currentProperty.id,
         userRole: userRole,
         filePath: filePath,
         fileSize: finalFile.size,

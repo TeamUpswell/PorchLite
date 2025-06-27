@@ -94,23 +94,23 @@ export default function CleaningRoomsPage() {
   }, []);
 
   // Optimized fetch function
-  const fetchCustomRooms = useCallback(async (propertyId: string) => {
+  const fetchCustomRooms = useCallback(async (property_id: string) => {
     // Prevent duplicate fetches
-    if (fetchingRef.current || hasFetchedRef.current === propertyId) {
+    if (fetchingRef.current || hasFetchedRef.current === property_id) {
       return;
     }
 
     fetchingRef.current = true;
-    hasFetchedRef.current = propertyId;
+    hasFetchedRef.current = property_id;
 
     try {
-      console.log("🏠 Fetching custom rooms for property:", propertyId);
+      console.log("🏠 Fetching custom rooms for property:", property_id);
       setLoading(true);
 
       const { data, error } = await supabase
         .from("cleaning_room_types")
         .select("*")
-        .eq("property_id", propertyId)
+        .eq("property_id", property_id)
         .order("name");
 
       if (error) throw error;

@@ -51,13 +51,13 @@ export default function ManualPage() {
 
   // Optimized default cleaning section creation
   const createDefaultCleaningSection = useCallback(
-    async (propertyId: string, userId: string) => {
+    async (property_id: string, userId: string) => {
       try {
         const response = await fetch("/api/cleaning-sections", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            propertyId,
+            property_id,
             name: `${currentProperty?.name} - Default Cleaning`,
             userId,
           }),

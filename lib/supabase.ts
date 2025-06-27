@@ -1,12 +1,35 @@
 import { createClient } from "@supabase/supabase-js";
 
-// Get Supabase credentials from environment variables
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+// Validate Supabase credentials from environment variables
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+// Validate required environment variables
+if (!supabaseUrl) {
+  throw new Error("Missing required environment variable: NEXT_PUBLIC_SUPABASE_URL");
+}
+
+if (!supabaseKey) {
+  throw new Error("Missing required environment variable: NEXT_PUBLIC_SUPABASE_ANON_KEY");
+}
+
+// Validate URL format
+try {
+  new URL(supabaseUrl);
+} catch (error) {
+  throw new Error(`Invalid NEXT_PUBLIC_SUPABASE_URL format: ${supabaseUrl}`);
+}
+
+// Validate key format (basic check)
+if (supabaseKey.length < 20) {
+  throw new Error("NEXT_PUBLIC_SUPABASE_ANON_KEY appears to be invalid (too short)");
+}
 
 // Only basic logging in development
 if (process.env.NODE_ENV === "development") {
-  console.log("🔧 Supabase initialized");
+  console.log("🔧 Supabase initialized successfully");
+  console.log("🔧 URL:", supabaseUrl);
+  console.log("🔧 Key preview:", supabaseKey.substring(0, 20) + "...");
 }
 
 // Create the Supabase client
@@ -16,6 +39,19 @@ export const supabase = createClient(supabaseUrl, supabaseKey, {
     autoRefreshToken: true,
   },
 });
+
+// Test the connection on initialization (development only)
+if (process.env.NODE_ENV === "development") {
+  supabase.auth.getSession().then(({ error }) => {
+    if (error) {
+      console.error("🚨 Supabase connection test failed:", error.message);
+    } else {
+      console.log("✅ Supabase connection test passed");
+    }
+  }).catch((error) => {
+    console.error("🚨 Supabase initialization error:", error);
+  });
+}
 
 // TypeScript types
 export type SupabaseError = {
@@ -80,21 +116,21 @@ export async function testSupabaseConnection() {
       error: sessionError,
     } = await supabase.auth.getSession();
     console.log("👤 Current session:", session);
-    console.log("❌ Session error:", sessionError);
+    if (sessionError) console.log("❌ Session error:", sessionError);
 
     const { data, error } = await supabase
       .from("properties")
       .select("count")
       .limit(1);
     console.log("✅ Test query result:", data);
-    console.log("❌ Test query error:", error);
+    if (error) console.log("❌ Test query error:", error);
 
     const {
       data: { user },
       error: userError,
     } = await supabase.auth.getUser();
     console.log("👤 Current user:", user);
-    console.log("❌ User error:", userError);
+    if (userError) console.log("❌ User error:", userError);
 
     return { session, user, data, error };
   } catch (err) {
@@ -119,9 +155,4 @@ export function debugSupabaseConfig() {
     keyPreview: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.substring(0, 20),
     client: supabase,
   };
-}
-
-// Only call debug in development
-if (process.env.NODE_ENV === "development") {
-  debugSupabaseConfig();
 }

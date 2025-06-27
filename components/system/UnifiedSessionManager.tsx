@@ -1,4 +1,3 @@
-// components/system/UnifiedSessionManager.tsx
 "use client";
 
 import { useEffect, useRef, useCallback } from "react";
@@ -13,9 +12,10 @@ interface SessionHealth {
   errors: string[];
 }
 
-const SESSION_CHECK_INTERVAL = 30000; // 30 seconds
+const SESSION_CHECK_INTERVAL = 120000; // ✅ 2 minutes instead of 30 seconds
 const MAX_RETRY_ATTEMPTS = 3;
 const RETRY_DELAY = 1000; // 1 second
+const VISIBILITY_CHECK_DEBOUNCE = 3000; // ✅ 3 seconds debounce for visibility changes
 
 export default function UnifiedSessionManager() {
   const { user, loading } = useAuth();
@@ -27,6 +27,7 @@ export default function UnifiedSessionManager() {
   });
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const retryCountRef = useRef(0);
+  const visibilityTimeoutRef = useRef<NodeJS.Timeout | null>(null); // ✅ For debouncing visibility changes
 
   // Session validation function
   const validateSession = useCallback(async (): Promise<boolean> => {
@@ -123,7 +124,20 @@ export default function UnifiedSessionManager() {
       return; // Skip check if still loading or no user
     }
 
+    // ✅ Skip check if page is hidden to reduce unnecessary work
+    if (document.hidden) {
+      console.log("🙈 Page is hidden, skipping session check");
+      return;
+    }
+
     const now = Date.now();
+    
+    // ✅ Rate limiting: don't check more than once every 30 seconds
+    if (now - sessionHealthRef.current.lastCheck < 30000) {
+      console.log("⏱️ Skipping session check (too soon since last check)");
+      return;
+    }
+
     sessionHealthRef.current.lastCheck = now;
     sessionHealthRef.current.checkCount++;
 
@@ -161,6 +175,20 @@ export default function UnifiedSessionManager() {
     }
   }, [loading, user, validateSession, recoverSession]);
 
+  // ✅ Debounced visibility check function
+  const debouncedVisibilityCheck = useCallback(() => {
+    if (visibilityTimeoutRef.current) {
+      clearTimeout(visibilityTimeoutRef.current);
+    }
+
+    visibilityTimeoutRef.current = setTimeout(() => {
+      if (!document.hidden && user && !loading) {
+        console.log("👁️ Page became visible, checking session health");
+        performHealthCheck();
+      }
+    }, VISIBILITY_CHECK_DEBOUNCE);
+  }, [user, loading, performHealthCheck]);
+
   // Setup session monitoring
   useEffect(() => {
     if (!user || loading) {
@@ -169,14 +197,20 @@ export default function UnifiedSessionManager() {
 
     console.log("🚀 Starting session health monitoring");
 
-    // Perform initial check
-    performHealthCheck();
+    // ✅ Only perform initial check if page is visible
+    if (!document.hidden) {
+      performHealthCheck();
+    }
 
-    // Setup periodic checks
-    intervalRef.current = setInterval(
-      performHealthCheck,
-      SESSION_CHECK_INTERVAL
-    );
+    // ✅ Setup periodic checks with page visibility consideration
+    intervalRef.current = setInterval(() => {
+      // Only check if page is visible to reduce unnecessary work
+      if (!document.hidden) {
+        performHealthCheck();
+      } else {
+        console.log("🙈 Skipping periodic check (page hidden)");
+      }
+    }, SESSION_CHECK_INTERVAL);
 
     // Setup auth state change listener
     const {
@@ -190,6 +224,11 @@ export default function UnifiedSessionManager() {
           if (intervalRef.current) {
             clearInterval(intervalRef.current);
             intervalRef.current = null;
+          }
+          // ✅ Clear visibility timeout on sign out
+          if (visibilityTimeoutRef.current) {
+            clearTimeout(visibilityTimeoutRef.current);
+            visibilityTimeoutRef.current = null;
           }
           break;
 
@@ -218,16 +257,27 @@ export default function UnifiedSessionManager() {
         intervalRef.current = null;
       }
 
+      // ✅ Clear visibility timeout on cleanup
+      if (visibilityTimeoutRef.current) {
+        clearTimeout(visibilityTimeoutRef.current);
+        visibilityTimeoutRef.current = null;
+      }
+
       subscription.unsubscribe();
     };
   }, [user, loading, performHealthCheck]);
 
-  // Handle page visibility changes
+  // ✅ Handle page visibility changes with debouncing
   useEffect(() => {
     const handleVisibilityChange = () => {
-      if (!document.hidden && user && !loading) {
-        console.log("👁️ Page became visible, checking session health");
-        performHealthCheck();
+      if (!document.hidden) {
+        debouncedVisibilityCheck();
+      } else {
+        // ✅ Clear pending visibility checks when page becomes hidden
+        if (visibilityTimeoutRef.current) {
+          clearTimeout(visibilityTimeoutRef.current);
+          visibilityTimeoutRef.current = null;
+        }
       }
     };
 
@@ -235,22 +285,43 @@ export default function UnifiedSessionManager() {
 
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
+      // ✅ Clear timeout on cleanup
+      if (visibilityTimeoutRef.current) {
+        clearTimeout(visibilityTimeoutRef.current);
+        visibilityTimeoutRef.current = null;
+      }
     };
-  }, [user, loading, performHealthCheck]);
+  }, [debouncedVisibilityCheck]);
 
-  // Handle online/offline events
+  // ✅ Handle online/offline events with rate limiting
   useEffect(() => {
+    let onlineCheckTimeout: NodeJS.Timeout | null = null;
+
     const handleOnline = () => {
       if (user && !loading) {
         console.log("🌐 Connection restored, checking session health");
         toast.success("Connection restored");
-        performHealthCheck();
+        
+        // ✅ Debounce online checks too
+        if (onlineCheckTimeout) {
+          clearTimeout(onlineCheckTimeout);
+        }
+        
+        onlineCheckTimeout = setTimeout(() => {
+          performHealthCheck();
+        }, 2000);
       }
     };
 
     const handleOffline = () => {
       console.log("📡 Connection lost");
       toast.error("Connection lost", { duration: 3000 });
+      
+      // ✅ Clear pending online checks when going offline
+      if (onlineCheckTimeout) {
+        clearTimeout(onlineCheckTimeout);
+        onlineCheckTimeout = null;
+      }
     };
 
     window.addEventListener("online", handleOnline);
@@ -259,6 +330,11 @@ export default function UnifiedSessionManager() {
     return () => {
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
+      
+      // ✅ Clean up timeout on unmount
+      if (onlineCheckTimeout) {
+        clearTimeout(onlineCheckTimeout);
+      }
     };
   }, [user, loading, performHealthCheck]);
 

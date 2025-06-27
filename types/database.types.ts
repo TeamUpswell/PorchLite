@@ -90,10 +90,10 @@ export interface Database {
         };
         Relationships: [];
       };
-      cleaning_issues: {
+      tasks: {
         Row: {
           id: string;
-          property_id: string | null;
+          property_id: string;
           description: string;
           severity: string;
           location: string;
@@ -106,12 +106,14 @@ export interface Database {
           notes: string | null;
           status: string | null;
           category: string | null;
+          created_at: string;
+          updated_at: string;
         };
         Insert: {
           id?: string;
-          property_id?: string | null;
+          property_id: string;
           description: string;
-          severity: string;
+          severity?: string;
           location: string;
           photo_urls?: string[] | null;
           reported_by?: string | null;
@@ -122,10 +124,12 @@ export interface Database {
           notes?: string | null;
           status?: string | null;
           category?: string | null;
+          created_at?: string;
+          updated_at?: string;
         };
         Update: {
           id?: string;
-          property_id?: string | null;
+          property_id?: string;
           description?: string;
           severity?: string;
           location?: string;
@@ -138,6 +142,8 @@ export interface Database {
           notes?: string | null;
           status?: string | null;
           category?: string | null;
+          created_at?: string;
+          updated_at?: string;
         };
         Relationships: [];
       };

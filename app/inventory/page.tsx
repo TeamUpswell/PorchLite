@@ -214,7 +214,7 @@ export default function InventoryPage() {
     if (process.env.NODE_ENV === "development") {
       debugLog("📦 INVENTORY PAGE LOADED - /app/inventory/page.tsx");
       debugLog("📦 Inventory Page Debug:", {
-        propertyId: currentProperty?.id,
+        property_id: currentProperty?.id,
         propertyName: currentProperty?.name,
         userOwnsProperty,
         isManagerView,

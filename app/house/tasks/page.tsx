@@ -119,7 +119,7 @@ export default function HouseTasksPage() {
   const isFamilyView = false;
 
   // Memoize property and user IDs to prevent unnecessary re-renders
-  const propertyId = useMemo(() => currentProperty?.id, [currentProperty?.id]);
+  const property_id = useMemo(() => currentProperty?.id, [currentProperty?.id]);
   const userId = useMemo(() => user?.id, [user?.id]);
   const tenantId = useMemo(
     () => currentProperty?.tenant_id,
@@ -187,7 +187,7 @@ export default function HouseTasksPage() {
 
     debugLog("🔍 Loading tasks:", {
       userId,
-      propertyId: currentProperty.id,
+      property_id: currentProperty.id,
       propertyName: currentProperty.name,
       filter,
     });
@@ -294,7 +294,7 @@ export default function HouseTasksPage() {
 
     try {
       const { data } = await supabase
-        .from("cleaning_issues")
+        .from("tasks")
         .select("*")
         .eq("property_id", currentProperty.id)
         .eq("is_resolved", false)
@@ -324,7 +324,7 @@ export default function HouseTasksPage() {
 
     console.log("🔍 Tasks useEffect triggered:", {
       userId: user.id,
-      propertyId: currentProperty.id,
+      property_id: currentProperty.id,
       propertyName: currentProperty.name,
       filter,
     });

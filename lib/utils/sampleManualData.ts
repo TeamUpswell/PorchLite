@@ -1,13 +1,14 @@
 import { supabase } from "@/lib/supabase";
 
-export const createSampleManualSections = async (propertyId: string) => {
+export const createSampleManualSections = async (property_id: string) => {
   const sampleSections = [
     {
       title: "Smart TV & Entertainment System",
-      description: "Complete guide to operating all entertainment devices including TV, sound system, and streaming devices.",
+      description:
+        "Complete guide to operating all entertainment devices including TV, sound system, and streaming devices.",
       icon: "📺",
       order_index: 1,
-      property_id: propertyId,
+      property_id: property_id,
       items: [
         {
           title: "How to Turn On the TV",
@@ -40,10 +41,11 @@ Note: The TV is already connected to high-speed WiFi, so streaming should be smo
     },
     {
       title: "Hot Tub Operation & Safety",
-      description: "Step-by-step instructions for safely operating and enjoying the hot tub, including temperature controls and safety guidelines.",
+      description:
+        "Step-by-step instructions for safely operating and enjoying the hot tub, including temperature controls and safety guidelines.",
       icon: "🏊‍♂️",
       order_index: 2,
-      property_id: propertyId,
+      property_id: property_id,
       items: [
         {
           title: "Starting the Hot Tub",
@@ -82,10 +84,11 @@ Emergency: Hot tub shut-off switch is located on the side of the house near the 
     },
     {
       title: "Kitchen Appliances Guide",
-      description: "Instructions for all major kitchen appliances including coffee maker, dishwasher, and cooking equipment.",
+      description:
+        "Instructions for all major kitchen appliances including coffee maker, dishwasher, and cooking equipment.",
       icon: "🍽️",
       order_index: 3,
-      property_id: propertyId,
+      property_id: property_id,
       items: [
         {
           title: "Using the Coffee Maker",
@@ -117,10 +120,11 @@ Dishwasher pods are located under the kitchen sink. Please start the dishwasher 
     },
     {
       title: "WiFi & Internet Access",
-      description: "Network information and troubleshooting guide for internet connectivity throughout the property.",
+      description:
+        "Network information and troubleshooting guide for internet connectivity throughout the property.",
       icon: "📶",
       order_index: 4,
-      property_id: propertyId,
+      property_id: property_id,
       items: [
         {
           title: "Connecting to WiFi",
@@ -143,10 +147,11 @@ Internet speed: 500+ Mbps - perfect for streaming and video calls.`,
     },
     {
       title: "Emergency Information",
-      description: "Important safety information, emergency contacts, and procedures for your stay.",
+      description:
+        "Important safety information, emergency contacts, and procedures for your stay.",
       icon: "🚨",
       order_index: 5,
-      property_id: propertyId,
+      property_id: property_id,
       items: [
         {
           title: "Emergency Contacts",
@@ -196,9 +201,7 @@ Hidden lockbox by front door (code provided separately)`,
     // Insert sections first
     const { data: sectionsData, error: sectionsError } = await supabase
       .from("manual_sections")
-      .insert(
-        sampleSections.map(({ items, ...section }) => section)
-      )
+      .insert(sampleSections.map(({ items, ...section }) => section))
       .select();
 
     if (sectionsError) throw sectionsError;
@@ -209,7 +212,7 @@ Hidden lockbox by front door (code provided separately)`,
       const sampleItems = sampleSections[i].items;
 
       if (sampleItems.length > 0) {
-        const itemsToInsert = sampleItems.map(item => ({
+        const itemsToInsert = sampleItems.map((item) => ({
           ...item,
           section_id: section.id,
         }));
@@ -219,14 +222,18 @@ Hidden lockbox by front door (code provided separately)`,
           .insert(itemsToInsert);
 
         if (itemsError) {
-          console.error(`Error inserting items for section ${section.title}:`, itemsError);
+          console.error(
+            `Error inserting items for section ${section.title}:`,
+            itemsError
+          );
         }
       }
     }
 
-    console.log(`✅ Created ${sectionsData.length} sample manual sections for property ${propertyId}`);
+    console.log(
+      `✅ Created ${sectionsData.length} sample manual sections for property ${property_id}`
+    );
     return sectionsData;
-
   } catch (error) {
     console.error("Error creating sample manual sections:", error);
     throw error;

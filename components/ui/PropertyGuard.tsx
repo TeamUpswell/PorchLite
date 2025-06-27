@@ -31,22 +31,22 @@ export function PropertyGuard({ children, fallback }: PropertyGuardProps) {
     const isPropertyLoading = propertyLoading === true;
 
     const state = {
-      authInitialized,
+      authInitialized: authInitialized === true, // Ensure boolean
       authLoading: isAuthLoading,
-      propertyInitialized,
+      propertyInitialized: propertyInitialized === true, // Ensure boolean
       propertyLoading: isPropertyLoading,
       hasUser: !!user,
       hasProperty: !!currentProperty,
       userId: user?.id,
-      // Computed states
+      // Computed states - fix the logic here
       showLoading:
-        !authInitialized ||
+        authInitialized !== true || // Wait for auth to be explicitly initialized
         isAuthLoading ||
-        (!propertyInitialized && user && isPropertyLoading),
+        (user && propertyInitialized !== true && isPropertyLoading), // Only wait for property if we have a user
       showFallback:
-        authInitialized && !isAuthLoading && user && !currentProperty,
+        authInitialized === true && !isAuthLoading && user && !currentProperty,
       showChildren:
-        authInitialized && !isAuthLoading && user && currentProperty,
+        authInitialized === true && !isAuthLoading && user && currentProperty,
     };
 
     // Only log when state actually changes
@@ -66,6 +66,10 @@ export function PropertyGuard({ children, fallback }: PropertyGuardProps) {
         hasUser: state.hasUser,
         hasProperty: state.hasProperty,
         userId: state.userId,
+        // Add debug info
+        showLoading: state.showLoading,
+        showFallback: state.showFallback,
+        showChildren: state.showChildren,
       });
       prevStateRef.current = stateKey;
     }

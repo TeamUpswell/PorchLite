@@ -128,7 +128,7 @@ export default function CreateCleaningIssuePage() {
 
       try {
         console.log("🐛 Submitting cleaning issue:", {
-          propertyId: currentProperty.id,
+          property_id: currentProperty.id,
           description: issueData.description,
           severity: issueData.severity,
           location: issueData.location,
@@ -137,7 +137,7 @@ export default function CreateCleaningIssuePage() {
 
         // Create the issue record
         const { data, error } = await supabase
-          .from("cleaning_issues")
+          .from("tasks")
           .insert([
             {
               property_id: currentProperty.id,

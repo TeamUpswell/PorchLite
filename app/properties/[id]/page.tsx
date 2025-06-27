@@ -68,7 +68,7 @@ const AMENITY_ICONS = {
 export default function PropertyDetailsPage() {
   const params = useParams();
   const router = useRouter();
-  const propertyId = params.id as string;
+  const property_id = params.id as string;
 
   const { user, loading: authLoading } = useAuth();
   const {
@@ -102,18 +102,18 @@ export default function PropertyDetailsPage() {
 
   // Check if current property matches
   const isCurrentProperty = useMemo(() => {
-    return currentProperty?.id === propertyId;
-  }, [currentProperty?.id, propertyId]);
+    return currentProperty?.id === property_id;
+  }, [currentProperty?.id, property_id]);
 
   // Find property in user's properties
   const userProperty = useMemo(() => {
-    return userProperties.find((p) => p.id === propertyId);
-  }, [userProperties, propertyId]);
+    return userProperties.find((p) => p.id === property_id);
+  }, [userProperties, property_id]);
 
   // Fetch property details
   const fetchPropertyDetails = useCallback(
     async (showRefreshFeedback = false) => {
-      if (!propertyId || !user?.id || !mountedRef.current) {
+      if (!property_id || !user?.id || !mountedRef.current) {
         return;
       }
 
@@ -125,7 +125,7 @@ export default function PropertyDetailsPage() {
         }
         setError(null);
 
-        console.log("🏠 Fetching property details for:", propertyId);
+        console.log("🏠 Fetching property details for:", property_id);
 
         // First check if user has access to this property
         if (!userProperty) {
@@ -145,31 +145,31 @@ export default function PropertyDetailsPage() {
           supabase
             .from("cleaning_rooms")
             .select("id")
-            .eq("property_id", propertyId),
+            .eq("property_id", property_id),
 
           supabase
             .from("reservations")
             .select("id, rating, created_at")
-            .eq("property_id", propertyId)
+            .eq("property_id", property_id)
             .order("created_at", { ascending: false }),
 
           supabase
             .from("inventory")
             .select("id, name, created_at")
-            .eq("property_id", propertyId)
+            .eq("property_id", property_id)
             .eq("is_active", true)
             .order("created_at", { ascending: false }),
 
           supabase
             .from("manual_sections")
             .select("id, title, created_at")
-            .eq("property_id", propertyId)
+            .eq("property_id", property_id)
             .order("created_at", { ascending: false }),
 
           supabase
             .from("manual_items")
             .select("id, title, created_at, section_id")
-            .eq("property_id", propertyId)
+            .eq("property_id", property_id)
             .order("created_at", { ascending: false })
             .limit(5),
         ]);
@@ -296,7 +296,7 @@ export default function PropertyDetailsPage() {
         }
       }
     },
-    [propertyId, user?.id, userProperty]
+    [property_id, user?.id, userProperty]
   );
 
   // Main loading effect
@@ -313,7 +313,7 @@ export default function PropertyDetailsPage() {
       return;
     }
 
-    if (!propertyId) {
+    if (!property_id) {
       console.log("⚠️ No property ID provided");
       if (mountedRef.current) {
         setLoading(false);
@@ -327,7 +327,7 @@ export default function PropertyDetailsPage() {
       hasLoadedRef.current = true;
       fetchPropertyDetails();
     }
-  }, [user?.id, propertyId, isInitializing, fetchPropertyDetails]);
+  }, [user?.id, property_id, isInitializing, fetchPropertyDetails]);
 
   // Set as current property handler
   const handleSetAsCurrent = useCallback(() => {
@@ -346,12 +346,12 @@ export default function PropertyDetailsPage() {
 
   // Retry handler
   const handleRetry = useCallback(() => {
-    if (propertyId && user?.id) {
+    if (property_id && user?.id) {
       hasLoadedRef.current = false;
       setError(null);
       fetchPropertyDetails();
     }
-  }, [propertyId, user?.id, fetchPropertyDetails]);
+  }, [property_id, user?.id, fetchPropertyDetails]);
 
   // Navigation handler
   const handleBack = useCallback(() => {
@@ -392,10 +392,7 @@ export default function PropertyDetailsPage() {
         title="Property Details"
         subtitle="Error loading property"
       >
-        <StandardCard
-          title="Error Loading Property"
-          subtitle="Unable to load the requested property"
-        >
+        <StandardCard>
           <div className="text-center py-8">
             <AlertTriangle className="mx-auto h-12 w-12 text-red-500 mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">
@@ -431,10 +428,7 @@ export default function PropertyDetailsPage() {
         title="Property Details"
         subtitle="Property not found"
       >
-        <StandardCard
-          title="Property Not Found"
-          subtitle="The requested property could not be found"
-        >
+        <StandardCard>
           <div className="text-center py-8">
             <Building className="mx-auto h-12 w-12 text-gray-400 mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">
@@ -582,10 +576,13 @@ export default function PropertyDetailsPage() {
         </StandardCard>
 
         {/* Property Stats */}
-        <StandardCard
-          title="Property Overview"
-          subtitle="Key metrics and information"
-        >
+        <StandardCard>
+          <div className="mb-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-1">
+              Property Overview
+            </h3>
+            <p className="text-sm text-gray-500">Key metrics and information</p>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
             <div className="text-center p-4 bg-blue-50 rounded-lg">
               <Bed className="h-8 w-8 text-blue-600 mx-auto mb-2" />
@@ -633,10 +630,15 @@ export default function PropertyDetailsPage() {
 
         {/* Amenities */}
         {property.amenities && property.amenities.length > 0 && (
-          <StandardCard
-            title="Amenities"
-            subtitle="Available features and services"
-          >
+          <StandardCard>
+            <div className="mb-4">
+              <h3 className="text-lg font-semibold text-gray-900 mb-1">
+                Amenities
+              </h3>
+              <p className="text-sm text-gray-500">
+                Available features and services
+              </p>
+            </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {property.amenities.map((amenity, index) => {
                 const IconComponent =
@@ -660,10 +662,15 @@ export default function PropertyDetailsPage() {
 
         {/* Recent Activity */}
         {property.recent_activity && property.recent_activity.length > 0 && (
-          <StandardCard
-            title="Recent Activity"
-            subtitle="Latest updates and changes"
-          >
+          <StandardCard>
+            <div className="mb-4">
+              <h3 className="text-lg font-semibold text-gray-900 mb-1">
+                Recent Activity
+              </h3>
+              <p className="text-sm text-gray-500">
+                Latest updates and changes
+              </p>
+            </div>
             <div className="space-y-4">
               {property.recent_activity.map((activity) => {
                 const getActivityIcon = () => {
@@ -732,7 +739,13 @@ export default function PropertyDetailsPage() {
         )}
 
         {/* Quick Actions */}
-        <StandardCard title="Quick Actions" subtitle="Manage your property">
+        <StandardCard>
+          <div className="mb-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-1">
+              Quick Actions
+            </h3>
+            <p className="text-sm text-gray-500">Manage your property</p>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <Link
               href={`/properties/${property.id}/rooms`}

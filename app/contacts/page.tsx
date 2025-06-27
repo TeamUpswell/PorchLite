@@ -71,24 +71,24 @@ export default function ContactsPage() {
   }, []);
 
   // Optimized fetch function
-  const fetchContacts = useCallback(async (propertyId: string) => {
+  const fetchContacts = useCallback(async (property_id: string) => {
     // Prevent duplicate fetches
-    if (fetchingRef.current || hasFetchedRef.current === propertyId) {
+    if (fetchingRef.current || hasFetchedRef.current === property_id) {
       return;
     }
 
     fetchingRef.current = true;
-    hasFetchedRef.current = propertyId;
+    hasFetchedRef.current = property_id;
 
     try {
-      console.log("📞 Fetching contacts for property:", propertyId);
+      console.log("📞 Fetching contacts for property:", property_id);
       setLoading(true);
       setError(null);
 
       const { data, error } = await supabase
         .from("contacts")
         .select("*")
-        .eq("property_id", propertyId)
+        .eq("property_id", property_id)
         .order("name");
 
       if (error) throw error;
@@ -118,7 +118,7 @@ export default function ContactsPage() {
               category: "maintenance",
               address: "123 Main St, City, ST 12345",
               notes: "Available 24/7 for emergencies",
-              property_id: propertyId,
+              property_id: property_id,
               created_at: new Date().toISOString(),
             },
             {
@@ -127,7 +127,7 @@ export default function ContactsPage() {
               phone: "911",
               category: "emergency",
               notes: "Police, Fire, Medical",
-              property_id: propertyId,
+              property_id: property_id,
               created_at: new Date().toISOString(),
             },
             {
@@ -137,7 +137,7 @@ export default function ContactsPage() {
               phone: "(555) 987-6543",
               category: "service",
               address: "456 Oak Ave, City, ST 12345",
-              property_id: propertyId,
+              property_id: property_id,
               created_at: new Date().toISOString(),
             },
           ];

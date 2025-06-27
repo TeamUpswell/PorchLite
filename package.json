@@ -19,7 +19,7 @@
   "keywords": [
     "shared",
     "home",
-    "vaction home",
+    "vacation home",
     "property",
     "management",
     "porchlite"
@@ -48,14 +48,15 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cssesc": "^3.0.0",
-    "date-fns": "^2.30.0",
+    "date-fns": "^3.6.0",
     "lucide-react": "^0.263.1",
-    "next": "^14.2.29",
+    "next": "^14.2.18",
     "react": "^18.3.1",
     "react-big-calendar": "^1.19.2",
     "react-dom": "^18.3.1",
     "react-hot-toast": "^2.5.2",
     "react-lifecycles-compat": "^3.0.4",
+    "styled-jsx": "^5.1.7",
     "tailwind-merge": "^2.6.0",
     "uuid": "^9.0.0"
   },
@@ -70,6 +71,8 @@
     "eslint": "^8",
     "eslint-config-next": "14.0.4",
     "postcss": "^8",
+    "postcss-selector-parser": "^6.0.13",
+    "supabase": "^2.26.9",
     "tailwindcss": "^3.4.1",
     "typescript": "^5.8.3"
   },

@@ -11,7 +11,6 @@ import StandardCard from "@/components/ui/StandardCard";
 import { Home as HomeIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import GoogleMapComponent from "@/components/GoogleMapComponent";
-import { usePropertyWeather } from "@/components/dashboard/WeatherWidget";
 
 interface UpcomingVisit {
   id: string;
@@ -36,12 +35,17 @@ export default function HomePage() {
   const fetchingRef = useRef(false);
   const hasFetchedRef = useRef<string | null>(null);
 
-  // Remove all mock weather code
-  const {
-    weather: weatherData,
-    loading: weatherLoading,
-    error: weatherError,
-  } = usePropertyWeather();
+  // ✅ REPLACE weather hook with mock data
+  // const {
+  //   weather: weatherData,
+  //   loading: weatherLoading,
+  //   error: weatherError,
+  // } = usePropertyWeather();
+
+  // ✅ USE mock weather data instead
+  const weatherData = null;
+  const weatherLoading = false;
+  const weatherError = null;
 
   const [upcomingVisits, setUpcomingVisits] = useState<UpcomingVisit[]>([]);
   const [inventoryAlerts, setInventoryAlerts] = useState<InventoryItem[]>([]);
@@ -59,14 +63,14 @@ export default function HomePage() {
 
   // Memoize the fetch function - REMOVED from useEffect dependency
   const fetchDashboardData = useCallback(
-    async (propertyId: string, userId: string) => {
+    async (property_id: string, userId: string) => {
       // Prevent duplicate fetches for the same property
-      if (fetchingRef.current || hasFetchedRef.current === propertyId) {
+      if (fetchingRef.current || hasFetchedRef.current === property_id) {
         return;
       }
 
       fetchingRef.current = true;
-      hasFetchedRef.current = propertyId;
+      hasFetchedRef.current = property_id;
 
       try {
         console.log(
@@ -75,14 +79,14 @@ export default function HomePage() {
         );
 
         const today = new Date().toISOString().split("T")[0];
-        console.log("🔍 Fetching dashboard data for property:", propertyId);
+        console.log("🔍 Fetching dashboard data for property:", property_id);
         console.log("🔍 Dashboard: Looking for reservations after:", today);
 
         // Fetch visits
         const visitsData = await supabase
           .from("reservations")
           .select("id, title, start_date, end_date, status")
-          .eq("property_id", propertyId)
+          .eq("property_id", property_id)
           .gte("start_date", today)
           .order("start_date", { ascending: true })
           .limit(10);
@@ -98,7 +102,7 @@ export default function HomePage() {
         const inventoryData = await supabase
           .from("inventory")
           .select("id, name, quantity")
-          .eq("property_id", propertyId)
+          .eq("property_id", property_id)
           .eq("is_active", true);
 
         const inventoryItems = inventoryData.data || [];
@@ -117,15 +121,18 @@ export default function HomePage() {
         setTotalInventoryCount(inventoryItems.length);
         setComponentLoading((prev) => ({ ...prev, inventory: false }));
 
-        // Fetch tasks
+        // ✅ Fix the tasks query to match your actual schema:
         const tasksData = await supabase
           .from("tasks")
-          .select("id, title, status, priority, due_date")
-          .eq("property_id", propertyId)
-          .in("status", ["pending", "in_progress"])
-          .order("due_date", { ascending: true })
+          .select(
+            "id, title, description, priority, status, created_at, due_date, assigned_to"
+          )
+          .eq("property_id", property_id)
+          .in("status", ["pending", "in_progress"]) // ✅ Use actual status values
+          .order("created_at", { ascending: false })
           .limit(10);
 
+        console.log("📊 Dashboard: Found tasks:", tasksData.data?.length || 0);
         setTaskAlerts(tasksData.data || []);
         setComponentLoading((prev) => ({ ...prev, tasks: false }));
 
@@ -143,13 +150,23 @@ export default function HomePage() {
 
   // FIXED: Removed fetchDashboardData from dependency array
   useEffect(() => {
+    console.log("🏠 HomePage useEffect:", {
+      authLoading,
+      propertyLoading,
+      userId: user?.id ? "present" : "missing",
+      propertyId: currentProperty?.id ? "present" : "missing",
+      propertyName: currentProperty?.name,
+    });
+
     if (authLoading || propertyLoading || !user?.id || !currentProperty?.id) {
       if (!authLoading && !propertyLoading) {
+        console.log("⚠️ HomePage: Missing data, stopping loading");
         setLoading(false);
       }
       return;
     }
 
+    console.log("✅ HomePage: All data available, fetching dashboard");
     // Call with specific IDs instead of using callback in deps
     fetchDashboardData(currentProperty.id, user.id);
   }, [user?.id, currentProperty?.id, authLoading, propertyLoading]); // REMOVED fetchDashboardData
@@ -400,7 +417,12 @@ export default function HomePage() {
         </div>
 
         {/* Quick Actions */}
-        <StandardCard title="Quick Actions">
+        <StandardCard>
+          <div className="mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">
+              Quick Actions
+            </h3>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <button
               onClick={navigationHandlers.handleAddReservation}

@@ -145,7 +145,7 @@ export default function Calendar({
         const cacheData = {
           reservations: data,
           timestamp: Date.now(),
-          propertyId: user?.id || "unknown",
+          property_id: user?.id || "unknown",
         };
         localStorage.setItem(CALENDAR_CACHE_KEY, JSON.stringify(cacheData));
 

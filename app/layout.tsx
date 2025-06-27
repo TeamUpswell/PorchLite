@@ -118,6 +118,18 @@ export default function RootLayout({
             `,
           }}
         />
+
+        {/* PWA Manifest */}
+        <link rel="manifest" href="/manifest.json" />
+
+        {/* PWA Theme Colors */}
+        <meta name="theme-color" content="#2563eb" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-title" content="PorchLite" />
+
+        {/* Apple Touch Icons */}
+        <link rel="apple-touch-icon" href="/icon-192x192.png" />
       </head>
       <body
         className={`${inter.className} bg-gray-900 font-sans antialiased`}

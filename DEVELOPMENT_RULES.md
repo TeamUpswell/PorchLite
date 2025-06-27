@@ -105,17 +105,18 @@ CREATE TABLE properties (
 CREATE TABLE tasks (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   property_id UUID REFERENCES properties(id) ON DELETE CASCADE,
-  title VARCHAR(255) NOT NULL,
-  description TEXT,
-  status VARCHAR(50) DEFAULT 'pending', -- pending, in_progress, completed
-  priority VARCHAR(20) DEFAULT 'medium', -- low, medium, high
-  category VARCHAR(100), -- maintenance, cleaning, inventory, guest_request
-  due_date DATE,
-  estimated_duration INTEGER, -- minutes
-  assigned_to UUID REFERENCES users(id),
-  created_by UUID REFERENCES users(id),
-  completed_at TIMESTAMP WITH TIME ZONE,
-  source VARCHAR(50), -- manual, guest_report, automated
+  description TEXT NOT NULL,
+  severity VARCHAR(20) DEFAULT 'medium', -- low, medium, high, critical
+  location VARCHAR(255) NOT NULL,
+  photo_urls TEXT[],
+  reported_by UUID REFERENCES profiles(id),
+  reported_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  is_resolved BOOLEAN DEFAULT false,
+  resolved_by UUID REFERENCES profiles(id),
+  resolved_at TIMESTAMP WITH TIME ZONE,
+  notes TEXT,
+  status VARCHAR(50) DEFAULT 'open', -- open, in_progress, resolved
+  category VARCHAR(100) DEFAULT 'general', -- general, maintenance, cleaning, etc
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -263,6 +264,21 @@ await supabase
 - **Error boundaries** handle failed requests gracefully
 - **Optimistic updates** for better UX where appropriate
 
+#### API Field Naming Standards
+- **Database fields**: Always use `snake_case` (e.g., `property_id`, `created_at`)
+- **API requests/responses**: Use `snake_case` to match database schema
+- **Frontend state**: Can use `camelCase` internally, but convert for API calls
+- **Consistency rule**: Never accept both formats in the same API endpoint
+
+#### Example API Request:
+```json
+{
+  "property_id": "uuid-here",
+  "description": "Task description",
+  "severity": "medium"
+}
+```
+
 ### Permission System
 
 #### Guest Book Moderation
@@ -327,3 +343,27 @@ await supabase
 - **Prop names** maintained for `maintenanceAlerts` in DashboardLayout
 - **State variables** can be gradually renamed
 - **API endpoints** maintain existing contracts
+
+## Database Tables
+
+### Tasks Table (`tasks`)
+- **Purpose**: Track property issues, maintenance requests, and tasks
+- **Structure**: 
+  - `id` (uuid, primary key)
+  - `property_id` (uuid, foreign key to properties) 
+  - `description` (text, required) - Description of the issue/task
+  - `severity` (varchar, required) - Severity level (low, medium, high, critical)
+  - `location` (varchar, required) - Location within the property
+  - `photo_urls` (text[], optional) - Array of photo URLs
+  - `reported_by` (uuid, foreign key to profiles)
+  - `reported_at` (timestamp, default now())
+  - `is_resolved` (boolean, default false)
+  - `resolved_by` (uuid, foreign key to profiles)
+  - `resolved_at` (timestamp, optional)
+  - `notes` (text, optional) - Additional notes
+  - `status` (text, default 'open') - Status: 'open', 'in_progress', 'resolved'
+  - `category` (text, default 'general') - Category: 'general', 'maintenance', 'cleaning', etc.
+
+**Note**: This table was previously named `cleaning_issues` but was renamed to `tasks` to better reflect its broader purpose.
+
+**RLS Policy**: `tasks_property_isolation` - Users can only access tasks for properties they own/manage.

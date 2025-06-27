@@ -40,7 +40,7 @@ export default function StandardPageLayout({
         <SideNavigation
           onCollapseChange={setIsCollapsed}
           isCollapsed={isCollapsed}
-          standalone={false} // ✅ Use integrated mode
+          standalone={false}
         />
       )}
 
@@ -95,5 +95,3 @@ export default function StandardPageLayout({
     </div>
   );
 }
-
-// ✅ ADD THIS LINE:

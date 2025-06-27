@@ -15,8 +15,8 @@ export function PropertySwitcher() {
     );
   }
 
-  const handlePropertyChange = (propertyId: string) => {
-    const property = userProperties.find((p) => p.id === propertyId);
+  const handlePropertyChange = (property_id: string) => {
+    const property = userProperties.find((p) => p.id === property_id);
     if (property) {
       setCurrentProperty(property);
       // Optionally refresh the current page with new property context

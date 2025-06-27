@@ -15,7 +15,7 @@ interface Category {
   is_active: boolean;
 }
 
-export function useInventoryCategories(propertyId: string | null) {
+export function useInventoryCategories(property_id: string | null) {
   const { currentProperty } = useProperty();
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
@@ -23,9 +23,9 @@ export function useInventoryCategories(propertyId: string | null) {
 
   // Fetch all categories (system + property-specific)
   const fetchCategories = async () => {
-    if (!propertyId) return;
+    if (!property_id) return;
 
-    debugLog("🔍 Fetching categories for property:", propertyId);
+    debugLog("🔍 Fetching categories for property:", property_id);
 
     try {
       setLoading(true);
@@ -36,9 +36,9 @@ export function useInventoryCategories(propertyId: string | null) {
         .select("*")
         .eq("is_active", true);
 
-      if (propertyId) {
+      if (property_id) {
         // Get system categories AND property-specific categories
-        query = query.or(`is_system.eq.true,property_id.eq.${propertyId}`);
+        query = query.or(`is_system.eq.true,property_id.eq.${property_id}`);
       } else {
         // Only get system categories if no property
         query = query.eq("is_system", true);
@@ -174,7 +174,7 @@ export function useInventoryCategories(propertyId: string | null) {
 
   useEffect(() => {
     fetchCategories();
-  }, [propertyId]);
+  }, [property_id]);
 
   // Add custom category
   const addCategory = async (name: string, icon: string = "📋") => {
@@ -182,7 +182,7 @@ export function useInventoryCategories(propertyId: string | null) {
       console.log("🆕 Adding category:", {
         name,
         icon,
-        propertyId: currentProperty?.id,
+        property_id: currentProperty?.id,
       });
 
       if (!currentProperty?.id) {

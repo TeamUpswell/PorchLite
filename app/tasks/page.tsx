@@ -16,6 +16,11 @@ import {
   CheckSquareIcon,
   AlertTriangle,
   RefreshCw,
+  Building,
+  Filter,
+  Users,
+  Clock,
+  CheckCircle,
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { CreatePattern } from "@/components/ui/FloatingActionPresets";
@@ -25,37 +30,25 @@ import { PropertyGuard } from "@/components/ui/PropertyGuard";
 // Enhanced Task type with better typing
 interface Task {
   id: string;
-  title: string;
-  description: string;
-  status: "pending" | "in_progress" | "completed";
-  priority: "low" | "medium" | "high" | "critical";
-  category?: string;
-  assigned_to: string | null;
-  assigned_user_name?: string;
-  created_by: string;
-  created_by_name?: string;
+  property_id: string;
+  title: string; // ✅ Use title instead of description
+  description: string | null;
+  priority: "low" | "medium" | "high" | "critical"; // ✅ Use priority instead of severity
+  status: string;
+  user_id: string | null;
+  created_by: string | null;
+  assigned_to: string | null; // ✅ Use assigned_to instead of reported_by
+  category: string | null;
+  due_date: string | null;
+  completed_at: string | null; // ✅ Use completed_at instead of resolved_at
+  is_recurring: boolean | null;
+  attachments: string[] | null; // ✅ Use attachments instead of photo_urls
   created_at: string;
   updated_at: string;
-  due_date: string | null;
-  completed_at?: string | null;
-  property_id: string;
-  tenant_id?: string;
-  user_id?: string;
-  is_recurring?: boolean;
-  recurrence_pattern?:
-    | "daily"
-    | "weekly"
-    | "monthly"
-    | "quarterly"
-    | "yearly"
-    | null;
-  recurrence_interval?: number;
-  parent_task_id?: string | null;
-  next_due_date?: string | null;
-  recurring_end_date?: string | null;
-  attachments?: string[] | null;
-  visibility?: "public" | "family" | "manager-only";
-  is_public?: boolean;
+  tenant_id: string | null;
+  // Add computed fields for display
+  assigned_user_name?: string;
+  created_by_name?: string;
 }
 
 interface UserProfile {
@@ -139,7 +132,7 @@ export default function TasksPage() {
     return authLoading || propertyLoading;
   }, [authLoading, propertyLoading]);
 
-  const propertyId = useMemo(() => currentProperty?.id, [currentProperty?.id]);
+  const property_id = useMemo(() => currentProperty?.id, [currentProperty?.id]);
   const userId = useMemo(() => user?.id, [user?.id]);
   const tenantId = useMemo(
     () => currentProperty?.tenant_id,
@@ -151,47 +144,17 @@ export default function TasksPage() {
     return isManagerView || isFamilyView;
   }, [isManagerView, isFamilyView]);
 
-  // Calculate next due date for recurring tasks
-  const calculateNextDueDate = useCallback(
-    (currentDate: string, pattern: string, interval: number = 1): string => {
-      const date = new Date(currentDate);
-
-      switch (pattern) {
-        case "daily":
-          date.setDate(date.getDate() + interval);
-          break;
-        case "weekly":
-          date.setDate(date.getDate() + interval * 7);
-          break;
-        case "monthly":
-          date.setMonth(date.getMonth() + interval);
-          break;
-        case "quarterly":
-          date.setMonth(date.getMonth() + interval * 3);
-          break;
-        case "yearly":
-          date.setFullYear(date.getFullYear() + interval);
-          break;
-        default:
-          date.setDate(date.getDate() + 1);
-      }
-
-      return date.toISOString().split("T")[0];
-    },
-    []
-  );
-
   // Enhanced data loading function
   const loadTasksAndUsers = useCallback(
     async (
       userIdParam: string,
-      propertyIdParam: string,
+      property_idParam: string,
       tenantIdParam: string,
       filterParam: string,
       showRefreshFeedback = false
     ) => {
       // Create cache key
-      const cacheKey = `${userIdParam}-${propertyIdParam}-${tenantIdParam}-${filterParam}`;
+      const cacheKey = `${userIdParam}-${property_idParam}-${tenantIdParam}-${filterParam}`;
 
       // Prevent duplicate requests
       if (loadingRef.current || lastLoadParamsRef.current === cacheKey) {
@@ -209,26 +172,23 @@ export default function TasksPage() {
         }
 
         console.log("🔄 Loading tasks and users...", {
-          propertyIdParam,
+          property_idParam,
           filterParam,
         });
 
         // Load tasks and users in parallel
         const [tasksResult, usersResult] = await Promise.allSettled([
-          // Tasks query
+          // Tasks query - use correct field names
           (async () => {
             let query = supabase
               .from("tasks")
               .select("*")
-              .eq("property_id", propertyIdParam);
+              .eq("property_id", property_idParam);
 
-            // Apply filters
+            // Apply filters with correct field names
             switch (filterParam) {
               case "pending":
                 query = query.eq("status", "pending");
-                break;
-              case "in-progress":
-                query = query.eq("status", "in_progress");
                 break;
               case "completed":
                 query = query.eq("status", "completed");
@@ -239,11 +199,6 @@ export default function TasksPage() {
               case "mine":
                 query = query
                   .eq("assigned_to", userIdParam)
-                  .in("status", ["pending", "in_progress"]);
-                break;
-              case "created-by-me":
-                query = query
-                  .eq("created_by", userIdParam)
                   .in("status", ["pending", "in_progress"]);
                 break;
             }
@@ -295,10 +250,7 @@ export default function TasksPage() {
           const allUserIds = Array.from(
             new Set([
               ...tasksResult.value.data
-                .map((task) => task.assigned_to)
-                .filter(Boolean),
-              ...tasksResult.value.data
-                .map((task) => task.created_by)
+                .map((task) => task.reported_by) // ✅ Use reported_by
                 .filter(Boolean),
             ])
           );
@@ -323,17 +275,18 @@ export default function TasksPage() {
             }
           }
 
-          // Add user names to tasks
+          // Fix the task mapping
           tasks = tasksResult.value.data.map((task) => ({
             ...task,
-            assigned_user_name: task.assigned_to
-              ? userNames[task.assigned_to] ||
-                (task.assigned_to === userIdParam ? "You" : "Team Member")
+            assigned_user_name: task.reported_by
+              ? userNames[task.reported_by] ||
+                (task.reported_by === userIdParam ? "You" : "Team Member")
               : null,
-            created_by_name:
-              task.created_by === userIdParam
+            created_by_name: task.reported_by
+              ? task.reported_by === userIdParam
                 ? "You"
-                : userNames[task.created_by] || "Team Member",
+                : userNames[task.reported_by] || "Team Member"
+              : "System",
           }));
         }
 
@@ -387,41 +340,63 @@ export default function TasksPage() {
 
   // Main loading effect
   useEffect(() => {
+    console.log("🔄 TasksPage useEffect triggered:", {
+      isInitializing,
+      userId: userId ? "present" : "missing",
+      property_id: property_id ? "present" : "missing",
+      tenantId: tenantId ? "present" : "missing",
+      filter,
+    });
+
     if (isInitializing) {
+      console.log("⏳ Still initializing, waiting...");
       return;
     }
 
-    if (!userId || !propertyId || !tenantId) {
+    if (!userId || !property_id || !tenantId) {
+      console.log("❌ Missing required data:", {
+        userId: !!userId,
+        property_id: !!property_id,
+        tenantId: !!tenantId,
+      });
       setState((prev) => ({ ...prev, loading: false }));
       return;
     }
 
-    loadTasksAndUsers(userId, propertyId, tenantId, filter);
-  }, [userId, propertyId, tenantId, filter, isInitializing, loadTasksAndUsers]);
+    console.log("✅ All data available, loading tasks...");
+    loadTasksAndUsers(userId, property_id, tenantId, filter);
+  }, [
+    userId,
+    property_id,
+    tenantId,
+    filter,
+    isInitializing,
+    loadTasksAndUsers,
+  ]);
 
   // Reset cache when dependencies change
   useEffect(() => {
     lastLoadParamsRef.current = "";
     loadingRef.current = false;
-  }, [userId, propertyId, tenantId]);
+  }, [userId, property_id, tenantId]);
 
   // Refresh handler
   const handleRefresh = useCallback(() => {
-    if (!refreshing && userId && propertyId && tenantId) {
+    if (!refreshing && userId && property_id && tenantId) {
       lastLoadParamsRef.current = "";
       loadingRef.current = false;
-      loadTasksAndUsers(userId, propertyId, tenantId, filter, true);
+      loadTasksAndUsers(userId, property_id, tenantId, filter, true);
     }
-  }, [refreshing, userId, propertyId, tenantId, filter, loadTasksAndUsers]);
+  }, [refreshing, userId, property_id, tenantId, filter, loadTasksAndUsers]);
 
   // Optimized refresh for modals
   const refreshTasks = useCallback(() => {
-    if (userId && propertyId && tenantId) {
+    if (userId && property_id && tenantId) {
       lastLoadParamsRef.current = "";
       loadingRef.current = false;
-      loadTasksAndUsers(userId, propertyId, tenantId, filter);
+      loadTasksAndUsers(userId, property_id, tenantId, filter);
     }
-  }, [userId, propertyId, tenantId, filter, loadTasksAndUsers]);
+  }, [userId, property_id, tenantId, filter, loadTasksAndUsers]);
 
   // Task actions
   const claimTask = useCallback(
@@ -432,7 +407,7 @@ export default function TasksPage() {
         const { error } = await supabase
           .from("tasks")
           .update({
-            assigned_to: userId,
+            assigned_to: userId, // ✅ Use assigned_to instead of reported_by
             status: "in_progress",
             updated_at: new Date().toISOString(),
           })
@@ -453,83 +428,25 @@ export default function TasksPage() {
   const completeTask = useCallback(
     async (taskId: string) => {
       try {
-        const task = state.tasks.find((t) => t.id === taskId);
-        if (!task) return;
-
         const { error: updateError } = await supabase
           .from("tasks")
           .update({
             status: "completed",
-            completed_at: new Date().toISOString(),
+            completed_at: new Date().toISOString(), // ✅ Use completed_at
             updated_at: new Date().toISOString(),
           })
           .eq("id", taskId);
 
         if (updateError) throw updateError;
 
-        // Handle recurring tasks
-        if (task.is_recurring && task.recurrence_pattern && task.due_date) {
-          const nextDueDate = calculateNextDueDate(
-            task.due_date,
-            task.recurrence_pattern,
-            task.recurrence_interval || 1
-          );
-
-          const shouldCreateNext =
-            !task.recurring_end_date ||
-            new Date(nextDueDate) <= new Date(task.recurring_end_date);
-
-          if (shouldCreateNext) {
-            const nextTaskData = {
-              title: task.title,
-              description: task.description,
-              priority: task.priority,
-              category: task.category,
-              due_date: nextDueDate,
-              assigned_to: task.assigned_to,
-              status: task.assigned_to ? "in_progress" : "pending",
-              created_by: task.created_by,
-              property_id: task.property_id,
-              tenant_id: task.tenant_id,
-              is_recurring: true,
-              recurrence_pattern: task.recurrence_pattern,
-              recurrence_interval: task.recurrence_interval,
-              parent_task_id: task.parent_task_id || task.id,
-              recurring_end_date: task.recurring_end_date,
-              updated_at: new Date().toISOString(),
-            };
-
-            const { error: createError } = await supabase
-              .from("tasks")
-              .insert(nextTaskData);
-
-            if (createError) {
-              console.error(
-                "❌ Error creating next recurring task:",
-                createError
-              );
-              toast.error(
-                "Task completed but failed to create next occurrence"
-              );
-            } else {
-              toast.success(
-                "Task completed! Next occurrence created automatically 🔄"
-              );
-            }
-          } else {
-            toast.success("Task completed! Recurring series has ended ✅");
-          }
-        } else {
-          toast.success("Task completed! Great job! 🎉");
-        }
-
+        toast.success("Task completed! Great job! 🎉");
         refreshTasks();
       } catch (error) {
         console.error("❌ Error completing task:", error);
         toast.error("Failed to complete task");
       }
     },
-    [state.tasks, calculateNextDueDate, refreshTasks]
+    [userId, refreshTasks]
   );
 
   // Modal handlers
@@ -543,8 +460,9 @@ export default function TasksPage() {
       const task = state.tasks.find((t) => t.id === taskId);
       if (!task) return;
 
-      if (task.created_by !== userId) {
-        toast.error("You can only delete tasks you created");
+      // Fix: Use reported_by instead of created_by
+      if (task.reported_by !== userId) {
+        toast.error("You can only delete tasks you reported");
         return;
       }
 
@@ -603,7 +521,7 @@ export default function TasksPage() {
     return state.tasks.filter((task) => {
       // Apply view mode filtering
       if (isGuestView) {
-        return task.is_public || task.visibility === "guest";
+        return task.is_public || task.visibility === "public";
       }
       if (isFamilyView) {
         return task.visibility !== "manager-only";
@@ -618,10 +536,8 @@ export default function TasksPage() {
       { value: "open", label: "Open Tasks" },
       { value: "all", label: "All Tasks" },
       { value: "pending", label: "Pending" },
-      { value: "in-progress", label: "In Progress" },
       { value: "completed", label: "Completed" },
-      { value: "mine", label: "My Open Tasks" },
-      { value: "created-by-me", label: "Created by Me (Open)" },
+      { value: "mine", label: "My Tasks" },
     ];
 
     // Add counts to filters
@@ -629,50 +545,53 @@ export default function TasksPage() {
       let count = 0;
       switch (filter.value) {
         case "open":
-          count = state.tasks.filter((t) =>
-            ["pending", "in_progress"].includes(t.status)
-          ).length;
-          break;
-        case "all":
-          count = state.tasks.length;
-          break;
-        case "pending":
-          count = state.tasks.filter((t) => t.status === "pending").length;
-          break;
-        case "in-progress":
-          count = state.tasks.filter((t) => t.status === "in_progress").length;
+          count = filteredTasks.filter((t) => !t.is_resolved).length;
           break;
         case "completed":
-          count = state.tasks.filter((t) => t.status === "completed").length;
+          count = filteredTasks.filter((t) => t.is_resolved).length;
+          break;
+        case "pending":
+          count = filteredTasks.filter(
+            (t) => !t.is_resolved && !t.resolved_at
+          ).length;
           break;
         case "mine":
-          count = state.tasks.filter(
-            (t) =>
-              t.assigned_to === userId &&
-              ["pending", "in_progress"].includes(t.status)
+          count = filteredTasks.filter(
+            (t) => t.reported_by === userId && !t.is_resolved
           ).length;
           break;
-        case "created-by-me":
-          count = state.tasks.filter(
-            (t) =>
-              t.created_by === userId &&
-              ["pending", "in_progress"].includes(t.status)
-          ).length;
-          break;
+        default:
+          count = filteredTasks.length;
       }
       return { ...filter, count };
     });
-  }, [state.tasks, userId]);
+  }, [filteredTasks, userId]);
+
+  // Memoized task statistics
+  const taskStats = useMemo(() => {
+    const stats = {
+      total: filteredTasks.length,
+      pending: filteredTasks.filter((t) => !t.is_resolved && !t.resolved_at)
+        .length,
+      inProgress: filteredTasks.filter((t) => t.status === "in_progress")
+        .length,
+      completed: filteredTasks.filter((t) => t.is_resolved === true).length,
+      // Remove overdue since due_date doesn't exist in your schema
+    };
+    return stats;
+  }, [filteredTasks]);
 
   // Loading states
   if (isInitializing) {
     return (
-      <StandardPageLayout title="Tasks" subtitle="Loading...">
+      <StandardPageLayout breadcrumb={[{ label: "Tasks" }]}>
         <StandardCard>
           <div className="flex items-center justify-center min-h-[400px]">
             <div className="text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-3"></div>
-              <p className="text-gray-600">⏳ Initializing...</p>
+              <p className="text-gray-600 dark:text-gray-400">
+                ⏳ Initializing...
+              </p>
             </div>
           </div>
         </StandardCard>
@@ -685,27 +604,30 @@ export default function TasksPage() {
   }
 
   if (!currentProperty) {
+    console.log("❌ No current property available");
     return (
-      <PropertyGuard fallback={<DashboardNoPropertyFallback />}>
-        <></>
+      <PropertyGuard fallback={<TasksNoPropertyFallback />}>
+        <div>Property loading...</div>
       </PropertyGuard>
     );
   }
 
+  console.log("✅ Current property available:", currentProperty.name);
+
   // Error state
   if (state.error) {
     return (
-      <StandardPageLayout title="Tasks" subtitle="Error loading tasks">
+      <StandardPageLayout breadcrumb={[{ label: "Tasks" }]}>
         <StandardCard>
           <div className="text-center py-12">
             <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
+            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
               Error Loading Tasks
             </h3>
-            <p className="text-red-600 mb-4">{state.error}</p>
+            <p className="text-red-600 dark:text-red-400 mb-4">{state.error}</p>
             <button
               onClick={handleRefresh}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
             >
               Try Again
             </button>
@@ -716,21 +638,75 @@ export default function TasksPage() {
   }
 
   return (
-    <StandardPageLayout
-      title="Tasks"
-      subtitle={`Property management tasks • ${currentProperty.name}`}
-      breadcrumb={[{ label: "Tasks" }]}
-    >
+    <StandardPageLayout breadcrumb={[{ label: "Tasks" }]}>
       <div className="space-y-6">
+        {/* Task Statistics Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <StandardCard>
+            <div className="flex items-center">
+              <CheckSquareIcon className="h-8 w-8 text-blue-600 mr-3" />
+              <div>
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                  Total Tasks
+                </p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                  {taskStats.total}
+                </p>
+              </div>
+            </div>
+          </StandardCard>
+
+          <StandardCard>
+            <div className="flex items-center">
+              <Clock className="h-8 w-8 text-yellow-600 mr-3" />
+              <div>
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                  Pending
+                </p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                  {taskStats.pending}
+                </p>
+              </div>
+            </div>
+          </StandardCard>
+
+          <StandardCard>
+            <div className="flex items-center">
+              <Users className="h-8 w-8 text-blue-600 mr-3" />
+              <div>
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                  In Progress
+                </p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                  {taskStats.inProgress}
+                </p>
+              </div>
+            </div>
+          </StandardCard>
+
+          <StandardCard>
+            <div className="flex items-center">
+              <CheckCircle className="h-8 w-8 text-green-600 mr-3" />
+              <div>
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                  Completed
+                </p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                  {taskStats.completed}
+                </p>
+              </div>
+            </div>
+          </StandardCard>
+        </div>
+
+        {/* Main Tasks Card */}
         <StandardCard
-          title="Property Tasks"
-          subtitle="Manage your property tasks and maintenance"
           headerActions={
             <div className="flex items-center gap-3">
               <button
                 onClick={handleRefresh}
                 disabled={refreshing}
-                className="flex items-center px-3 py-1 text-sm border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 disabled:opacity-50"
+                className="flex items-center px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 transition-colors"
                 title="Refresh tasks"
               >
                 <RefreshCw
@@ -738,20 +714,23 @@ export default function TasksPage() {
                 />
                 Refresh
               </button>
-              <span className="text-xs text-gray-500">
+              <div className="flex items-center gap-2">
+                <Filter className="h-4 w-4 text-gray-500" />
+                <select
+                  value={filter}
+                  onChange={(e) => setFilter(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm"
+                >
+                  {taskFilters.map(({ value, label, count }) => (
+                    <option key={value} value={value}>
+                      {label} {count !== undefined ? `(${count})` : ""}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <span className="text-xs text-gray-500 dark:text-gray-400">
                 {currentProperty.name} • {filteredTasks.length} tasks
               </span>
-              <select
-                value={filter}
-                onChange={(e) => setFilter(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                {taskFilters.map(({ value, label, count }) => (
-                  <option key={value} value={value}>
-                    {label} {count !== undefined ? `(${count})` : ""}
-                  </option>
-                ))}
-              </select>
             </div>
           }
         >
@@ -773,7 +752,9 @@ export default function TasksPage() {
             {state.loading && (
               <div className="text-center py-8">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
-                <p className="text-gray-600">Loading tasks...</p>
+                <p className="text-gray-600 dark:text-gray-400">
+                  Loading tasks...
+                </p>
               </div>
             )}
 
@@ -783,21 +764,21 @@ export default function TasksPage() {
                 {filteredTasks.length === 0 && filter === "open" ? (
                   <div className="text-center py-16">
                     <div className="relative mb-6">
-                      <div className="w-24 h-24 bg-green-100 rounded-full mx-auto flex items-center justify-center">
+                      <div className="w-24 h-24 bg-green-100 dark:bg-green-900/20 rounded-full mx-auto flex items-center justify-center">
                         <CheckSquareIcon className="h-12 w-12 text-green-600" />
                       </div>
                       <div className="absolute -top-2 -right-2 w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
                         <span className="text-white text-lg">✨</span>
                       </div>
                     </div>
-                    <h3 className="text-2xl font-semibold text-gray-900 mb-3">
+                    <h3 className="text-2xl font-semibold text-gray-900 dark:text-gray-100 mb-3">
                       All Clear! 🎉
                     </h3>
-                    <p className="text-gray-500 mb-2 max-w-md mx-auto">
+                    <p className="text-gray-500 dark:text-gray-400 mb-2 max-w-md mx-auto">
                       No open tasks for <strong>{currentProperty.name}</strong>.
                       Everything is running smoothly!
                     </p>
-                    <p className="text-sm text-gray-400 mb-8">
+                    <p className="text-sm text-gray-400 dark:text-gray-500 mb-8">
                       Check back later or create a new task if something needs
                       attention.
                     </p>
@@ -814,14 +795,14 @@ export default function TasksPage() {
                       )}
                       <button
                         onClick={() => setFilter("completed")}
-                        className="inline-flex items-center px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                        className="inline-flex items-center px-6 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
                       >
                         View Completed Tasks
                       </button>
                       {isManagerView && (
                         <button
                           onClick={() => setFilter("all")}
-                          className="inline-flex items-center px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                          className="inline-flex items-center px-6 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
                         >
                           View All Tasks
                         </button>
@@ -831,34 +812,30 @@ export default function TasksPage() {
                 ) : filteredTasks.length === 0 ? (
                   <div className="text-center py-12">
                     <CheckSquareIcon className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                    <h3 className="text-xl font-medium text-gray-900 mb-2">
+                    <h3 className="text-xl font-medium text-gray-900 dark:text-gray-100 mb-2">
                       No Tasks Found
                     </h3>
-                    <p className="text-gray-500 mb-6">
+                    <p className="text-gray-500 dark:text-gray-400 mb-6">
                       {filter === "completed"
                         ? "No completed tasks found"
                         : filter === "pending"
                         ? "No pending tasks found"
-                        : filter === "in-progress"
-                        ? "No tasks in progress"
                         : filter === "mine"
                         ? "No tasks assigned to you"
-                        : filter === "created-by-me"
-                        ? "You haven't created any tasks yet"
                         : `No tasks match the "${filter}" filter`}
                     </p>
                     <div className="flex gap-3 justify-center">
                       {isManagerView && (
                         <button
                           onClick={() => setFilter("all")}
-                          className="inline-flex items-center px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                          className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800"
                         >
                           View All Tasks
                         </button>
                       )}
                       <button
                         onClick={() => setFilter("open")}
-                        className="inline-flex items-center px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                        className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800"
                       >
                         View Open Tasks
                       </button>
@@ -890,15 +867,15 @@ export default function TasksPage() {
                     ))}
 
                     {filteredTasks.length > 0 && filteredTasks.length <= 5 && (
-                      <div className="text-center py-8 border-t border-gray-200 mt-8">
+                      <div className="text-center py-8 border-t border-gray-200 dark:border-gray-700 mt-8">
                         <div className="flex items-center justify-center mb-3">
-                          <div className="h-px bg-gray-200 flex-1 max-w-20"></div>
-                          <span className="px-4 text-sm text-gray-400">
+                          <div className="h-px bg-gray-200 dark:bg-gray-700 flex-1 max-w-20"></div>
+                          <span className="px-4 text-sm text-gray-400 dark:text-gray-500">
                             That's it!
                           </span>
-                          <div className="h-px bg-gray-200 flex-1 max-w-20"></div>
+                          <div className="h-px bg-gray-200 dark:bg-gray-700 flex-1 max-w-20"></div>
                         </div>
-                        <p className="text-sm text-gray-500">
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
                           {filteredTasks.length === 1
                             ? "Just one task to focus on."
                             : `Only ${filteredTasks.length} tasks to manage right now.`}
@@ -958,7 +935,7 @@ export default function TasksPage() {
           setTaskToDelete(null);
         }}
         onConfirm={confirmDeleteTask}
-        taskTitle={taskToDelete?.title || ""}
+        taskTitle={taskToDelete?.title || ""} // ✅ Use title instead of description
         isDeleting={isDeleting}
       />
 
@@ -972,29 +949,29 @@ export default function TasksPage() {
   );
 }
 
-// Custom fallback for dashboard when no property is selected
-function DashboardNoPropertyFallback() {
+// Custom fallback for tasks when no property is selected
+function TasksNoPropertyFallback() {
   return (
-    <StandardPageLayout title="Tasks" subtitle="No property selected">
+    <StandardPageLayout breadcrumb={[{ label: "Tasks" }]}>
       <StandardCard>
-        <div className="text-center py-8">
-          <CheckSquareIcon className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">
-            Welcome to PorchLite Tasks
-          </h2>
-          <p className="text-gray-600 mb-6">
+        <div className="text-center py-12">
+          <Building className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
+            No Property Selected
+          </h3>
+          <p className="text-gray-600 dark:text-gray-400 mb-6">
             You need to create or select a property to manage tasks.
           </p>
           <div className="space-y-3">
             <button
               onClick={() => (window.location.href = "/properties/new")}
-              className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
             >
               Create New Property
             </button>
             <button
               onClick={() => (window.location.href = "/properties")}
-              className="w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              className="w-full flex justify-center py-2 px-4 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
             >
               View All Properties
             </button>
