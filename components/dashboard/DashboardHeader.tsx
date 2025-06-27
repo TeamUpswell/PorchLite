@@ -92,6 +92,19 @@ export default function DashboardHeader({
     window.location.reload();
   };
 
+  // Safely destructure weather with defaults
+  const {
+    current: {
+      temp = 0,
+      condition = "N/A",
+      humidity = 0,
+      wind_speed = 0,
+      icon = "",
+    } = {},
+    forecast = [],
+    location = "Unknown Location",
+  } = weather || {};
+
   return (
     <>
       <div className="relative h-64 rounded-lg overflow-hidden group mb-6">
@@ -132,30 +145,28 @@ export default function DashboardHeader({
             <div className="flex items-center space-x-4 mb-3">
               <div className="text-center">
                 <div className="flex items-center justify-center mb-2">
-                  {weather.current.condition.includes("Sunny") ? (
+                  {condition.includes("Sunny") ? (
                     <Sun className="h-7 w-7 text-yellow-300" />
-                  ) : weather.current.condition.includes("Rain") ? (
+                  ) : condition.includes("Rain") ? (
                     <CloudRain className="h-7 w-7 text-blue-300" />
                   ) : (
                     <Cloud className="h-7 w-7 text-gray-300" />
                   )}
                 </div>
-                <div className="text-2xl font-bold">
-                  {weather.current.temp}°
-                </div>
+                <div className="text-2xl font-bold">{temp}°</div>
                 <div className="text-xs opacity-80 leading-tight">
-                  {weather.current.condition}
+                  {condition}
                 </div>
               </div>
 
               <div className="border-l border-white/30 pl-3 space-y-1">
                 <div className="flex items-center space-x-2 text-sm">
                   <Wind className="h-3 w-3 flex-shrink-0" />
-                  <span>{weather.current.wind_speed} mph</span>
+                  <span>{wind_speed} mph</span>
                 </div>
                 <div className="flex items-center space-x-2 text-sm">
                   <Thermometer className="h-3 w-3 flex-shrink-0" />
-                  <span>{weather.current.humidity}%</span>
+                  <span>{humidity}%</span>
                 </div>
               </div>
             </div>
@@ -163,7 +174,7 @@ export default function DashboardHeader({
             {/* 3-Day Forecast */}
             <div className="border-t border-white/20 pt-3">
               <div className="grid grid-cols-3 gap-2 text-xs">
-                {weather.forecast.slice(0, 3).map((day, index) => (
+                {forecast.slice(0, 3).map((day, index) => (
                   <div key={index} className="text-center">
                     <div className="font-medium opacity-80 mb-1 truncate">
                       {day.date}
@@ -185,9 +196,9 @@ export default function DashboardHeader({
             </div>
 
             {/* Location Info - Added below weather */}
-            {weather.location && (
+            {location && (
               <p className="text-white/70 text-xs font-medium tracking-wide">
-                {weather.location}
+                {location}
               </p>
             )}
           </div>
@@ -201,30 +212,25 @@ export default function DashboardHeader({
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
                   <div className="text-center">
-                    {weather.current.condition.includes("Sunny") ? (
+                    {condition.includes("Sunny") ? (
                       <Sun className="h-5 w-5 text-yellow-300 mx-auto mb-1" />
-                    ) : weather.current.condition.includes("Rain") ? (
+                    ) : condition.includes("Rain") ? (
                       <CloudRain className="h-5 w-5 text-blue-300 mx-auto mb-1" />
                     ) : (
                       <Cloud className="h-5 w-5 text-gray-300 mx-auto mb-1" />
                     )}
-                    <div className="text-lg font-bold">
-                      {weather.current.temp}°
-                    </div>
+                    <div className="text-lg font-bold">{temp}°</div>
                   </div>
                   <div className="text-xs">
-                    <div className="font-medium">
-                      {weather.current.condition}
-                    </div>
+                    <div className="font-medium">{condition}</div>
                     <div className="opacity-80">
-                      {weather.current.wind_speed} mph •{" "}
-                      {weather.current.humidity}%
+                      {wind_speed} mph • {humidity}%
                     </div>
                   </div>
                 </div>
 
                 <div className="flex space-x-2">
-                  {weather.forecast.slice(0, 3).map((day, index) => (
+                  {forecast.slice(0, 3).map((day, index) => (
                     <div key={index} className="text-center text-xs">
                       <div className="opacity-80 mb-1">
                         {day.date.slice(0, 3)}

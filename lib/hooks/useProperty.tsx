@@ -84,22 +84,102 @@ export function PropertyProvider({ children }: { children: React.ReactNode }) {
     setError(null);
 
     try {
+      // TEST: Can we query the properties table at all?
+      console.log("🧪 Testing basic properties table access...");
+      
+      // Test 1: Simple count query
+      const { count, error: countError } = await supabase
+        .from("properties")
+        .select("*", { count: 'exact', head: true });
+
+      console.log("🧪 Properties count test:", { count, error: countError });
+
+      // Test 2: Basic select
+      const { data: testData, error: testError } = await supabase
+        .from("properties")
+        .select("id, name")
+        .limit(3);
+
+      console.log("🧪 Basic properties test:", {
+        data: testData,
+        error: testError,
+        count: testData?.length,
+      });
+
       // Method 1: Direct properties query using created_by
+      console.log("🔍 useProperty: About to query properties with userId:", userId);
+
       const { data: properties, error: directError } = await supabase
         .from("properties")
         .select("*")
-        .eq("created_by", userId) // ✅ This field exists in properties table
+        .or(`created_by.eq.${userId},owner_id.eq.${userId}`) // Try both fields
         .eq("is_active", true);
 
       console.log("🏠 useProperty: Direct properties query result:", {
         data: properties,
         error: directError,
+        dataLength: properties?.length,
+        userId: userId,
       });
 
+      // Add detailed error logging
+      if (directError) {
+        console.error("🚨 useProperty: Direct query error:", directError);
+      }
+
       if (properties?.length) {
-        console.log("🏠 useProperty: Found properties via direct query:", properties.length);
+        console.log(
+          "🏠 useProperty: Found properties via direct query:",
+          properties.length,
+          "Properties:",
+          properties
+        );
         setUserProperties(properties);
         setCurrentProperty(properties[0]);
+        setLoading(false);
+        setHasInitialized(true);
+        return;
+      }
+
+      console.log(
+        "🏠 Direct query returned no results, trying alternative queries..."
+      );
+
+      // Try different query approaches
+      console.log("🔍 Trying query with just created_by...");
+      const { data: createdByProps, error: createdByError } = await supabase
+        .from("properties")
+        .select("*")
+        .eq("created_by", userId);
+
+      console.log("🔍 created_by query result:", {
+        data: createdByProps,
+        error: createdByError,
+      });
+
+      console.log("🔍 Trying query with just owner_id...");
+      const { data: ownerProps, error: ownerError } = await supabase
+        .from("properties")
+        .select("*")
+        .eq("owner_id", userId);
+
+      console.log("🔍 owner_id query result:", {
+        data: ownerProps,
+        error: ownerError,
+      });
+
+      // Use whichever query worked
+      const foundProperties =
+        createdByProps?.length > 0
+          ? createdByProps
+          : ownerProps?.length > 0
+          ? ownerProps
+          : null;
+
+      if (foundProperties?.length) {
+        console.log("✅ Found properties via alternative query:", foundProperties.length);
+        setUserProperties(foundProperties);
+        setCurrentProperty(foundProperties[0]);
         setLoading(false);
         setHasInitialized(true);
         return;
@@ -110,7 +190,8 @@ export function PropertyProvider({ children }: { children: React.ReactNode }) {
       // Method 2: Through tenant_users relationship
       const { data: tenantUsers, error: tenantError } = await supabase
         .from("tenant_users")
-        .select(`
+        .select(
+          `
           user_id,
           role,
           status,
@@ -120,7 +201,8 @@ export function PropertyProvider({ children }: { children: React.ReactNode }) {
             name,
             owner_user_id
           )
-        `)
+        `
+        )
         .eq("user_id", userId)
         .eq("status", "active");
 
@@ -143,7 +225,7 @@ export function PropertyProvider({ children }: { children: React.ReactNode }) {
       }
 
       // Get properties for the user's tenants
-      const tenantIds = tenantUsers.map(tu => tu.tenant_id);
+      const tenantIds = tenantUsers.map((tu) => tu.tenant_id);
       console.log("🏠 useProperty: Found tenant IDs:", tenantIds);
 
       const { data: tenantProperties, error: propertiesError } = await supabase
@@ -163,7 +245,6 @@ export function PropertyProvider({ children }: { children: React.ReactNode }) {
       setCurrentProperty(finalProperties[0] || null);
       setLoading(false);
       setHasInitialized(true);
-
     } catch (error) {
       console.error("🏠 useProperty: Property loading error:", error);
       setError(
@@ -185,20 +266,33 @@ export function PropertyProvider({ children }: { children: React.ReactNode }) {
     let mounted = true;
 
     const handleUserChange = async () => {
-      if (authLoading || !user?.id) {
-        if (!authLoading && mounted) {
-          setLoading(false);
+      // ✅ FIXED: Don't wait for authLoading, just check if we have a user
+      if (!user?.id) {
+        console.log("🏠 useProperty: No user yet, waiting...");
+        if (mounted) {
+          setLoading(true); // Keep loading until we get user
         }
         return;
       }
 
+      // ✅ FIXED: We have a user, proceed with loading properties
       const newUserId = user.id;
 
       if (newUserId !== lastUserIdRef.current) {
+        console.log("🏠 useProperty: New user detected, loading properties...");
         lastUserIdRef.current = newUserId;
 
         if (mounted) {
           await loadUserProperties();
+        }
+      } else {
+        // Same user, but make sure we're not stuck in loading
+        if (mounted && loading && !loadingRef.current) {
+          console.log(
+            "🏠 useProperty: Same user, but stuck loading. Finishing..."
+          );
+          setLoading(false);
+          setHasInitialized(true);
         }
       }
     };
@@ -208,7 +302,7 @@ export function PropertyProvider({ children }: { children: React.ReactNode }) {
     return () => {
       mounted = false;
     };
-  }, [user?.id, authLoading, loadUserProperties]);
+  }, [user?.id, loadUserProperties]); // ✅ REMOVED authLoading from dependencies
 
   const createProperty = useCallback(
     async (

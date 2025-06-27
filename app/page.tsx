@@ -11,6 +11,7 @@ import StandardCard from "@/components/ui/StandardCard";
 import { Home as HomeIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import GoogleMapComponent from "@/components/GoogleMapComponent";
+import { usePropertyWeather } from "@/components/dashboard/WeatherWidget";
 
 interface UpcomingVisit {
   id: string;
@@ -35,17 +36,12 @@ export default function HomePage() {
   const fetchingRef = useRef(false);
   const hasFetchedRef = useRef<string | null>(null);
 
-  // ✅ REPLACE weather hook with mock data
-  // const {
-  //   weather: weatherData,
-  //   loading: weatherLoading,
-  //   error: weatherError,
-  // } = usePropertyWeather();
-
-  // ✅ USE mock weather data instead
-  const weatherData = null;
-  const weatherLoading = false;
-  const weatherError = null;
+  // ✅ RESTORED weather hook
+  const {
+    weather: weatherData,
+    loading: weatherLoading,
+    error: weatherError,
+  } = usePropertyWeather();
 
   const [upcomingVisits, setUpcomingVisits] = useState<UpcomingVisit[]>([]);
   const [inventoryAlerts, setInventoryAlerts] = useState<InventoryItem[]>([]);
@@ -148,7 +144,7 @@ export default function HomePage() {
     [currentProperty?.name]
   ); // Minimal dependencies
 
-  // FIXED: Removed fetchDashboardData from dependency array
+  // Initial loading effect
   useEffect(() => {
     console.log("🏠 HomePage useEffect:", {
       authLoading,
@@ -158,18 +154,48 @@ export default function HomePage() {
       propertyName: currentProperty?.name,
     });
 
-    if (authLoading || propertyLoading || !user?.id || !currentProperty?.id) {
-      if (!authLoading && !propertyLoading) {
-        console.log("⚠️ HomePage: Missing data, stopping loading");
-        setLoading(false);
-      }
-      return;
+    // ✅ SHORTER TIMEOUT - 5 seconds instead of 10
+    const loadingTimeout = setTimeout(() => {
+      console.log("⏰ HomePage: Loading timeout reached, forcing completion");
+      setLoading(false);
+    }, 5000); // 5 second timeout
+
+    // ✅ FIXED: Only wait if we don't have a user yet, OR if we have a user but no property loaded
+    if (!user?.id) {
+      console.log("🔄 HomePage: No user yet, waiting for auth...");
+      return () => clearTimeout(loadingTimeout);
     }
 
-    console.log("✅ HomePage: All data available, fetching dashboard");
-    // Call with specific IDs instead of using callback in deps
-    fetchDashboardData(currentProperty.id, user.id);
-  }, [user?.id, currentProperty?.id, authLoading, propertyLoading]); // REMOVED fetchDashboardData
+    // ✅ FIXED: If we have user but property is still loading, wait a bit more
+    if (user?.id && propertyLoading) {
+      console.log("🔄 HomePage: User loaded, waiting for property...");
+      return () => clearTimeout(loadingTimeout);
+    }
+
+    console.log("✅ HomePage: User and property ready, fetching dashboard");
+    clearTimeout(loadingTimeout);
+
+    // Only fetch dashboard data if we have a property
+    if (currentProperty?.id) {
+      fetchDashboardData(currentProperty.id, user.id);
+    } else {
+      // Show dashboard even without property
+      setLoading(false);
+    }
+
+    return () => clearTimeout(loadingTimeout);
+  }, [user?.id, currentProperty?.id, propertyLoading, fetchDashboardData]);
+
+  // Debugging effect for auth state
+  useEffect(() => {
+    console.log("🔍 Debug - Auth state:", {
+      user: user?.id,
+      authLoading,
+      propertyLoading,
+      currentProperty: currentProperty?.id,
+      propertyName: currentProperty?.name
+    });
+  }, [user, authLoading, propertyLoading, currentProperty]);
 
   // Reset fetch tracking when property changes
   useEffect(() => {
@@ -206,8 +232,8 @@ export default function HomePage() {
   const isAuthLoading = authLoading;
   const isPropertyLoading = propertyLoading;
 
-  // Loading states
-  if (isAuthLoading) {
+  // Loading states - SIMPLIFIED
+  if (!user?.id) {
     return (
       <StandardPageLayout theme="dark" showHeader={false}>
         <StandardCard>
@@ -219,14 +245,14 @@ export default function HomePage() {
     );
   }
 
-  if (user && isPropertyLoading) {
+  if (user?.id && propertyLoading) {
     return (
       <StandardPageLayout theme="dark" showHeader={false}>
         <StandardCard>
           <div className="flex items-center justify-center py-12">
             <div className="text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-              <p>⏳ Waiting for user and property to load...</p>
+              <p>Loading your properties...</p>
             </div>
           </div>
         </StandardCard>

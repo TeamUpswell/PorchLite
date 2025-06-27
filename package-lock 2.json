@@ -1643,12 +1643,12 @@
       "license": "MIT"
     },
     "node_modules/@tanstack/react-virtual": {
-      "version": "3.13.12",
-      "resolved": "https://registry.npmjs.org/@tanstack/react-virtual/-/react-virtual-3.13.12.tgz",
-      "integrity": "sha512-Gd13QdxPSukP8ZrkbgS2RwoZseTTbQPLnQEn7HY/rqtM+8Zt95f7xKC7N0EsKs7aoz0WzZ+fditZux+F8EzYxA==",
+      "version": "3.13.11",
+      "resolved": "https://registry.npmjs.org/@tanstack/react-virtual/-/react-virtual-3.13.11.tgz",
+      "integrity": "sha512-u5EaOSJOq08T9NXFuDopMdxZBNDFuEMohIFFU45fBYDXXh9SjYdbpNq1OLFSOpQnDRPjqgmY96ipZTkzom9t9Q==",
       "license": "MIT",
       "dependencies": {
-        "@tanstack/virtual-core": "3.13.12"
+        "@tanstack/virtual-core": "3.13.11"
       },
       "funding": {
         "type": "github",
@@ -1660,9 +1660,9 @@
       }
     },
     "node_modules/@tanstack/virtual-core": {
-      "version": "3.13.12",
-      "resolved": "https://registry.npmjs.org/@tanstack/virtual-core/-/virtual-core-3.13.12.tgz",
-      "integrity": "sha512-1YBOJfRHV4sXUmWsFSf5rQor4Ss82G8dQWLRbnk3GA4jeP8hQt1hxXh0tmflpC0dz3VgEv/1+qwPyLeWkQuPFA==",
+      "version": "3.13.11",
+      "resolved": "https://registry.npmjs.org/@tanstack/virtual-core/-/virtual-core-3.13.11.tgz",
+      "integrity": "sha512-ORL6UyuZJ0D9X33LDR4TcgcM+K2YiS2j4xbvH1vnhhObwR1Z4dKwPTL/c0kj2Yeb4Yp2lBv1wpyVaqlohk8zpg==",
       "license": "MIT",
       "funding": {
         "type": "github",
@@ -3168,9 +3168,9 @@
       "license": "MIT"
     },
     "node_modules/electron-to-chromium": {
-      "version": "1.5.177",
-      "resolved": "https://registry.npmjs.org/electron-to-chromium/-/electron-to-chromium-1.5.177.tgz",
-      "integrity": "sha512-7EH2G59nLsEMj97fpDuvVcYi6lwTcM1xuWw3PssD8xzboAW7zj7iB3COEEEATUfjLHrs5uKBLQT03V/8URx06g==",
+      "version": "1.5.176",
+      "resolved": "https://registry.npmjs.org/electron-to-chromium/-/electron-to-chromium-1.5.176.tgz",
+      "integrity": "sha512-2nDK9orkm7M9ZZkjO3PjbEd3VUulQLyg5T9O3enJdFvUg46Hzd4DUvTvAuEgbdHYXyFsiG4A5sO9IzToMH1cDg==",
       "dev": true,
       "license": "ISC"
     },
