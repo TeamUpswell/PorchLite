@@ -138,9 +138,10 @@ function CalendarPageContent() {
       ) : (
         <div className="space-y-6">
           <Calendar
-            refreshTrigger={refreshKey}
+            newReservationTrigger={refreshKey} // ✅ Fix prop name
             isManager={true}
-            onRefreshNeeded={refreshCalendar}
+            // ✅ Remove invalid prop
+            // onRefreshNeeded={refreshCalendar}
           />
         </div>
       )}

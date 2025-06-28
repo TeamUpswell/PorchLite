@@ -1,5 +1,5 @@
 import { Trash2, Save, X } from "lucide-react";
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import { toast } from "react-hot-toast";
 import { supabase } from "../../../lib/supabase";
 import { useAuth } from "../../../lib/hooks/useAuth";
@@ -55,6 +55,16 @@ export default function ReservationModal({
   onDelete,
   isManager,
 }: ReservationModalProps) {
+  // ✅ Add debug log at the very top
+  console.log("🏠 ReservationModal received props:", {
+    isOpen,
+    hasReservation: !!reservation,
+    reservationId: reservation?.id,
+    reservationTitle: reservation?.title,
+    selectedSlot,
+    isEditing: !!reservation?.id,
+  });
+
   // ✅ ALL HOOKS MUST BE AT THE TOP - BEFORE ANY EARLY RETURNS
   const { user } = useAuth();
   const { currentProperty, currentTenant } = useProperty();
@@ -104,8 +114,8 @@ export default function ReservationModal({
           ? {
               id: reservation.id,
               title: reservation.title,
-              start: reservation.start_date,
-              end: reservation.end_date,
+              start: reservation.start,
+              end: reservation.end,
             }
           : null,
         selectedSlot,
@@ -116,25 +126,28 @@ export default function ReservationModal({
 
   // Log props changes
   useEffect(() => {
-    console.log('[DEBUG] 🎭 ReservationModal props changed:', {
+    console.log("[DEBUG] 🎭 ReservationModal props changed:", {
       isOpen,
       hasReservation: !!reservation,
       reservationId: reservation?.id,
       hasSelectedSlot: !!selectedSlot,
-      isEditing: Boolean(reservation?.id)
+      isEditing: Boolean(reservation?.id),
     });
-    
+
     if (isOpen && reservation) {
-      console.log('[DEBUG] 🎭 Modal opening for editing reservation:', {
+      console.log("[DEBUG] 🎭 Modal opening for editing reservation:", {
         id: reservation.id,
         title: reservation.title,
-        start_date: reservation.start_date,
-        end_date: reservation.end_date
+        start_date: reservation.start,
+        end_date: reservation.end,
       });
     }
-    
+
     if (isOpen && selectedSlot) {
-      console.log('[DEBUG] 🎭 Modal opening for new reservation:', selectedSlot);
+      console.log(
+        "[DEBUG] 🎭 Modal opening for new reservation:",
+        selectedSlot
+      );
     }
   }, [isOpen, reservation, selectedSlot]);
 
@@ -151,6 +164,7 @@ export default function ReservationModal({
       const newFormData = {
         title: reservation.title || "",
         description: reservation.description || "",
+        // ✅ Fix: Use start_date and end_date, not start/end
         start_date: formatDateForInput(reservation.start_date),
         end_date: formatDateForInput(reservation.end_date),
         guests: reservation.guests || 1,
@@ -352,66 +366,9 @@ export default function ReservationModal({
     }
   };
 
-  const handleSelectEvent = useCallback(
-    (event: Reservation) => {
-      console.log('[DEBUG] 📅 Big Calendar Event selected:', event);
-      console.log('[DEBUG] 📅 Event ID:', event.id);
-      console.log('[DEBUG] 📅 Event title:', event.title);
-      console.log('[DEBUG] 📅 Is editing mode:', Boolean(event.id));
-      
-      // Clear any existing state first
-      setSelectedSlot(null);
-      clearCompanions();
-      
-      // Set the reservation and open modal
-      setSelectedReservation(event);
-      setShowReservationModal(true);
-      
-      console.log('[DEBUG] 📅 State after setting:', {
-        selectedReservation: event.title,
-        showModal: true,
-        selectedSlot: null
-      });
-      
-      if (event.id) {
-        fetchCompanions(event.id);
-      }
-      
-      console.log('[DEBUG] 📅 Modal should open for editing');
-    },
-    [fetchCompanions, clearCompanions]
-  );
-
   return (
     <>
-      {/* Reservation Modal */}
-      {console.log('[DEBUG] 🎭 About to render modal:', { 
-        showReservationModal, 
-        hasReservation: !!selectedReservation,
-        hasSlot: !!selectedSlot 
-      })}
-
-      {showReservationModal && (
-        <div>
-          {console.log('[DEBUG] 🎭 Rendering ReservationModal wrapper')}
-          <ReservationModal
-            isOpen={showReservationModal}
-            onClose={() => {
-              console.log('[DEBUG] 🎭 Modal onClose called');
-              handleModalClose();
-            }}
-            reservation={selectedReservation}
-            selectedSlot={selectedSlot}
-            onSave={() => {
-              console.log('[DEBUG] 🎭 Modal onSave called');
-              handleReservationSaved();
-            }}
-            onDelete={isManager ? handleDeleteReservation : undefined}
-            isManager={isManager}
-          />
-        </div>
-      )}
-
+      {/* ✅ Keep only this main modal JSX */}
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
         <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
           <div className="flex items-center justify-between p-6 border-b">
@@ -619,8 +576,8 @@ export default function ReservationModal({
           <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
             <h3 className="text-lg font-semibold mb-4">Delete Reservation</h3>
             <p className="text-gray-600 mb-6">
-              Are you sure you want to delete "{reservation?.title}"?
-              This action cannot be undone.
+              Are you sure you want to delete "{reservation?.title}"? This
+              action cannot be undone.
             </p>
             <div className="flex gap-3 justify-end">
               <button

@@ -9,18 +9,43 @@ import { useCompanions } from "../../hooks/useCompanions";
 import { ReservationForm } from "./ReservationForm";
 
 interface ReservationModalProps {
+  isOpen: boolean; // ✅ Add this
   selectedReservation: Reservation | null;
   selectedSlot: { start: Date; end: Date } | null;
   onClose: () => void;
-  onSave: () => void; // ← Changed from onSaved to onSave
+  onSave: () => void;
+  onDelete?: (id: string) => void; // ✅ Add this (optional)
+  isManager?: boolean; // ✅ Add this (optional)
+  reservation?: Reservation | null; // ✅ Add this as alias
 }
 
 export const ReservationModal = ({
+  isOpen, // ✅ Accept this prop
   selectedReservation,
+  reservation, // ✅ Accept this as alias
   selectedSlot,
   onClose,
-  onSave, // ← Changed from onSaved to onSave
+  onSave,
+  onDelete, // ✅ Accept this prop
+  isManager, // ✅ Accept this prop
 }: ReservationModalProps) => {
+  // ✅ Use reservation as fallback for selectedReservation
+  const actualReservation = selectedReservation || reservation;
+
+  // ✅ Add debug logs at the top
+  console.log("🏠 ReservationModal received props:", {
+    isOpen,
+    selectedReservation: actualReservation?.title,
+    selectedSlot: !!selectedSlot,
+    isManager,
+  });
+
+  // ✅ Don't render if not open
+  if (!isOpen) {
+    console.log("🏠 ReservationModal: Not open, not rendering");
+    return null;
+  }
+
   const { user } = useAuth();
   const { currentProperty } = useProperty();
   const {
@@ -255,7 +280,7 @@ export const ReservationModal = ({
         {/* Form */}
         <div className="p-6">
           <ReservationForm
-            selectedReservation={selectedReservation}
+            selectedReservation={actualReservation}
             selectedSlot={selectedSlot}
             companions={companions}
             canAutoApprove={canAutoApprove()}

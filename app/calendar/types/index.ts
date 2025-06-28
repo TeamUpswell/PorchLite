@@ -12,15 +12,27 @@ export interface Companion {
 export interface Reservation {
   id: string;
   title: string;
-  start: Date;
-  end: Date;
   description?: string;
   guests?: number;
   status?: string;
+  user_id?: string;
+  tenant_id?: string;
+  property_id?: string;
+  companion_count?: number;
+  created_at: string;
+  updated_at: string;
+
+  // ✅ Database columns (raw from Supabase)
+  start_date: string;
+  end_date: string;
+
+  // ✅ Transformed properties (for React Big Calendar)
+  start: Date;
+  end: Date;
+
+  // ✅ Additional computed properties
   allDay?: boolean;
   color?: string;
-  user_id?: string;
-  companion_count?: number;
   companions?: Companion[];
 }
 

@@ -1,6 +1,12 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  useMemo,
+} from "react";
 import { Calendar as BigCalendar, dateFnsLocalizer } from "react-big-calendar";
 import { format, parse, startOfWeek, getDay } from "date-fns";
 import { toast } from "react-hot-toast";
@@ -11,14 +17,15 @@ import "react-big-calendar/lib/css/react-big-calendar.css";
 import styles from "../calendar.module.css";
 
 // Custom hooks and components
-import { useReservations } from "../hooks/useReservations";
+import { useReservations } from "../hooks/useReservations"; // ✅ Make sure this path is correct
 import { useCompanions } from "../hooks/useCompanions";
 import { StatusLegend } from "./StatusLegend";
 import { ReservationModal } from "./ReservationModal/index";
 import { CreatePattern } from "@/components/ui/FloatingActionPresets";
+import { CalendarIcon } from "lucide-react"; // ✅ Add this import for the fallback
 
 // Types and utils
-import { Reservation } from "../types";
+import { Reservation } from "../types"; // ✅ Import from your types file
 import { statusColors } from "../utils/constants";
 
 // Date-fns setup
@@ -280,7 +287,9 @@ export default function Calendar({
 
   // ✅ SIMPLIFIED: Event handlers with reduced logging
   const handleReservationSelect = (reservation: Reservation) => {
+    console.log("🎯 Reservation selected:", reservation); // ✅ Add debug log
     setSelectedReservation(reservation);
+    setSelectedSlot(null); // ✅ Clear slot when selecting existing event
     setShowReservationModal(true);
 
     if (reservation.id) {
@@ -298,6 +307,8 @@ export default function Calendar({
   };
 
   const handleModalClose = () => {
+    console.log("🚪 Modal closing"); // ✅ Add debug log
+    console.log("🚪 Selected reservation was:", selectedReservation); // ✅ See what was selected
     setShowReservationModal(false);
     setSelectedReservation(null);
     setSelectedSlot(null);
@@ -312,17 +323,45 @@ export default function Calendar({
   const handleEventRightClick = (event: Reservation, e: React.MouseEvent) => {
     e.preventDefault();
 
-    if (
-      window.confirm(`Delete "${event.title}"? This action cannot be undone.`)
-    ) {
-      handleDeleteReservation(event.id);
-    }
+    // ✅ Use template literal to avoid quote issues
+    const confirmationText = `Delete "${event.title}"? This action cannot be undone.`;
+
+    toast.custom(
+      (t) => (
+        <div className="bg-white p-4 rounded-lg shadow-lg border">
+          <p className="text-gray-900 mb-3">{confirmationText}</p>
+          <div className="flex space-x-2">
+            <button
+              onClick={() => {
+                handleDeleteReservation(event.id);
+                toast.dismiss(t.id);
+              }}
+              className="bg-red-600 text-white px-3 py-1 rounded text-sm hover:bg-red-700"
+            >
+              Delete
+            </button>
+            <button
+              onClick={() => toast.dismiss(t.id)}
+              className="bg-gray-200 text-gray-800 px-3 py-1 rounded text-sm hover:bg-gray-300"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ),
+      { duration: 5000 }
+    );
   };
 
   const handleSelectEvent = useCallback(
     (event: Reservation) => {
+      console.log("🎯 Event selected:", event); // ✅ Add debug log
+      console.log("🎯 Event ID:", event.id); // ✅ Check if ID exists
+      console.log("🎯 Event title:", event.title); // ✅ Check if title exists
+      console.log("🎯 Full event object:", JSON.stringify(event, null, 2)); // ✅ See full structure
+
       setSelectedReservation(event);
-      setSelectedSlot(null);
+      setSelectedSlot(null); // ✅ Clear slot when selecting existing event
       setShowReservationModal(true);
 
       if (event.id) {
@@ -389,8 +428,26 @@ export default function Calendar({
   const dayPropGetter = useCallback(
     (date: Date) => {
       const dayReservations = reservations.filter((reservation) => {
-        const start = new Date(reservation.start_date || reservation.start);
-        const end = new Date(reservation.end_date || reservation.end);
+        // ✅ Handle both Date objects and strings safely
+        let start, end;
+
+        if (reservation.start instanceof Date) {
+          start = reservation.start;
+        } else {
+          start = new Date(reservation.start_date || reservation.start);
+        }
+
+        if (reservation.end instanceof Date) {
+          end = reservation.end;
+        } else {
+          end = new Date(reservation.end_date || reservation.end);
+        }
+
+        // Validate dates
+        if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+          return false;
+        }
+
         return date >= start && date <= end;
       });
 
@@ -408,6 +465,56 @@ export default function Calendar({
     },
     [reservations]
   );
+
+  // ✅ Add safety check for events
+  const safeEvents = useMemo(() => {
+    return reservations.filter((event) => {
+      // ✅ Check if we have Date objects first
+      if (event.start instanceof Date && event.end instanceof Date) {
+        const hasValidDates =
+          !isNaN(event.start.getTime()) && !isNaN(event.end.getTime());
+
+        if (!hasValidDates) {
+          console.warn(
+            "Filtering out event with invalid Date objects:",
+            event.id,
+            {
+              start: event.start,
+              end: event.end,
+            }
+          );
+        }
+
+        return hasValidDates;
+      }
+
+      // ✅ If not Date objects, try to create them
+      const startDate = new Date(event.start_date || event.start);
+      const endDate = new Date(event.end_date || event.end);
+
+      const hasValidDates =
+        !isNaN(startDate.getTime()) && !isNaN(endDate.getTime());
+
+      if (!hasValidDates) {
+        console.warn(
+          "Filtering out event - could not create valid dates:",
+          event.id,
+          {
+            start: event.start,
+            end: event.end,
+            start_date: event.start_date,
+            end_date: event.end_date,
+          }
+        );
+      } else {
+        // ✅ Add the Date objects to the event for BigCalendar
+        event.start = startDate;
+        event.end = endDate;
+      }
+
+      return hasValidDates;
+    });
+  }, [reservations]);
 
   // Loading state
   if (isLoading && !hasLoadedOnce) {
@@ -507,51 +614,76 @@ export default function Calendar({
       <StatusLegend />
 
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 h-[calc(100vh-140px)]">
-        <BigCalendar
-          localizer={localizer}
-          events={reservations}
-          startAccessor="start"
-          endAccessor="end"
-          style={{ height: "100%" }}
-          onSelectEvent={handleSelectEvent}
-          onSelectSlot={isManager ? handleSlotSelect : undefined}
-          selectable={isManager}
-          views={["month"]}
-          defaultView="month"
-          view="month"
-          date={currentDate}
-          onNavigate={setCurrentDate}
-          eventPropGetter={eventStyleGetter}
-          className={styles.calendar}
-          components={{
-            toolbar: CustomToolbar,
-            event: ({ event }) => (
-              <div
-                onContextMenu={(e) => handleEventRightClick(event, e)}
-                className="cursor-pointer"
-                title={isManager ? "Right-click to delete" : "View details"}
-              >
-                {event.title}
-              </div>
-            ),
-          }}
-          dayPropGetter={dayPropGetter}
-          step={60}
-          showMultiDayTimes
-          popup
-        />
+        {safeEvents.length > 0 ? (
+          <BigCalendar
+            localizer={localizer}
+            events={safeEvents} // ✅ Use filtered events
+            startAccessor="start"
+            endAccessor="end"
+            style={{ height: "100%" }}
+            onSelectEvent={handleSelectEvent}
+            onSelectSlot={isManager ? handleSlotSelect : undefined}
+            selectable={isManager}
+            views={["month"]}
+            defaultView="month"
+            view="month"
+            date={currentDate}
+            onNavigate={setCurrentDate}
+            eventPropGetter={eventStyleGetter}
+            className={styles.calendar}
+            components={{
+              toolbar: CustomToolbar,
+              event: ({ event }) => (
+                <div
+                  onContextMenu={(e) => handleEventRightClick(event, e)}
+                  className="cursor-pointer"
+                  title={isManager ? "Right-click to delete" : "View details"}
+                >
+                  {event.title}
+                </div>
+              ),
+            }}
+            dayPropGetter={dayPropGetter}
+            step={60}
+            showMultiDayTimes
+            popup
+          />
+        ) : (
+          <div className="flex items-center justify-center h-full text-gray-500">
+            <div className="text-center">
+              <CalendarIcon className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+              <p>No events to display</p>
+              {reservations.length > 0 && (
+                <p className="text-sm text-red-500 mt-2">
+                  {reservations.length} events have invalid dates
+                </p>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
+      {console.log("🔧 Modal render check:", {
+        showReservationModal,
+        selectedReservation: selectedReservation?.title,
+        selectedSlot: !!selectedSlot,
+      })}
+
+      {console.log("🔧 About to render ReservationModal:", showReservationModal)}
+
       {showReservationModal && (
-        <ReservationModal
-          isOpen={showReservationModal}
-          onClose={handleModalClose}
-          reservation={selectedReservation}
-          selectedSlot={selectedSlot}
-          onSave={handleReservationSaved}
-          onDelete={isManager ? handleDeleteReservation : undefined}
-          isManager={isManager}
-        />
+        <>
+          {console.log("🔧 Inside modal render block")}
+          <ReservationModal
+            isOpen={showReservationModal}
+            onClose={handleModalClose}
+            onSave={handleReservationSaved}
+            reservation={selectedReservation}
+            selectedSlot={selectedSlot}
+            onDelete={isManager ? handleDeleteReservation : undefined}
+            isManager={isManager}
+          />
+        </>
       )}
 
       {isManager && (

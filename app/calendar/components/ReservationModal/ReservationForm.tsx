@@ -137,7 +137,7 @@ export const ReservationForm = ({
     // ✅ FIXED: Add the calculated dates with the exact field names the server expects
     formData.set("start_date", start.toISOString());
     formData.set("end_date", end.toISOString());
-    
+
     // Also set start and end (in case server expects these names)
     formData.set("start", start.toISOString());
     formData.set("end", end.toISOString());
@@ -148,7 +148,7 @@ export const ReservationForm = ({
       start: start.toISOString(),
       end: end.toISOString(),
       startDate: startDate,
-      nights: nights
+      nights: nights,
     });
 
     // Call the parent's onSubmit with the enhanced form event
@@ -261,10 +261,38 @@ export const ReservationForm = ({
       />
 
       {/* Hidden fields for calculated values - ADD THESE */}
-      <input type="hidden" name="start_date" value={startDate ? new Date(startDate).toISOString() : ""} />
-      <input type="hidden" name="end_date" value={startDate ? new Date(new Date(startDate).getTime() + nights * 24 * 60 * 60 * 1000).toISOString() : ""} />
-      <input type="hidden" name="start" value={startDate ? new Date(startDate).toISOString() : ""} />
-      <input type="hidden" name="end" value={startDate ? new Date(new Date(startDate).getTime() + nights * 24 * 60 * 60 * 1000).toISOString() : ""} />
+      <input
+        type="hidden"
+        name="start_date"
+        value={startDate ? new Date(startDate).toISOString() : ""}
+      />
+      <input
+        type="hidden"
+        name="end_date"
+        value={
+          startDate
+            ? new Date(
+                new Date(startDate).getTime() + nights * 24 * 60 * 60 * 1000
+              ).toISOString()
+            : ""
+        }
+      />
+      <input
+        type="hidden"
+        name="start"
+        value={startDate ? new Date(startDate).toISOString() : ""}
+      />
+      <input
+        type="hidden"
+        name="end"
+        value={
+          startDate
+            ? new Date(
+                new Date(startDate).getTime() + nights * 24 * 60 * 60 * 1000
+              ).toISOString()
+            : ""
+        }
+      />
 
       {/* Submit Buttons */}
       <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200">
@@ -281,7 +309,11 @@ export const ReservationForm = ({
           disabled={isSubmitting}
           className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
         >
-          {isSubmitting ? "Saving..." : (selectedReservation ? "Update Reservation" : "Create Reservation")}
+          {isSubmitting
+            ? "Saving..."
+            : selectedReservation
+            ? "Update Reservation"
+            : "Create Reservation"}
         </button>
       </div>
     </form>

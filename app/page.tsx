@@ -29,8 +29,41 @@ interface InventoryItem {
 }
 
 export default function HomePage() {
-  const { user, loading: authLoading } = useAuth();
-  const { currentProperty, loading: propertyLoading } = useProperty();
+  const { user, loading: authLoading, initialized: authInitialized } = useAuth();
+  const { 
+    currentProperty, 
+    userProperties, 
+    loading: propertyLoading, 
+    error: propertyError,
+    hasInitialized: propertyInitialized 
+  } = useProperty();
+
+  // ✅ Enhanced debugging
+  useEffect(() => {
+    console.log("🔍 HomePage Full Debug:", {
+      // Auth state
+      user: user ? { id: user.id, email: user.email } : null,
+      authLoading,
+      authInitialized,
+      
+      // Property state
+      currentProperty: currentProperty ? { 
+        id: currentProperty.id, 
+        name: currentProperty.name 
+      } : null,
+      userPropertiesCount: userProperties?.length || 0,
+      propertyLoading,
+      propertyError,
+      propertyInitialized,
+      
+      // Combined state
+      readyToLoad: !authLoading && user?.id && propertyInitialized,
+      hasAllData: !authLoading && user?.id && currentProperty?.id,
+    });
+  }, [
+    user, authLoading, authInitialized,
+    currentProperty, userProperties, propertyLoading, propertyError, propertyInitialized
+  ]);
 
   // Prevent multiple simultaneous fetches
   const fetchingRef = useRef(false);

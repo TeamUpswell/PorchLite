@@ -11,16 +11,39 @@ import React, {
 import { useAuth } from "@/components/auth/AuthProvider";
 import { supabase } from "@/lib/supabase";
 
-interface Property {
+export interface Property {
   id: string;
   name: string;
   address: string;
-  created_by: string; // ✅ Changed from owner_id to match your DB
+  description?: string;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+  main_photo_url?: string;
+  is_active: boolean;
+  property_type?: string;
+  bedrooms?: number;
+  bathrooms?: number;
+  max_occupancy?: number;
+  city?: string;
+  state?: string;
+  zip?: string;
+  country?: string;
   latitude?: number;
   longitude?: number;
-  created_at?: string;
-  updated_at?: string;
-  is_active?: boolean; // ✅ Added since you filter on this
+  neighborhood_description?: string;
+  wifi_name?: string;
+  wifi_password?: string;
+  check_in_instructions?: string;
+  check_out_instructions?: string;
+  house_rules?: string;
+  security_info?: string;
+  parking_info?: string;
+  amenities?: string[];
+  tenant_id?: string; // ✅ Add this field
+  header_image_url?: string;
+  updated_by?: string;
+  house_tour_enabled?: boolean;
 }
 
 interface Tenant {
@@ -81,15 +104,36 @@ export function PropertyProvider({ children }: { children: React.ReactNode }) {
     console.log("🏠 useProperty: Starting to load properties for user:", user.id);
 
     try {
+      // ✅ First, test basic connection with a simple query
+      console.log("🔍 Testing basic Supabase connection...");
+      const { data: testData, error: testError } = await supabase
+        .from("properties")
+        .select("id")
+        .limit(1);
+
+      if (testError) {
+        console.error("❌ Basic connection test failed:", testError);
+        setError(`Connection failed: ${testError.message}`);
+        return;
+      }
+
+      console.log("✅ Basic connection successful");
+
+      // ✅ Now try the actual query with more detailed logging
       console.log("🔍 useProperty: Querying properties with created_by:", user.id);
       
-      // ✅ Simplified query without Promise.race timeout
       const { data: properties, error } = await supabase
         .from("properties")
         .select("*")
         .eq("created_by", user.id)
-        .eq("is_active", true)
         .order("created_at", { ascending: false });
+
+      console.log("🔍 Raw query response:", {
+        data: properties,
+        error,
+        dataLength: properties?.length,
+        query: `created_by = ${user.id}`,
+      });
 
       if (error) {
         console.log("❌ useProperty: Error loading properties:", error);
@@ -98,13 +142,22 @@ export function PropertyProvider({ children }: { children: React.ReactNode }) {
       }
 
       console.log("✅ useProperty: Loaded properties:", properties?.length || 0);
-      setUserProperties(properties || []);
+      if (properties?.length) {
+        console.log("🏠 Properties details:", properties.map(p => ({ 
+          id: p.id, 
+          name: p.name, 
+          created_by: p.created_by,
+          is_active: p.is_active
+        })));
+      } else {
+        console.log("📝 No properties found for user. This might be normal for new users.");
+      }
       
-      // ✅ REMOVED: Don't auto-select here, let the effect handle it
+      setUserProperties(properties || []);
       setHasInitialized(true);
       
     } catch (error: any) {
-      console.log("❌ useProperty: Exception loading properties:", error.message);
+      console.log("❌ useProperty: Exception loading properties:", error);
       setError(error.message);
     } finally {
       setLoading(false);
@@ -115,10 +168,27 @@ export function PropertyProvider({ children }: { children: React.ReactNode }) {
   // ✅ Auto-select first property when loaded
   useEffect(() => {
     if (userProperties.length > 0 && !currentProperty && hasInitialized) {
-      console.log("🎯 useProperty: Auto-selecting first property:", userProperties[0].name);
+      console.log(
+        "🎯 useProperty: Auto-selecting first property:",
+        userProperties[0].name
+      );
       setCurrentProperty(userProperties[0]);
     }
   }, [userProperties, currentProperty, hasInitialized]);
+
+  // ✅ Add debugging to see what's happening
+  useEffect(() => {
+    console.log("🏠 useProperty Debug:", {
+      user: user ? { id: user.id, email: user.email } : null,
+      userPropertiesCount: userProperties.length,
+      currentProperty: currentProperty
+        ? { id: currentProperty.id, name: currentProperty.name }
+        : null,
+      loading,
+      hasInitialized,
+      lastUserIdRef: lastUserIdRef.current,
+    });
+  }, [user, userProperties, currentProperty, loading, hasInitialized]);
 
   // ✅ Main effect to load properties when user changes
   useEffect(() => {
@@ -137,10 +207,16 @@ export function PropertyProvider({ children }: { children: React.ReactNode }) {
     // Only load if user changed or not initialized
     if (newUserId !== lastUserIdRef.current || !hasInitialized) {
       console.log("🏠 useProperty: User changed or not initialized, loading properties...");
+      console.log("🏠 useProperty: Previous user:", lastUserIdRef.current);
+      console.log("🏠 useProperty: Current user:", newUserId);
+      console.log("🏠 useProperty: Has initialized:", hasInitialized);
+
       lastUserIdRef.current = newUserId;
       loadUserProperties();
+    } else {
+      console.log("🏠 useProperty: User unchanged and initialized, skipping load");
     }
-  }, [user?.id, hasInitialized]); // ✅ Removed loadUserProperties from deps to prevent loops
+  }, [user?.id, hasInitialized]); // ✅ Removed loadUserProperties to prevent loops
 
   const createProperty = useCallback(
     async (

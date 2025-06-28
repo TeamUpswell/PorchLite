@@ -62,7 +62,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profileLoading, setProfileLoading] = useState(true);
   const [initialized, setInitialized] = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
-  
+
   // ✅ Use refs to prevent dependency loops
   const fetchProfileRef = useRef(false);
   const mountedRef = useRef(true);
@@ -152,15 +152,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         console.log("🔍 Starting profile query...");
 
-        // ✅ Simplified - removed connection test that was causing extra requests
-        const queryStart = Date.now();
-        const { data, error } = await supabase
+        // ✅ Add timeout to prevent hanging
+        const queryPromise = supabase
           .from("profiles")
           .select("*")
           .eq("id", userId)
           .single();
 
-        const queryDuration = Date.now() - queryStart;
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("Profile query timeout")), 8000)
+        );
+
+        const { data, error } = await Promise.race([queryPromise, timeoutPromise]) as any;
+
+        const queryDuration = Date.now() - startTime;
 
         console.log("🔍 Profile query completed in", queryDuration, "ms:", {
           error: error
@@ -189,6 +194,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return null;
       } catch (error) {
         console.error("❌ fetchProfile error:", error);
+
+        // ✅ Don't let profile errors block auth completely
+        if (error.message?.includes("timeout")) {
+          console.log("⚠️ Profile fetch timed out, continuing without profile");
+          return null;
+        }
+
         return null;
       } finally {
         const totalDuration = Date.now() - startTime;
@@ -196,7 +208,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         fetchProfileRef.current = false;
       }
     },
-    [createProfileSafely] // ✅ Only stable dependency
+    [createProfileSafely]
   );
 
   const refreshProfile = useCallback(async () => {
