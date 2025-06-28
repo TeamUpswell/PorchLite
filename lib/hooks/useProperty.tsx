@@ -15,11 +15,12 @@ interface Property {
   id: string;
   name: string;
   address: string;
-  owner_id: string;
+  created_by: string; // ✅ Changed from owner_id to match your DB
   latitude?: number;
   longitude?: number;
   created_at?: string;
   updated_at?: string;
+  is_active?: boolean; // ✅ Added since you filter on this
 }
 
 interface Tenant {
@@ -36,8 +37,7 @@ interface PropertyContextType {
   tenant: Tenant | null;
   loading: boolean;
   error: string | null;
-
-  hasInitialized: boolean; // Add this line
+  hasInitialized: boolean;
   setCurrentProperty: (property: Property | null) => void;
   loadUserProperties: () => Promise<void>;
   createProperty: (
@@ -58,123 +58,89 @@ export function PropertyProvider({ children }: { children: React.ReactNode }) {
   const [tenant, setTenant] = useState<Tenant | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [hasInitialized, setHasInitialized] = useState(false); // Add this line
+  const [hasInitialized, setHasInitialized] = useState(false);
 
   // Refs to prevent duplicate fetches
   const loadingRef = useRef(false);
   const lastUserIdRef = useRef<string | null>(null);
 
-  const loadUserProperties = useCallback(async (): Promise<void> => {
-    const userId = user?.id;
-
-    if (!userId || loadingRef.current) {
-      console.log("🏠 useProperty: Skipping load", {
-        userId: !!userId,
-        loading: loadingRef.current,
-      });
+  const loadUserProperties = useCallback(async () => {
+    if (!user?.id) {
+      console.log("🏠 useProperty: No user ID available");
       return;
     }
 
-    console.log("🏠 useProperty: Starting to load properties for user:", userId);
+    if (loadingRef.current) {
+      console.log("🏠 useProperty: Already loading, skipping...");
+      return;
+    }
+
     loadingRef.current = true;
     setLoading(true);
     setError(null);
+    console.log("🏠 useProperty: Starting to load properties for user:", user.id);
 
     try {
-      // ✅ SIMPLIFIED: Direct query using created_by (we know this works)
-      console.log("🔍 useProperty: Querying properties with created_by:", userId);
+      console.log("🔍 useProperty: Querying properties with created_by:", user.id);
       
-      const { data: properties, error: directError } = await supabase
+      // ✅ Simplified query without Promise.race timeout
+      const { data: properties, error } = await supabase
         .from("properties")
         .select("*")
-        .eq("created_by", userId)
-        .eq("is_active", true);
+        .eq("created_by", user.id)
+        .eq("is_active", true)
+        .order("created_at", { ascending: false });
 
-      console.log("🏠 useProperty: Properties query result:", {
-        data: properties,
-        error: directError,
-        count: properties?.length,
-      });
-
-      if (directError) {
-        console.error("🚨 useProperty: Query error:", directError);
-        throw directError;
-      }
-
-      if (properties?.length) {
-        console.log("✅ useProperty: Found properties:", properties.length);
-        setUserProperties(properties);
-        setCurrentProperty(properties[0]);
-        setLoading(false);
-        setHasInitialized(true);
+      if (error) {
+        console.log("❌ useProperty: Error loading properties:", error);
+        setError(error.message);
         return;
       }
 
-      // If no properties found, that's okay - user just doesn't have any
-      console.log("ℹ️ useProperty: No properties found for user");
-      setUserProperties([]);
-      setCurrentProperty(null);
-      setLoading(false);
+      console.log("✅ useProperty: Loaded properties:", properties?.length || 0);
+      setUserProperties(properties || []);
+      
+      // ✅ REMOVED: Don't auto-select here, let the effect handle it
       setHasInitialized(true);
-
-    } catch (error) {
-      console.error("🏠 useProperty: Property loading error:", error);
-      setError(
-        error instanceof Error ? error.message : "Failed to load properties"
-      );
-      setUserProperties([]);
-      setCurrentProperty(null);
-      setTenant(null);
-      setLoading(false);
-      setHasInitialized(true);
+      
+    } catch (error: any) {
+      console.log("❌ useProperty: Exception loading properties:", error.message);
+      setError(error.message);
     } finally {
+      setLoading(false);
       loadingRef.current = false;
-      console.log("🏠 useProperty: Loading complete");
     }
-  }, [user?.id]);
+  }, [user?.id]); // ✅ FIXED: Removed currentProperty dependency to prevent loops
 
-  // Load properties when user changes
+  // ✅ Auto-select first property when loaded
   useEffect(() => {
-    let mounted = true;
+    if (userProperties.length > 0 && !currentProperty && hasInitialized) {
+      console.log("🎯 useProperty: Auto-selecting first property:", userProperties[0].name);
+      setCurrentProperty(userProperties[0]);
+    }
+  }, [userProperties, currentProperty, hasInitialized]);
 
-    const handleUserChange = async () => {
-      // ✅ FIXED: Don't wait for authLoading, just check if we have a user
-      if (!user?.id) {
-        console.log("🏠 useProperty: No user yet, waiting...");
-        if (mounted) {
-          setLoading(true); // Keep loading until we get user
-        }
-        return;
-      }
+  // ✅ Main effect to load properties when user changes
+  useEffect(() => {
+    if (!user?.id) {
+      console.log("🏠 useProperty: No user yet, resetting state...");
+      setUserProperties([]);
+      setCurrentProperty(null);
+      setHasInitialized(false);
+      setLoading(false);
+      lastUserIdRef.current = null;
+      return;
+    }
 
-      // ✅ FIXED: We have a user, proceed with loading properties
-      const newUserId = user.id;
+    const newUserId = user.id;
 
-      if (newUserId !== lastUserIdRef.current) {
-        console.log("🏠 useProperty: New user detected, loading properties...");
-        lastUserIdRef.current = newUserId;
-
-        if (mounted) {
-          await loadUserProperties();
-        }
-      } else {
-        // Same user, but make sure we're not stuck in loading
-        if (mounted && loading && !loadingRef.current) {
-          console.log(
-            "🏠 useProperty: Same user, but stuck loading. Finishing..."
-          );
-          setLoading(false);
-          setHasInitialized(true);
-        }
-      }
-    };
-
-    handleUserChange();
-
-    return () => {
-      mounted = false;
-    };
-  }, [user?.id, loadUserProperties]); // ✅ REMOVED authLoading from dependencies
+    // Only load if user changed or not initialized
+    if (newUserId !== lastUserIdRef.current || !hasInitialized) {
+      console.log("🏠 useProperty: User changed or not initialized, loading properties...");
+      lastUserIdRef.current = newUserId;
+      loadUserProperties();
+    }
+  }, [user?.id, hasInitialized]); // ✅ Removed loadUserProperties from deps to prevent loops
 
   const createProperty = useCallback(
     async (
@@ -182,9 +148,10 @@ export function PropertyProvider({ children }: { children: React.ReactNode }) {
     ): Promise<Property> => {
       if (!user?.id) throw new Error("Must be logged in to create property");
 
+      // ✅ Fixed: Use created_by instead of user_id to match your schema
       const { data, error } = await supabase
         .from("properties")
-        .insert([{ ...property, user_id: user.id }]) // Use user_id instead of owner_id
+        .insert([{ ...property, created_by: user.id }])
         .select()
         .single();
 
@@ -196,7 +163,7 @@ export function PropertyProvider({ children }: { children: React.ReactNode }) {
           {
             user_id: user.id,
             role: "owner",
-            // Add tenant_id if required by your schema
+            property_id: data.id, // ✅ Added property_id
           },
         ]);
       } catch (tenantError) {
@@ -244,7 +211,7 @@ export function PropertyProvider({ children }: { children: React.ReactNode }) {
     tenant,
     loading,
     error,
-    hasInitialized, // Add this line
+    hasInitialized,
     setCurrentProperty,
     loadUserProperties,
     createProperty,

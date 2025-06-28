@@ -607,7 +607,7 @@ export default function RecommendationsStep({
               </div>
               <div className="mt-2 p-2 bg-white border border-green-200 rounded">
                 <p className="text-xs text-green-700 font-medium">
-                  You&apos;ll be the first guest to recommend this place! 🎉
+                  You'll be the first guest to recommend this place! 🎉
                 </p>
               </div>
             </div>

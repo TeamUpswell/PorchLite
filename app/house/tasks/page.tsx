@@ -331,7 +331,15 @@ export default function HouseTasksPage() {
 
     loadTasks();
     loadUnresolvedCleaningIssues();
-  }, [user?.id, currentProperty?.id, filter, authLoading, propertyLoading]);
+  }, [
+    user?.id,
+    currentProperty?.id,
+    filter,
+    authLoading,
+    propertyLoading,
+    loadTasks, // ← Add this
+    loadUnresolvedCleaningIssues, // ← Add this
+  ]);
 
   // Task actions
   const claimTask = async (taskId: string) => {
@@ -581,7 +589,7 @@ export default function HouseTasksPage() {
   // Early returns for loading states
   if (authLoading || propertyLoading) {
     return (
-      <StandardPageLayout theme="dark" showHeader={true}>
+      <StandardPageLayout theme="dark" showHeader={false} showSideNav={true}>
         <StandardCard>
           <div className="flex items-center justify-center min-h-[400px]">
             <div className="text-center">
@@ -594,13 +602,9 @@ export default function HouseTasksPage() {
     );
   }
 
-  if (!user) {
-    return null;
-  }
-
   if (!currentProperty) {
     return (
-      <StandardPageLayout theme="dark" showHeader={true}>
+      <StandardPageLayout theme="dark" showHeader={false} showSideNav={true}>
         <StandardCard>
           <div className="text-center py-8">
             <CheckSquareIcon className="h-12 w-12 text-gray-300 mx-auto mb-3" />
@@ -618,7 +622,7 @@ export default function HouseTasksPage() {
 
   return (
     <PropertyGuard fallback={<DashboardNoPropertyFallback />}>
-      <StandardPageLayout theme="dark" showHeader={true}>
+      <StandardPageLayout theme="dark" showHeader={false} showSideNav={true}>
         <div className="space-y-6">
           <StandardCard
             title="House Management Tasks"
@@ -872,7 +876,7 @@ export default function HouseTasksPage() {
 // Update your fallback component too
 function DashboardNoPropertyFallback() {
   return (
-    <StandardPageLayout theme="dark" showHeader={true}>
+    <StandardPageLayout theme="dark" showHeader={false}>
       <StandardCard>
         <div className="text-center py-8">
           <h2 className="text-2xl font-bold text-gray-900 mb-4">

@@ -112,22 +112,18 @@ function CalendarPageContent() {
     };
   }, []); // Empty dependency array - only set up once
 
-  // Show loading state
-  if (isLoading) {
-    return (
-      <StandardPageLayout title="Calendar">
-        <div className="flex items-center justify-center p-8">
-          <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-blue-500 mr-3"></div>
-          <span>Loading calendar...</span>
-        </div>
-      </StandardPageLayout>
-    );
-  }
-
-  // No user state
-  if (!user) {
-    return (
-      <StandardPageLayout theme="dark" showHeader={false} showSideNav={true}>
+  // Single layout wrapper with consistent settings
+  return (
+    <StandardPageLayout theme="dark" showHeader={false} showSideNav={true}>
+      {/* Conditional content inside the same layout */}
+      {isLoading ? (
+        <StandardCard>
+          <div className="flex items-center justify-center p-8">
+            <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-blue-500 mr-3"></div>
+            <span>Loading calendar...</span>
+          </div>
+        </StandardCard>
+      ) : !user ? (
         <StandardCard>
           <div className="text-center py-8">
             <CalendarIcon className="mx-auto h-12 w-12 text-gray-400" />
@@ -139,20 +135,15 @@ function CalendarPageContent() {
             </p>
           </div>
         </StandardCard>
-      </StandardPageLayout>
-    );
-  }
-
-  // Main calendar - stable, no forced re-mounting
-  return (
-    <StandardPageLayout theme="dark" showHeader={false} showSideNav={true}>
-      <div className="space-y-6">
-        <Calendar
-          refreshTrigger={refreshKey}
-          isManager={true}
-          onRefreshNeeded={refreshCalendar}
-        />
-      </div>
+      ) : (
+        <div className="space-y-6">
+          <Calendar
+            refreshTrigger={refreshKey}
+            isManager={true}
+            onRefreshNeeded={refreshCalendar}
+          />
+        </div>
+      )}
     </StandardPageLayout>
   );
 }

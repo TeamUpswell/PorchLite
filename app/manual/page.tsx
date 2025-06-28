@@ -255,7 +255,7 @@ export default function ManualPage() {
   // Loading states
   if (isInitializing) {
     return (
-      <StandardPageLayout theme="dark" showHeader={true}>
+      <StandardPageLayout theme="dark" showHeader={false}>
         <div className="p-6">
           <StandardCard>
             <div className="flex items-center justify-center min-h-[400px]">
@@ -276,7 +276,7 @@ export default function ManualPage() {
 
   if (!currentProperty) {
     return (
-      <StandardPageLayout theme="dark" showHeader={true}>
+      <StandardPageLayout theme="dark" showHeader={false}>
         <div className="p-6">
           <StandardCard>
             <div className="text-center py-8">
@@ -297,7 +297,7 @@ export default function ManualPage() {
   // Error state
   if (error) {
     return (
-      <StandardPageLayout theme="dark" showHeader={true}>
+      <StandardPageLayout theme="dark" showHeader={false}>
         <div className="p-6">
           <StandardCard
             title="Property Manual"
@@ -324,7 +324,7 @@ export default function ManualPage() {
 
   // Main content
   return (
-    <StandardPageLayout theme="dark" showHeader={true}>
+    <StandardPageLayout theme="dark" showHeader={false}>
       <div className="p-6">
         <div className="max-w-7xl mx-auto">
           {loading ? (

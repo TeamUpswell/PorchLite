@@ -292,7 +292,7 @@ export default function AdminDiagnosticsPage() {
             <div className="space-y-4">
               {Object.keys(connectionStatus).length === 0 ? (
                 <div className="text-sm text-gray-500 italic">
-                  Click &quot;Test Connections&quot; to run diagnostics
+                  Click "Test Connections" to run diagnostics
                 </div>
               ) : (
                 <div className="space-y-3">

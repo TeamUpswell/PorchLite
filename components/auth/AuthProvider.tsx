@@ -60,22 +60,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profileData, setProfileData] = useState<Profile | null>(null);
   const [profileLoading, setProfileLoading] = useState(true);
-  const [mounted, setMounted] = useState(false);
   const [initialized, setInitialized] = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
+  
+  // ✅ Use refs to prevent dependency loops
   const fetchProfileRef = useRef(false);
+  const mountedRef = useRef(true);
 
-  const updateProfileData = useCallback(
-    (updates: Partial<Profile>) => {
-      console.log("🔄 Updating profile data locally:", updates);
-      setProfileData((prev) => (prev ? { ...prev, ...updates } : null));
-      window.dispatchEvent(
-        new CustomEvent("profileUpdated", { detail: updates })
-      );
-    },
-    []
-  );
+  const updateProfileData = useCallback((updates: Partial<Profile>) => {
+    console.log("🔄 Updating profile data locally:", updates);
+    setProfileData((prev) => (prev ? { ...prev, ...updates } : null));
+    window.dispatchEvent(
+      new CustomEvent("profileUpdated", { detail: updates })
+    );
+  }, []);
 
+  // ✅ Stable function - no dependencies that change
   const createProfileSafely = useCallback(
     async (userId: string): Promise<Profile | null> => {
       try {
@@ -102,7 +102,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           role: "user",
         };
 
-        // Use upsert to avoid conflicts
         const { data: createdProfile, error: createError } = await supabase
           .from("profiles")
           .upsert(newProfile, {
@@ -124,13 +123,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return null;
       }
     },
-    [supabase]
+    [] // ✅ No dependencies to prevent loops
   );
 
+  // ✅ Stable function - no changing dependencies
   const fetchProfile = useCallback(
     async (userId: string): Promise<Profile | null> => {
       const startTime = Date.now();
-      console.log("🔄 fetchProfile called with userId:", userId, "at", new Date().toISOString());
+      console.log(
+        "🔄 fetchProfile called with userId:",
+        userId,
+        "at",
+        new Date().toISOString()
+      );
 
       if (!supabase || !userId) {
         console.log("❌ fetchProfile: Missing supabase client or userId");
@@ -147,66 +152,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         console.log("🔍 Starting profile query...");
 
-        // Test basic connection first
-        const { data: testData, error: testError } = await supabase
+        // ✅ Simplified - removed connection test that was causing extra requests
+        const queryStart = Date.now();
+        const { data, error } = await supabase
           .from("profiles")
-          .select("count")
-          .limit(1);
+          .select("*")
+          .eq("id", userId)
+          .single();
 
-        console.log("🧪 Connection test:", { testData, testError });
+        const queryDuration = Date.now() - queryStart;
 
-        if (testError) {
-          console.error("❌ Connection test failed:", testError);
-          return null;
+        console.log("🔍 Profile query completed in", queryDuration, "ms:", {
+          error: error
+            ? {
+                message: error.message,
+                code: error.code,
+                hint: error.hint,
+              }
+            : null,
+          hasData: !!data,
+        });
+
+        if (error) {
+          if (error.code === "PGRST116") {
+            console.log("📝 Profile not found, creating new profile...");
+            return await createProfileSafely(userId);
+          }
+          throw error;
         }
 
-        // Now try the actual query with timeout
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 8000);
-
-        try {
-          const queryStart = Date.now();
-          const { data, error } = await supabase
-            .from("profiles")
-            .select("*")
-            .eq("id", userId)
-            .single();
-
-          clearTimeout(timeoutId);
-          const queryDuration = Date.now() - queryStart;
-
-          console.log("🔍 Profile query completed in", queryDuration, "ms:", {
-            error: error
-              ? {
-                  message: error.message,
-                  code: error.code,
-                  hint: error.hint,
-                }
-              : null,
-            hasData: !!data,
-          });
-
-          if (error) {
-            if (error.code === "PGRST116") {
-              console.log("📝 Profile not found, creating new profile...");
-              return await createProfileSafely(userId);
-            }
-            throw error;
-          }
-
-          if (data) {
-            console.log("✅ Profile data fetched successfully");
-            return data;
-          }
-
-          return null;
-        } catch (queryError) {
-          clearTimeout(timeoutId);
-          if (queryError.name === "AbortError") {
-            throw new Error("Query timed out after 8 seconds");
-          }
-          throw queryError;
+        if (data) {
+          console.log("✅ Profile data fetched successfully");
+          return data;
         }
+
+        return null;
       } catch (error) {
         console.error("❌ fetchProfile error:", error);
         return null;
@@ -216,7 +196,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         fetchProfileRef.current = false;
       }
     },
-    [supabase, createProfileSafely]
+    [createProfileSafely] // ✅ Only stable dependency
   );
 
   const refreshProfile = useCallback(async () => {
@@ -242,16 +222,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user?.id, fetchProfile]);
 
-  // Enhanced initialization with better error handling
+  // ✅ MAIN FIX: Removed circular dependencies
   useEffect(() => {
-    let mounted = true;
-    setMounted(true);
+    mountedRef.current = true;
 
     const initializeAuth = async () => {
       try {
         console.log("🔄 initializeAuth: Starting...");
 
-        // Get current session
         const {
           data: { session },
           error: sessionError,
@@ -266,7 +244,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           console.error("❌ Session error:", sessionError);
         }
 
-        if (!mounted) {
+        if (!mountedRef.current) {
           console.log("⚠️ initializeAuth: Component unmounted, aborting");
           return;
         }
@@ -285,8 +263,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
           const profile = await fetchProfile(session.user.id);
 
-          if (mounted) {
-            console.log("✅ initializeAuth: Setting profile data:", profile ? "Profile loaded" : "No profile");
+          if (mountedRef.current) {
+            console.log(
+              "✅ initializeAuth: Setting profile data:",
+              profile ? "Profile loaded" : "No profile"
+            );
             setProfileData(profile);
             setProfileLoading(false);
             setAuthLoading(false);
@@ -306,7 +287,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       } catch (error) {
         console.error("❌ initializeAuth: Unexpected error:", error);
-        if (mounted) {
+        if (mountedRef.current) {
           setProfileLoading(false);
           setAuthLoading(false);
           setInitialized(true);
@@ -316,31 +297,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     initializeAuth();
 
-    // Enhanced auth state change listener
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log("🔄 Auth state change:", {
         event,
         session: session ? `User: ${session.user.email}` : "No session",
-        mounted,
+        mounted: mountedRef.current,
       });
 
-      if (!mounted) {
+      if (!mountedRef.current) {
         console.log("⚠️ Auth state change: Component unmounted, ignoring");
         return;
       }
 
       setUser(session?.user ?? null);
 
-      // Only fetch profile on initial session and sign in, not on token refresh
-      if (session?.user && (event === "INITIAL_SESSION" || event === "SIGNED_IN")) {
+      if (
+        session?.user &&
+        (event === "INITIAL_SESSION" || event === "SIGNED_IN")
+      ) {
         console.log("👤 Auth state change: User present, fetching profile...");
         setProfileLoading(true);
 
         const profile = await fetchProfile(session.user.id);
 
-        if (mounted) {
+        if (mountedRef.current) {
           console.log("✅ Auth state change: Profile fetch complete");
           setProfileData(profile);
           setProfileLoading(false);
@@ -355,17 +337,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setInitialized(true);
       } else if (event === "TOKEN_REFRESHED") {
         console.log("🔄 Token refreshed, keeping existing profile data");
-        // Keep initialized as true during token refresh
       }
     });
 
     return () => {
       console.log("🧹 AuthProvider cleanup");
-      mounted = false;
-      setMounted(false);
+      mountedRef.current = false;
       subscription.unsubscribe();
     };
-  }, [fetchProfile, createProfileSafely]);
+  }, []); // ✅ CRITICAL: Empty dependency array prevents infinite loops
 
   const signIn = async (email: string, password: string) => {
     console.log("🔄 signIn: Starting login for:", email);
@@ -398,28 +378,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     console.log("✅ Signed out successfully");
   };
 
-  // Enhanced render logging
   console.log("🔍 AuthProvider render state:", {
     user: user ? `${user.email} (${user.id.substring(0, 8)}...)` : "null",
-    profileData:
-      profileData && {
-        hasData: true,
-        fullName: profileData.full_name,
-        avatarUrl: profileData.avatar_url
-          ? `${profileData.avatar_url.substring(0, 50)}...`
-          : "null",
-        role: profileData.role,
-      },
+    profileData: profileData ? "loaded" : "null",
     profileLoading,
   });
 
-  // Add this to your AuthProvider to debug the initialization process
   console.log("🔍 Auth Debug - Current state:", {
     user: !!user,
     initialized: initialized,
     authLoading: authLoading,
     profileLoading: profileLoading,
-    profileData: !!profileData
+    profileData: !!profileData,
   });
 
   return (
@@ -427,7 +397,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       value={{
         user,
         profileData,
-        loading: profileLoading,
+        loading: authLoading,
         profileLoading,
         initialized,
         signIn,

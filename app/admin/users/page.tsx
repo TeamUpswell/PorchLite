@@ -299,7 +299,7 @@ export default function UsersPage() {
                 Access Denied
               </h3>
               <p className="mt-1 text-sm text-gray-500">
-                You don&apos;t have permission to manage users.
+                You don't have permission to manage users.
               </p>
               <div className="text-xs text-gray-400 mt-4 p-2 bg-gray-50 rounded">
                 <p>Role: {currentUser?.user_metadata?.role || "undefined"}</p>

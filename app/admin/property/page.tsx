@@ -239,7 +239,7 @@ export default function AdminPropertyPage() {
               Access Denied
             </h3>
             <p className="mt-1 text-sm text-gray-500">
-              You don&apos;t have permission to manage properties.
+              You don't have permission to manage properties.
             </p>
             <div className="text-xs text-gray-400 mt-4 p-2 bg-gray-50 rounded">
               <p>Role: {user?.user_metadata?.role || "undefined"}</p>
@@ -546,8 +546,8 @@ export default function AdminPropertyPage() {
                 Delete Property
               </h2>
               <p className="text-gray-600 mb-6">
-                Are you sure you want to delete &quot;
-                {confirmDialog.propertyName}&quot;? This action cannot be undone
+                Are you sure you want to delete "
+                {confirmDialog.propertyName}"? This action cannot be undone
                 and will remove all associated data including rooms,
                 reservations, and inventory.
               </p>

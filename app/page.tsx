@@ -1,7 +1,7 @@
 // app/page.tsx - Optimized version
 "use client";
 
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useProperty } from "@/lib/hooks/useProperty";
 import { supabase } from "@/lib/supabase";
@@ -154,37 +154,45 @@ export default function HomePage() {
       propertyName: currentProperty?.name,
     });
 
-    // ✅ SHORTER TIMEOUT - 5 seconds instead of 10
+    // ✅ LONGER TIMEOUT - 15 seconds for slow connections
     const loadingTimeout = setTimeout(() => {
-      console.log("⏰ HomePage: Loading timeout reached, forcing completion");
+      console.log("⏰ HomePage: Loading timeout reached, showing dashboard anyway");
       setLoading(false);
-    }, 5000); // 5 second timeout
+    }, 15000); // 15 second timeout
 
-    // ✅ FIXED: Only wait if we don't have a user yet, OR if we have a user but no property loaded
+    // Wait for auth first
+    if (authLoading) {
+      console.log("🔄 HomePage: Auth still loading, waiting...");
+      return () => clearTimeout(loadingTimeout);
+    }
+
+    // Redirect if no user
     if (!user?.id) {
-      console.log("🔄 HomePage: No user yet, waiting for auth...");
+      console.log("🔄 HomePage: No user, redirecting to auth...");
+      router.push("/auth");
       return () => clearTimeout(loadingTimeout);
     }
 
-    // ✅ FIXED: If we have user but property is still loading, wait a bit more
-    if (user?.id && propertyLoading) {
-      console.log("🔄 HomePage: User loaded, waiting for property...");
-      return () => clearTimeout(loadingTimeout);
+    // ✅ FIXED: Show dashboard even if properties are loading
+    if (propertyLoading) {
+      console.log("🔄 HomePage: Properties loading, will show dashboard when ready...");
+      // Don't return here - let it continue to show dashboard
     }
 
-    console.log("✅ HomePage: User and property ready, fetching dashboard");
+    console.log("✅ HomePage: Ready to show dashboard");
     clearTimeout(loadingTimeout);
 
-    // Only fetch dashboard data if we have a property
+    // Fetch dashboard data if we have a property
     if (currentProperty?.id) {
       fetchDashboardData(currentProperty.id, user.id);
     } else {
-      // Show dashboard even without property
+      // Show dashboard even without property selected
+      console.log("📊 HomePage: No property selected, showing empty dashboard");
       setLoading(false);
     }
 
     return () => clearTimeout(loadingTimeout);
-  }, [user?.id, currentProperty?.id, propertyLoading, fetchDashboardData]);
+  }, [user?.id, currentProperty?.id, authLoading, propertyLoading, fetchDashboardData, router]);
 
   // Debugging effect for auth state
   useEffect(() => {
@@ -284,6 +292,31 @@ export default function HomePage() {
             <p className="mt-1 text-sm text-gray-500">
               Please select a property to view your dashboard.
             </p>
+          </div>
+        </StandardCard>
+      </StandardPageLayout>
+    );
+  }
+
+  // ✅ Show property selection if user has no properties
+  if (user?.id && !propertyLoading && (!currentProperty || currentProperty === null)) {
+    return (
+      <StandardPageLayout theme="dark" showHeader={false}>
+        <StandardCard>
+          <div className="text-center py-8">
+            <HomeIcon className="mx-auto h-12 w-12 text-gray-400" />
+            <h3 className="mt-2 text-lg font-medium text-gray-900">
+              No Properties Found
+            </h3>
+            <p className="mt-1 text-sm text-gray-500 mb-4">
+              You don't have any properties yet. Create one to get started.
+            </p>
+            <button
+              onClick={() => router.push("/properties/create")}
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              Create Your First Property
+            </button>
           </div>
         </StandardCard>
       </StandardPageLayout>

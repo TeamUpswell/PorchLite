@@ -25,7 +25,7 @@ export const CompanionSection = ({
     <div className="mb-6">
       <div className="flex items-center justify-between mb-3">
         <label className="block text-sm font-medium text-gray-700">
-          Who&apos;s joining you?
+          Who's joining you?
         </label>
         <button
           type="button"

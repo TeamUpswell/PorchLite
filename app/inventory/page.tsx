@@ -331,7 +331,7 @@ export default function InventoryPage() {
               Access Denied
             </h3>
             <p className="text-gray-600 mb-4">
-              You don&apos;t have access to manage inventory for this property.
+              You don't have access to manage inventory for this property.
             </p>
             <button
               onClick={navigationHandlers.goToDashboard}
