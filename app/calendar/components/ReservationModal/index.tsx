@@ -64,6 +64,167 @@ export const ReservationModal = ({
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Check if user can delete/cancel this reservation
+  const canDelete = () => {
+    if (!actualReservation || !user) return false;
+
+    // Owners and managers can delete any reservation
+    if (isManager || userRoles.includes("owner")) return true;
+
+    // Users can delete their own reservations
+    return actualReservation.user_id === user.id;
+  };
+
+  // Handle reservation deletion/cancellation
+  const handleDelete = async () => {
+    if (!actualReservation?.id) return;
+
+    const confirmDelete = window.confirm(
+      `Are you sure you want to cancel the reservation "${actualReservation.title}"?\n\nThis action cannot be undone.`
+    );
+
+    if (!confirmDelete) return;
+
+    setIsSubmitting(true);
+
+    try {
+      // Delete companions first (foreign key constraint)
+      await supabase
+        .from("reservation_companions")
+        .delete()
+        .eq("reservation_id", actualReservation.id);
+
+      // Delete approval records
+      await supabase
+        .from("reservation_approvals")
+        .delete()
+        .eq("reservation_id", actualReservation.id);
+
+      // Delete the reservation
+      const { error } = await supabase
+        .from("reservations")
+        .delete()
+        .eq("id", actualReservation.id);
+
+      if (error) throw error;
+
+      alert("✅ Reservation cancelled successfully!");
+
+      // Call onDelete callback if provided
+      if (onDelete) {
+        onDelete(actualReservation.id);
+      }
+
+      onSave(); // Refresh the calendar
+      onClose(); // Close the modal
+    } catch (error: any) {
+      console.error("❌ Error cancelling reservation:", error);
+      alert(`❌ Failed to cancel reservation: ${error.message}`);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Handle reservation approval
+  const handleApprove = async () => {
+    if (!actualReservation?.id) return;
+
+    setIsSubmitting(true);
+
+    try {
+      // Update reservation status to confirmed
+      const { error: reservationError } = await supabase
+        .from("reservations")
+        .update({
+          status: "confirmed",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", actualReservation.id);
+
+      if (reservationError) throw reservationError;
+
+      // Update approval record
+      const { error: approvalError } = await supabase
+        .from("reservation_approvals")
+        .update({
+          status: "approved",
+          approved_by: user?.id,
+          approved_at: new Date().toISOString(),
+        })
+        .eq("reservation_id", actualReservation.id)
+        .eq("status", "pending");
+
+      if (approvalError) throw approvalError;
+
+      // Send guest invitations if there are companions
+      if (companions.length > 0) {
+        const invitesSent = await sendGuestInvitations(actualReservation.id);
+        if (invitesSent > 0) {
+          console.log(`✅ Sent ${invitesSent} guest invitations`);
+        }
+      }
+
+      alert("✅ Reservation approved successfully!");
+      onSave(); // Refresh the calendar
+      onClose(); // Close the modal
+    } catch (error: any) {
+      console.error("❌ Error approving reservation:", error);
+      alert(`❌ Failed to approve reservation: ${error.message}`);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Handle reservation rejection
+  const handleReject = async () => {
+    if (!actualReservation?.id) return;
+
+    const reason = window.prompt(
+      "Please provide a reason for rejecting this reservation (optional):"
+    );
+
+    // User cancelled the prompt
+    if (reason === null) return;
+
+    setIsSubmitting(true);
+
+    try {
+      // Update reservation status to rejected
+      const { error: reservationError } = await supabase
+        .from("reservations")
+        .update({
+          status: "rejected",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", actualReservation.id);
+
+      if (reservationError) throw reservationError;
+
+      // Update approval record
+      const { error: approvalError } = await supabase
+        .from("reservation_approvals")
+        .update({
+          status: "rejected",
+          approved_by: user?.id,
+          approved_at: new Date().toISOString(),
+          notes: reason || null,
+        })
+        .eq("reservation_id", actualReservation.id)
+        .eq("status", "pending");
+
+      if (approvalError) throw approvalError;
+
+      alert("✅ Reservation rejected successfully!");
+      onSave(); // Refresh the calendar
+      onClose(); // Close the modal
+    } catch (error: any) {
+      console.error("❌ Error rejecting reservation:", error);
+      alert(`❌ Failed to reject reservation: ${error.message}`);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   // ✅ SINGLE handleSubmit function - handles FormData from the form
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -266,15 +427,67 @@ export const ReservationModal = ({
       <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h2 className="text-xl font-semibold text-gray-900">
-            {selectedReservation ? "Edit Reservation" : "New Reservation"}
-          </h2>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
-          >
-            <X className="w-6 h-6" />
-          </button>
+          <div className="flex items-center space-x-3">
+            <h2 className="text-xl font-semibold text-gray-900">
+              {selectedReservation ? "Edit Reservation" : "New Reservation"}
+            </h2>
+            
+            {/* Status Badge */}
+            {actualReservation?.status && (
+              <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                actualReservation.status === 'confirmed' 
+                  ? 'bg-green-100 text-green-800'
+                  : actualReservation.status === 'pending approval'
+                  ? 'bg-yellow-100 text-yellow-800'
+                  : actualReservation.status === 'rejected'
+                  ? 'bg-red-100 text-red-800'
+                  : 'bg-gray-100 text-gray-800'
+              }`}>
+                {actualReservation.status === 'pending approval' ? 'Pending' : 
+                 actualReservation.status.charAt(0).toUpperCase() + actualReservation.status.slice(1)}
+              </span>
+            )}
+          </div>
+          
+          <div className="flex items-center space-x-2">
+            {/* Approval Buttons - Only show for pending reservations if user can approve */}
+            {actualReservation?.status === "pending approval" && canApproveOthers() && (
+              <>
+                <button
+                  onClick={handleApprove}
+                  disabled={isSubmitting}
+                  className="px-3 py-2 bg-green-600 text-white text-sm rounded-md hover:bg-green-700 disabled:opacity-50 transition-colors"
+                >
+                  ✅ Approve
+                </button>
+                <button
+                  onClick={handleReject}
+                  disabled={isSubmitting}
+                  className="px-3 py-2 bg-red-600 text-white text-sm rounded-md hover:bg-red-700 disabled:opacity-50 transition-colors"
+                >
+                  ❌ Reject
+                </button>
+              </>
+            )}
+            
+            {/* Cancel Button - Only show for existing reservations if user can delete */}
+            {actualReservation?.id && canDelete() && (
+              <button
+                onClick={handleDelete}
+                disabled={isSubmitting}
+                className="px-3 py-2 bg-red-600 text-white text-sm rounded-md hover:bg-red-700 disabled:opacity-50 transition-colors"
+              >
+                🗑️ Cancel
+              </button>
+            )}
+            
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <X className="w-6 h-6" />
+            </button>
+          </div>
         </div>
 
         {/* Form */}
