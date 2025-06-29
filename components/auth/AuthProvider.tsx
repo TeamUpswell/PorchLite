@@ -10,6 +10,7 @@ import {
 } from "react";
 import { User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
+import { debugLog, debugError } from "@/lib/utils/debug";
 
 interface Profile {
   id: string;
@@ -68,7 +69,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const mountedRef = useRef(true);
 
   const updateProfileData = useCallback((updates: Partial<Profile>) => {
-    console.log("🔄 Updating profile data locally:", updates);
+    debugLog("🔄 Updating profile data locally:", updates);
     setProfileData((prev) => (prev ? { ...prev, ...updates } : null));
     window.dispatchEvent(
       new CustomEvent("profileUpdated", { detail: updates })
@@ -79,7 +80,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const createProfileSafely = useCallback(
     async (userId: string): Promise<Profile | null> => {
       try {
-        console.log("📝 Creating profile with upsert...");
+        debugLog("📝 Creating profile with upsert...");
 
         const { data: userData } = await supabase.auth.getUser();
         if (!userData.user) {
@@ -112,14 +113,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           .single();
 
         if (createError) {
-          console.error("❌ Error creating profile:", createError);
+          debugError("❌ Error creating profile:", createError);
           return null;
         }
 
-        console.log("✅ Profile created successfully");
+        debugLog("✅ Profile created successfully");
         return createdProfile;
       } catch (error) {
-        console.error("❌ createProfileSafely error:", error);
+        debugError("❌ createProfileSafely error:", error);
         return null;
       }
     },
@@ -130,7 +131,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const fetchProfile = useCallback(
     async (userId: string): Promise<Profile | null> => {
       const startTime = Date.now();
-      console.log(
+      debugLog(
         "🔄 fetchProfile called with userId:",
         userId,
         "at",
@@ -138,19 +139,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       );
 
       if (!supabase || !userId) {
-        console.log("❌ fetchProfile: Missing supabase client or userId");
+        debugLog("❌ fetchProfile: Missing supabase client or userId");
         return null;
       }
 
       if (fetchProfileRef.current) {
-        console.log("🔄 fetchProfile already in progress, skipping");
+        debugLog("🔄 fetchProfile already in progress, skipping");
         return null;
       }
 
       fetchProfileRef.current = true;
 
       try {
-        console.log("🔍 Starting profile query...");
+        debugLog("🔍 Starting profile query...");
 
         // ✅ Add timeout to prevent hanging
         const queryPromise = supabase
@@ -167,7 +168,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         const queryDuration = Date.now() - startTime;
 
-        console.log("🔍 Profile query completed in", queryDuration, "ms:", {
+        debugLog("🔍 Profile query completed in", queryDuration, "ms:", {
           error: error
             ? {
                 message: error.message,
@@ -180,31 +181,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         if (error) {
           if (error.code === "PGRST116") {
-            console.log("📝 Profile not found, creating new profile...");
+            debugLog("📝 Profile not found, creating new profile...");
             return await createProfileSafely(userId);
           }
           throw error;
         }
 
         if (data) {
-          console.log("✅ Profile data fetched successfully");
+          debugLog("✅ Profile data fetched successfully");
           return data;
         }
 
         return null;
       } catch (error) {
-        console.error("❌ fetchProfile error:", error);
+        debugError("❌ fetchProfile error:", error);
 
         // ✅ Don't let profile errors block auth completely
         if (error.message?.includes("timeout")) {
-          console.log("⚠️ Profile fetch timed out, continuing without profile");
+          debugLog("⚠️ Profile fetch timed out, continuing without profile");
           return null;
         }
 
         return null;
       } finally {
         const totalDuration = Date.now() - startTime;
-        console.log("🏁 fetchProfile completed in", totalDuration, "ms");
+        debugLog("🏁 fetchProfile completed in", totalDuration, "ms");
         fetchProfileRef.current = false;
       }
     },
@@ -213,15 +214,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const refreshProfile = useCallback(async () => {
     if (!user?.id) {
-      console.log("⚠️ refreshProfile: No user ID available");
+      debugLog("⚠️ refreshProfile: No user ID available");
       return;
     }
 
-    console.log("🔄 refreshProfile: Starting refresh for user:", user.id);
+    debugLog("🔄 refreshProfile: Starting refresh for user:", user.id);
 
     const freshProfile = await fetchProfile(user.id);
     if (freshProfile) {
-      console.log("✅ refreshProfile: Profile refreshed successfully");
+      debugLog("✅ refreshProfile: Profile refreshed successfully");
       setProfileData(freshProfile);
 
       window.dispatchEvent(
@@ -230,7 +231,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         })
       );
     } else {
-      console.log("❌ refreshProfile: Failed to refresh profile");
+      debugLog("❌ refreshProfile: Failed to refresh profile");
     }
   }, [user?.id, fetchProfile]);
 
@@ -240,32 +241,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const initializeAuth = async () => {
       try {
-        console.log("🔄 initializeAuth: Starting...");
+        debugLog("🔄 initializeAuth: Starting...");
 
         const {
           data: { session },
           error: sessionError,
         } = await supabase.auth.getSession();
 
-        console.log("🔐 initializeAuth: Session check:", {
+        debugLog("🔐 initializeAuth: Session check:", {
           session: session ? `User: ${session.user.email}` : "No session",
           error: sessionError,
         });
 
         if (sessionError) {
-          console.error("❌ Session error:", sessionError);
+          debugError("❌ Session error:", sessionError);
         }
 
         if (!mountedRef.current) {
-          console.log("⚠️ initializeAuth: Component unmounted, aborting");
+          debugLog("⚠️ initializeAuth: Component unmounted, aborting");
           return;
         }
 
         setUser(session?.user ?? null);
 
         if (session?.user) {
-          console.log("👤 initializeAuth: User found, fetching profile...");
-          console.log("👤 User details:", {
+          debugLog("👤 initializeAuth: User found, fetching profile...");
+          debugLog("👤 User details:", {
             id: session.user.id,
             email: session.user.email,
             created_at: session.user.created_at,
@@ -276,7 +277,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const profile = await fetchProfile(session.user.id);
 
           if (mountedRef.current) {
-            console.log(
+            debugLog(
               "✅ initializeAuth: Setting profile data:",
               profile ? "Profile loaded" : "No profile"
             );
@@ -286,19 +287,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setInitialized(true);
 
             if (profile) {
-              console.log("🎉 initializeAuth: Complete with profile data");
+              debugLog("🎉 initializeAuth: Complete with profile data");
             } else {
-              console.log("⚠️ initializeAuth: Complete but no profile data");
+              debugLog("⚠️ initializeAuth: Complete but no profile data");
             }
           }
         } else {
-          console.log("✅ initializeAuth: No user, completing without profile");
+          debugLog("✅ initializeAuth: No user, completing without profile");
           setProfileLoading(false);
           setAuthLoading(false);
           setInitialized(true);
         }
       } catch (error) {
-        console.error("❌ initializeAuth: Unexpected error:", error);
+        debugError("❌ initializeAuth: Unexpected error:", error);
         if (mountedRef.current) {
           setProfileLoading(false);
           setAuthLoading(false);
@@ -312,14 +313,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log("🔄 Auth state change:", {
+      debugLog("🔄 Auth state change:", {
         event,
         session: session ? `User: ${session.user.email}` : "No session",
         mounted: mountedRef.current,
       });
 
       if (!mountedRef.current) {
-        console.log("⚠️ Auth state change: Component unmounted, ignoring");
+        debugLog("⚠️ Auth state change: Component unmounted, ignoring");
         return;
       }
 
@@ -329,38 +330,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         session?.user &&
         (event === "INITIAL_SESSION" || event === "SIGNED_IN")
       ) {
-        console.log("👤 Auth state change: User present, fetching profile...");
+        debugLog("👤 Auth state change: User present, fetching profile...");
         setProfileLoading(true);
 
         const profile = await fetchProfile(session.user.id);
 
         if (mountedRef.current) {
-          console.log("✅ Auth state change: Profile fetch complete");
+          debugLog("✅ Auth state change: Profile fetch complete");
           setProfileData(profile);
           setProfileLoading(false);
           setAuthLoading(false);
           setInitialized(true);
         }
       } else if (!session?.user) {
-        console.log("✅ Auth state change: No user, clearing profile");
+        debugLog("✅ Auth state change: No user, clearing profile");
         setProfileData(null);
         setProfileLoading(false);
         setAuthLoading(false);
         setInitialized(true);
       } else if (event === "TOKEN_REFRESHED") {
-        console.log("🔄 Token refreshed, keeping existing profile data");
+        debugLog("🔄 Token refreshed, keeping existing profile data");
       }
     });
 
     return () => {
-      console.log("🧹 AuthProvider cleanup");
+      debugLog("🧹 AuthProvider cleanup");
       mountedRef.current = false;
       subscription.unsubscribe();
     };
   }, []); // ✅ CRITICAL: Empty dependency array prevents infinite loops
 
   const signIn = async (email: string, password: string) => {
-    console.log("🔄 signIn: Starting login for:", email);
+    debugLog("🔄 signIn: Starting login for:", email);
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -368,35 +369,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
 
       if (error) {
-        console.error("❌ signIn: Login error:", error);
+        debugError("❌ signIn: Login error:", error);
         throw error;
       }
 
-      console.log("✅ signIn: Login successful:", data.user?.email);
+      debugLog("✅ signIn: Login successful:", data.user?.email);
       return data;
     } catch (error) {
-      console.error("❌ signIn: Login failed:", error);
+      debugError("❌ signIn: Login failed:", error);
       throw error;
     }
   };
 
   const signOut = async () => {
-    console.log("🚪 Signing out...");
+    debugLog("🚪 Signing out...");
     const { error } = await supabase.auth.signOut();
     if (error) {
-      console.error("❌ Sign out error:", error);
+      debugError("❌ Sign out error:", error);
       throw error;
     }
-    console.log("✅ Signed out successfully");
+    debugLog("✅ Signed out successfully");
   };
 
-  console.log("🔍 AuthProvider render state:", {
+  debugLog("🔍 AuthProvider render state:", {
     user: user ? `${user.email} (${user.id.substring(0, 8)}...)` : "null",
     profileData: profileData ? "loaded" : "null",
     profileLoading,
   });
 
-  console.log("🔍 Auth Debug - Current state:", {
+  debugLog("🔍 Auth Debug - Current state:", {
     user: !!user,
     initialized: initialized,
     authLoading: authLoading,

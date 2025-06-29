@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 "use client";
 
 import React, {
@@ -287,9 +288,11 @@ export default function Calendar({
 
   // ✅ SIMPLIFIED: Event handlers with reduced logging
   const handleReservationSelect = (reservation: Reservation) => {
-    console.log("🎯 Reservation selected:", reservation); // ✅ Add debug log
+    if (isDebugEnabled) {
+      console.log("🎯 Reservation selected:", reservation);
+    }
     setSelectedReservation(reservation);
-    setSelectedSlot(null); // ✅ Clear slot when selecting existing event
+    setSelectedSlot(null);
     setShowReservationModal(true);
 
     if (reservation.id) {
@@ -307,8 +310,10 @@ export default function Calendar({
   };
 
   const handleModalClose = () => {
-    console.log("🚪 Modal closing"); // ✅ Add debug log
-    console.log("🚪 Selected reservation was:", selectedReservation); // ✅ See what was selected
+    if (isDebugEnabled) {
+      console.log("🚪 Modal closing");
+      console.log("🚪 Selected reservation was:", selectedReservation);
+    }
     setShowReservationModal(false);
     setSelectedReservation(null);
     setSelectedSlot(null);
@@ -355,13 +360,15 @@ export default function Calendar({
 
   const handleSelectEvent = useCallback(
     (event: Reservation) => {
-      console.log("🎯 Event selected:", event); // ✅ Add debug log
-      console.log("🎯 Event ID:", event.id); // ✅ Check if ID exists
-      console.log("🎯 Event title:", event.title); // ✅ Check if title exists
-      console.log("🎯 Full event object:", JSON.stringify(event, null, 2)); // ✅ See full structure
+      if (isDebugEnabled) {
+        console.log("🎯 Event selected:", event);
+        console.log("🎯 Event ID:", event.id);
+        console.log("🎯 Event title:", event.title);
+        console.log("🎯 Full event object:", JSON.stringify(event, null, 2));
+      }
 
       setSelectedReservation(event);
-      setSelectedSlot(null); // ✅ Clear slot when selecting existing event
+      setSelectedSlot(null);
       setShowReservationModal(true);
 
       if (event.id) {
@@ -370,37 +377,8 @@ export default function Calendar({
         clearCompanions();
       }
     },
-    [fetchCompanions, clearCompanions]
+    [fetchCompanions, clearCompanions, isDebugEnabled]
   );
-
-  const handleDeleteReservation = async (id: string) => {
-    if (!isManager) {
-      toast.error("You don't have permission to delete reservations");
-      return;
-    }
-
-    try {
-      const result = await hookDeleteReservation(id);
-
-      if (result.success) {
-        if (isDebugEnabled) {
-          console.log("📅 Reservation deleted successfully");
-        }
-
-        toast.success("Reservation deleted successfully");
-
-        // Update cache and backup
-        const updatedReservations = reservations.filter((r) => r.id !== id);
-        saveCacheCalendarData(updatedReservations);
-        dataBackupRef.current = updatedReservations;
-      } else {
-        throw result.error;
-      }
-    } catch (error) {
-      console.error("❌ Error deleting reservation:", error);
-      toast.error("Failed to delete reservation");
-    }
-  };
 
   // Event styling
   const eventStyleGetter = (event: Reservation) => {
@@ -474,7 +452,7 @@ export default function Calendar({
         const hasValidDates =
           !isNaN(event.start.getTime()) && !isNaN(event.end.getTime());
 
-        if (!hasValidDates) {
+        if (!hasValidDates && isDebugEnabled) {
           console.warn(
             "Filtering out event with invalid Date objects:",
             event.id,
@@ -495,7 +473,7 @@ export default function Calendar({
       const hasValidDates =
         !isNaN(startDate.getTime()) && !isNaN(endDate.getTime());
 
-      if (!hasValidDates) {
+      if (!hasValidDates && isDebugEnabled) {
         console.warn(
           "Filtering out event - could not create valid dates:",
           event.id,
@@ -514,27 +492,36 @@ export default function Calendar({
 
       return hasValidDates;
     });
-  }, [reservations]);
+  }, [reservations, isDebugEnabled]);
 
-  // Loading state
-  if (isLoading && !hasLoadedOnce) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto mb-4"></div>
-          <p className="text-gray-600 mb-4">Loading calendar...</p>
-          {dataBackupRef.current.length > 0 && (
-            <button
-              onClick={() => loadCachedCalendarData()}
-              className="text-blue-600 hover:text-blue-800 text-sm"
-            >
-              Load backup data ({dataBackupRef.current.length} events)
-            </button>
-          )}
-        </div>
-      </div>
-    );
-  }
+  const handleDeleteReservation = async (id: string) => {
+    if (!isManager) {
+      toast.error("You don't have permission to delete reservations");
+      return;
+    }
+
+    try {
+      const result = await hookDeleteReservation(id);
+
+      if (result.success) {
+        if (isDebugEnabled) {
+          console.log("📅 Reservation deleted successfully");
+        }
+
+        toast.success("Reservation deleted successfully");
+
+        // Update cache and backup
+        const updatedReservations = reservations.filter((r) => r.id !== id);
+        saveCacheCalendarData(updatedReservations);
+        dataBackupRef.current = updatedReservations;
+      } else {
+        throw result.error;
+      }
+    } catch (error) {
+      console.error("❌ Error deleting reservation:", error); // Keep error logs
+      toast.error("Failed to delete reservation");
+    }
+  };
 
   // Custom toolbar component
   const CustomToolbar = ({ label, onNavigate }: any) => {
@@ -663,27 +650,17 @@ export default function Calendar({
         )}
       </div>
 
-      {console.log("🔧 Modal render check:", {
-        showReservationModal,
-        selectedReservation: selectedReservation?.title,
-        selectedSlot: !!selectedSlot,
-      })}
-
-      {console.log("🔧 About to render ReservationModal:", showReservationModal)}
-
       {showReservationModal && (
-        <>
-          {console.log("🔧 Inside modal render block")}
-          <ReservationModal
-            isOpen={showReservationModal}
-            onClose={handleModalClose}
-            onSave={handleReservationSaved}
-            reservation={selectedReservation}
-            selectedSlot={selectedSlot}
-            onDelete={isManager ? handleDeleteReservation : undefined}
-            isManager={isManager}
-          />
-        </>
+        <ReservationModal
+          isOpen={showReservationModal}
+          selectedReservation={selectedReservation}
+          onClose={handleModalClose}
+          onSave={handleReservationSaved}
+          reservation={selectedReservation}
+          selectedSlot={selectedSlot}
+          onDelete={isManager ? handleDeleteReservation : undefined}
+          isManager={isManager}
+        />
       )}
 
       {isManager && (

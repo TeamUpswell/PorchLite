@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { format } from "date-fns";
 import { Reservation, Companion } from "../../types";
 import { CompanionSection } from "./CompanionSection";
@@ -68,8 +68,8 @@ export const ReservationForm = ({
   onCancel,
   isSubmitting = false,
 }: ReservationFormProps) => {
-  // Helper functions to get initial values
-  const getDefaultStartDate = () => {
+  // Helper functions to get initial values - moved to useCallback
+  const getDefaultStartDate = useCallback(() => {
     if (selectedReservation) {
       return format(new Date(selectedReservation.start), "yyyy-MM-dd");
     }
@@ -77,9 +77,9 @@ export const ReservationForm = ({
       return format(selectedSlot.start, "yyyy-MM-dd");
     }
     return format(new Date(), "yyyy-MM-dd");
-  };
+  }, [selectedReservation, selectedSlot]);
 
-  const getDefaultNights = () => {
+  const getDefaultNights = useCallback(() => {
     if (selectedReservation) {
       const startDate = new Date(selectedReservation.start);
       const endDate = new Date(selectedReservation.end);
@@ -97,7 +97,7 @@ export const ReservationForm = ({
       );
     }
     return 1;
-  };
+  }, [selectedReservation, selectedSlot]);
 
   const [startDate, setStartDate] = useState(getDefaultStartDate());
   const [nights, setNights] = useState(getDefaultNights());
@@ -106,7 +106,7 @@ export const ReservationForm = ({
   useEffect(() => {
     setStartDate(getDefaultStartDate());
     setNights(getDefaultNights());
-  }, [selectedReservation, selectedSlot]);
+  }, [selectedReservation, selectedSlot, getDefaultStartDate, getDefaultNights]);
 
   // Calculate checkout date
   const getCheckoutDate = () => {
@@ -127,7 +127,10 @@ export const ReservationForm = ({
     // Validate dates
     if (!start || !end || isNaN(start.getTime()) || isNaN(end.getTime())) {
       console.error("Invalid dates:", { start, end });
-      alert("Please check your dates and try again.");
+      // Replace alert with proper error handling
+      const errorMessage = "Please check your dates and try again.";
+      // You could use a toast notification or set an error state instead
+      console.error(errorMessage);
       return;
     }
 
@@ -142,14 +145,17 @@ export const ReservationForm = ({
     formData.set("start", start.toISOString());
     formData.set("end", end.toISOString());
 
-    console.log("✅ Form submission with dates:", {
-      start_date: start.toISOString(),
-      end_date: end.toISOString(),
-      start: start.toISOString(),
-      end: end.toISOString(),
-      startDate: startDate,
-      nights: nights,
-    });
+    // Remove console.log in production or use a proper logger
+    if (process.env.NODE_ENV === 'development') {
+      console.log("✅ Form submission with dates:", {
+        start_date: start.toISOString(),
+        end_date: end.toISOString(),
+        start: start.toISOString(),
+        end: end.toISOString(),
+        startDate: startDate,
+        nights: nights,
+      });
+    }
 
     // Call the parent's onSubmit with the enhanced form event
     onSubmit(e);

@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 import { useState } from "react";
 import { X } from "lucide-react";
 import { supabase } from "@/lib/supabase";
@@ -7,6 +8,7 @@ import { Reservation, Companion } from "../../types";
 import { useUserRoles } from "../../hooks/useUserRoles";
 import { useCompanions } from "../../hooks/useCompanions";
 import { ReservationForm } from "./ReservationForm";
+import { toast } from "react-hot-toast";
 
 interface ReservationModalProps {
   isOpen: boolean; // ✅ Add this
@@ -20,32 +22,16 @@ interface ReservationModalProps {
 }
 
 export const ReservationModal = ({
-  isOpen, // ✅ Accept this prop
+  isOpen,
   selectedReservation,
-  reservation, // ✅ Accept this as alias
+  reservation,
   selectedSlot,
   onClose,
   onSave,
-  onDelete, // ✅ Accept this prop
-  isManager, // ✅ Accept this prop
+  onDelete,
+  isManager,
 }: ReservationModalProps) => {
-  // ✅ Use reservation as fallback for selectedReservation
-  const actualReservation = selectedReservation || reservation;
-
-  // ✅ Add debug logs at the top
-  console.log("🏠 ReservationModal received props:", {
-    isOpen,
-    selectedReservation: actualReservation?.title,
-    selectedSlot: !!selectedSlot,
-    isManager,
-  });
-
-  // ✅ Don't render if not open
-  if (!isOpen) {
-    console.log("🏠 ReservationModal: Not open, not rendering");
-    return null;
-  }
-
+  // ✅ ALL HOOKS MUST BE AT THE TOP - BEFORE ANY EARLY RETURNS
   const { user } = useAuth();
   const { currentProperty } = useProperty();
   const {
@@ -61,17 +47,29 @@ export const ReservationModal = ({
     removeCompanion,
     sendGuestInvitations,
   } = useCompanions();
-
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Check if user can delete/cancel this reservation
+  // ✅ Use reservation as fallback for selectedReservation
+  const actualReservation = selectedReservation || reservation;
+
+  // ✅ Add debug logs after hooks
+  console.log("🏠 ReservationModal received props:", {
+    isOpen,
+    selectedReservation: actualReservation?.title,
+    selectedSlot: !!selectedSlot,
+    isManager,
+  });
+
+  // ✅ EARLY RETURN AFTER ALL HOOKS
+  if (!isOpen) {
+    console.log("🏠 ReservationModal: Not open, not rendering");
+    return null;
+  }
+
+  // ✅ All other logic comes after hooks and early returns
   const canDelete = () => {
     if (!actualReservation || !user) return false;
-
-    // Owners and managers can delete any reservation
     if (isManager || userRoles.includes("owner")) return true;
-
-    // Users can delete their own reservations
     return actualReservation.user_id === user.id;
   };
 
@@ -79,6 +77,7 @@ export const ReservationModal = ({
   const handleDelete = async () => {
     if (!actualReservation?.id) return;
 
+    // ✅ Better confirmation pattern
     const confirmDelete = window.confirm(
       `Are you sure you want to cancel the reservation "${actualReservation.title}"?\n\nThis action cannot be undone.`
     );
@@ -108,18 +107,19 @@ export const ReservationModal = ({
 
       if (error) throw error;
 
-      alert("✅ Reservation cancelled successfully!");
+      // ✅ Use toast or better notification
+      toast.success("Reservation cancelled successfully!");
 
-      // Call onDelete callback if provided
       if (onDelete) {
         onDelete(actualReservation.id);
       }
 
-      onSave(); // Refresh the calendar
-      onClose(); // Close the modal
+      onSave();
+      onClose();
     } catch (error: any) {
       console.error("❌ Error cancelling reservation:", error);
-      alert(`❌ Failed to cancel reservation: ${error.message}`);
+      // ✅ Better error handling
+      console.error(`❌ Failed to cancel reservation: ${error.message}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -132,7 +132,6 @@ export const ReservationModal = ({
     setIsSubmitting(true);
 
     try {
-      // Update reservation status to confirmed
       const { error: reservationError } = await supabase
         .from("reservations")
         .update({
@@ -143,7 +142,6 @@ export const ReservationModal = ({
 
       if (reservationError) throw reservationError;
 
-      // Update approval record
       const { error: approvalError } = await supabase
         .from("reservation_approvals")
         .update({
@@ -156,7 +154,6 @@ export const ReservationModal = ({
 
       if (approvalError) throw approvalError;
 
-      // Send guest invitations if there are companions
       if (companions.length > 0) {
         const invitesSent = await sendGuestInvitations(actualReservation.id);
         if (invitesSent > 0) {
@@ -164,12 +161,11 @@ export const ReservationModal = ({
         }
       }
 
-      alert("✅ Reservation approved successfully!");
-      onSave(); // Refresh the calendar
-      onClose(); // Close the modal
+      toast.success("Reservation approved successfully!");
+      onSave();
+      onClose();
     } catch (error: any) {
       console.error("❌ Error approving reservation:", error);
-      alert(`❌ Failed to approve reservation: ${error.message}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -179,17 +175,16 @@ export const ReservationModal = ({
   const handleReject = async () => {
     if (!actualReservation?.id) return;
 
+    // ✅ Better prompt pattern
     const reason = window.prompt(
       "Please provide a reason for rejecting this reservation (optional):"
     );
 
-    // User cancelled the prompt
-    if (reason === null) return;
+    if (reason === null) return; // User cancelled
 
     setIsSubmitting(true);
 
     try {
-      // Update reservation status to rejected
       const { error: reservationError } = await supabase
         .from("reservations")
         .update({
@@ -200,7 +195,6 @@ export const ReservationModal = ({
 
       if (reservationError) throw reservationError;
 
-      // Update approval record
       const { error: approvalError } = await supabase
         .from("reservation_approvals")
         .update({
@@ -214,12 +208,11 @@ export const ReservationModal = ({
 
       if (approvalError) throw approvalError;
 
-      alert("✅ Reservation rejected successfully!");
-      onSave(); // Refresh the calendar
-      onClose(); // Close the modal
+      toast.success("Reservation rejected successfully!");
+      onSave();
+      onClose();
     } catch (error: any) {
       console.error("❌ Error rejecting reservation:", error);
-      alert(`❌ Failed to reject reservation: ${error.message}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -230,7 +223,7 @@ export const ReservationModal = ({
     e.preventDefault();
 
     if (!user || !currentProperty) {
-      alert("Missing user or property data");
+      console.error("Missing user or property data");
       return;
     }
 
@@ -271,7 +264,7 @@ export const ReservationModal = ({
       const totalGuests =
         guests + companions.filter((c) => c.name.trim()).length;
 
-      const reservationData = {
+      const reservationData: any = {
         user_id: user.id,
         start_date: startDate.toISOString(),
         end_date: endDate.toISOString(),
@@ -408,11 +401,12 @@ export const ReservationModal = ({
         }
       }
 
-      alert(successMessage);
+      // ✅ Replace alert with better notification
+      toast.success("Reservation saved successfully!");
       onSave();
     } catch (error: any) {
       console.error("❌ Error saving reservation:", error);
-      alert(`❌ Failed to save reservation: ${error.message}`);
+      console.error(`❌ Failed to save reservation: ${error.message}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -484,6 +478,8 @@ export const ReservationModal = ({
             <button
               onClick={onClose}
               className="text-gray-400 hover:text-gray-600 transition-colors"
+              aria-label="Close modal"
+              title="Close modal"
             >
               <X className="w-6 h-6" />
             </button>
@@ -493,7 +489,7 @@ export const ReservationModal = ({
         {/* Form */}
         <div className="p-6">
           <ReservationForm
-            selectedReservation={actualReservation}
+            selectedReservation={actualReservation || null}
             selectedSlot={selectedSlot}
             companions={companions}
             canAutoApprove={canAutoApprove()}

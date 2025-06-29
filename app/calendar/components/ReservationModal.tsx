@@ -2,8 +2,9 @@ import { Trash2, Save, X } from "lucide-react";
 import React, { useState, useEffect } from "react";
 import { toast } from "react-hot-toast";
 import { supabase } from "../../../lib/supabase";
-import { useAuth } from "../../../lib/hooks/useAuth";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { useProperty } from "../../../lib/hooks/useProperty";
+import { debugLog, debugError } from "@/lib/utils/debug";
 
 // Define the Reservation type to match your database
 interface Reservation {
@@ -43,7 +44,7 @@ interface ReservationFormData {
   end_date: string;
   guests: number;
   companion_count: number;
-  status: ReservationStatus; // ✅ Allow all status types
+  status: ReservationStatus;
 }
 
 export default function ReservationModal({
@@ -56,7 +57,7 @@ export default function ReservationModal({
   isManager,
 }: ReservationModalProps) {
   // ✅ Add debug log at the very top
-  console.log("🏠 ReservationModal received props:", {
+  debugLog("🏠 ReservationModal received props:", {
     isOpen,
     hasReservation: !!reservation,
     reservationId: reservation?.id,
@@ -67,7 +68,7 @@ export default function ReservationModal({
 
   // ✅ ALL HOOKS MUST BE AT THE TOP - BEFORE ANY EARLY RETURNS
   const { user } = useAuth();
-  const { currentProperty, currentTenant } = useProperty();
+  const { currentProperty } = useProperty();
 
   // Form state
   const [formData, setFormData] = useState<ReservationFormData>({
@@ -77,7 +78,7 @@ export default function ReservationModal({
     end_date: "",
     guests: 1,
     companion_count: 0,
-    status: "pending", // or whatever default you want
+    status: "pending",
   });
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -94,14 +95,14 @@ export default function ReservationModal({
 
       // Check if date is valid
       if (isNaN(date.getTime())) {
-        console.warn("Invalid date value:", dateValue);
+        debugError("Invalid date value:", dateValue);
         return "";
       }
 
       // Format for datetime-local input (YYYY-MM-DDTHH:MM)
       return date.toISOString().slice(0, 16);
     } catch (error) {
-      console.error("Error formatting date:", error, dateValue);
+      debugError("Error formatting date:", error, dateValue);
       return "";
     }
   };
@@ -109,13 +110,13 @@ export default function ReservationModal({
   // Add debug logging for modal state
   useEffect(() => {
     if (isOpen) {
-      console.log("[DEBUG] 📅 ReservationModal opened with:", {
+      debugLog("📅 ReservationModal opened with:", {
         reservation: reservation
           ? {
               id: reservation.id,
               title: reservation.title,
-              start: reservation.start,
-              end: reservation.end,
+              start_date: reservation.start_date,
+              end_date: reservation.end_date,
             }
           : null,
         selectedSlot,
@@ -126,7 +127,7 @@ export default function ReservationModal({
 
   // Log props changes
   useEffect(() => {
-    console.log("[DEBUG] 🎭 ReservationModal props changed:", {
+    debugLog("🎭 ReservationModal props changed:", {
       isOpen,
       hasReservation: !!reservation,
       reservationId: reservation?.id,
@@ -135,25 +136,22 @@ export default function ReservationModal({
     });
 
     if (isOpen && reservation) {
-      console.log("[DEBUG] 🎭 Modal opening for editing reservation:", {
+      debugLog("🎭 Modal opening for editing reservation:", {
         id: reservation.id,
         title: reservation.title,
-        start_date: reservation.start,
-        end_date: reservation.end,
+        start_date: reservation.start_date,
+        end_date: reservation.end_date,
       });
     }
 
     if (isOpen && selectedSlot) {
-      console.log(
-        "[DEBUG] 🎭 Modal opening for new reservation:",
-        selectedSlot
-      );
+      debugLog("🎭 Modal opening for new reservation:", selectedSlot);
     }
   }, [isOpen, reservation, selectedSlot]);
 
   // Initialize form data
   useEffect(() => {
-    console.log("[DEBUG] 📅 Initializing form data:", {
+    debugLog("📅 Initializing form data:", {
       reservation,
       selectedSlot,
       isEditing: Boolean(reservation?.id),
@@ -164,17 +162,13 @@ export default function ReservationModal({
       const newFormData = {
         title: reservation.title || "",
         description: reservation.description || "",
-        // ✅ Fix: Use start_date and end_date, not start/end
         start_date: formatDateForInput(reservation.start_date),
         end_date: formatDateForInput(reservation.end_date),
         guests: reservation.guests || 1,
         companion_count: reservation.companion_count || 0,
         status: reservation.status || "confirmed",
       };
-      console.log(
-        "[DEBUG] 📅 Setting form data for existing reservation:",
-        newFormData
-      );
+      debugLog("📅 Setting form data for existing reservation:", newFormData);
       setFormData(newFormData);
     } else if (selectedSlot) {
       // Creating new reservation
@@ -187,10 +181,7 @@ export default function ReservationModal({
         companion_count: 0,
         status: "confirmed" as const,
       };
-      console.log(
-        "[DEBUG] 📅 Setting form data for new reservation:",
-        newFormData
-      );
+      debugLog("📅 Setting form data for new reservation:", newFormData);
       setFormData(newFormData);
     }
   }, [reservation, selectedSlot]);
@@ -199,22 +190,22 @@ export default function ReservationModal({
   if (!isOpen) return null;
 
   const isEditing = Boolean(reservation?.id);
-  console.log("[DEBUG] 📅 ReservationModal rendering - isEditing:", isEditing);
+  debugLog("📅 ReservationModal rendering - isEditing:", isEditing);
 
   const handleDeleteClick = () => {
-    console.log("[DEBUG] 📅 Delete button clicked");
+    debugLog("📅 Delete button clicked");
     setShowDeleteConfirm(true);
   };
 
   const confirmDelete = () => {
     if (!reservation || !onDelete) return;
 
-    console.log("[DEBUG] 📅 Confirming delete for:", reservation.title);
+    debugLog("📅 Confirming delete for:", reservation.title);
     try {
       onDelete(reservation);
       onClose();
     } catch (error) {
-      console.error("Error deleting reservation:", error);
+      debugError("Error deleting reservation:", error);
       toast.error("Failed to delete reservation");
     } finally {
       setShowDeleteConfirm(false);
@@ -224,15 +215,14 @@ export default function ReservationModal({
   // Form submit handler
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("[DEBUG] 📅 Form submitted:", { formData, isEditing });
+    debugLog("📅 Form submitted:", { formData, isEditing });
 
     // Wrap the entire function in a try-catch to catch ANY error
     try {
-      if (!user || !currentProperty || !currentTenant) {
-        console.error("[DEBUG] 📅 Missing context:", {
+      if (!user || !currentProperty) {
+        debugError("📅 Missing context:", {
           user: !!user,
           currentProperty: !!currentProperty,
-          currentTenant: !!currentTenant,
         });
         toast.error("Missing authentication or property context");
         return;
@@ -263,7 +253,7 @@ export default function ReservationModal({
       }
 
       setSaving(true);
-      console.log("[DEBUG] 📅 Starting save operation...");
+      debugLog("📅 Starting save operation...");
 
       try {
         // Prepare data for database
@@ -276,18 +266,14 @@ export default function ReservationModal({
           companion_count: formData.companion_count,
           status: formData.status,
           property_id: currentProperty.id,
-          tenant_id: currentTenant.id,
           user_id: user.id,
           updated_at: new Date().toISOString(),
         };
 
-        console.log("[DEBUG] 📅 Reservation data prepared:", reservationData);
+        debugLog("📅 Reservation data prepared:", reservationData);
 
         if (isEditing && reservation) {
-          console.log(
-            "[DEBUG] 📅 Updating existing reservation:",
-            reservation.id
-          );
+          debugLog("📅 Updating existing reservation:", reservation.id);
 
           // Update existing reservation
           const { error } = await supabase
@@ -296,14 +282,14 @@ export default function ReservationModal({
             .eq("id", reservation.id);
 
           if (error) {
-            console.error("[DEBUG] 📅 Update error:", error);
+            debugError("📅 Update error:", error);
             throw error;
           }
 
           toast.success("Reservation updated successfully");
-          console.log("✅ Updated reservation:", reservation.id);
+          debugLog("✅ Updated reservation:", reservation.id);
         } else {
-          console.log("[DEBUG] 📅 Creating new reservation");
+          debugLog("📅 Creating new reservation");
 
           // Create new reservation
           const newReservationData = {
@@ -311,29 +297,28 @@ export default function ReservationModal({
             created_at: new Date().toISOString(),
           };
 
-          console.log("[DEBUG] 📅 New reservation data:", newReservationData);
+          debugLog("📅 New reservation data:", newReservationData);
 
           const { error } = await supabase
             .from("reservations")
             .insert([newReservationData]);
 
           if (error) {
-            console.error("[DEBUG] 📅 Insert error:", error);
+            debugError("📅 Insert error:", error);
             throw error;
           }
 
           toast.success("Reservation created successfully");
-          console.log("✅ Created new reservation");
+          debugLog("✅ Created new reservation");
         }
 
         // *** CRITICAL DEBUG POINT ***
-        console.log("[DEBUG] 📅 About to call onSave()");
-        console.log("[DEBUG] 📅 onSave type:", typeof onSave);
-        console.log("[DEBUG] 📅 onSave function:", onSave);
+        debugLog("📅 About to call onSave()");
+        debugLog("📅 onSave type:", typeof onSave);
 
         // Check if onSave is actually a function
         if (typeof onSave !== "function") {
-          console.error("❌ onSave is not a function!", onSave);
+          debugError("❌ onSave is not a function!", onSave);
           toast.error("Internal error: onSave callback is invalid");
           return;
         }
@@ -341,15 +326,38 @@ export default function ReservationModal({
         // Call onSave and catch any errors from it
         try {
           onSave();
-          console.log("[DEBUG] 📅 onSave() called successfully");
-        } catch (onSaveError) {
-          console.error("❌ Error in onSave():", onSaveError);
-          console.error("❌ onSave error stack:", onSaveError.stack);
+          debugLog("📅 onSave() called successfully");
+        } catch (onSaveError: unknown) {
+          debugError("❌ Error in onSave():", onSaveError);
+
+          // Safe error handling
+          const errorMessage =
+            onSaveError instanceof Error
+              ? onSaveError.message
+              : String(onSaveError);
+
+          const errorStack =
+            onSaveError instanceof Error ? onSaveError.stack : undefined;
+
+          debugError("❌ onSave error message:", errorMessage);
+          if (errorStack) {
+            debugError("❌ onSave error stack:", errorStack);
+          }
+
           throw onSaveError;
         }
       } catch (saveError) {
-        console.error("❌ Failed to save reservation:", saveError);
-        console.error("❌ Save error stack:", saveError.stack);
+        const errorMessage =
+          saveError instanceof Error ? saveError.message : String(saveError);
+        const errorStack =
+          saveError instanceof Error ? saveError.stack : undefined;
+
+        debugError("❌ Failed to save reservation:", saveError);
+        debugError("❌ Save error message:", errorMessage);
+        if (errorStack) {
+          debugError("❌ Save error stack:", errorStack);
+        }
+
         toast.error(
           isEditing
             ? "Failed to update reservation"
@@ -358,10 +366,18 @@ export default function ReservationModal({
       } finally {
         setSaving(false);
       }
-    } catch (outerError) {
-      console.error("❌ Outer catch - Failed to save reservation:", outerError);
-      console.error("❌ Outer error stack:", outerError.stack);
-      console.error("❌ Error message:", outerError.message);
+    } catch (outerError: unknown) {
+      const errorMessage =
+        outerError instanceof Error ? outerError.message : String(outerError);
+      const errorStack =
+        outerError instanceof Error ? outerError.stack : undefined;
+
+      debugError("❌ Outer catch - Failed to save reservation:", outerError);
+      debugError("❌ Error message:", errorMessage);
+      if (errorStack) {
+        debugError("❌ Outer error stack:", errorStack);
+      }
+
       setSaving(false);
     }
   };
@@ -379,6 +395,8 @@ export default function ReservationModal({
               onClick={onClose}
               className="text-gray-400 hover:text-gray-600 transition-colors"
               disabled={saving}
+              aria-label="Close modal"
+              title="Close modal"
             >
               <X className="h-6 w-6" />
             </button>
@@ -423,10 +441,11 @@ export default function ReservationModal({
             {/* Date Range */}
             <div className="grid grid-cols-2 gap-4 mb-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="start_date" className="block text-sm font-medium text-gray-700 mb-2">
                   Check-in *
                 </label>
                 <input
+                  id="start_date"
                   type="datetime-local"
                   value={formData.start_date}
                   onChange={(e) =>
@@ -438,10 +457,11 @@ export default function ReservationModal({
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="end_date" className="block text-sm font-medium text-gray-700 mb-2">
                   Check-out *
                 </label>
                 <input
+                  id="end_date"
                   type="datetime-local"
                   value={formData.end_date}
                   onChange={(e) =>
@@ -457,10 +477,11 @@ export default function ReservationModal({
             {/* Guests and Companions */}
             <div className="grid grid-cols-2 gap-4 mb-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="guests" className="block text-sm font-medium text-gray-700 mb-2">
                   Primary Guests *
                 </label>
                 <input
+                  id="guests"
                   type="number"
                   min="1"
                   value={formData.guests}
@@ -476,10 +497,11 @@ export default function ReservationModal({
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="companion_count" className="block text-sm font-medium text-gray-700 mb-2">
                   Companions
                 </label>
                 <input
+                  id="companion_count"
                   type="number"
                   min="0"
                   value={formData.companion_count}
@@ -504,10 +526,11 @@ export default function ReservationModal({
 
             {/* Status */}
             <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-2">
                 Status
               </label>
               <select
+                id="status"
                 value={formData.status}
                 onChange={(e) =>
                   setFormData({ ...formData, status: e.target.value as any })
@@ -576,7 +599,7 @@ export default function ReservationModal({
           <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
             <h3 className="text-lg font-semibold mb-4">Delete Reservation</h3>
             <p className="text-gray-600 mb-6">
-              Are you sure you want to delete "{reservation?.title}"? This
+              Are you sure you want to delete &quot;{reservation?.title}&quot;? This
               action cannot be undone.
             </p>
             <div className="flex gap-3 justify-end">

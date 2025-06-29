@@ -1,9 +1,9 @@
-// app/page.tsx - Optimized version
 "use client";
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useProperty } from "@/lib/hooks/useProperty";
+import { useWeather } from "@/lib/hooks/useWeather";
 import { supabase } from "@/lib/supabase";
 import StandardPageLayout from "@/components/layout/StandardPageLayout";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
@@ -11,7 +11,7 @@ import StandardCard from "@/components/ui/StandardCard";
 import { Home as HomeIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import GoogleMapComponent from "@/components/GoogleMapComponent";
-import { usePropertyWeather } from "@/components/dashboard/WeatherWidget";
+import { debugLog, debugError } from "@/lib/utils/debug";
 
 interface UpcomingVisit {
   id: string;
@@ -28,69 +28,67 @@ interface InventoryItem {
   status: "good" | "low" | "critical";
 }
 
+interface TestUser {
+  id: string;
+  name: string;
+  email: string;
+}
+
 export default function HomePage() {
-  const { user, loading: authLoading, initialized: authInitialized } = useAuth();
-  const { 
-    currentProperty, 
-    userProperties, 
-    loading: propertyLoading, 
-    error: propertyError,
-    hasInitialized: propertyInitialized 
+  // CRITICAL: All hooks must be called unconditionally at the top level
+  const {
+    user,
+    loading: authLoading,
+    initialized: authInitialized,
+  } = useAuth();
+  const {
+    currentProperty,
+    userPropertiesCount,
+    loading: propertyLoading,
   } = useProperty();
 
-  // ✅ Enhanced debugging
-  useEffect(() => {
-    console.log("🔍 HomePage Full Debug:", {
-      // Auth state
-      user: user ? { id: user.id, email: user.email } : null,
-      authLoading,
-      authInitialized,
-      
-      // Property state
-      currentProperty: currentProperty ? { 
-        id: currentProperty.id, 
-        name: currentProperty.name 
-      } : null,
-      userPropertiesCount: userProperties?.length || 0,
-      propertyLoading,
-      propertyError,
-      propertyInitialized,
-      
-      // Combined state
-      readyToLoad: !authLoading && user?.id && propertyInitialized,
-      hasAllData: !authLoading && user?.id && currentProperty?.id,
-    });
-  }, [
-    user, authLoading, authInitialized,
-    currentProperty, userProperties, propertyLoading, propertyError, propertyInitialized
-  ]);
-
-  // Prevent multiple simultaneous fetches
-  const fetchingRef = useRef(false);
-  const hasFetchedRef = useRef<string | null>(null);
-
-  // ✅ RESTORED weather hook
+  // Add weather hook
   const {
-    weather: weatherData,
+    weather,
     loading: weatherLoading,
     error: weatherError,
-  } = usePropertyWeather();
+  } = useWeather(
+    currentProperty
+      ? `${currentProperty.address}, ${currentProperty.city}, ${currentProperty.state}`
+      : undefined
+  );
 
+  const router = useRouter();
+
+  // All useState hooks first
+  const [showWelcome, setShowWelcome] = useState(false);
+  const [selectedFilter, setSelectedFilter] = useState<string>("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortBy, setSortBy] = useState<"date" | "priority" | "status">("date");
+  const [isTestMode, setIsTestMode] = useState(false);
+  const [testUsers, setTestUsers] = useState<TestUser[]>([]);
   const [upcomingVisits, setUpcomingVisits] = useState<UpcomingVisit[]>([]);
   const [inventoryAlerts, setInventoryAlerts] = useState<InventoryItem[]>([]);
   const [taskAlerts, setTaskAlerts] = useState<any[]>([]);
   const [totalInventoryCount, setTotalInventoryCount] = useState(0);
   const [loading, setLoading] = useState(true);
-
   const [componentLoading, setComponentLoading] = useState({
     visits: true,
     inventory: true,
     tasks: true,
   });
 
-  const router = useRouter();
+  // All useRef hooks
+  const loadingTimeoutRef = useRef<NodeJS.Timeout>();
+  const initTimeRef = useRef<number>(Date.now());
+  const fetchingRef = useRef(false);
+  const hasFetchedRef = useRef<string | null>(null);
 
-  // Memoize the fetch function - REMOVED from useEffect dependency
+  // All useCallback hooks
+  const handleFilterChange = useCallback((filter: string) => {
+    setSelectedFilter(filter);
+  }, []);
+
   const fetchDashboardData = useCallback(
     async (property_id: string, userId: string) => {
       // Prevent duplicate fetches for the same property
@@ -102,14 +100,14 @@ export default function HomePage() {
       hasFetchedRef.current = property_id;
 
       try {
-        console.log(
+        debugLog(
           "🏠 Property and user loaded, fetching dashboard:",
           currentProperty?.name
         );
 
         const today = new Date().toISOString().split("T")[0];
-        console.log("🔍 Fetching dashboard data for property:", property_id);
-        console.log("🔍 Dashboard: Looking for reservations after:", today);
+        debugLog("🔍 Fetching dashboard data for property:", property_id);
+        debugLog("🔍 Dashboard: Looking for reservations after:", today);
 
         // Fetch visits
         const visitsData = await supabase
@@ -120,7 +118,7 @@ export default function HomePage() {
           .order("start_date", { ascending: true })
           .limit(10);
 
-        console.log(
+        debugLog(
           "📊 Dashboard: Found reservations:",
           visitsData.data?.length || 0
         );
@@ -150,24 +148,24 @@ export default function HomePage() {
         setTotalInventoryCount(inventoryItems.length);
         setComponentLoading((prev) => ({ ...prev, inventory: false }));
 
-        // ✅ Fix the tasks query to match your actual schema:
+        // Fetch the tasks query to match your actual schema:
         const tasksData = await supabase
           .from("tasks")
           .select(
             "id, title, description, priority, status, created_at, due_date, assigned_to"
           )
           .eq("property_id", property_id)
-          .in("status", ["pending", "in_progress"]) // ✅ Use actual status values
+          .in("status", ["pending", "in_progress"])
           .order("created_at", { ascending: false })
           .limit(10);
 
-        console.log("📊 Dashboard: Found tasks:", tasksData.data?.length || 0);
+        debugLog("📊 Dashboard: Found tasks:", tasksData.data?.length || 0);
         setTaskAlerts(tasksData.data || []);
         setComponentLoading((prev) => ({ ...prev, tasks: false }));
 
-        console.log("✅ Dashboard data fetched successfully");
+        debugLog("✅ Dashboard data fetched successfully");
       } catch (error) {
-        console.error("❌ Error fetching dashboard data:", error);
+        debugError("❌ Error fetching dashboard data:", error);
         setComponentLoading({ visits: false, inventory: false, tasks: false });
       } finally {
         setLoading(false);
@@ -175,81 +173,26 @@ export default function HomePage() {
       }
     },
     [currentProperty?.name]
-  ); // Minimal dependencies
+  );
 
-  // Initial loading effect
-  useEffect(() => {
-    console.log("🏠 HomePage useEffect:", {
-      authLoading,
-      propertyLoading,
-      userId: user?.id ? "present" : "missing",
-      propertyId: currentProperty?.id ? "present" : "missing",
-      propertyName: currentProperty?.name,
-    });
-
-    // ✅ LONGER TIMEOUT - 15 seconds for slow connections
-    const loadingTimeout = setTimeout(() => {
-      console.log("⏰ HomePage: Loading timeout reached, showing dashboard anyway");
-      setLoading(false);
-    }, 15000); // 15 second timeout
-
-    // Wait for auth first
-    if (authLoading) {
-      console.log("🔄 HomePage: Auth still loading, waiting...");
-      return () => clearTimeout(loadingTimeout);
-    }
-
-    // Redirect if no user
-    if (!user?.id) {
-      console.log("🔄 HomePage: No user, redirecting to auth...");
-      router.push("/auth");
-      return () => clearTimeout(loadingTimeout);
-    }
-
-    // ✅ FIXED: Show dashboard even if properties are loading
-    if (propertyLoading) {
-      console.log("🔄 HomePage: Properties loading, will show dashboard when ready...");
-      // Don't return here - let it continue to show dashboard
-    }
-
-    console.log("✅ HomePage: Ready to show dashboard");
-    clearTimeout(loadingTimeout);
-
-    // Fetch dashboard data if we have a property
-    if (currentProperty?.id) {
-      fetchDashboardData(currentProperty.id, user.id);
-    } else {
-      // Show dashboard even without property selected
-      console.log("📊 HomePage: No property selected, showing empty dashboard");
-      setLoading(false);
-    }
-
-    return () => clearTimeout(loadingTimeout);
-  }, [user?.id, currentProperty?.id, authLoading, propertyLoading, fetchDashboardData, router]);
-
-  // Debugging effect for auth state
-  useEffect(() => {
-    console.log("🔍 Debug - Auth state:", {
+  // All useMemo hooks - MUST be called unconditionally
+  const debugAuthState = useMemo(
+    () => ({
       user: user?.id,
       authLoading,
       propertyLoading,
       currentProperty: currentProperty?.id,
-      propertyName: currentProperty?.name
-    });
-  }, [user, authLoading, propertyLoading, currentProperty]);
+      propertyName: currentProperty?.name,
+    }),
+    [
+      user?.id,
+      authLoading,
+      propertyLoading,
+      currentProperty?.id,
+      currentProperty?.name,
+    ]
+  );
 
-  // Reset fetch tracking when property changes
-  useEffect(() => {
-    if (currentProperty?.id !== hasFetchedRef.current) {
-      hasFetchedRef.current = null;
-      fetchingRef.current = false;
-      // Reset loading states when property changes
-      setComponentLoading({ visits: true, inventory: true, tasks: true });
-      setLoading(true);
-    }
-  }, [currentProperty?.id]);
-
-  // Memoize navigation handlers to prevent re-creation
   const navigationHandlers = useMemo(
     () => ({
       handleUpcomingVisitsClick: () => router.push("/calendar"),
@@ -262,18 +205,124 @@ export default function HomePage() {
     [router]
   );
 
-  // Auth redirect effect
+  // All useEffect hooks
+  useEffect(() => {
+    debugLog("🔍 HomePage Full Debug:", {
+      user: user ? user.email + " (" + user.id.slice(0, 8) + "...)" : null,
+      authLoading,
+      authInitialized,
+      currentProperty: currentProperty ? currentProperty.name : null,
+      userPropertiesCount,
+      propertyLoading,
+      hasUser: !!user,
+      hasProperty: !!currentProperty,
+      propertyId: currentProperty?.id || "missing",
+      propertyName: currentProperty?.name,
+    });
+  });
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setShowWelcome(true);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    debugLog("🏠 HomePage useEffect:", {
+      authLoading,
+      propertyLoading,
+      userId: user?.id ? "present" : "missing",
+      propertyId: currentProperty?.id ? "present" : "missing",
+      propertyName: currentProperty?.name,
+    });
+
+    const loadingTimeout = setTimeout(() => {
+      debugLog(
+        "⏰ HomePage: Loading timeout reached, showing dashboard anyway"
+      );
+      setLoading(false);
+    }, 15000);
+
+    if (authLoading) {
+      debugLog("🔄 HomePage: Auth still loading, waiting...");
+      return () => clearTimeout(loadingTimeout);
+    }
+
+    if (!user?.id) {
+      debugLog("🔄 HomePage: No user, redirecting to auth...");
+      router.push("/auth");
+      return () => clearTimeout(loadingTimeout);
+    }
+
+    if (propertyLoading) {
+      debugLog(
+        "🔄 HomePage: Properties loading, will show dashboard when ready..."
+      );
+    }
+
+    debugLog("✅ HomePage: Ready to show dashboard");
+    clearTimeout(loadingTimeout);
+
+    if (currentProperty?.id) {
+      fetchDashboardData(currentProperty.id, user.id);
+    } else {
+      debugLog("📊 HomePage: No property selected, showing empty dashboard");
+      setLoading(false);
+    }
+
+    return () => clearTimeout(loadingTimeout);
+  }, [
+    user?.id,
+    currentProperty?.id,
+    currentProperty?.name,
+    authLoading,
+    propertyLoading,
+    fetchDashboardData,
+    router,
+  ]);
+
+  useEffect(() => {
+    debugLog("🔍 Debug - Auth state:", {
+      user: user?.id,
+      authLoading,
+      propertyLoading,
+      currentProperty: currentProperty?.id,
+      propertyName: currentProperty?.name,
+    });
+  }, [user, authLoading, propertyLoading, currentProperty]);
+
+  useEffect(() => {
+    if (currentProperty?.id !== hasFetchedRef.current) {
+      hasFetchedRef.current = null;
+      fetchingRef.current = false;
+      setComponentLoading({ visits: true, inventory: true, tasks: true });
+      setLoading(true);
+    }
+  }, [currentProperty?.id]);
+
   useEffect(() => {
     if (!authLoading && !user) {
       router.push("/auth");
     }
   }, [user, authLoading, router]);
 
-  // Memoize loading states to prevent unnecessary re-renders
-  const isAuthLoading = authLoading;
-  const isPropertyLoading = propertyLoading;
+  // Early returns AFTER all hooks - FIX THE CONDITION
+  if (authLoading || !authInitialized) {
+    debugLog("🔄 HomePage: Auth still loading, waiting...", {
+      authLoading,
+      authInitialized,
+    });
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading your account...</p>
+        </div>
+      </div>
+    );
+  }
 
-  // Loading states - SIMPLIFIED
   if (!user?.id) {
     return (
       <StandardPageLayout theme="dark" showHeader={false}>
@@ -301,18 +350,6 @@ export default function HomePage() {
     );
   }
 
-  if (!user) {
-    return (
-      <StandardPageLayout theme="dark" showHeader={false}>
-        <StandardCard>
-          <div className="flex items-center justify-center py-12">
-            <div>Redirecting to login...</div>
-          </div>
-        </StandardCard>
-      </StandardPageLayout>
-    );
-  }
-
   if (!currentProperty) {
     return (
       <StandardPageLayout theme="dark" showHeader={false}>
@@ -331,8 +368,11 @@ export default function HomePage() {
     );
   }
 
-  // ✅ Show property selection if user has no properties
-  if (user?.id && !propertyLoading && (!currentProperty || currentProperty === null)) {
+  if (
+    user?.id &&
+    !propertyLoading &&
+    (!currentProperty || currentProperty === null)
+  ) {
     return (
       <StandardPageLayout theme="dark" showHeader={false}>
         <StandardCard>
@@ -342,7 +382,7 @@ export default function HomePage() {
               No Properties Found
             </h3>
             <p className="mt-1 text-sm text-gray-500 mb-4">
-              You don't have any properties yet. Create one to get started.
+              You don&apos;t have any properties yet. Create one to get started.
             </p>
             <button
               onClick={() => router.push("/properties/create")}
@@ -360,28 +400,28 @@ export default function HomePage() {
   return (
     <StandardPageLayout theme="dark" showHeader={false}>
       <div className="mb-6">
-        <DashboardHeader weather={weatherData} showWeather={true}>
-          <h1 className="text-3xl md:text-4xl font-bold mb-1 text-white drop-shadow-lg tracking-tight">
-            {currentProperty.name}
-          </h1>
-          <p className="text-white/90 text-lg md:text-xl drop-shadow-md font-light tracking-wide">
-            {currentProperty.address || "Your beautiful property"}
-          </p>
-          {weatherLoading && (
-            <p className="text-white/80 text-sm drop-shadow-md">
-              Loading weather data...
-            </p>
-          )}
-          {weatherError && (
-            <p className="text-white/80 text-sm drop-shadow-md">
-              Weather unavailable: {weatherError}
-            </p>
-          )}
-          {weatherData?.location && !weatherLoading && (
-            <p className="text-white/80 text-sm drop-shadow-md">
-              Current weather for {weatherData.location}
-            </p>
-          )}
+        <DashboardHeader
+          weather={weatherLoading ? null : weather}
+          showWeather={true}
+        >
+          <div className="flex items-center justify-between w-full">
+            <div>
+              <h1 className="text-3xl md:text-4xl font-bold mb-1 text-white drop-shadow-lg tracking-tight">
+                {currentProperty.name}
+              </h1>
+              <p className="text-white/90 text-lg md:text-xl drop-shadow-md font-light tracking-wide">
+                {currentProperty.address || "Your beautiful property"}
+              </p>
+              {weatherError && (
+                <p className="text-red-300 text-sm mt-1">
+                  Weather unavailable: {weatherError}
+                </p>
+              )}
+              {weatherLoading && (
+                <p className="text-white/70 text-sm mt-1">Loading weather...</p>
+              )}
+            </div>
+          </div>
         </DashboardHeader>
       </div>
 

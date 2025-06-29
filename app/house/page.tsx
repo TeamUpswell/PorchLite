@@ -153,7 +153,7 @@ export default function HousePage() {
     };
 
     fetchGearItems();
-  }, [currentProperty?.id]);
+  }, [currentProperty?.id, currentProperty?.name]);
 
   // Check if walkthrough exists
   useEffect(() => {
@@ -190,7 +190,7 @@ export default function HousePage() {
     };
 
     checkWalkthroughExists();
-  }, [currentProperty]);
+  }, [currentProperty?.id, currentProperty?.name]);
 
   const getCategoryIcon = (category: string) => {
     switch (category?.toLowerCase()) {
@@ -213,6 +213,19 @@ export default function HousePage() {
       default:
         return Package;
     }
+  };
+
+  // Helper functions to ensure proper number types
+  const getLatitude = (property: NonNullable<typeof currentProperty>) => {
+    return typeof property.latitude === "string"
+      ? parseFloat(property.latitude)
+      : property.latitude;
+  };
+
+  const getLongitude = (property: NonNullable<typeof currentProperty>) => {
+    return typeof property.longitude === "string"
+      ? parseFloat(property.longitude)
+      : property.longitude;
   };
 
   // ✅ LOADING STATE - Updated to use isAuthLoading
@@ -278,8 +291,8 @@ export default function HousePage() {
                 <div className="p-0 relative">
                   {/* Map Component */}
                   <PropertyMap
-                    latitude={parseFloat(currentProperty.latitude)}
-                    longitude={parseFloat(currentProperty.longitude)}
+                    latitude={getLatitude(currentProperty)}
+                    longitude={getLongitude(currentProperty)}
                     address={currentProperty.address}
                     height="250px"
                     className="rounded-lg"
@@ -306,9 +319,7 @@ export default function HousePage() {
                   {/* Directions Button Overlay - Top Right */}
                   <div className="absolute top-4 right-4">
                     <a
-                      href={`https://www.google.com/maps/dir/?api=1&destination=${parseFloat(
-                        currentProperty.latitude
-                      )},${parseFloat(currentProperty.longitude)}`}
+                      href={`https://www.google.com/maps/dir/?api=1&destination=${getLatitude(currentProperty)},${getLongitude(currentProperty)}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow-lg border border-blue-600 transition-all hover:shadow-xl"

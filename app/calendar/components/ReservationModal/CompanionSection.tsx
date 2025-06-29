@@ -25,7 +25,7 @@ export const CompanionSection = ({
     <div className="mb-6">
       <div className="flex items-center justify-between mb-3">
         <label className="block text-sm font-medium text-gray-700">
-          Who's joining you?
+          Who&apos;s joining you?
         </label>
         <button
           type="button"
@@ -39,7 +39,7 @@ export const CompanionSection = ({
 
       {companions.length === 0 ? (
         <div className="text-gray-500 text-sm py-4 border border-dashed border-gray-300 rounded-md text-center">
-          Click "Add Person" to include companions in this reservation
+          Click &quot;Add Person&quot; to include companions in this reservation
         </div>
       ) : (
         <div className="space-y-4 max-h-60 overflow-y-auto">

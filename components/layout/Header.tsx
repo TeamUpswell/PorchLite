@@ -27,6 +27,32 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { User } from "@supabase/supabase-js";
+import { debugLog, debugError } from "@/lib/utils/debug";
+
+// ✅ Type definitions
+interface UserAvatarProps {
+  user: User | null;
+  className?: string;
+}
+
+interface PageInfo {
+  title: string;
+  icon: any;
+  description?: string;
+}
+
+interface AccountItem {
+  name: string;
+  href: string;
+  icon: any;
+  permissionCheck?: (user: User | null) => boolean;
+}
+
+interface AccountSection {
+  category: string;
+  items: AccountItem[];
+}
 
 // ✅ Move gradient colors outside component
 const GRADIENT_COLORS = [
@@ -39,7 +65,7 @@ const GRADIENT_COLORS = [
 ];
 
 // ✅ Move static data outside component
-const accountSection = {
+const accountSection: AccountSection = {
   category: "Account",
   items: [
     { name: "Account", href: "/account", icon: UserIcon },
@@ -47,21 +73,18 @@ const accountSection = {
       name: "Property Settings",
       href: "/account/properties",
       icon: CogIcon,
-      permissionCheck: (user: any) => canManageProperties(user),
+      permissionCheck: (user: User | null) => canManageProperties(user),
     },
     {
       name: "User Management",
       href: "/account/users",
       icon: UserGroupIcon,
-      permissionCheck: (user: any) => canManageUsers(user),
+      permissionCheck: (user: User | null) => canManageUsers(user),
     },
   ],
 };
 
-const pageInfo: Record<
-  string,
-  { title: string; icon: any; description?: string }
-> = {
+const pageInfo: Record<string, PageInfo> = {
   "/": {
     title: "Dashboard",
     icon: HomeIcon,
@@ -124,24 +147,24 @@ const pageInfo: Record<
   },
 };
 
-// ✅ FIXED UserAvatar component
-const UserAvatar = ({ user, className = "w-8 h-8" }) => {
+// ✅ FIXED UserAvatar component with proper types
+const UserAvatar: React.FC<UserAvatarProps> = ({ user, className = "w-8 h-8" }) => {
   const [showFallback, setShowFallback] = useState(false);
   const [avatarKey, setAvatarKey] = useState(0);
   const { profileData, profileLoading } = useAuth();
 
-  console.log("🖼️ UserAvatar: Computing avatar URL...");
-  console.log("🖼️ Profile data:", profileData);
-  console.log("🖼️ Profile avatar_url:", profileData?.avatar_url);
+  debugLog("🖼️ UserAvatar: Computing avatar URL...");
+  debugLog("🖼️ Profile data:", profileData);
+  debugLog("🖼️ Profile avatar_url:", profileData?.avatar_url);
 
   // ✅ Get avatar URL with cache busting
   const avatarUrl = useMemo(() => {
     if (profileData?.avatar_url) {
       const url = `${profileData.avatar_url}?t=${Date.now()}&key=${avatarKey}`;
-      console.log("🖼️ Final avatar URL:", url);
+      debugLog("🖼️ Final avatar URL:", url);
       return url;
     }
-    console.log("🖼️ No avatar URL found, will show fallback");
+    debugLog("🖼️ No avatar URL found, will show fallback");
     return null;
   }, [profileData?.avatar_url, avatarKey]);
 
@@ -153,15 +176,15 @@ const UserAvatar = ({ user, className = "w-8 h-8" }) => {
       user?.user_metadata?.full_name ||
       user?.email?.split("@")[0] ||
       "User";
-    console.log("👤 UserAvatar: Display name:", name);
+    debugLog("👤 UserAvatar: Display name:", name);
     return name;
   }, [profileData?.full_name, user]);
 
-  // ✅ Generate gradient class based on name - FIXED!
+  // ✅ Generate gradient class based on name - FIXED with proper types!
   const gradientClass = useMemo(() => {
     if (!userName) return GRADIENT_COLORS[0];
 
-    const hash = userName.split("").reduce((a, b) => {
+    const hash = userName.split("").reduce((a: number, b: string) => {
       a = (a << 5) - a + b.charCodeAt(0);
       return a & a;
     }, 0);
@@ -171,7 +194,7 @@ const UserAvatar = ({ user, className = "w-8 h-8" }) => {
   // ✅ Listen for profile data changes
   useEffect(() => {
     const handleProfileChange = (event: CustomEvent) => {
-      console.log("🔄 Header Avatar: Profile data changed:", event.detail);
+      debugLog("🔄 Header Avatar: Profile data changed:", event.detail);
       setShowFallback(false);
       setAvatarKey((prev) => prev + 1);
     };
@@ -191,13 +214,13 @@ const UserAvatar = ({ user, className = "w-8 h-8" }) => {
 
   // ✅ Handle image load error
   const handleImageError = useCallback(() => {
-    console.log("❌ UserAvatar: Image failed to load:", avatarUrl);
+    debugLog("❌ UserAvatar: Image failed to load:", avatarUrl);
     setShowFallback(true);
   }, [avatarUrl]);
 
   // ✅ Handle image load success
   const handleImageLoad = useCallback(() => {
-    console.log("✅ UserAvatar: Image loaded successfully:", avatarUrl);
+    debugLog("✅ UserAvatar: Image loaded successfully:", avatarUrl);
     setShowFallback(false);
   }, [avatarUrl]);
 
@@ -281,7 +304,7 @@ export default function Header() {
       await signOut();
       setIsDropdownOpen(false);
     } catch (error) {
-      console.error("Error signing out:", error);
+      debugError("Error signing out:", error);
     }
   }, [signOut]);
 

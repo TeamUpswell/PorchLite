@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
-import { supabase } from "@/lib/supabase";
-import { useProperty } from "@/lib/hooks/useProperty";
+import { supabase } from "../../../lib/supabase";
+import { useProperty } from "../../../lib/hooks/useProperty";
 import { Reservation } from "../types";
 
 export const useReservations = () => {

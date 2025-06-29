@@ -10,6 +10,7 @@ import React, {
 } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { supabase } from "@/lib/supabase";
+import { debugLog, debugError } from "@/lib/utils/debug";
 
 export interface Property {
   id: string;
@@ -57,6 +58,7 @@ interface Tenant {
 interface PropertyContextType {
   currentProperty: Property | null;
   userProperties: Property[];
+  userPropertiesCount: number;
   tenant: Tenant | null;
   loading: boolean;
   error: string | null;
@@ -89,38 +91,38 @@ export function PropertyProvider({ children }: { children: React.ReactNode }) {
 
   const loadUserProperties = useCallback(async () => {
     if (!user?.id) {
-      console.log("🏠 useProperty: No user ID available");
+      debugLog("🏠 useProperty: No user ID available");
       return;
     }
 
     if (loadingRef.current) {
-      console.log("🏠 useProperty: Already loading, skipping...");
+      debugLog("🏠 useProperty: Already loading, skipping...");
       return;
     }
 
     loadingRef.current = true;
     setLoading(true);
     setError(null);
-    console.log("🏠 useProperty: Starting to load properties for user:", user.id);
+    debugLog("🏠 useProperty: Starting to load properties for user:", user.id);
 
     try {
       // ✅ First, test basic connection with a simple query
-      console.log("🔍 Testing basic Supabase connection...");
+      debugLog("🔍 Testing basic Supabase connection...");
       const { data: testData, error: testError } = await supabase
         .from("properties")
         .select("id")
         .limit(1);
 
       if (testError) {
-        console.error("❌ Basic connection test failed:", testError);
+        debugError("❌ Basic connection test failed:", testError);
         setError(`Connection failed: ${testError.message}`);
         return;
       }
 
-      console.log("✅ Basic connection successful");
+      debugLog("✅ Basic connection successful");
 
       // ✅ Now try the actual query with more detailed logging
-      console.log("🔍 useProperty: Querying properties with created_by:", user.id);
+      debugLog("🔍 useProperty: Querying properties with created_by:", user.id);
       
       const { data: properties, error } = await supabase
         .from("properties")
@@ -128,7 +130,7 @@ export function PropertyProvider({ children }: { children: React.ReactNode }) {
         .eq("created_by", user.id)
         .order("created_at", { ascending: false });
 
-      console.log("🔍 Raw query response:", {
+      debugLog("🔍 Raw query response:", {
         data: properties,
         error,
         dataLength: properties?.length,
@@ -136,28 +138,28 @@ export function PropertyProvider({ children }: { children: React.ReactNode }) {
       });
 
       if (error) {
-        console.log("❌ useProperty: Error loading properties:", error);
+        debugLog("❌ useProperty: Error loading properties:", error);
         setError(error.message);
         return;
       }
 
-      console.log("✅ useProperty: Loaded properties:", properties?.length || 0);
+      debugLog("✅ useProperty: Loaded properties:", properties?.length || 0);
       if (properties?.length) {
-        console.log("🏠 Properties details:", properties.map(p => ({ 
+        debugLog("🏠 Properties details:", properties.map(p => ({ 
           id: p.id, 
           name: p.name, 
           created_by: p.created_by,
           is_active: p.is_active
         })));
       } else {
-        console.log("📝 No properties found for user. This might be normal for new users.");
+        debugLog("📝 No properties found for user. This might be normal for new users.");
       }
       
       setUserProperties(properties || []);
       setHasInitialized(true);
       
     } catch (error: any) {
-      console.log("❌ useProperty: Exception loading properties:", error);
+      debugLog("❌ useProperty: Exception loading properties:", error);
       setError(error.message);
     } finally {
       setLoading(false);
@@ -168,7 +170,7 @@ export function PropertyProvider({ children }: { children: React.ReactNode }) {
   // ✅ Auto-select first property when loaded
   useEffect(() => {
     if (userProperties.length > 0 && !currentProperty && hasInitialized) {
-      console.log(
+      debugLog(
         "🎯 useProperty: Auto-selecting first property:",
         userProperties[0].name
       );
@@ -178,7 +180,7 @@ export function PropertyProvider({ children }: { children: React.ReactNode }) {
 
   // ✅ Add debugging to see what's happening
   useEffect(() => {
-    console.log("🏠 useProperty Debug:", {
+    debugLog("🏠 useProperty Debug:", {
       user: user ? { id: user.id, email: user.email } : null,
       userPropertiesCount: userProperties.length,
       currentProperty: currentProperty
@@ -193,7 +195,7 @@ export function PropertyProvider({ children }: { children: React.ReactNode }) {
   // ✅ Main effect to load properties when user changes
   useEffect(() => {
     if (!user?.id) {
-      console.log("🏠 useProperty: No user yet, resetting state...");
+      debugLog("🏠 useProperty: No user yet, resetting state...");
       setUserProperties([]);
       setCurrentProperty(null);
       setHasInitialized(false);
@@ -206,17 +208,17 @@ export function PropertyProvider({ children }: { children: React.ReactNode }) {
 
     // Only load if user changed or not initialized
     if (newUserId !== lastUserIdRef.current || !hasInitialized) {
-      console.log("🏠 useProperty: User changed or not initialized, loading properties...");
-      console.log("🏠 useProperty: Previous user:", lastUserIdRef.current);
-      console.log("🏠 useProperty: Current user:", newUserId);
-      console.log("🏠 useProperty: Has initialized:", hasInitialized);
+      debugLog("🏠 useProperty: User changed or not initialized, loading properties...");
+      debugLog("🏠 useProperty: Previous user:", lastUserIdRef.current);
+      debugLog("🏠 useProperty: Current user:", newUserId);
+      debugLog("🏠 useProperty: Has initialized:", hasInitialized);
 
       lastUserIdRef.current = newUserId;
       loadUserProperties();
     } else {
-      console.log("🏠 useProperty: User unchanged and initialized, skipping load");
+      debugLog("🏠 useProperty: User unchanged and initialized, skipping load");
     }
-  }, [user?.id, hasInitialized]); // ✅ Removed loadUserProperties to prevent loops
+  }, [user?.id, hasInitialized, loadUserProperties]);
 
   const createProperty = useCallback(
     async (
@@ -243,7 +245,7 @@ export function PropertyProvider({ children }: { children: React.ReactNode }) {
           },
         ]);
       } catch (tenantError) {
-        console.log("Could not create tenant_user record:", tenantError);
+        debugLog("Could not create tenant_user record:", tenantError);
         // Don't throw here, the property was created successfully
       }
 
@@ -284,6 +286,7 @@ export function PropertyProvider({ children }: { children: React.ReactNode }) {
   const value = {
     currentProperty,
     userProperties,
+    userPropertiesCount: userProperties.length,
     tenant,
     loading,
     error,
