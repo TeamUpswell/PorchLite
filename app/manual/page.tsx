@@ -272,7 +272,7 @@ export default function ManualPage() {
     return (
       <StandardCard>
         <div className="text-center py-8">
-          <BookOpen className="mx-auto h-12 w-12 text-gray-400" />
+          <BookOpen className="mx-auto h-12 w-12 text-gray-600 dark:text-gray-400" />
           <h3 className="mt-2 text-sm font-medium text-gray-900">
             No Property Selected
           </h3>
@@ -362,7 +362,7 @@ export default function ManualPage() {
               subtitle={`Instructions and procedures for ${currentProperty.name}`}
             >
               <div className="text-center py-12">
-                <BookOpen className="mx-auto h-12 w-12 text-gray-400" />
+                <BookOpen className="mx-auto h-12 w-12 text-gray-600 dark:text-gray-400" />
                 <h3 className="mt-2 text-sm font-medium text-gray-900">
                   No instruction sections yet
                 </h3>

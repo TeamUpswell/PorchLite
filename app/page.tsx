@@ -7,6 +7,7 @@ import { useWeather } from "@/lib/hooks/useWeather";
 import { supabase } from "@/lib/supabase";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import StandardCard from "@/components/ui/StandardCard";
+import { ManualStyleCard } from "@/components/ui/StandardCard";
 import { Home as HomeIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import GoogleMapComponent from "@/components/GoogleMapComponent";
@@ -316,7 +317,9 @@ export default function HomePage() {
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center p-4">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600 dark:text-gray-400">Loading your account...</p>
+          <p className="text-gray-700 dark:text-gray-300">
+            Loading your account...
+          </p>
         </div>
       </div>
     );
@@ -338,7 +341,9 @@ export default function HomePage() {
         <div className="flex items-center justify-center py-12">
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600 dark:text-gray-400">Loading your properties...</p>
+            <p className="text-gray-700 dark:text-gray-300">
+              Loading your properties...
+            </p>
           </div>
         </div>
       </StandardCard>
@@ -349,11 +354,11 @@ export default function HomePage() {
     return (
       <StandardCard>
         <div className="text-center py-8">
-          <HomeIcon className="mx-auto h-12 w-12 text-gray-400" />
+          <HomeIcon className="mx-auto h-12 w-12 text-gray-600 dark:text-gray-400" />
           <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-gray-100">
             No Property Selected
           </h3>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+          <p className="mt-1 text-sm text-gray-700 dark:text-gray-300">
             Please select a property to view your dashboard.
           </p>
         </div>
@@ -369,11 +374,11 @@ export default function HomePage() {
     return (
       <StandardCard>
         <div className="text-center py-8">
-          <HomeIcon className="mx-auto h-12 w-12 text-gray-400" />
+          <HomeIcon className="mx-auto h-12 w-12 text-gray-600 dark:text-gray-400" />
           <h3 className="mt-2 text-lg font-medium text-gray-900 dark:text-gray-100">
             No Properties Found
           </h3>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400 mb-4">
+          <p className="mt-1 text-sm text-gray-700 dark:text-gray-300 mb-4">
             You don&apos;t have any properties yet. Create one to get started.
           </p>
           <button
@@ -407,12 +412,14 @@ export default function HomePage() {
         {/* Upcoming Visits */}
         <div
           onClick={navigationHandlers.handleUpcomingVisitsClick}
-          className="cursor-pointer transform transition-all duration-200 hover:scale-105 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-lg group"
+          className="cursor-pointer transform transition-all duration-200 hover:scale-105"
           role="button"
           tabIndex={0}
         >
-          <StandardCard className="h-full group-hover:shadow-lg transition-shadow bg-gray-800 dark:bg-gray-900 border-gray-700 dark:border-gray-600">
-            <div className="flex items-center">
+          <ManualStyleCard
+            title="Upcoming Visits"
+            badge={`${upcomingVisits.length} visits`}
+            icon={
               <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
                 <svg
                   className="w-6 h-6 text-blue-600 dark:text-blue-400"
@@ -428,19 +435,17 @@ export default function HomePage() {
                   />
                 </svg>
               </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-200 dark:text-gray-300">
-                  Upcoming Visits
-                </p>
-                <p className="text-2xl font-semibold text-white dark:text-gray-100">
-                  {componentLoading.visits ? "..." : upcomingVisits.length}
-                </p>
-                <p className="text-xs text-blue-400 dark:text-blue-400 font-medium opacity-0 group-hover:opacity-100 transition-opacity">
-                  Click to view calendar →
-                </p>
+            }
+          >
+            <div className="text-center">
+              <div className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
+                {componentLoading.visits ? "..." : upcomingVisits.length}
               </div>
+              <p className="text-xs text-blue-600 dark:text-blue-400 font-medium mt-2">
+                Click to view calendar →
+              </p>
             </div>
-          </StandardCard>
+          </ManualStyleCard>
         </div>
 
         {/* Low Stock Alerts */}
@@ -472,9 +477,7 @@ export default function HomePage() {
                   Low Stock Alerts
                 </p>
                 <p className="text-2xl font-semibold text-white dark:text-gray-100">
-                  {componentLoading.inventory
-                    ? "..."
-                    : inventoryAlerts.length}
+                  {componentLoading.inventory ? "..." : inventoryAlerts.length}
                 </p>
                 <p className="text-xs text-yellow-400 dark:text-yellow-400 font-medium opacity-0 group-hover:opacity-100 transition-opacity">
                   Click to manage inventory →
@@ -537,7 +540,7 @@ export default function HomePage() {
           >
             <div className="text-center">
               <svg
-                className="mx-auto h-8 w-8 text-gray-300 dark:text-gray-400"
+                className="mx-auto h-8 w-8 text-gray-300 dark:text-gray-600 dark:text-gray-400"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -561,7 +564,7 @@ export default function HomePage() {
           >
             <div className="text-center">
               <svg
-                className="mx-auto h-8 w-8 text-gray-300 dark:text-gray-400"
+                className="mx-auto h-8 w-8 text-gray-300 dark:text-gray-600 dark:text-gray-400"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -585,7 +588,7 @@ export default function HomePage() {
           >
             <div className="text-center">
               <svg
-                className="mx-auto h-8 w-8 text-gray-300 dark:text-gray-400"
+                className="mx-auto h-8 w-8 text-gray-300 dark:text-gray-600 dark:text-gray-400"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -615,7 +618,9 @@ export default function HomePage() {
           {loading ? (
             <div className="text-center py-8">
               <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-400 mx-auto mb-2"></div>
-              <p className="text-sm text-gray-300 dark:text-gray-400">Loading activity...</p>
+              <p className="text-sm text-gray-300 dark:text-gray-600 dark:text-gray-400">
+                Loading activity...
+              </p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -623,7 +628,7 @@ export default function HomePage() {
                 <div className="text-2xl font-bold text-blue-400 dark:text-blue-400">
                   {upcomingVisits.length}
                 </div>
-                <div className="text-sm text-gray-300 dark:text-gray-400">
+                <div className="text-sm text-gray-300 dark:text-gray-600 dark:text-gray-400">
                   Upcoming Reservations
                 </div>
               </div>
@@ -631,7 +636,7 @@ export default function HomePage() {
                 <div className="text-2xl font-bold text-green-400 dark:text-green-400">
                   {totalInventoryCount}
                 </div>
-                <div className="text-sm text-gray-300 dark:text-gray-400">
+                <div className="text-sm text-gray-300 dark:text-gray-600 dark:text-gray-400">
                   Total Inventory Items
                 </div>
               </div>
@@ -639,7 +644,7 @@ export default function HomePage() {
                 <div className="text-2xl font-bold text-purple-400 dark:text-purple-400">
                   {taskAlerts.length}
                 </div>
-                <div className="text-sm text-gray-300 dark:text-gray-400">
+                <div className="text-sm text-gray-300 dark:text-gray-600 dark:text-gray-400">
                   Active Tasks
                 </div>
               </div>
@@ -650,7 +655,7 @@ export default function HomePage() {
 
       {/* Property Location Map */}
       {currentProperty?.latitude && currentProperty?.longitude && (
-        <StandardCard 
+        <StandardCard
           title="Property Location"
           subtitle={`${currentProperty.address}, ${currentProperty.city}, ${currentProperty.state}`}
           className="bg-gray-800 dark:bg-gray-900 border-gray-700 dark:border-gray-600"
@@ -676,8 +681,9 @@ export default function HomePage() {
         >
           <div className="bg-blue-900/30 dark:bg-blue-900/20 border border-blue-600 dark:border-blue-700 rounded-lg p-4">
             <p className="text-blue-300 dark:text-blue-200 text-sm">
-              🎉 You're all set! Use the navigation above to manage your properties, 
-              track reservations, monitor inventory, and stay on top of tasks.
+              🎉 You're all set! Use the navigation above to manage your
+              properties, track reservations, monitor inventory, and stay on top
+              of tasks.
             </p>
           </div>
         </StandardCard>

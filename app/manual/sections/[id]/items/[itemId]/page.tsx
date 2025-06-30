@@ -303,7 +303,7 @@ export default function ItemDetailPage() {
             subtitle="The requested manual item could not be found"
           >
             <div className="text-center py-8">
-              <BookOpen className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+              <BookOpen className="mx-auto h-12 w-12 text-gray-600 dark:text-gray-400 mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">
                 Item Not Found
               </h3>

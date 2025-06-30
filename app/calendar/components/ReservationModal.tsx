@@ -393,7 +393,7 @@ export default function ReservationModal({
             </h3>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 transition-colors"
+              className="text-gray-600 dark:text-gray-400 hover:text-gray-600 transition-colors"
               disabled={saving}
               aria-label="Close modal"
               title="Close modal"

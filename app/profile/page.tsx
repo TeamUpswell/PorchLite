@@ -372,7 +372,7 @@ export default function ProfilePage() {
         subtitle="Unable to load your profile information"
       >
         <div className="text-center py-8">
-          <User className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+          <User className="mx-auto h-12 w-12 text-gray-600 dark:text-gray-400 mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">
             Profile Not Found
           </h3>
@@ -430,7 +430,7 @@ export default function ProfilePage() {
               Email Address
             </label>
             <div className="relative">
-              <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-600 dark:text-gray-400" />
               <input
                 type="email"
                 value={profile.email}
@@ -468,7 +468,7 @@ export default function ProfilePage() {
               Phone Number
             </label>
             <div className="relative">
-              <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-600 dark:text-gray-400" />
               <input
                 type="tel"
                 value={formData.phone}

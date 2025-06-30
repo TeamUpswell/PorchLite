@@ -549,7 +549,7 @@ export default function EditItemPage() {
         subtitle="The requested manual item could not be found"
       >
         <div className="text-center py-8">
-          <AlertTriangle className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+          <AlertTriangle className="mx-auto h-12 w-12 text-gray-600 dark:text-gray-400 mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">
             Item Not Found
           </h3>
@@ -708,9 +708,9 @@ export default function EditItemPage() {
               </div>
             ) : (
               <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                <ImageIcon className="h-12 w-12 text-gray-400 mx-auto mb-2" />
+                <ImageIcon className="h-12 w-12 text-gray-600 dark:text-gray-400 mx-auto mb-2" />
                 <p className="text-gray-500">No photos added yet</p>
-                <p className="text-sm text-gray-400 mt-1">
+                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
                   Upload photos or take new ones to document this item
                 </p>
               </div>

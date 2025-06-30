@@ -638,7 +638,7 @@ export default function Calendar({
         ) : (
           <div className="flex items-center justify-center h-full text-gray-500">
             <div className="text-center">
-              <CalendarIcon className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+              <CalendarIcon className="mx-auto h-12 w-12 text-gray-600 dark:text-gray-400 mb-4" />
               <p>No events to display</p>
               {reservations.length > 0 && (
                 <p className="text-sm text-red-500 mt-2">

@@ -239,7 +239,7 @@ export default function CleaningPage() {
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-3"></div>
-            <p className="text-gray-600 dark:text-gray-400">
+            <p className="text-gray-700 dark:text-gray-300">
               ⏳ Loading cleaning dashboard...
             </p>
           </div>
@@ -279,7 +279,7 @@ export default function CleaningPage() {
               />
               Refresh
             </button>
-            <span className="text-xs text-gray-500 dark:text-gray-400">
+            <span className="text-xs text-gray-700 dark:text-gray-300">
               {currentProperty.name}
             </span>
           </div>
@@ -294,7 +294,7 @@ export default function CleaningPage() {
         {loading ? (
           <div className="flex items-center justify-center py-12">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            <span className="ml-2 text-gray-600 dark:text-gray-400">
+            <span className="ml-2 text-gray-700 dark:text-gray-300">
               Loading stats...
             </span>
           </div>
@@ -307,7 +307,7 @@ export default function CleaningPage() {
                   <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                     Cleaning Progress
                   </span>
-                  <span className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                     {progressPercentage}%
                   </span>
                 </div>
@@ -378,14 +378,14 @@ export default function CleaningPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <Link
             href="/cleaning/tasks/create"
-            className="flex items-center p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+            className="flex items-center p-4  rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
           >
             <Plus className="h-8 w-8 text-blue-600 mr-3 flex-shrink-0" />
             <div>
               <h4 className="font-medium text-gray-900 dark:text-gray-100">
                 Create Task
               </h4>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
+              <p className="text-sm text-gray-700 dark:text-gray-300">
                 Add a new cleaning task
               </p>
             </div>
@@ -393,14 +393,14 @@ export default function CleaningPage() {
 
           <Link
             href="/cleaning/templates"
-            className="flex items-center p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+            className="flex items-center p-4  rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
           >
             <Sparkles className="h-8 w-8 text-purple-600 mr-3 flex-shrink-0" />
             <div>
               <h4 className="font-medium text-gray-900 dark:text-gray-100">
                 Templates
               </h4>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
+              <p className="text-sm text-gray-700 dark:text-gray-300">
                 Use cleaning templates
               </p>
             </div>
@@ -408,14 +408,14 @@ export default function CleaningPage() {
 
           <Link
             href="/cleaning/team"
-            className="flex items-center p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+            className="flex items-center p-4  rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
           >
             <Users className="h-8 w-8 text-green-600 mr-3 flex-shrink-0" />
             <div>
               <h4 className="font-medium text-gray-900 dark:text-gray-100">
                 Team Management
               </h4>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
+              <p className="text-sm text-gray-700 dark:text-gray-300">
                 Manage cleaning staff
               </p>
             </div>
@@ -442,31 +442,31 @@ export default function CleaningPage() {
               <tr>
                 <th
                   scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider"
                 >
                   Task
                 </th>
                 <th
                   scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider"
                 >
                   Status
                 </th>
                 <th
                   scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider"
                 >
                   Due Date
                 </th>
                 <th
                   scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider"
                 >
                   Assigned To
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+            <tbody className=" divide-y divide-gray-200 dark:divide-gray-700">
               {/* TODO: Replace with real data */}
               <tr>
                 <td className="px-6 py-4 whitespace-nowrap">
@@ -479,10 +479,10 @@ export default function CleaningPage() {
                     Completed
                   </span>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
                   Today
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
                   Sarah Johnson
                 </td>
               </tr>
@@ -497,10 +497,10 @@ export default function CleaningPage() {
                     Overdue
                   </span>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
                   Yesterday
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
                   Mike Chen
                 </td>
               </tr>
@@ -515,10 +515,10 @@ export default function CleaningPage() {
                     Pending
                   </span>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
                   Tomorrow
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
                   Unassigned
                 </td>
               </tr>
@@ -538,7 +538,7 @@ export default function CleaningPage() {
             <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
               {progressPercentage}%
             </div>
-            <div className="text-sm text-gray-600 dark:text-gray-400">
+            <div className="text-sm text-gray-700 dark:text-gray-300">
               Completion Rate
             </div>
           </div>
@@ -547,7 +547,7 @@ export default function CleaningPage() {
             <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
               2.5
             </div>
-            <div className="text-sm text-gray-600 dark:text-gray-400">
+            <div className="text-sm text-gray-700 dark:text-gray-300">
               Avg Hours/Task
             </div>
           </div>
@@ -556,7 +556,7 @@ export default function CleaningPage() {
             <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
               3
             </div>
-            <div className="text-sm text-gray-600 dark:text-gray-400">
+            <div className="text-sm text-gray-700 dark:text-gray-300">
               Active Staff
             </div>
           </div>
@@ -578,8 +578,9 @@ export default function CleaningPage() {
                 <h4 className="font-medium text-gray-900 dark:text-white mb-1">
                   Create Detailed Schedules
                 </h4>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Establish regular cleaning schedules with specific tasks and timelines
+                <p className="text-sm text-gray-700 dark:text-gray-300">
+                  Establish regular cleaning schedules with specific tasks and
+                  timelines
                 </p>
               </div>
             </div>
@@ -591,7 +592,7 @@ export default function CleaningPage() {
                 <h4 className="font-medium text-gray-900 dark:text-white mb-1">
                   Use Quality Control Checklists
                 </h4>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
+                <p className="text-sm text-gray-700 dark:text-gray-300">
                   Implement standardized checklists to ensure consistent quality
                 </p>
               </div>
@@ -604,7 +605,7 @@ export default function CleaningPage() {
                 <h4 className="font-medium text-gray-900 dark:text-white mb-1">
                   Track Supply Inventory
                 </h4>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
+                <p className="text-sm text-gray-700 dark:text-gray-300">
                   Monitor cleaning supplies and equipment to avoid shortages
                 </p>
               </div>
@@ -619,8 +620,9 @@ export default function CleaningPage() {
                 <h4 className="font-medium text-gray-900 dark:text-white mb-1">
                   Train Your Team
                 </h4>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Provide regular training on proper cleaning techniques and safety
+                <p className="text-sm text-gray-700 dark:text-gray-300">
+                  Provide regular training on proper cleaning techniques and
+                  safety
                 </p>
               </div>
             </div>
@@ -632,7 +634,7 @@ export default function CleaningPage() {
                 <h4 className="font-medium text-gray-900 dark:text-white mb-1">
                   Monitor Performance
                 </h4>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
+                <p className="text-sm text-gray-700 dark:text-gray-300">
                   Review completion rates and task quality regularly
                 </p>
               </div>
@@ -645,8 +647,9 @@ export default function CleaningPage() {
                 <h4 className="font-medium text-gray-900 dark:text-white mb-1">
                   Use Technology
                 </h4>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Leverage digital tools for scheduling, tracking, and communication
+                <p className="text-sm text-gray-700 dark:text-gray-300">
+                  Leverage digital tools for scheduling, tracking, and
+                  communication
                 </p>
               </div>
             </div>
@@ -662,11 +665,11 @@ function CleaningNoPropertyFallback() {
   return (
     <StandardCard>
       <div className="text-center py-12">
-        <Building className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+        <Building className="mx-auto h-12 w-12 text-gray-600 dark:text-gray-400 mb-4" />
         <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
           No Property Selected
         </h3>
-        <p className="text-gray-600 dark:text-gray-400 mb-6">
+        <p className="text-gray-700 dark:text-gray-300 mb-6">
           Please select a property to view and manage cleaning tasks.
         </p>
         <div className="space-y-3">
@@ -678,7 +681,7 @@ function CleaningNoPropertyFallback() {
           </button>
           <button
             onClick={() => (window.location.href = "/properties")}
-            className="w-full flex justify-center py-2 px-4 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700"
+            className="w-full flex justify-center py-2 px-4 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300  hover:bg-gray-50 dark:hover:bg-gray-700"
           >
             View All Properties
           </button>

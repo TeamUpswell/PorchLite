@@ -294,14 +294,14 @@ export default function UsersPage() {
         <PageContainer>
           <StandardCard>
             <div className="text-center py-8">
-              <Shield className="mx-auto h-12 w-12 text-gray-400" />
+              <Shield className="mx-auto h-12 w-12 text-gray-600 dark:text-gray-400" />
               <h3 className="mt-2 text-sm font-medium text-gray-900">
                 Access Denied
               </h3>
               <p className="mt-1 text-sm text-gray-500">
                 You don't have permission to manage users.
               </p>
-              <div className="text-xs text-gray-400 mt-4 p-2 bg-gray-50 rounded">
+              <div className="text-xs text-gray-600 dark:text-gray-400 mt-4 p-2 bg-gray-50 rounded">
                 <p>Role: {currentUser?.user_metadata?.role || "undefined"}</p>
                 <p>Required: Admin or above</p>
               </div>
@@ -391,7 +391,7 @@ export default function UsersPage() {
             {/* Search */}
             <div className="mb-6">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-600 dark:text-gray-400 w-5 h-5" />
                 <input
                   type="text"
                   placeholder="Search users by name or email..."
@@ -474,11 +474,11 @@ export default function UsersPage() {
                             <div className="text-sm text-gray-900">
                               {user.phone_number ? (
                                 <div className="flex items-center">
-                                  <Phone className="w-4 h-4 mr-1 text-gray-400" />
+                                  <Phone className="w-4 h-4 mr-1 text-gray-600 dark:text-gray-400" />
                                   {user.phone_number}
                                 </div>
                               ) : (
-                                <span className="text-gray-400 text-xs">
+                                <span className="text-gray-600 dark:text-gray-400 text-xs">
                                   No phone
                                 </span>
                               )}
@@ -519,7 +519,7 @@ export default function UsersPage() {
                                     actionMenuOpen === user.id ? null : user.id
                                   )
                                 }
-                                className="text-gray-400 hover:text-gray-600 p-1 rounded transition-colors"
+                                className="text-gray-600 dark:text-gray-400 hover:text-gray-600 p-1 rounded transition-colors"
                               >
                                 <MoreVertical className="w-4 h-4" />
                               </button>
@@ -559,7 +559,7 @@ export default function UsersPage() {
 
                 {filteredUsers.length === 0 && (
                   <div className="text-center py-12">
-                    <Users className="mx-auto h-12 w-12 text-gray-400" />
+                    <Users className="mx-auto h-12 w-12 text-gray-600 dark:text-gray-400" />
                     <h3 className="mt-2 text-sm font-medium text-gray-900">
                       No users found
                     </h3>
@@ -584,7 +584,7 @@ export default function UsersPage() {
           </StandardCard>
 
           {/* Role Information */}
-          <div className="text-gray-500 dark:text-gray-400 text-sm bg-gray-50 rounded-lg p-4">
+          <div className="text-gray-700 dark:text-gray-300 text-sm bg-gray-50 rounded-lg p-4">
             <p className="mb-2">
               💡 <strong>User Management:</strong>
             </p>

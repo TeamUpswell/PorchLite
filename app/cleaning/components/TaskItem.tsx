@@ -257,7 +257,7 @@ export default function TaskItem({ task, onUpdate, visitId }: TaskItemProps) {
           <label
             className={`cursor-pointer transition-colors ${
               uploading
-                ? "text-gray-400 cursor-not-allowed"
+                ? "text-gray-600 dark:text-gray-400 cursor-not-allowed"
                 : "text-blue-500 hover:text-blue-700"
             }`}
           >

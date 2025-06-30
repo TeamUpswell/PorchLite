@@ -5,7 +5,7 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import { useProperty } from "@/lib/hooks/useProperty";
 import { canManageProperty } from "@/lib/utils/roles";
 import { supabase } from "@/lib/supabase";
-import StandardCard from "@/components/ui/StandardCard";
+import StandardCard, { ManualStyleCard } from "@/components/ui/StandardCard";
 import {
   ArrowRight,
   Bike,
@@ -251,7 +251,7 @@ export default function HousePage() {
     return (
       <StandardCard>
         <div className="text-center py-12">
-          <Building2 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+          <Building2 className="h-12 w-12 text-gray-600 dark:text-gray-400 mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-gray-900 mb-2">
             No Property Selected
           </h3>
@@ -338,7 +338,7 @@ export default function HousePage() {
               <div>
                 <div className="aspect-video bg-gray-100 rounded-lg flex items-center justify-center mb-4">
                   <div className="text-center">
-                    <Building2 className="h-16 w-16 text-gray-400 mx-auto mb-2" />
+                    <Building2 className="h-16 w-16 text-gray-600 dark:text-gray-400 mx-auto mb-2" />
                     <p className="text-gray-500">House photo coming soon</p>
                   </div>
                 </div>
@@ -400,7 +400,7 @@ export default function HousePage() {
             </div>
           ) : error ? (
             <div className="text-center py-8">
-              <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <Package className="h-12 w-12 text-gray-600 dark:text-gray-400 mx-auto mb-4" />
               <h3 className="text-lg font-semibold text-gray-900 mb-2">
                 Unable to Load Gear
               </h3>
@@ -414,7 +414,7 @@ export default function HousePage() {
             </div>
           ) : gearItems.length === 0 ? (
             <div className="text-center py-8">
-              <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <Package className="h-12 w-12 text-gray-600 dark:text-gray-400 mx-auto mb-4" />
               <h3 className="text-lg font-semibold text-gray-900 mb-2">
                 No Gear Available
               </h3>
@@ -439,62 +439,47 @@ export default function HousePage() {
                 const IconComponent = getCategoryIcon(item.category);
 
                 return (
-                  <div
+                  <ManualStyleCard
                     key={item.id}
-                    className={`p-6 border rounded-lg transition-all hover:shadow-md ${
-                      item.available
-                        ? "border-gray-200 hover:border-blue-300"
-                        : "border-gray-200 bg-gray-50"
-                    }`}
-                  >
-                    <div className="flex items-start justify-between mb-3">
+                    title={item.name}
+                    description={item.description}
+                    badge={item.available ? "Available" : "Unavailable"}
+                    icon={
                       <IconComponent
                         className={`h-8 w-8 ${
-                          item.available ? "text-blue-600" : "text-gray-400"
+                          item.available
+                            ? "text-blue-600 dark:text-blue-400"
+                            : "text-gray-500 dark:text-gray-400"
                         }`}
                       />
-                      <span
-                        className={`px-2 py-1 text-xs rounded-full ${
-                          item.available
-                            ? "bg-green-100 text-green-800"
-                            : "bg-red-100 text-red-800"
-                        }`}
-                      >
-                        {item.available ? "Available" : "Unavailable"}
-                      </span>
-                    </div>
-
-                    <h3 className="font-semibold text-gray-900 mb-2">
-                      {item.name}
-                    </h3>
-
-                    {item.description && (
-                      <p className="text-sm text-gray-600 mb-3">
-                        {item.description}
-                      </p>
-                    )}
-
-                    <div className="space-y-2">
+                    }
+                    className={!item.available ? "opacity-75" : ""}
+                  >
+                    <div className="space-y-2 mt-auto">
                       {item.location && (
-                        <div className="flex items-center text-sm text-gray-500">
-                          <MapPin className="h-4 w-4 mr-1" />
-                          {item.location}
+                        <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
+                          <MapPin className="h-4 w-4 mr-1 flex-shrink-0" />
+                          <span className="truncate">{item.location}</span>
                         </div>
                       )}
 
                       {item.instructions && (
-                        <p className="text-xs text-gray-500 bg-gray-50 p-2 rounded">
-                          💡 {item.instructions}
-                        </p>
+                        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+                          <p className="text-xs text-blue-800 dark:text-blue-300 leading-relaxed">
+                            💡 {item.instructions}
+                          </p>
+                        </div>
                       )}
 
                       {item.category && (
-                        <div className="text-xs text-gray-400 uppercase tracking-wide">
-                          {item.category}
+                        <div className="pt-2 border-t border-gray-100 dark:border-gray-700">
+                          <span className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide font-medium">
+                            {item.category}
+                          </span>
                         </div>
                       )}
                     </div>
-                  </div>
+                  </ManualStyleCard>
                 );
               })}
             </div>
@@ -502,39 +487,57 @@ export default function HousePage() {
         </StandardCard>
 
         {/* House Features */}
-        <StandardCard>
-          <div className="mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">
-              House Features
-            </h3>
-          </div>
+        <StandardCard
+          title="House Features"
+          subtitle="Amenities and facilities available at your vacation home"
+        >
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            <div className="text-center p-4">
-              <Wifi className="h-8 w-8 text-blue-600 mx-auto mb-2" />
-              <div className="font-medium text-gray-900">High-Speed WiFi</div>
-              <div className="text-sm text-gray-500">
+            <div className="text-center">
+              <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg inline-flex mb-3">
+                <Wifi className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+              </div>
+              <div className="font-medium text-gray-900 dark:text-gray-100 mb-1">
+                High-Speed WiFi
+              </div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">
                 Password in welcome book
               </div>
             </div>
 
-            <div className="text-center p-4">
-              <Car className="h-8 w-8 text-green-600 mx-auto mb-2" />
-              <div className="font-medium text-gray-900">Parking</div>
-              <div className="text-sm text-gray-500">2 car driveway</div>
+            <div className="text-center">
+              <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-lg inline-flex mb-3">
+                <Car className="h-6 w-6 text-green-600 dark:text-green-400" />
+              </div>
+              <div className="font-medium text-gray-900 dark:text-gray-100 mb-1">
+                Parking
+              </div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">
+                2 car driveway
+              </div>
             </div>
 
-            <div className="text-center p-4">
-              <Camera className="h-8 w-8 text-purple-600 mx-auto mb-2" />
-              <div className="font-medium text-gray-900">Smart TV</div>
-              <div className="text-sm text-gray-500">
+            <div className="text-center">
+              <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-lg inline-flex mb-3">
+                <Camera className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+              </div>
+              <div className="font-medium text-gray-900 dark:text-gray-100 mb-1">
+                Smart TV
+              </div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">
                 Netflix, Hulu included
               </div>
             </div>
 
-            <div className="text-center p-4">
-              <Gamepad2 className="h-8 w-8 text-orange-600 mx-auto mb-2" />
-              <div className="font-medium text-gray-900">Game Room</div>
-              <div className="text-sm text-gray-500">Board games & more</div>
+            <div className="text-center">
+              <div className="p-3 bg-orange-100 dark:bg-orange-900/30 rounded-lg inline-flex mb-3">
+                <Gamepad2 className="h-6 w-6 text-orange-600 dark:text-orange-400" />
+              </div>
+              <div className="font-medium text-gray-900 dark:text-gray-100 mb-1">
+                Game Room
+              </div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">
+                Board games & more
+              </div>
             </div>
           </div>
         </StandardCard>

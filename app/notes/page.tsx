@@ -299,7 +299,7 @@ export default function NotesPage() {
             subtitle="Please select a property to view notes"
           >
             <div className="text-center py-8">
-              <DocumentTextIcon className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+              <DocumentTextIcon className="mx-auto h-12 w-12 text-gray-600 dark:text-gray-400 mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">
                 No Property Selected
               </h3>
@@ -353,7 +353,7 @@ export default function NotesPage() {
                 </div>
               ) : notes.length === 0 ? (
                 <div className="text-center py-16 bg-gray-50 rounded-lg">
-                  <DocumentTextIcon className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                  <DocumentTextIcon className="h-12 w-12 mx-auto text-gray-600 dark:text-gray-400 mb-4" />
                   <h3 className="text-lg font-medium text-gray-900 mb-2">
                     No notes found
                   </h3>
@@ -419,7 +419,7 @@ export default function NotesPage() {
               <button
                 onClick={handleCancelModal}
                 disabled={saving}
-                className="text-gray-400 hover:text-gray-600 disabled:opacity-50"
+                className="text-gray-600 dark:text-gray-400 hover:text-gray-600 disabled:opacity-50"
                 aria-label="Close modal"
               >
                 <XMarkIcon className="h-6 w-6" />

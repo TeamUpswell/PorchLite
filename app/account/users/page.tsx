@@ -120,14 +120,14 @@ export default function UsersPage() {
     return (
       <StandardCard>
         <div className="text-center py-8">
-          <Shield className="mx-auto h-12 w-12 text-gray-400" />
+          <Shield className="mx-auto h-12 w-12 text-gray-600 dark:text-gray-400" />
           <h3 className="mt-2 text-sm font-medium text-gray-900">
             Access Denied
           </h3>
           <p className="mt-1 text-sm text-gray-500">
             You don't have permission to manage users.
           </p>
-          <div className="text-xs text-gray-400 mt-4 p-2 bg-gray-50 rounded">
+          <div className="text-xs text-gray-600 dark:text-gray-400 mt-4 p-2 bg-gray-50 rounded">
             <p>Role: {currentUser?.user_metadata?.role || "undefined"}</p>
             <p>Required: Admin or above</p>
           </div>
@@ -257,7 +257,7 @@ export default function UsersPage() {
                           {userRole}
                         </span>
                         {user.last_sign_in_at && (
-                          <span className="text-xs text-gray-400">
+                          <span className="text-xs text-gray-600 dark:text-gray-400">
                             Last active:{" "}
                             {new Date(
                               user.last_sign_in_at
@@ -269,13 +269,13 @@ export default function UsersPage() {
                   </div>
                   <div className="flex items-center space-x-2">
                     <button
-                      className="p-2 text-gray-400 hover:text-blue-600 transition-colors"
+                      className="p-2 text-gray-600 dark:text-gray-400 hover:text-blue-600 transition-colors"
                       title="Edit User"
                     >
                       <Edit className="h-4 w-4" />
                     </button>
                     <button
-                      className="p-2 text-gray-400 hover:text-red-600 transition-colors"
+                      className="p-2 text-gray-600 dark:text-gray-400 hover:text-red-600 transition-colors"
                       title="Remove User"
                     >
                       <Trash2 className="h-4 w-4" />
@@ -287,14 +287,14 @@ export default function UsersPage() {
           </div>
         ) : (
           <div className="text-center py-12">
-            <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+            <Users className="h-12 w-12 text-gray-600 dark:text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">
               No Users Found
             </h3>
             <p className="text-gray-500 mb-4">
               Start by inviting your first user to this property.
             </p>
-            <div className="text-sm text-gray-400 bg-gray-50 rounded-lg p-4">
+            <div className="text-sm text-gray-600 dark:text-gray-400 bg-gray-50 rounded-lg p-4">
               <p className="mb-2">
                 💡 <strong>Coming Soon:</strong>
               </p>

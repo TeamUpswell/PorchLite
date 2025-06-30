@@ -28,14 +28,14 @@ const resizeImage = (
   quality: number = 0.8
 ): Promise<Blob> => {
   return new Promise((resolve) => {
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d')!;
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d")!;
     const img = new Image();
-    
+
     img.onload = () => {
       // Calculate new dimensions
       let { width, height } = img;
-      
+
       if (width > height) {
         if (width > maxWidth) {
           height = (height * maxWidth) / width;
@@ -47,18 +47,22 @@ const resizeImage = (
           height = maxHeight;
         }
       }
-      
+
       canvas.width = width;
       canvas.height = height;
-      
+
       // Draw and resize
       ctx.drawImage(img, 0, 0, width, height);
-      
-      canvas.toBlob((blob) => {
-        resolve(blob!);
-      }, 'image/jpeg', quality);
+
+      canvas.toBlob(
+        (blob) => {
+          resolve(blob!);
+        },
+        "image/jpeg",
+        quality
+      );
     };
-    
+
     img.src = URL.createObjectURL(file);
   });
 };
@@ -68,7 +72,10 @@ export default function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string>("");
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string }>({ type: 'success', text: '' });
+  const [message, setMessage] = useState<{
+    type: "success" | "error";
+    text: string;
+  }>({ type: "success", text: "" });
 
   // ✅ Updated form data to match your table schema
   const [formData, setFormData] = useState({
@@ -97,7 +104,7 @@ export default function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
       setPreviewUrl("");
       setHasChanges(false);
       setError("");
-      setMessage({ type: 'success', text: '' });
+      setMessage({ type: "success", text: "" });
       console.log("📝 ProfileModal: Form initialized with data:", profileData);
     }
   }, [isOpen, profileData, user?.email]);
@@ -119,7 +126,7 @@ export default function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
 
     // Clear previous errors
     setError("");
-    setMessage({ type: 'success', text: '' });
+    setMessage({ type: "success", text: "" });
 
     // Validate file type
     if (!file.type.startsWith("image/")) {
@@ -127,10 +134,10 @@ export default function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
       return;
     }
 
-    console.log('📷 Original file:', {
+    console.log("📷 Original file:", {
       name: file.name,
       size: `${(file.size / 1024 / 1024).toFixed(2)}MB`,
-      type: file.type
+      type: file.type,
     });
 
     try {
@@ -138,11 +145,12 @@ export default function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
 
       // ✅ Auto-resize image if larger than 1MB or dimensions are too large
       let processedFile: File | Blob = file;
-      
-      if (file.size > 1024 * 1024) { // If larger than 1MB, resize
-        console.log('🔄 Resizing large image...');
+
+      if (file.size > 1024 * 1024) {
+        // If larger than 1MB, resize
+        console.log("🔄 Resizing large image...");
         processedFile = await resizeImage(file, 400, 400, 0.8);
-        console.log('✅ Image resized:', {
+        console.log("✅ Image resized:", {
           originalSize: `${(file.size / 1024 / 1024).toFixed(2)}MB`,
           newSize: `${(processedFile.size / 1024 / 1024).toFixed(2)}MB`,
         });
@@ -160,23 +168,25 @@ export default function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
       setHasChanges(true);
 
       // Generate unique filename - simple approach
-      const fileExt = file.name.split(".").pop() || 'jpg';
+      const fileExt = file.name.split(".").pop() || "jpg";
       const fileName = `${user.id}-${Date.now()}.${fileExt}`;
       const filePath = fileName; // ✅ Simple flat file structure
 
-      console.log("📤 Uploading avatar:", { fileName, filePath, userId: user.id });
+      console.log("📤 Uploading avatar:", {
+        fileName,
+        filePath,
+        userId: user.id,
+      });
 
       // ✅ Delete old avatar if exists
       if (profileData?.avatar_url) {
         try {
-          const urlParts = profileData.avatar_url.split('/');
+          const urlParts = profileData.avatar_url.split("/");
           const oldFileName = urlParts[urlParts.length - 1];
-          
+
           if (oldFileName && oldFileName.startsWith(user.id)) {
             console.log("🗑️ Deleting old avatar:", oldFileName);
-            await supabase.storage
-              .from("avatars")
-              .remove([oldFileName]);
+            await supabase.storage.from("avatars").remove([oldFileName]);
           }
         } catch (error) {
           console.log("⚠️ Could not delete old avatar:", error);
@@ -187,23 +197,23 @@ export default function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from("avatars")
         .upload(filePath, processedFile, {
-          cacheControl: '3600',
+          cacheControl: "3600",
           upsert: true,
         });
 
       if (uploadError) {
-        console.error('❌ Upload error:', uploadError);
+        console.error("❌ Upload error:", uploadError);
         throw uploadError;
       }
 
-      console.log('✅ Avatar uploaded successfully:', uploadData);
+      console.log("✅ Avatar uploaded successfully:", uploadData);
 
       // ✅ Get public URL
-      const { data: { publicUrl } } = supabase.storage
-        .from("avatars")
-        .getPublicUrl(filePath);
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from("avatars").getPublicUrl(filePath);
 
-      console.log('🔗 Public URL generated:', publicUrl);
+      console.log("🔗 Public URL generated:", publicUrl);
 
       // ✅ Update form data with new avatar URL
       setFormData((prev) => ({ ...prev, avatar_url: publicUrl }));
@@ -213,16 +223,15 @@ export default function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
       setPreviewUrl("");
 
       setMessage({
-        type: 'success',
-        text: 'Avatar uploaded successfully! Remember to save your changes.',
+        type: "success",
+        text: "Avatar uploaded successfully! Remember to save your changes.",
       });
 
       console.log("🎉 Avatar upload complete!");
-
     } catch (error: any) {
       console.error("❌ Error uploading avatar:", error);
       setError(error.message || "Failed to upload avatar");
-      
+
       if (previewUrl) {
         URL.revokeObjectURL(previewUrl);
         setPreviewUrl("");
@@ -303,18 +312,17 @@ export default function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
       await refreshProfile();
 
       setMessage({
-        type: 'success',
-        text: 'Profile updated successfully!',
+        type: "success",
+        text: "Profile updated successfully!",
       });
 
       console.log("🎉 Profile update complete!");
       setHasChanges(false);
-      
+
       // Close modal after a brief delay to show success message
       setTimeout(() => {
         onClose();
       }, 1500);
-
     } catch (error: any) {
       console.error("❌ Error updating profile:", error);
       setError(error.message || "Failed to update profile");
@@ -338,7 +346,7 @@ export default function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
     }
 
     setError("");
-    setMessage({ type: 'success', text: '' });
+    setMessage({ type: "success", text: "" });
     onClose();
   };
 
@@ -375,13 +383,15 @@ export default function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
               {error}
             </div>
           )}
-          
+
           {message.text && (
-            <div className={`p-3 text-sm rounded-lg ${
-              message.type === 'success' 
-                ? 'text-green-600 bg-green-50 border border-green-200' 
-                : 'text-red-600 bg-red-50 border border-red-200'
-            }`}>
+            <div
+              className={`p-3 text-sm rounded-lg ${
+                message.type === "success"
+                  ? "text-green-600 bg-green-50 border border-green-200"
+                  : "text-red-600 bg-red-50 border border-red-200"
+              }`}
+            >
               {message.text}
             </div>
           )}
@@ -395,7 +405,10 @@ export default function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
                   alt="Avatar Preview"
                   className="w-24 h-24 rounded-full object-cover border-4 border-gray-200 dark:border-gray-600 shadow-lg"
                   onError={(e) => {
-                    console.log("❌ Avatar preview failed to load:", currentAvatarUrl);
+                    console.log(
+                      "❌ Avatar preview failed to load:",
+                      currentAvatarUrl
+                    );
                     const target = e.target as HTMLImageElement;
                     target.style.display = "none";
                     const fallback = target.nextElementSibling as HTMLElement;
@@ -502,7 +515,9 @@ export default function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
                 <input
                   type="tel"
                   value={formData.phone_number}
-                  onChange={(e) => handleInputChange("phone_number", e.target.value)}
+                  onChange={(e) =>
+                    handleInputChange("phone_number", e.target.value)
+                  }
                   className="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                   placeholder="Enter your phone number"
                 />
@@ -532,13 +547,18 @@ export default function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
                 <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
                   Show in Contacts
                 </label>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
+                <p className="text-xs text-gray-700 dark:text-gray-300">
                   Allow others to see your contact information
                 </p>
               </div>
               <button
                 type="button"
-                onClick={() => handleInputChange("show_in_contacts", !formData.show_in_contacts)}
+                onClick={() =>
+                  handleInputChange(
+                    "show_in_contacts",
+                    !formData.show_in_contacts
+                  )
+                }
                 className="flex items-center space-x-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
               >
                 {formData.show_in_contacts ? (
@@ -556,7 +576,7 @@ export default function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
 
         {/* Actions */}
         <div className="flex justify-between items-center p-6 border-t border-gray-200 dark:border-gray-700">
-          <div className="text-sm text-gray-500 dark:text-gray-400">
+          <div className="text-sm text-gray-700 dark:text-gray-300">
             {hasChanges && (
               <span className="text-amber-600 dark:text-amber-400">
                 ● You have unsaved changes

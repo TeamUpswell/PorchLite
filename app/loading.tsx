@@ -15,7 +15,7 @@ export default function Loading() {
         </p>
         
         {/* Optional: Brand or context */}
-        <p className="mt-2 text-xs text-gray-400">
+        <p className="mt-2 text-xs text-gray-600 dark:text-gray-400">
           PorchLite
         </p>
       </div>

@@ -371,7 +371,7 @@ export default function CreateCleaningIssuePage() {
                     className="block text-sm font-medium text-gray-700 mb-1"
                   >
                     Additional Notes{" "}
-                    <span className="text-gray-400">(optional)</span>
+                    <span className="text-gray-600 dark:text-gray-400">(optional)</span>
                   </label>
                   <textarea
                     id="notes"

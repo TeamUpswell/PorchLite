@@ -268,7 +268,7 @@ export default function ManualSectionDetailPage() {
             subtitle="The requested manual section could not be found"
           >
             <div className="text-center py-8">
-              <BookOpen className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+              <BookOpen className="mx-auto h-12 w-12 text-gray-600 dark:text-gray-400 mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">
                 Section Not Found
               </h3>
@@ -359,7 +359,7 @@ export default function ManualSectionDetailPage() {
 
                 {items.length === 0 ? (
                   <div className="text-center py-8 bg-gray-50 rounded-lg">
-                    <BookOpen className="mx-auto h-8 w-8 text-gray-400 mb-3" />
+                    <BookOpen className="mx-auto h-8 w-8 text-gray-600 dark:text-gray-400 mb-3" />
                     <p className="text-gray-500 mb-4">
                       No items in this section yet
                     </p>
@@ -384,7 +384,7 @@ export default function ManualSectionDetailPage() {
                             className="block group"
                           >
                             <div className="flex items-center mb-1">
-                              <span className="text-xs text-gray-400 mr-2">
+                              <span className="text-xs text-gray-600 dark:text-gray-400 mr-2">
                                 #{index + 1}
                               </span>
                               <h3 className="font-medium text-gray-900 group-hover:text-blue-600">
@@ -401,7 +401,7 @@ export default function ManualSectionDetailPage() {
                                 ? `${item.content.substring(0, 100)}...`
                                 : item.content}
                             </p>
-                            <div className="text-xs text-gray-400 mt-1">
+                            <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">
                               Created{" "}
                               {new Date(item.created_at).toLocaleDateString()}
                             </div>

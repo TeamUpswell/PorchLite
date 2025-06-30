@@ -75,11 +75,11 @@ function SortableItem({ item, onEdit, onDelete }: SortableItemProps) {
     <div
       ref={setNodeRef}
       style={style}
-      className="flex items-center justify-between bg-white dark:bg-gray-800 p-4 border border-gray-200 dark:border-gray-700 rounded-lg mb-3 hover:shadow-sm transition-shadow"
+      className="flex items-center justify-between  p-4  rounded-lg mb-3 hover:shadow-sm transition-shadow"
     >
       <div className="flex items-center flex-1">
         <button
-          className="cursor-grab mr-3 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 p-1"
+          className="cursor-grab mr-3 text-gray-500 hover:text-gray-700 dark:text-gray-600 dark:text-gray-400 dark:hover:text-gray-300 p-1"
           {...attributes}
           {...listeners}
           aria-label="Drag to reorder"
@@ -371,14 +371,14 @@ export default function ChecklistItemsPage({ params }: PageParams) {
         <PageContainer>
           <StandardCard>
             <div className="text-center py-8">
-              <Shield className="mx-auto h-12 w-12 text-gray-400" />
+              <Shield className="mx-auto h-12 w-12 text-gray-600 dark:text-gray-400" />
               <h3 className="mt-2 text-sm font-medium text-gray-900">
                 Access Denied
               </h3>
               <p className="mt-1 text-sm text-gray-500">
                 You don't have permission to manage checklist items.
               </p>
-              <div className="text-xs text-gray-400 mt-4 p-2 bg-gray-50 rounded">
+              <div className="text-xs text-gray-600 dark:text-gray-400 mt-4 p-2 bg-gray-50 rounded">
                 <p>Role: {user?.user_metadata?.role || "undefined"}</p>
                 <p>Required: Manager or above</p>
               </div>
@@ -512,7 +512,7 @@ export default function ChecklistItemsPage({ params }: PageParams) {
           <StandardCard title="Checklist Items">
             {items.length === 0 ? (
               <div className="text-center py-12">
-                <Edit className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <Edit className="h-12 w-12 text-gray-600 dark:text-gray-400 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">
                   No Items Yet
                 </h3>
@@ -603,7 +603,7 @@ export default function ChecklistItemsPage({ params }: PageParams) {
       {/* Delete confirmation modal */}
       {showDeleteModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-lg max-w-md w-full p-6">
+          <div className=" rounded-lg max-w-md w-full p-6">
             <h3 className="text-xl font-bold mb-4">Delete Item</h3>
             <p className="mb-6">
               Are you sure you want to delete '{itemToDelete?.text}'?

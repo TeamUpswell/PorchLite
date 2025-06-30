@@ -160,7 +160,7 @@ export default function AccountPage() {
         headerActions={
           <button
             onClick={() => setIsProfileModalOpen(true)}
-            className="inline-flex items-center px-4 py-2 text-sm border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+            className="inline-flex items-center px-4 py-2 text-sm border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300  rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
           >
             <Edit className="w-4 h-4 mr-2" />
             Edit Profile
@@ -194,12 +194,12 @@ export default function AccountPage() {
             <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
               {displayName}
             </h3>
-            <div className="flex items-center text-gray-600 dark:text-gray-400 text-sm mt-1">
+            <div className="flex items-center text-gray-700 dark:text-gray-300 text-sm mt-1">
               <Mail className="h-4 w-4 mr-2 flex-shrink-0" />
               <span className="truncate">{user.email}</span>
             </div>
             {profileData?.phone && (
-              <div className="flex items-center text-gray-600 dark:text-gray-400 text-sm mt-1">
+              <div className="flex items-center text-gray-700 dark:text-gray-300 text-sm mt-1">
                 <Phone className="h-4 w-4 mr-2 flex-shrink-0" />
                 <span>{profileData.phone}</span>
               </div>
@@ -220,7 +220,7 @@ export default function AccountPage() {
           <div className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
             {userRole.replace("_", " ").toUpperCase()}
           </div>
-          <div className="text-sm text-gray-600 dark:text-gray-400">
+          <div className="text-sm text-gray-700 dark:text-gray-300">
             Account Role
           </div>
         </StandardCard>
@@ -235,7 +235,7 @@ export default function AccountPage() {
                 )
               : 0}
           </div>
-          <div className="text-sm text-gray-600 dark:text-gray-400">
+          <div className="text-sm text-gray-700 dark:text-gray-300">
             Days Active
           </div>
         </StandardCard>
@@ -245,7 +245,7 @@ export default function AccountPage() {
           <div className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
             {visibleSections.length}
           </div>
-          <div className="text-sm text-gray-600 dark:text-gray-400">
+          <div className="text-sm text-gray-700 dark:text-gray-300">
             Available Sections
           </div>
         </StandardCard>
@@ -264,7 +264,7 @@ export default function AccountPage() {
               return (
                 <div
                   key={section.title}
-                  className="border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors cursor-pointer"
+                  className=" rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors cursor-pointer"
                 >
                   <button
                     onClick={section.onClick}
@@ -272,12 +272,12 @@ export default function AccountPage() {
                   >
                     <div className="flex items-center justify-between mb-3">
                       <Icon className={`h-6 w-6 ${section.color}`} />
-                      <ArrowRight className="h-4 w-4 text-gray-400" />
+                      <ArrowRight className="h-4 w-4 text-gray-600 dark:text-gray-400" />
                     </div>
                     <h3 className="font-semibold text-gray-900 dark:text-white mb-1">
                       {section.title}
                     </h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                    <p className="text-sm text-gray-700 dark:text-gray-300">
                       {section.description}
                     </p>
                   </button>
@@ -289,17 +289,17 @@ export default function AccountPage() {
               <Link
                 key={section.href}
                 href={section.href}
-                className="block border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                className="block  rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
               >
                 <div className="p-4">
                   <div className="flex items-center justify-between mb-3">
                     <Icon className={`h-6 w-6 ${section.color}`} />
-                    <ArrowRight className="h-4 w-4 text-gray-400" />
+                    <ArrowRight className="h-4 w-4 text-gray-600 dark:text-gray-400" />
                   </div>
                   <h3 className="font-semibold text-gray-900 dark:text-white mb-1">
                     {section.title}
                   </h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                  <p className="text-sm text-gray-700 dark:text-gray-300">
                     {section.description}
                   </p>
                 </div>
@@ -319,14 +319,14 @@ export default function AccountPage() {
             {canManageProperties(user) && (
               <Link
                 href="/account/properties"
-                className="flex items-center p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                className="flex items-center p-4  rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
               >
                 <Building className="h-8 w-8 text-red-600 mr-3 flex-shrink-0" />
                 <div>
                   <h4 className="font-medium text-gray-900 dark:text-white">
                     Manage Properties
                   </h4>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                  <p className="text-sm text-gray-700 dark:text-gray-300">
                     Add or edit properties
                   </p>
                 </div>
@@ -335,14 +335,14 @@ export default function AccountPage() {
             {canManageUsers(user) && (
               <Link
                 href="/account/users"
-                className="flex items-center p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                className="flex items-center p-4  rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
               >
                 <Users className="h-8 w-8 text-indigo-600 mr-3 flex-shrink-0" />
                 <div>
                   <h4 className="font-medium text-gray-900 dark:text-white">
                     Manage Users
                   </h4>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                  <p className="text-sm text-gray-700 dark:text-gray-300">
                     Add or edit user accounts
                   </p>
                 </div>
@@ -367,7 +367,7 @@ export default function AccountPage() {
                 <h4 className="font-medium text-gray-900 dark:text-white mb-1">
                   Complete Your Profile
                 </h4>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
+                <p className="text-sm text-gray-700 dark:text-gray-300">
                   Add a profile photo and contact information for better collaboration
                 </p>
               </div>
@@ -380,7 +380,7 @@ export default function AccountPage() {
                 <h4 className="font-medium text-gray-900 dark:text-white mb-1">
                   Enable Notifications
                 </h4>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
+                <p className="text-sm text-gray-700 dark:text-gray-300">
                   Stay informed about important updates and property activities
                 </p>
               </div>
@@ -393,7 +393,7 @@ export default function AccountPage() {
                 <h4 className="font-medium text-gray-900 dark:text-white mb-1">
                   Secure Your Account
                 </h4>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
+                <p className="text-sm text-gray-700 dark:text-gray-300">
                   Use a strong password and keep your security settings updated
                 </p>
               </div>
@@ -408,7 +408,7 @@ export default function AccountPage() {
                 <h4 className="font-medium text-gray-900 dark:text-white mb-1">
                   Customize Appearance
                 </h4>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
+                <p className="text-sm text-gray-700 dark:text-gray-300">
                   Choose themes and display settings that work best for you
                 </p>
               </div>
@@ -421,7 +421,7 @@ export default function AccountPage() {
                 <h4 className="font-medium text-gray-900 dark:text-white mb-1">
                   Manage Properties
                 </h4>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
+                <p className="text-sm text-gray-700 dark:text-gray-300">
                   Keep your property information up to date for better management
                 </p>
               </div>
@@ -434,7 +434,7 @@ export default function AccountPage() {
                 <h4 className="font-medium text-gray-900 dark:text-white mb-1">
                   Invite Team Members
                 </h4>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
+                <p className="text-sm text-gray-700 dark:text-gray-300">
                   Collaborate with others by inviting them to manage properties
                 </p>
               </div>

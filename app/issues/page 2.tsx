@@ -138,7 +138,7 @@ export default function IssuesPage() {
             <div className="space-y-6">
               {issues.length === 0 ? (
                 <div className="text-center py-12">
-                  <div className="text-gray-400 mb-4">
+                  <div className="text-gray-600 dark:text-gray-400 mb-4">
                     <svg
                       className="mx-auto h-16 w-16"
                       fill="none"

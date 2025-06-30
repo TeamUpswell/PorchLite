@@ -477,7 +477,7 @@ export const ReservationModal = ({
             
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 transition-colors"
+              className="text-gray-600 dark:text-gray-400 hover:text-gray-600 transition-colors"
               aria-label="Close modal"
               title="Close modal"
             >

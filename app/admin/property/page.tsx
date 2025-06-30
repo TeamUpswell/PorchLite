@@ -235,14 +235,14 @@ export default function AdminPropertyPage() {
     return (
       <StandardCard>
         <div className="text-center py-8">
-          <Shield className="mx-auto h-12 w-12 text-gray-400" />
+          <Shield className="mx-auto h-12 w-12 text-gray-600 dark:text-gray-400" />
           <h3 className="mt-2 text-sm font-medium text-gray-900">
             Access Denied
           </h3>
           <p className="mt-1 text-sm text-gray-500">
             You don't have permission to manage properties.
           </p>
-          <div className="text-xs text-gray-400 mt-4 p-2 bg-gray-50 rounded">
+          <div className="text-xs text-gray-600 dark:text-gray-400 mt-4 p-2 bg-gray-50 rounded">
             <p>Role: {user?.user_metadata?.role || "undefined"}</p>
             <p>Required: Manager or above</p>
           </div>
@@ -281,32 +281,38 @@ export default function AdminPropertyPage() {
       >
         {/* Overview Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <div className="text-center p-4 bg-blue-50 rounded-lg">
-            <div className="text-2xl font-bold text-blue-600 mb-1">
+          <div className="text-center p-4   rounded-lg shadow-sm">
+            <div className="text-2xl font-bold text-blue-600 dark:text-blue-400 mb-1">
               {totalProperties}
             </div>
-            <p className="text-gray-600 text-sm">Your Properties</p>
+            <p className="text-gray-700 dark:text-gray-300 text-sm">
+              Your Properties
+            </p>
           </div>
 
-          <div className="text-center p-4 bg-green-50 rounded-lg">
-            <div className="text-2xl font-bold text-green-600 mb-1">
+          <div className="text-center p-4   rounded-lg shadow-sm">
+            <div className="text-2xl font-bold text-green-600 dark:text-green-400 mb-1">
               {statsLoading ? "..." : totalRooms}
             </div>
-            <p className="text-gray-600 text-sm">Total Rooms</p>
+            <p className="text-gray-700 dark:text-gray-300 text-sm">
+              Total Rooms
+            </p>
           </div>
 
-          <div className="text-center p-4 bg-purple-50 rounded-lg">
-            <div className="text-2xl font-bold text-purple-600 mb-1">
+          <div className="text-center p-4   rounded-lg shadow-sm">
+            <div className="text-2xl font-bold text-purple-600 dark:text-purple-400 mb-1">
               {statsLoading ? "..." : totalReservations}
             </div>
-            <p className="text-gray-600 text-sm">Total Reservations</p>
+            <p className="text-gray-700 dark:text-gray-300 text-sm">
+              Total Reservations
+            </p>
           </div>
 
-          <div className="text-center p-4 bg-orange-50 rounded-lg">
-            <div className="text-2xl font-bold text-orange-600 mb-1">
+          <div className="text-center p-4   rounded-lg shadow-sm">
+            <div className="text-2xl font-bold text-orange-600 dark:text-orange-400 mb-1">
               {statsLoading ? "..." : totalUsers}
             </div>
-            <p className="text-gray-600 text-sm">Total Users</p>
+            <p className="text-gray-700 dark:text-gray-300 text-sm">Total Users</p>
           </div>
         </div>
       </StandardCard>
@@ -348,14 +354,14 @@ export default function AdminPropertyPage() {
             <div className="flex items-center space-x-2">
               <Link
                 href={`/admin/property/${currentProperty.id}/settings`}
-                className="p-2 text-gray-400 hover:text-blue-600 transition-colors"
+                className="p-2 text-gray-600 dark:text-gray-400 hover:text-blue-600 transition-colors"
                 title="Property Settings"
               >
                 <Settings className="h-4 w-4" />
               </Link>
               <Link
                 href={`/admin/property/${currentProperty.id}/edit`}
-                className="p-2 text-gray-400 hover:text-blue-600 transition-colors"
+                className="p-2 text-gray-600 dark:text-gray-400 hover:text-blue-600 transition-colors"
                 title="Edit Property"
               >
                 <Edit className="h-4 w-4" />
@@ -485,7 +491,7 @@ export default function AdminPropertyPage() {
 
                       <Link
                         href={`/admin/property/${property.id}/edit`}
-                        className="p-1.5 text-gray-400 hover:text-blue-600 transition-colors"
+                        className="p-1.5 text-gray-600 dark:text-gray-400 hover:text-blue-600 transition-colors"
                         title="Edit"
                       >
                         <Edit className="h-4 w-4" />
@@ -493,7 +499,7 @@ export default function AdminPropertyPage() {
 
                       <button
                         onClick={() => handleDeleteProperty(property.id)}
-                        className="p-1.5 text-gray-400 hover:text-red-600 transition-colors"
+                        className="p-1.5 text-gray-600 dark:text-gray-400 hover:text-red-600 transition-colors"
                         title="Delete"
                         disabled={isCurrentProperty}
                       >

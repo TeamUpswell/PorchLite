@@ -387,7 +387,7 @@ export default function PropertiesPage() {
           <div className="space-y-4">
             {userProperties.length === 0 ? (
               <div className="text-center py-16 bg-gray-50 rounded-lg">
-                <Building className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                <Building className="h-12 w-12 mx-auto text-gray-600 dark:text-gray-400 mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">
                   No properties found
                 </h3>

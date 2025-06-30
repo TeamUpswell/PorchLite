@@ -92,14 +92,14 @@ export default function AdminManualPage() {
         <PageContainer>
           <StandardCard>
             <div className="text-center py-8">
-              <Shield className="mx-auto h-12 w-12 text-gray-400" />
+              <Shield className="mx-auto h-12 w-12 text-gray-600 dark:text-gray-400" />
               <h3 className="mt-2 text-sm font-medium text-gray-900">
                 Access Denied
               </h3>
               <p className="mt-1 text-sm text-gray-500">
                 You don't have permission to manage manuals.
               </p>
-              <div className="text-xs text-gray-400 mt-4 p-2 bg-gray-50 rounded">
+              <div className="text-xs text-gray-600 dark:text-gray-400 mt-4 p-2 bg-gray-50 rounded">
                 <p>Role: {user?.user_metadata?.role || "undefined"}</p>
                 <p>Required: Admin or above</p>
               </div>
@@ -224,11 +224,11 @@ export default function AdminManualPage() {
                       Recent Activity
                     </h3>
                     <div className="bg-gray-50 rounded-lg p-6 text-center">
-                      <BookOpen className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                      <BookOpen className="h-12 w-12 text-gray-600 dark:text-gray-400 mx-auto mb-4" />
                       <p className="text-gray-500 mb-4">
                         Manual management features are being developed
                       </p>
-                      <div className="text-sm text-gray-400">
+                      <div className="text-sm text-gray-600 dark:text-gray-400">
                         <p className="mb-2">
                           💡 <strong>Coming Soon:</strong>
                         </p>
@@ -322,7 +322,7 @@ export default function AdminManualPage() {
           </StandardCard>
 
           {/* Current User Info */}
-          <div className="text-gray-500 dark:text-gray-400 text-sm bg-gray-50 rounded-lg p-4">
+          <div className="text-gray-700 dark:text-gray-300 text-sm bg-gray-50 rounded-lg p-4">
             <p className="mb-2">
               💡 <strong>Manual Management:</strong>
             </p>

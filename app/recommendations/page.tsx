@@ -606,7 +606,7 @@ export default function RecommendationsPage() {
               </h3>
               <button
                 onClick={() => setShowManualModal(false)}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-gray-600 dark:text-gray-400 hover:text-gray-600"
                 aria-label="Close modal"
               >
                 ✕
@@ -800,7 +800,7 @@ export default function RecommendationsPage() {
                   setShowGoogleSearchModal(false);
                   setSelectedPlace(null);
                 }}
-                className="text-gray-400 hover:text-gray-600 transition-colors"
+                className="text-gray-600 dark:text-gray-400 hover:text-gray-600 transition-colors"
                 aria-label="Close modal"
               >
                 <span className="text-xl">✕</span>

@@ -2,6 +2,7 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 
 export interface StandardCardProps {
   title?: string;
@@ -27,14 +28,9 @@ export default function StandardCard({
 
   return (
     <div
-      className={`rounded-lg shadow p-6 ${
+      className={`bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-6 ${
         hover ? "hover:shadow-md transition-shadow duration-200" : ""
       } ${className}`}
-      style={{
-        backgroundColor: "#ffffff",
-        border: "1px solid #e5e7eb",
-        color: "#111827",
-      }}
     >
       {shouldRenderHeader && (
         <div className="mb-4">
@@ -52,11 +48,93 @@ export default function StandardCard({
             )}
           </div>
           {subtitle && (
-            <p className="text-sm text-gray-500 dark:text-gray-400">{subtitle}</p>
+            <p className="text-sm text-gray-600 dark:text-gray-300">{subtitle}</p>
           )}
         </div>
       )}
       <div>{children}</div>
+    </div>
+  );
+}
+
+// New ManualStyleCard component based on your manual page cards
+export function ManualStyleCard({
+  title,
+  description,
+  icon,
+  badge,
+  priority = false,
+  onClick,
+  href,
+  className = "",
+  children,
+}: {
+  title: string;
+  description?: string;
+  icon?: React.ReactNode;
+  badge?: string;
+  priority?: boolean;
+  onClick?: () => void;
+  href?: string;
+  className?: string;
+  children?: React.ReactNode;
+}) {
+  const cardClasses = `
+    bg-white dark:bg-gray-800 
+    rounded-lg shadow 
+    border border-gray-200 dark:border-gray-700
+    transition-all p-6 h-full relative
+    hover:shadow-md hover:border-gray-300 dark:hover:border-gray-600
+    ${onClick || href ? "cursor-pointer" : ""}
+    ${className}
+  `.trim().replace(/\s+/g, ' ');
+
+  const content = (
+    <>
+      {/* Badge */}
+      {badge && (
+        <div className={`absolute top-3 right-3 text-xs px-2 py-1 rounded font-medium ${
+          badge === 'Available' 
+            ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300'
+            : 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300'
+        }`}>
+          {badge}
+        </div>
+      )}
+
+      {/* Icon */}
+      <div className="mb-3">
+        {icon}
+      </div>
+
+      {/* Title */}
+      <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-2 line-clamp-2">
+        {title}
+      </h3>
+
+      {/* Description */}
+      {description && (
+        <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-3 mb-4">
+          {description}
+        </p>
+      )}
+
+      {/* Children */}
+      {children}
+    </>
+  );
+
+  if (href) {
+    return (
+      <Link href={href} className={cardClasses}>
+        {content}
+      </Link>
+    );
+  }
+
+  return (
+    <div className={cardClasses} onClick={onClick}>
+      {content}
     </div>
   );
 }
@@ -89,7 +167,7 @@ export function StandardCardHeader({
           )}
           {subtitle && (
             <p
-              className={`text-sm text-gray-600 dark:text-gray-400 ${
+              className={`text-sm text-gray-600 dark:text-gray-300 ${
                 title ? "mt-1" : ""
               }`}
             >

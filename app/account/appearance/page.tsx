@@ -72,7 +72,7 @@ export default function AppearancePage() {
         subtitle="Choose your preferred color scheme"
         headerActions={
           theme && (
-            <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
+            <div className="flex items-center text-sm text-gray-700 dark:text-gray-300">
               <Palette className="h-4 w-4 mr-1" />
               Current: {theme.charAt(0).toUpperCase() + theme.slice(1)}
             </div>
@@ -101,9 +101,9 @@ export default function AppearancePage() {
                   <div className="text-center">
                     <Icon
                       className={`h-8 w-8 mx-auto mb-2 ${
-                        isSelected 
-                          ? "text-blue-600 dark:text-blue-400" 
-                          : "text-gray-600 dark:text-gray-400"
+                        isSelected
+                          ? "text-blue-600 dark:text-blue-400"
+                          : "text-gray-700 dark:text-gray-300"
                       }`}
                     />
                     <h3
@@ -115,7 +115,7 @@ export default function AppearancePage() {
                     >
                       {themeOption}
                     </h3>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                    <p className="text-sm text-gray-700 dark:text-gray-300 mt-1">
                       {getThemeDescription(themeOption)}
                     </p>
                   </div>
@@ -133,7 +133,7 @@ export default function AppearancePage() {
 
           {/* Alternative Dropdown Selection */}
           <div className="pt-6 border-t border-gray-200 dark:border-gray-700">
-            <label 
+            <label
               htmlFor="theme-select"
               className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
             >
@@ -143,7 +143,7 @@ export default function AppearancePage() {
               id="theme-select"
               value={theme}
               onChange={(e) => handleThemeChange(e.target.value as Theme)}
-              className="w-full md:w-64 p-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+              className="w-full md:w-64 p-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500  text-gray-900 dark:text-white"
             >
               <option value="light">Light Theme</option>
               <option value="dark">Dark Theme</option>
@@ -158,7 +158,7 @@ export default function AppearancePage() {
         title="Theme Preview"
         subtitle="See how your selected theme looks"
       >
-        <div className="p-6 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+        <div className="p-6 bg-gray-50 dark:bg-gray-800 rounded-lg ">
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
@@ -169,7 +169,8 @@ export default function AppearancePage() {
                   ? "System"
                   : theme === "light"
                   ? "Light"
-                  : "Dark"} Theme
+                  : "Dark"}{" "}
+                Theme
               </span>
             </div>
             <p className="text-gray-600 dark:text-gray-300">
@@ -203,7 +204,7 @@ export default function AppearancePage() {
             <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-1">
               Light Theme
             </h4>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
+            <p className="text-sm text-gray-700 dark:text-gray-300">
               Best for daytime use and well-lit environments
             </p>
           </div>
@@ -212,7 +213,7 @@ export default function AppearancePage() {
             <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-1">
               Dark Theme
             </h4>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
+            <p className="text-sm text-gray-700 dark:text-gray-300">
               Reduces eye strain in low-light conditions
             </p>
           </div>
@@ -221,7 +222,7 @@ export default function AppearancePage() {
             <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-1">
               System Theme
             </h4>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
+            <p className="text-sm text-gray-700 dark:text-gray-300">
               Automatically matches your device settings
             </p>
           </div>
@@ -244,8 +245,8 @@ export default function AppearancePage() {
               </h3>
               <div className="mt-2 text-sm text-blue-700 dark:text-blue-300">
                 <p>
-                  Your theme preference is automatically saved and will be remembered
-                  across sessions. No manual saving required!
+                  Your theme preference is automatically saved and will be
+                  remembered across sessions. No manual saving required!
                 </p>
               </div>
             </div>

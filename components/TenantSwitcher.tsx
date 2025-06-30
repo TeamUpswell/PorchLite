@@ -45,7 +45,7 @@ export function TenantSwitcher() {
 
   return (
     <div className="relative">
-      <div className="flex items-center space-x-2 text-xs text-gray-500 dark:text-gray-400 mb-1">
+      <div className="flex items-center space-x-2 text-xs text-gray-700 dark:text-gray-300 mb-1">
         <Building2 className="h-3 w-3" />
         <span>Property</span>
       </div>

@@ -231,7 +231,7 @@ export default function SecurityPage() {
             icon={<LogOut className="h-5 w-5 text-gray-600" />}
           >
             <div className="space-y-4">
-              <p className="text-gray-600 dark:text-gray-400">
+              <p className="text-gray-700 dark:text-gray-300">
                 Sign out from all devices if you suspect unauthorized access to
                 your account.
               </p>

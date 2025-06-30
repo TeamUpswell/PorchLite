@@ -148,7 +148,10 @@ const pageInfo: Record<string, PageInfo> = {
 };
 
 // ✅ FIXED UserAvatar component with proper types
-const UserAvatar: React.FC<UserAvatarProps> = ({ user, className = "w-8 h-8" }) => {
+const UserAvatar: React.FC<UserAvatarProps> = ({
+  user,
+  className = "w-8 h-8",
+}) => {
   const [showFallback, setShowFallback] = useState(false);
   const [avatarKey, setAvatarKey] = useState(0);
   const { profileData, profileLoading } = useAuth();
@@ -431,7 +434,7 @@ export default function Header() {
                     <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
                       {userName}
                     </p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                    <p className="text-xs text-gray-700 dark:text-gray-300 truncate">
                       {user?.email}
                     </p>
                     <span className="inline-block bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 text-xs px-2 py-1 rounded-full mt-1">

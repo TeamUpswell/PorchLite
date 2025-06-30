@@ -1,6 +1,6 @@
 "use client";
 
-import StandardCard from "@/components/ui/StandardCard";
+import { ManualStyleCard } from "@/components/ui/StandardCard";
 import { CheckSquareIcon, Clock, Users, CheckCircle } from "lucide-react";
 
 interface TaskStats {
@@ -17,61 +17,53 @@ interface TaskStatsCardsProps {
 export default function TaskStatsCards({ stats }: TaskStatsCardsProps) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-      <StandardCard>
-        <div className="flex items-center">
-          <CheckSquareIcon className="h-8 w-8 text-blue-600 mr-3" />
-          <div>
-            <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
-              Total Tasks
-            </p>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white">
-              {stats.total}
-            </p>
+      <ManualStyleCard
+        title="Total Tasks"
+        badge={`${stats.total} total`}
+        icon={<CheckSquareIcon className="h-6 w-6 text-blue-600 dark:text-blue-400" />}
+      >
+        <div className="text-center">
+          <div className="text-2xl font-bold text-gray-900 dark:text-white">
+            {stats.total}
           </div>
         </div>
-      </StandardCard>
+      </ManualStyleCard>
 
-      <StandardCard>
-        <div className="flex items-center">
-          <Clock className="h-8 w-8 text-yellow-600 mr-3" />
-          <div>
-            <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
-              Pending
-            </p>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white">
-              {stats.pending}
-            </p>
+      <ManualStyleCard
+        title="Pending"
+        badge={`${stats.pending} pending`}
+        icon={<Clock className="h-6 w-6 text-yellow-600 dark:text-yellow-400" />}
+      >
+        <div className="text-center">
+          <div className="text-2xl font-bold text-gray-900 dark:text-white">
+            {stats.pending}
           </div>
         </div>
-      </StandardCard>
+      </ManualStyleCard>
 
-      <StandardCard>
-        <div className="flex items-center">
-          <Users className="h-8 w-8 text-blue-600 mr-3" />
-          <div>
-            <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
-              In Progress
-            </p>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white">
-              {stats.inProgress}
-            </p>
+      <ManualStyleCard
+        title="In Progress"
+        badge={`${stats.inProgress} active`}
+        icon={<Users className="h-6 w-6 text-blue-600 dark:text-blue-400" />}
+      >
+        <div className="text-center">
+          <div className="text-2xl font-bold text-gray-900 dark:text-white">
+            {stats.inProgress}
           </div>
         </div>
-      </StandardCard>
+      </ManualStyleCard>
 
-      <StandardCard>
-        <div className="flex items-center">
-          <CheckCircle className="h-8 w-8 text-green-600 mr-3" />
-          <div>
-            <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
-              Completed
-            </p>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white">
-              {stats.completed}
-            </p>
+      <ManualStyleCard
+        title="Completed"
+        badge={`${stats.completed} done`}
+        icon={<CheckCircle className="h-6 w-6 text-green-600 dark:text-green-400" />}
+      >
+        <div className="text-center">
+          <div className="text-2xl font-bold text-gray-900 dark:text-white">
+            {stats.completed}
           </div>
         </div>
-      </StandardCard>
+      </ManualStyleCard>
     </div>
   );
 }

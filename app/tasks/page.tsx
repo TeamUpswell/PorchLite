@@ -601,7 +601,7 @@ export default function TasksPage() {
                 <div className="text-center py-8 border-t border-gray-200 mt-8">
                   <div className="flex items-center justify-center mb-3">
                     <div className="h-px bg-gray-200 flex-1 max-w-20"></div>
-                    <span className="px-4 text-sm text-gray-400">That's it!</span>
+                    <span className="px-4 text-sm text-gray-600 dark:text-gray-400">That's it!</span>
                     <div className="h-px bg-gray-200 flex-1 max-w-20"></div>
                   </div>
                   <p className="text-sm text-gray-500">
@@ -680,7 +680,7 @@ function TasksNoPropertyFallback() {
   return (
     <StandardCard>
       <div className="text-center py-12">
-        <CheckSquareIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+        <CheckSquareIcon className="h-12 w-12 text-gray-600 dark:text-gray-400 mx-auto mb-4" />
         <h3 className="text-lg font-medium text-gray-900 mb-2">
           No Property Selected
         </h3>

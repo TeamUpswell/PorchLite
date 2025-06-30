@@ -173,7 +173,7 @@ export default function CalendarGrid({
                       ? 'bg-blue-600 text-white rounded-full'
                       : isCurrentMonth
                       ? 'text-gray-900'
-                      : 'text-gray-400'
+                      : 'text-gray-600 dark:text-gray-400'
                   }`}
                 >
                   {date.getDate()}

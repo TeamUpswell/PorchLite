@@ -21,7 +21,7 @@ export default function DeleteConfirmationModal({
       <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold">Delete Reservation</h3>
-          <button onClick={onCancel} className="text-gray-400 hover:text-gray-600">
+          <button onClick={onCancel} className="text-gray-600 dark:text-gray-400 hover:text-gray-600">
             <X className="h-6 w-6" />
           </button>
         </div>
