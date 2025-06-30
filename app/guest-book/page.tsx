@@ -4,8 +4,6 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useProperty } from "@/lib/hooks/useProperty";
 import { supabase } from "@/lib/supabase";
-import StandardPageLayout from "@/components/layout/StandardPageLayout";
-import PageContainer from "@/components/layout/PageContainer";
 import StandardCard from "@/components/ui/StandardCard";
 import {
   Heart,
@@ -245,7 +243,7 @@ export default function GuestBookPage() {
     }
   }, [currentProperty?.id, fetchGuestBookEntries]);
 
-  // Memoized ContactCard component
+  // Memoized EntryCard component
   const EntryCard = useCallback(
     ({ entry, index }: { entry: GuestBookEntry; index: number }) => (
       <div key={entry.id} className="relative mb-8 last:mb-0">
@@ -419,289 +417,277 @@ export default function GuestBookPage() {
   // Loading states
   if (isLoading) {
     return (
-      <StandardPageLayout>
-        <div className="flex items-center justify-center min-h-96">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
-            <p className="text-gray-600 mt-4">⏳ Loading guest book...</p>
-          </div>
+      <div className="flex items-center justify-center min-h-96">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
+          <p className="text-gray-600 mt-4">⏳ Loading guest book...</p>
         </div>
-      </StandardPageLayout>
+      </div>
     );
   }
 
   if (!user) {
     return (
-      <StandardPageLayout>
-        <div className="text-center py-12">
-          <BookOpen className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-          <p className="text-gray-600">Please log in to view the guest book.</p>
-          <Link
-            href="/auth/signin"
-            className="text-blue-600 hover:text-blue-800 mt-2 inline-block"
-          >
-            Sign In
-          </Link>
-        </div>
-      </StandardPageLayout>
+      <div className="text-center py-12">
+        <BookOpen className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+        <p className="text-gray-600">Please log in to view the guest book.</p>
+        <Link
+          href="/auth/signin"
+          className="text-blue-600 hover:text-blue-800 mt-2 inline-block"
+        >
+          Sign In
+        </Link>
+      </div>
     );
   }
 
   if (!currentProperty) {
     return (
-      <StandardPageLayout>
-        <StandardCard className="text-center py-12">
-          <BookOpen className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">
-            No Property Selected
-          </h3>
-          <p className="text-gray-600">
-            Please select a property to view its guest book.
-          </p>
-        </StandardCard>
-      </StandardPageLayout>
+      <StandardCard className="text-center py-12">
+        <BookOpen className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+        <h3 className="text-lg font-medium text-gray-900 mb-2">
+          No Property Selected
+        </h3>
+        <p className="text-gray-600">
+          Please select a property to view its guest book.
+        </p>
+      </StandardCard>
     );
   }
 
   // Error state
   if (error) {
     return (
-      <StandardPageLayout>
-        <StandardCard>
-          <div className="text-center py-8">
-            <BookOpen className="h-12 w-12 text-red-300 mx-auto mb-4" />
-            <p className="text-red-600 mb-4">{error}</p>
-            <button
-              onClick={retryFetch}
-              className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-            >
-              Try Again
-            </button>
-          </div>
-        </StandardCard>
-      </StandardPageLayout>
+      <StandardCard>
+        <div className="text-center py-8">
+          <BookOpen className="h-12 w-12 text-red-300 mx-auto mb-4" />
+          <p className="text-red-600 mb-4">{error}</p>
+          <button
+            onClick={retryFetch}
+            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            Try Again
+          </button>
+        </div>
+      </StandardCard>
     );
   }
 
   return (
-    <StandardPageLayout>
-      <PageContainer>
-        <div className="space-y-6">
-          {/* Top welcome card with fade and collapse */}
-          <div
-            className={`transition-all duration-1000 ease-out ${
-              showTopCard
-                ? "opacity-100 max-h-96 mb-8"
-                : "opacity-0 max-h-0 mb-0 overflow-hidden"
-            }`}
-          >
-            <StandardCard className="bg-gradient-to-r from-amber-50 to-orange-50 border-amber-200">
-              <div className="p-6 text-center">
-                <div className="flex justify-center mb-4">
-                  <Heart className="h-8 w-8 text-rose-500 mr-2" />
-                  <span className="text-2xl">🏡</span>
-                  <Heart className="h-8 w-8 text-rose-500 ml-2" />
-                </div>
-                <h3 className="text-xl font-semibold text-gray-800 mb-2">
-                  Help Us Record the Magic of This Place
-                </h3>
-                <p className="text-gray-600 leading-relaxed max-w-3xl mx-auto">
-                  Every visit adds a unique chapter to our home's story. We'd
-                  love to hear about the special moments, adventures, and
-                  connections you've experienced here.
-                </p>
+    <div className="space-y-6">
+      {/* Top welcome card with fade and collapse */}
+      <div
+        className={`transition-all duration-1000 ease-out ${
+          showTopCard
+            ? "opacity-100 max-h-96 mb-8"
+            : "opacity-0 max-h-0 mb-0 overflow-hidden"
+        }`}
+      >
+        <StandardCard className="bg-gradient-to-r from-amber-50 to-orange-50 border-amber-200">
+          <div className="p-6 text-center">
+            <div className="flex justify-center mb-4">
+              <Heart className="h-8 w-8 text-rose-500 mr-2" />
+              <span className="text-2xl">🏡</span>
+              <Heart className="h-8 w-8 text-rose-500 ml-2" />
+            </div>
+            <h3 className="text-xl font-semibold text-gray-800 mb-2">
+              Help Us Record the Magic of This Place
+            </h3>
+            <p className="text-gray-600 leading-relaxed max-w-3xl mx-auto">
+              Every visit adds a unique chapter to our home's story. We'd
+              love to hear about the special moments, adventures, and
+              connections you've experienced here.
+            </p>
 
-                <div className="mt-4 w-full bg-gray-200 rounded-full h-2">
-                  <div className="bg-gradient-to-r from-rose-400 to-amber-400 h-2 rounded-full shrink-animation animate-pulse" />
-                </div>
+            <div className="mt-4 w-full bg-gray-200 rounded-full h-2">
+              <div className="bg-gradient-to-r from-rose-400 to-amber-400 h-2 rounded-full shrink-animation animate-pulse" />
+            </div>
 
-                <button
-                  onClick={() => setShowTopCard(false)}
-                  className="mt-2 text-xs text-gray-500 hover:text-gray-700 underline"
-                >
-                  Hide this message
-                </button>
+            <button
+              onClick={() => setShowTopCard(false)}
+              className="mt-2 text-xs text-gray-500 hover:text-gray-700 underline"
+            >
+              Hide this message
+            </button>
+          </div>
+        </StandardCard>
+      </div>
+
+      {/* Main content area */}
+      {loading ? (
+        <StandardCard className="text-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
+          <p className="text-gray-600 mt-2">Loading guest entries...</p>
+        </StandardCard>
+      ) : entries.length === 0 ? (
+        /* Empty state with call to action */
+        <div className="text-center py-16">
+          {/* Animated illustration area */}
+          <div className="relative mb-8">
+            <div className="flex justify-center items-center space-x-4 mb-6">
+              <div className="animate-bounce delay-0">
+                <Heart className="h-12 w-12 text-pink-400" />
               </div>
-            </StandardCard>
+              <div className="animate-bounce delay-150">
+                <Camera className="h-12 w-12 text-blue-400" />
+              </div>
+              <div className="animate-bounce delay-300">
+                <Star className="h-12 w-12 text-yellow-400 fill-current" />
+              </div>
+            </div>
+
+            <div className="absolute top-0 left-1/4 animate-float">
+              <MapPin className="h-6 w-6 text-green-400 opacity-70" />
+            </div>
+            <div className="absolute top-8 right-1/4 animate-float-delayed">
+              <Calendar className="h-6 w-6 text-purple-400 opacity-70" />
+            </div>
           </div>
 
-          {/* Main content area */}
-          {loading ? (
-            <StandardCard className="text-center py-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
-              <p className="text-gray-600 mt-2">Loading guest entries...</p>
-            </StandardCard>
-          ) : entries.length === 0 ? (
-            /* Empty state with call to action */
-            <div className="text-center py-16">
-              {/* Animated illustration area */}
-              <div className="relative mb-8">
-                <div className="flex justify-center items-center space-x-4 mb-6">
-                  <div className="animate-bounce delay-0">
-                    <Heart className="h-12 w-12 text-pink-400" />
-                  </div>
-                  <div className="animate-bounce delay-150">
-                    <Camera className="h-12 w-12 text-blue-400" />
-                  </div>
-                  <div className="animate-bounce delay-300">
-                    <Star className="h-12 w-12 text-yellow-400 fill-current" />
-                  </div>
-                </div>
+          <StandardCard className="max-w-2xl mx-auto bg-gradient-to-br from-rose-50 to-amber-50 border-none shadow-lg">
+            <div className="p-8">
+              <h3 className="text-2xl font-bold text-gray-900 mb-4">
+                🌟 Be the First to Share Your Story 🌟
+              </h3>
+              <p className="text-lg text-gray-600 mb-6 leading-relaxed">
+                This lovely place is waiting for its first memory to be
+                shared! We would love to hear about the moments that made
+                your stay special.
+              </p>
 
-                <div className="absolute top-0 left-1/4 animate-float">
-                  <MapPin className="h-6 w-6 text-green-400 opacity-70" />
-                </div>
-                <div className="absolute top-8 right-1/4 animate-float-delayed">
-                  <Calendar className="h-6 w-6 text-purple-400 opacity-70" />
-                </div>
-              </div>
-
-              <StandardCard className="max-w-2xl mx-auto bg-gradient-to-br from-rose-50 to-amber-50 border-none shadow-lg">
-                <div className="p-8">
-                  <h3 className="text-2xl font-bold text-gray-900 mb-4">
-                    🌟 Be the First to Share Your Story 🌟
-                  </h3>
-                  <p className="text-lg text-gray-600 mb-6 leading-relaxed">
-                    This lovely place is waiting for its first memory to be
-                    shared! We would love to hear about the moments that made
-                    your stay special.
-                  </p>
-
-                  <button
-                    onClick={() => setShowWizardModal(true)}
-                    className="inline-flex items-center bg-gradient-to-r from-rose-600 to-amber-600 text-white px-8 py-4 rounded-xl hover:from-rose-700 hover:to-amber-700 transform hover:scale-105 transition-all duration-200 shadow-lg font-semibold text-lg"
-                  >
-                    <Plus className="h-5 w-5 mr-3" />
-                    Start This Home's Memory Collection
-                  </button>
-                </div>
-              </StandardCard>
+              <button
+                onClick={() => setShowWizardModal(true)}
+                className="inline-flex items-center bg-gradient-to-r from-rose-600 to-amber-600 text-white px-8 py-4 rounded-xl hover:from-rose-700 hover:to-amber-700 transform hover:scale-105 transition-all duration-200 shadow-lg font-semibold text-lg"
+              >
+                <Plus className="h-5 w-5 mr-3" />
+                Start This Home's Memory Collection
+              </button>
             </div>
-          ) : (
-            /* Guest book entries - Timeline Layout */
-            <div className="space-y-8">
-              {/* Timeline Header */}
-              <div className="text-center mb-6">
-                <h2 className="text-3xl font-bold text-gray-900 mb-1">
-                  Memory Timeline
-                </h2>
-                <p className="text-gray-600 max-w-2xl mx-auto mb-2">
-                  The memories you create make this place magic (
-                  {entries.length} entries)
-                </p>
-                <div className="w-24 h-1 bg-gradient-to-r from-rose-400 to-amber-400 mx-auto rounded-full"></div>
-              </div>
+          </StandardCard>
+        </div>
+      ) : (
+        /* Guest book entries - Timeline Layout */
+        <div className="space-y-8">
+          {/* Timeline Header */}
+          <div className="text-center mb-6">
+            <h2 className="text-3xl font-bold text-gray-900 mb-1">
+              Memory Timeline
+            </h2>
+            <p className="text-gray-600 max-w-2xl mx-auto mb-2">
+              The memories you create make this place magic (
+              {entries.length} entries)
+            </p>
+            <div className="w-24 h-1 bg-gradient-to-r from-rose-400 to-amber-400 mx-auto rounded-full"></div>
+          </div>
 
-              {/* Add new entry prompt */}
-              <div className="relative">
-                <div className="flex items-center mb-8">
-                  <div className="flex-shrink-0 w-4 h-4 bg-blue-500 rounded-full border-4 border-white shadow-lg z-10"></div>
-                  <div className="flex-1 ml-6">
-                    <StandardCard className="bg-gradient-to-r from-blue-50 to-purple-50 border-blue-200">
-                      <div className="p-6">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                              📖 Add Your Chapter
-                            </h3>
-                            <p className="text-gray-600">
-                              Share your experience and become part of this
-                              home's story
-                            </p>
-                          </div>
-                          <button
-                            onClick={() => setShowWizardModal(true)}
-                            className="inline-flex items-center bg-blue-600 text-white px-6 py-3 rounded-xl hover:bg-blue-700 font-medium transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
-                          >
-                            <Heart className="h-5 w-5 mr-2" />
-                            Share Memory
-                          </button>
-                        </div>
+          {/* Add new entry prompt */}
+          <div className="relative">
+            <div className="flex items-center mb-8">
+              <div className="flex-shrink-0 w-4 h-4 bg-blue-500 rounded-full border-4 border-white shadow-lg z-10"></div>
+              <div className="flex-1 ml-6">
+                <StandardCard className="bg-gradient-to-r from-blue-50 to-purple-50 border-blue-200">
+                  <div className="p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                          📖 Add Your Chapter
+                        </h3>
+                        <p className="text-gray-600">
+                          Share your experience and become part of this
+                          home's story
+                        </p>
                       </div>
-                    </StandardCard>
-                  </div>
-                </div>
-                <div className="absolute left-2 top-8 bottom-0 w-0.5 bg-gray-200"></div>
-              </div>
-
-              {/* Timeline Entries */}
-              <div className="relative">
-                <div className="absolute left-2 top-0 bottom-0 w-0.5 bg-gray-200"></div>
-                {entries.map((entry, index) => (
-                  <EntryCard key={entry.id} entry={entry} index={index} />
-                ))}
-
-                {/* Timeline end marker */}
-                <div className="relative">
-                  <div className="absolute left-0 w-4 h-4 bg-gray-300 rounded-full border-4 border-white shadow-sm transform -translate-x-[7px]"></div>
-                  <div className="ml-10">
-                    <div className="text-center py-4">
-                      <div className="inline-flex items-center px-3 py-1 bg-gray-50 rounded-full text-xs text-gray-500 border">
-                        <Heart className="h-3 w-3 mr-1 text-gray-400" />
-                        The story continues...
-                      </div>
+                      <button
+                        onClick={() => setShowWizardModal(true)}
+                        className="inline-flex items-center bg-blue-600 text-white px-6 py-3 rounded-xl hover:bg-blue-700 font-medium transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
+                      >
+                        <Heart className="h-5 w-5 mr-2" />
+                        Share Memory
+                      </button>
                     </div>
                   </div>
+                </StandardCard>
+              </div>
+            </div>
+            <div className="absolute left-2 top-8 bottom-0 w-0.5 bg-gray-200"></div>
+          </div>
+
+          {/* Timeline Entries */}
+          <div className="relative">
+            <div className="absolute left-2 top-0 bottom-0 w-0.5 bg-gray-200"></div>
+            {entries.map((entry, index) => (
+              <EntryCard key={entry.id} entry={entry} index={index} />
+            ))}
+
+            {/* Timeline end marker */}
+            <div className="relative">
+              <div className="absolute left-0 w-4 h-4 bg-gray-300 rounded-full border-4 border-white shadow-sm transform -translate-x-[7px]"></div>
+              <div className="ml-10">
+                <div className="text-center py-4">
+                  <div className="inline-flex items-center px-3 py-1 bg-gray-50 rounded-full text-xs text-gray-500 border">
+                    <Heart className="h-3 w-3 mr-1 text-gray-400" />
+                    The story continues...
+                  </div>
                 </div>
               </div>
             </div>
-          )}
+          </div>
         </div>
+      )}
 
-        {/* Trip Report Wizard Modal */}
-        {showWizardModal && currentProperty && (
-          <TripReportWizard
-            isOpen={showWizardModal}
-            onClose={handleCloseWizard}
-            property={currentProperty}
-            editEntry={editingEntry}
-            onComplete={handleWizardComplete}
-          />
-        )}
+      {/* Trip Report Wizard Modal */}
+      {showWizardModal && currentProperty && (
+        <TripReportWizard
+          isOpen={showWizardModal}
+          onClose={handleCloseWizard}
+          property={currentProperty}
+          editEntry={editingEntry}
+          onComplete={handleWizardComplete}
+        />
+      )}
 
-        <style jsx>{`
-          @keyframes float {
-            0%,
-            100% {
-              transform: translateY(0px);
-            }
-            50% {
-              transform: translateY(-10px);
-            }
+      <style jsx>{`
+        @keyframes float {
+          0%,
+          100% {
+            transform: translateY(0px);
           }
-
-          @keyframes float-delayed {
-            0%,
-            100% {
-              transform: translateY(0px);
-            }
-            50% {
-              transform: translateY(-15px);
-            }
+          50% {
+            transform: translateY(-10px);
           }
+        }
 
-          @keyframes shrink {
-            0% {
-              width: 100%;
-            }
-            100% {
-              width: 0%;
-            }
+        @keyframes float-delayed {
+          0%,
+          100% {
+            transform: translateY(0px);
           }
+          50% {
+            transform: translateY(-15px);
+          }
+        }
 
-          .animate-float {
-            animation: float 3s ease-in-out infinite;
+        @keyframes shrink {
+          0% {
+            width: 100%;
           }
+          100% {
+            width: 0%;
+          }
+        }
 
-          .animate-float-delayed {
-            animation: float-delayed 3s ease-in-out infinite 1.5s;
-          }
+        .animate-float {
+          animation: float 3s ease-in-out infinite;
+        }
 
-          .shrink-animation {
-            animation: shrink 20s linear forwards;
-          }
-        `}</style>
-      </PageContainer>
-    </StandardPageLayout>
+        .animate-float-delayed {
+          animation: float-delayed 3s ease-in-out infinite 1.5s;
+        }
+
+        .shrink-animation {
+          animation: shrink 20s linear forwards;
+        }
+      `}</style>
+    </div>
   );
 }

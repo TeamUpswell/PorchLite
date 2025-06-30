@@ -1,10 +1,8 @@
-// app/recommendations/page.tsx - Optimized version
 "use client";
 
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { Star, Plus, MapPin, Phone, Globe, Trash2, Search } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthProvider";
-import StandardPageLayout from "@/components/layout/StandardPageLayout";
 import StandardCard from "@/components/ui/StandardCard";
 import { useProperty } from "@/lib/hooks/useProperty";
 import { supabase } from "@/lib/supabase";
@@ -365,14 +363,14 @@ export default function RecommendationsPage() {
   // Loading state
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+      <StandardCard>
+        <div className="flex items-center justify-center py-12">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
           <p className="text-gray-600">
-            ⏳ Waiting for user and property to load...
+            ⏳ Loading recommendations...
           </p>
         </div>
-      </div>
+      </StandardCard>
     );
   }
 
@@ -381,206 +379,204 @@ export default function RecommendationsPage() {
   }
 
   return (
-    <StandardPageLayout>
-      <div className="space-y-6">
-        {/* Filters */}
-        <RecommendationFilters
-          recommendations={recommendations}
-          setFilteredRecommendations={setFilteredRecommendations}
-        />
+    <div className="space-y-6">
+      {/* Filters */}
+      <RecommendationFilters
+        recommendations={recommendations}
+        setFilteredRecommendations={setFilteredRecommendations}
+      />
 
-        {/* Recommendations Grid */}
-        <StandardCard
-          title={`${filteredRecommendations.length} Recommendation${
-            filteredRecommendations.length !== 1 ? "s" : ""
-          }`}
-          subtitle="Browse your curated local recommendations"
-        >
-          {loadingRecommendations ? (
-            <div className="flex justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            </div>
-          ) : filteredRecommendations.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredRecommendations.map((rec) => {
-                const category = categories.find((c) => c.id === rec.category);
+      {/* Recommendations Grid */}
+      <StandardCard
+        title={`${filteredRecommendations.length} Recommendation${
+          filteredRecommendations.length !== 1 ? "s" : ""
+        }`}
+        subtitle="Browse your curated local recommendations"
+      >
+        {loadingRecommendations ? (
+          <div className="flex justify-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          </div>
+        ) : filteredRecommendations.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredRecommendations.map((rec) => {
+              const category = categories.find((c) => c.id === rec.category);
 
-                return (
-                  <div
-                    key={rec.id}
-                    className="border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow relative group"
+              return (
+                <div
+                  key={rec.id}
+                  className="border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow relative group"
+                >
+                  {/* Delete Button */}
+                  <button
+                    onClick={() => confirmDelete(rec)}
+                    className="absolute top-2 right-2 z-10 p-2 bg-red-500 text-white rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-all duration-200 hover:bg-red-600 hover:scale-110"
+                    title="Delete recommendation"
+                    aria-label="Delete recommendation"
                   >
-                    {/* Delete Button */}
-                    <button
-                      onClick={() => confirmDelete(rec)}
-                      className="absolute top-2 right-2 z-10 p-2 bg-red-500 text-white rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-all duration-200 hover:bg-red-600 hover:scale-110"
-                      title="Delete recommendation"
-                      aria-label="Delete recommendation"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
+                    <Trash2 className="h-4 w-4" />
+                  </button>
 
-                    {/* Image */}
-                    <div className="h-48 relative">
-                      {rec.place_id ? (
-                        <DynamicGooglePlacePhoto
-                          placeId={rec.place_id}
-                          alt={rec.name}
-                          width={400}
-                          height={300}
-                          className="w-full h-full object-cover"
-                          fallback={
-                            <div className="h-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center">
-                              <span className="text-4xl">
-                                {category?.icon || "📍"}
-                              </span>
-                            </div>
-                          }
-                        />
-                      ) : rec.images &&
-                        rec.images.length > 0 &&
-                        rec.images[0] ? (
-                        <Image
-                          src={rec.images[0]}
-                          alt={rec.name}
-                          fill
-                          className="object-cover"
-                          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                        />
-                      ) : (
-                        <div className="h-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center">
-                          <span className="text-4xl">
-                            {category?.icon || "📍"}
-                          </span>
+                  {/* Image */}
+                  <div className="h-48 relative">
+                    {rec.place_id ? (
+                      <DynamicGooglePlacePhoto
+                        placeId={rec.place_id}
+                        alt={rec.name}
+                        width={400}
+                        height={300}
+                        className="w-full h-full object-cover"
+                        fallback={
+                          <div className="h-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center">
+                            <span className="text-4xl">
+                              {category?.icon || "📍"}
+                            </span>
+                          </div>
+                        }
+                      />
+                    ) : rec.images &&
+                      rec.images.length > 0 &&
+                      rec.images[0] ? (
+                      <Image
+                        src={rec.images[0]}
+                        alt={rec.name}
+                        fill
+                        className="object-cover"
+                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                      />
+                    ) : (
+                      <div className="h-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center">
+                        <span className="text-4xl">
+                          {category?.icon || "📍"}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Content */}
+                  <div className="p-4">
+                    <div className="flex items-start justify-between mb-2">
+                      <h3 className="font-semibold text-gray-900 text-lg pr-2">
+                        {rec.name}
+                      </h3>
+                      <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded flex-shrink-0">
+                        {category?.name || rec.category}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center mb-2">
+                      <div className="flex items-center mr-2">
+                        {renderStars(rec.rating)}
+                      </div>
+                      <span className="text-sm text-gray-600">
+                        {rec.rating.toFixed(1)}
+                      </span>
+                    </div>
+
+                    <p className="text-gray-600 text-sm mb-3 line-clamp-2">
+                      {rec.description}
+                    </p>
+
+                    <div className="space-y-2 text-sm">
+                      <div className="flex items-center text-gray-600">
+                        <MapPin className="h-4 w-4 mr-2 flex-shrink-0" />
+                        <span className="truncate">{rec.address}</span>
+                      </div>
+
+                      {rec.phone_number && (
+                        <div className="flex items-center text-gray-600">
+                          <Phone className="h-4 w-4 mr-2 flex-shrink-0" />
+                          <a
+                            href={`tel:${rec.phone_number}`}
+                            className="hover:text-blue-600"
+                          >
+                            {rec.phone_number}
+                          </a>
+                        </div>
+                      )}
+
+                      {rec.website && (
+                        <div className="flex items-center text-gray-600">
+                          <Globe className="h-4 w-4 mr-2 flex-shrink-0" />
+                          <a
+                            href={rec.website}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="hover:text-blue-600 truncate"
+                          >
+                            Visit Website
+                          </a>
                         </div>
                       )}
                     </div>
 
-                    {/* Content */}
-                    <div className="p-4">
-                      <div className="flex items-start justify-between mb-2">
-                        <h3 className="font-semibold text-gray-900 text-lg pr-2">
-                          {rec.name}
-                        </h3>
-                        <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded flex-shrink-0">
-                          {category?.name || rec.category}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center mb-2">
-                        <div className="flex items-center mr-2">
-                          {renderStars(rec.rating)}
-                        </div>
-                        <span className="text-sm text-gray-600">
-                          {rec.rating.toFixed(1)}
-                        </span>
-                      </div>
-
-                      <p className="text-gray-600 text-sm mb-3 line-clamp-2">
-                        {rec.description}
-                      </p>
-
-                      <div className="space-y-2 text-sm">
-                        <div className="flex items-center text-gray-600">
-                          <MapPin className="h-4 w-4 mr-2 flex-shrink-0" />
-                          <span className="truncate">{rec.address}</span>
-                        </div>
-
-                        {rec.phone_number && (
-                          <div className="flex items-center text-gray-600">
-                            <Phone className="h-4 w-4 mr-2 flex-shrink-0" />
-                            <a
-                              href={`tel:${rec.phone_number}`}
-                              className="hover:text-blue-600"
-                            >
-                              {rec.phone_number}
-                            </a>
-                          </div>
+                    <div className="mt-4 pt-3 border-t border-gray-100 flex justify-between items-center">
+                      <span className="text-xs text-gray-500">
+                        Added{" "}
+                        {new Date(rec.created_at).toLocaleDateString(
+                          "en-US",
+                          {
+                            year: "numeric",
+                            month: "short",
+                            day: "numeric",
+                          }
                         )}
-
-                        {rec.website && (
-                          <div className="flex items-center text-gray-600">
-                            <Globe className="h-4 w-4 mr-2 flex-shrink-0" />
-                            <a
-                              href={rec.website}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="hover:text-blue-600 truncate"
-                            >
-                              Visit Website
-                            </a>
-                          </div>
-                        )}
+                      </span>
+                      <div className="flex items-center space-x-2">
+                        <a
+                          href={
+                            rec.place_id
+                              ? `https://www.google.com/maps/place/?q=place_id:${rec.place_id}`
+                              : `https://www.google.com/maps/search/${encodeURIComponent(
+                                  rec.name + " " + rec.address
+                                )}`
+                          }
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center"
+                        >
+                          <Globe className="h-3 w-3 mr-1" />
+                          View on Google
+                        </a>
                       </div>
-
-                      <div className="mt-4 pt-3 border-t border-gray-100 flex justify-between items-center">
-                        <span className="text-xs text-gray-500">
-                          Added{" "}
-                          {new Date(rec.created_at).toLocaleDateString(
-                            "en-US",
-                            {
-                              year: "numeric",
-                              month: "short",
-                              day: "numeric",
-                            }
-                          )}
-                        </span>
-                        <div className="flex items-center space-x-2">
-                          <a
-                            href={
-                              rec.place_id
-                                ? `https://www.google.com/maps/place/?q=place_id:${rec.place_id}`
-                                : `https://www.google.com/maps/search/${encodeURIComponent(
-                                    rec.name + " " + rec.address
-                                  )}`
-                            }
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center"
-                          >
-                            <Globe className="h-3 w-3 mr-1" />
-                            View on Google
-                          </a>
-                        </div>
-                      </div>
-
-                      {/* Comments Component */}
-                      <RecommendationComments
-                        recommendationId={rec.id}
-                        recommendationName={rec.name}
-                      />
                     </div>
+
+                    {/* Comments Component */}
+                    <RecommendationComments
+                      recommendationId={rec.id}
+                      recommendationName={rec.name}
+                    />
                   </div>
-                );
-              })}
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="text-center py-8 text-gray-500">
+            <Star className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+            <p>No recommendations found</p>
+            <p className="text-sm mt-1 mb-4">
+              Try adjusting your filters or add new recommendations
+            </p>
+            <div className="flex gap-3 justify-center">
+              <button
+                onClick={() => setShowGoogleSearchModal(true)}
+                className="inline-flex items-center px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                <Search className="h-4 w-4 mr-2" />
+                Find with Google
+              </button>
+              <button
+                onClick={() => setShowManualModal(true)}
+                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Add Manually
+              </button>
             </div>
-          ) : (
-            <div className="text-center py-8 text-gray-500">
-              <Star className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-              <p>No recommendations found</p>
-              <p className="text-sm mt-1 mb-4">
-                Try adjusting your filters or add new recommendations
-              </p>
-              <div className="flex gap-3 justify-center">
-                <button
-                  onClick={() => setShowGoogleSearchModal(true)}
-                  className="inline-flex items-center px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  <Search className="h-4 w-4 mr-2" />
-                  Find with Google
-                </button>
-                <button
-                  onClick={() => setShowManualModal(true)}
-                  className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Manually
-                </button>
-              </div>
-            </div>
-          )}
-        </StandardCard>
-      </div>
+          </div>
+        )}
+      </StandardCard>
 
       {/* Floating Action Button */}
       <MultiActionPattern
@@ -1007,6 +1003,6 @@ export default function RecommendationsPage() {
           </div>
         </div>
       )}
-    </StandardPageLayout>
+    </div>
   );
 }

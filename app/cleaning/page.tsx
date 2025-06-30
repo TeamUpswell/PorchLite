@@ -4,7 +4,6 @@ import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useProperty } from "@/lib/hooks/useProperty";
 import { supabase } from "@/lib/supabase";
-import StandardPageLayout from "@/components/layout/StandardPageLayout";
 import StandardCard from "@/components/ui/StandardCard";
 import { PropertyGuard } from "@/components/ui/PropertyGuard";
 import Link from "next/link";
@@ -236,18 +235,16 @@ export default function CleaningPage() {
   // Loading states
   if (isInitializing) {
     return (
-      <StandardPageLayout title="Cleaning" subtitle="Loading...">
-        <StandardCard>
-          <div className="flex items-center justify-center min-h-[400px]">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-3"></div>
-              <p className="text-gray-600 dark:text-gray-400">
-                ⏳ Loading cleaning dashboard...
-              </p>
-            </div>
+      <StandardCard>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-3"></div>
+            <p className="text-gray-600 dark:text-gray-400">
+              ⏳ Loading cleaning dashboard...
+            </p>
           </div>
-        </StandardCard>
-      </StandardPageLayout>
+        </div>
+      </StandardCard>
     );
   }
 
@@ -264,340 +261,429 @@ export default function CleaningPage() {
   }
 
   return (
-    <StandardPageLayout
-      title="Cleaning"
-      subtitle={`Cleaning management for ${currentProperty.name}`}
-      breadcrumb={[{ label: "Cleaning" }]}
-    >
-      <div className="space-y-6">
-        {/* Overview Stats Card */}
-        <StandardCard
-          title="Cleaning Dashboard"
-          subtitle={`Track cleaning tasks and progress • ${progressPercentage}% complete`}
-          headerActions={
-            <div className="flex items-center gap-3">
-              <button
-                onClick={handleRefresh}
-                disabled={refreshing}
-                className="flex items-center px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 transition-colors"
-                title="Refresh cleaning stats"
-              >
-                <RefreshCw
-                  className={`h-3 w-3 mr-1 ${refreshing ? "animate-spin" : ""}`}
-                />
-                Refresh
-              </button>
-              <span className="text-xs text-gray-500 dark:text-gray-400">
-                {currentProperty.name}
-              </span>
-            </div>
-          }
-        >
-          {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-              <span className="ml-2 text-gray-600 dark:text-gray-400">
-                Loading stats...
-              </span>
-            </div>
-          ) : (
-            <div className="space-y-6">
-              {/* Progress Bar */}
-              {stats.totalTasks > 0 && (
-                <div className="rounded-lg bg-gray-100 dark:bg-gray-800 p-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Cleaning Progress
-                    </span>
-                    <span className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                      {progressPercentage}%
-                    </span>
+    <div className="space-y-6">
+      {/* Header Card */}
+      <StandardCard
+        title="Cleaning"
+        subtitle={`Cleaning management for ${currentProperty.name}`}
+        headerActions={
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="flex items-center px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 transition-colors"
+              title="Refresh cleaning stats"
+            >
+              <RefreshCw
+                className={`h-3 w-3 mr-1 ${refreshing ? "animate-spin" : ""}`}
+              />
+              Refresh
+            </button>
+            <span className="text-xs text-gray-500 dark:text-gray-400">
+              {currentProperty.name}
+            </span>
+          </div>
+        }
+      />
+
+      {/* Overview Stats Card */}
+      <StandardCard
+        title="Cleaning Dashboard"
+        subtitle={`Track cleaning tasks and progress • ${progressPercentage}% complete`}
+      >
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <span className="ml-2 text-gray-600 dark:text-gray-400">
+              Loading stats...
+            </span>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {/* Progress Bar */}
+            {stats.totalTasks > 0 && (
+              <div className="rounded-lg bg-gray-100 dark:bg-gray-800 p-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Cleaning Progress
+                  </span>
+                  <span className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                    {progressPercentage}%
+                  </span>
+                </div>
+                <div className="mt-2 h-2 bg-gray-200 dark:bg-gray-700 rounded-full">
+                  <div
+                    className="h-2 bg-green-600 rounded-full transition-all duration-300"
+                    style={{ width: `${progressPercentage}%` }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Stat Cards Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {statCards.map((card, index) => (
+                <div
+                  key={index}
+                  className={`rounded-lg border p-4 flex items-center space-x-4 ${card.bgColor} ${card.borderColor}`}
+                >
+                  <div className={`p-3 rounded-full ${card.iconBg}`}>
+                    <card.icon className={`h-6 w-6 ${card.iconColor}`} />
                   </div>
-                  <div className="mt-2 h-2 bg-gray-200 dark:bg-gray-700 rounded-full">
-                    <div
-                      className="h-2 bg-green-600 rounded-full transition-all duration-300"
-                      style={{ width: `${progressPercentage}%` }}
-                    />
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-xs font-semibold ${card.textColor}`}>
+                      {card.title}
+                    </p>
+                    <p className={`text-2xl font-bold ${card.valueColor}`}>
+                      {card.value}
+                    </p>
                   </div>
                 </div>
-              )}
+              ))}
+            </div>
 
-              {/* Stat Cards Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                {statCards.map((card, index) => (
-                  <div
-                    key={index}
-                    className={`rounded-lg border p-4 flex items-center space-x-4 ${card.bgColor} ${card.borderColor}`}
-                  >
-                    <div className={`p-3 rounded-full ${card.iconBg}`}>
-                      <card.icon className={`h-6 w-6 ${card.iconColor}`} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className={`text-xs font-semibold ${card.textColor}`}>
-                        {card.title}
-                      </p>
-                      <p className={`text-2xl font-bold ${card.valueColor}`}>
-                        {card.value}
-                      </p>
-                    </div>
+            {/* Action Buttons */}
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Link
+                href="/cleaning/tasks"
+                className="inline-flex items-center justify-center px-4 py-2 text-sm font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <Plus className="w-5 h-5 mr-2" />
+                New Cleaning Task
+              </Link>
+              <Link
+                href="/cleaning/schedule"
+                className="inline-flex items-center justify-center px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+              >
+                <Calendar className="w-5 h-5 mr-2" />
+                View Schedule
+              </Link>
+              <Link
+                href="/cleaning/history"
+                className="inline-flex items-center justify-center px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+              >
+                <ArrowRight className="w-5 h-5 mr-2" />
+                View History
+              </Link>
+            </div>
+          </div>
+        )}
+      </StandardCard>
+
+      {/* Quick Actions Card */}
+      <StandardCard
+        title="Quick Actions"
+        subtitle="Common cleaning management tasks"
+      >
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <Link
+            href="/cleaning/tasks/create"
+            className="flex items-center p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+          >
+            <Plus className="h-8 w-8 text-blue-600 mr-3 flex-shrink-0" />
+            <div>
+              <h4 className="font-medium text-gray-900 dark:text-gray-100">
+                Create Task
+              </h4>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Add a new cleaning task
+              </p>
+            </div>
+          </Link>
+
+          <Link
+            href="/cleaning/templates"
+            className="flex items-center p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+          >
+            <Sparkles className="h-8 w-8 text-purple-600 mr-3 flex-shrink-0" />
+            <div>
+              <h4 className="font-medium text-gray-900 dark:text-gray-100">
+                Templates
+              </h4>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Use cleaning templates
+              </p>
+            </div>
+          </Link>
+
+          <Link
+            href="/cleaning/team"
+            className="flex items-center p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+          >
+            <Users className="h-8 w-8 text-green-600 mr-3 flex-shrink-0" />
+            <div>
+              <h4 className="font-medium text-gray-900 dark:text-gray-100">
+                Team Management
+              </h4>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Manage cleaning staff
+              </p>
+            </div>
+          </Link>
+        </div>
+      </StandardCard>
+
+      {/* Recent Tasks Table */}
+      <StandardCard
+        title="Recent Tasks"
+        subtitle="Latest cleaning activities"
+        headerActions={
+          <Link
+            href="/cleaning/tasks"
+            className="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+          >
+            View All →
+          </Link>
+        }
+      >
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+            <thead className="bg-gray-50 dark:bg-gray-800">
+              <tr>
+                <th
+                  scope="col"
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"
+                >
+                  Task
+                </th>
+                <th
+                  scope="col"
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"
+                >
+                  Status
+                </th>
+                <th
+                  scope="col"
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"
+                >
+                  Due Date
+                </th>
+                <th
+                  scope="col"
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"
+                >
+                  Assigned To
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+              {/* TODO: Replace with real data */}
+              <tr>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                    Kitchen Deep Clean
                   </div>
-                ))}
-              </div>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                    Completed
+                  </span>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                  Today
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                  Sarah Johnson
+                </td>
+              </tr>
+              <tr>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                    Bathroom Sanitization
+                  </div>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
+                    Overdue
+                  </span>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                  Yesterday
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                  Mike Chen
+                </td>
+              </tr>
+              <tr>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                    Living Room Vacuum
+                  </div>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
+                    Pending
+                  </span>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                  Tomorrow
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                  Unassigned
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </StandardCard>
 
-              {/* Action Buttons */}
-              <div className="flex flex-col sm:flex-row gap-3">
-                <Link
-                  href="/cleaning/tasks"
-                  className="inline-flex items-center justify-center px-4 py-2 text-sm font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  <Plus className="w-5 h-5 mr-2" />
-                  New Cleaning Task
-                </Link>
-                <Link
-                  href="/cleaning/schedule"
-                  className="inline-flex items-center justify-center px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
-                >
-                  <Calendar className="w-5 h-5 mr-2" />
-                  View Schedule
-                </Link>
-                <Link
-                  href="/cleaning/history"
-                  className="inline-flex items-center justify-center px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
-                >
-                  <ArrowRight className="w-5 h-5 mr-2" />
-                  View History
-                </Link>
-              </div>
+      {/* Performance Insights */}
+      <StandardCard
+        title="Performance Insights"
+        subtitle="Cleaning efficiency metrics and analytics"
+      >
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="text-center p-4">
+            <TrendingUp className="h-8 w-8 text-green-600 mx-auto mb-2" />
+            <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+              {progressPercentage}%
             </div>
-          )}
-        </StandardCard>
-
-        {/* Quick Actions Card */}
-        <StandardCard
-          title="Quick Actions"
-          subtitle="Common cleaning management tasks"
-        >
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <Link
-              href="/cleaning/tasks/new"
-              className="flex items-center p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-            >
-              <Plus className="h-8 w-8 text-blue-600 mr-3 flex-shrink-0" />
-              <div>
-                <h4 className="font-medium text-gray-900 dark:text-gray-100">
-                  Create Task
-                </h4>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Add a new cleaning task
-                </p>
-              </div>
-            </Link>
-
-            <Link
-              href="/cleaning/templates"
-              className="flex items-center p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-            >
-              <Sparkles className="h-8 w-8 text-purple-600 mr-3 flex-shrink-0" />
-              <div>
-                <h4 className="font-medium text-gray-900 dark:text-gray-100">
-                  Templates
-                </h4>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Use cleaning templates
-                </p>
-              </div>
-            </Link>
-
-            <Link
-              href="/cleaning/team"
-              className="flex items-center p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-            >
-              <Users className="h-8 w-8 text-green-600 mr-3 flex-shrink-0" />
-              <div>
-                <h4 className="font-medium text-gray-900 dark:text-gray-100">
-                  Team Management
-                </h4>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Manage cleaning staff
-                </p>
-              </div>
-            </Link>
+            <div className="text-sm text-gray-600 dark:text-gray-400">
+              Completion Rate
+            </div>
           </div>
-        </StandardCard>
-
-        {/* Recent Tasks Table */}
-        <StandardCard
-          title="Recent Tasks"
-          subtitle="Latest cleaning activities"
-          headerActions={
-            <Link
-              href="/cleaning/tasks"
-              className="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
-            >
-              View All →
-            </Link>
-          }
-        >
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-              <thead className="bg-gray-50 dark:bg-gray-800">
-                <tr>
-                  <th
-                    scope="col"
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"
-                  >
-                    Task
-                  </th>
-                  <th
-                    scope="col"
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"
-                  >
-                    Status
-                  </th>
-                  <th
-                    scope="col"
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"
-                  >
-                    Due Date
-                  </th>
-                  <th
-                    scope="col"
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"
-                  >
-                    Assigned To
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
-                {/* TODO: Replace with real data */}
-                <tr>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                      Kitchen Deep Clean
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-                      Completed
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                    Today
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                    Sarah Johnson
-                  </td>
-                </tr>
-                <tr>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                      Bathroom Sanitization
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
-                      Overdue
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                    Yesterday
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                    Mike Chen
-                  </td>
-                </tr>
-                <tr>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                      Living Room Vacuum
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
-                      Pending
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                    Tomorrow
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                    Unassigned
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+          <div className="text-center p-4">
+            <Clock className="h-8 w-8 text-blue-600 mx-auto mb-2" />
+            <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+              2.5
+            </div>
+            <div className="text-sm text-gray-600 dark:text-gray-400">
+              Avg Hours/Task
+            </div>
           </div>
-        </StandardCard>
+          <div className="text-center p-4">
+            <Users className="h-8 w-8 text-purple-600 mx-auto mb-2" />
+            <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+              3
+            </div>
+            <div className="text-sm text-gray-600 dark:text-gray-400">
+              Active Staff
+            </div>
+          </div>
+        </div>
+      </StandardCard>
 
-        {/* Performance Insights */}
-        <StandardCard
-          title="Performance Insights"
-          subtitle="Cleaning efficiency metrics"
-        >
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="text-center p-4">
-              <TrendingUp className="h-8 w-8 text-green-600 mx-auto mb-2" />
-              <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                {progressPercentage}%
+      {/* Cleaning Tips */}
+      <StandardCard
+        title="Cleaning Best Practices"
+        subtitle="Tips for efficient cleaning management"
+      >
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-4">
+            <div className="flex items-start space-x-3">
+              <div className="flex-shrink-0 w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                <span className="text-blue-600 font-medium text-sm">1</span>
               </div>
-              <div className="text-sm text-gray-600 dark:text-gray-400">
-                Completion Rate
-              </div>
-            </div>
-            <div className="text-center p-4">
-              <Clock className="h-8 w-8 text-blue-600 mx-auto mb-2" />
-              <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                2.5
-              </div>
-              <div className="text-sm text-gray-600 dark:text-gray-400">
-                Avg Hours/Task
+              <div>
+                <h4 className="font-medium text-gray-900 dark:text-white mb-1">
+                  Create Detailed Schedules
+                </h4>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Establish regular cleaning schedules with specific tasks and timelines
+                </p>
               </div>
             </div>
-            <div className="text-center p-4">
-              <Users className="h-8 w-8 text-purple-600 mx-auto mb-2" />
-              <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                3
+            <div className="flex items-start space-x-3">
+              <div className="flex-shrink-0 w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                <span className="text-green-600 font-medium text-sm">2</span>
               </div>
-              <div className="text-sm text-gray-600 dark:text-gray-400">
-                Active Staff
+              <div>
+                <h4 className="font-medium text-gray-900 dark:text-white mb-1">
+                  Use Quality Control Checklists
+                </h4>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Implement standardized checklists to ensure consistent quality
+                </p>
+              </div>
+            </div>
+            <div className="flex items-start space-x-3">
+              <div className="flex-shrink-0 w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
+                <span className="text-purple-600 font-medium text-sm">3</span>
+              </div>
+              <div>
+                <h4 className="font-medium text-gray-900 dark:text-white mb-1">
+                  Track Supply Inventory
+                </h4>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Monitor cleaning supplies and equipment to avoid shortages
+                </p>
               </div>
             </div>
           </div>
-        </StandardCard>
-      </div>
-    </StandardPageLayout>
+          <div className="space-y-4">
+            <div className="flex items-start space-x-3">
+              <div className="flex-shrink-0 w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center">
+                <span className="text-orange-600 font-medium text-sm">4</span>
+              </div>
+              <div>
+                <h4 className="font-medium text-gray-900 dark:text-white mb-1">
+                  Train Your Team
+                </h4>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Provide regular training on proper cleaning techniques and safety
+                </p>
+              </div>
+            </div>
+            <div className="flex items-start space-x-3">
+              <div className="flex-shrink-0 w-8 h-8 bg-red-100 rounded-full flex items-center justify-center">
+                <span className="text-red-600 font-medium text-sm">5</span>
+              </div>
+              <div>
+                <h4 className="font-medium text-gray-900 dark:text-white mb-1">
+                  Monitor Performance
+                </h4>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Review completion rates and task quality regularly
+                </p>
+              </div>
+            </div>
+            <div className="flex items-start space-x-3">
+              <div className="flex-shrink-0 w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center">
+                <span className="text-indigo-600 font-medium text-sm">6</span>
+              </div>
+              <div>
+                <h4 className="font-medium text-gray-900 dark:text-white mb-1">
+                  Use Technology
+                </h4>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Leverage digital tools for scheduling, tracking, and communication
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </StandardCard>
+    </div>
   );
 }
 
 // Fallback component for when no property is selected
 function CleaningNoPropertyFallback() {
   return (
-    <StandardPageLayout title="Cleaning" subtitle="No property selected">
-      <StandardCard>
-        <div className="text-center py-12">
-          <Building className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
-            No Property Selected
-          </h3>
-          <p className="text-gray-600 dark:text-gray-400 mb-6">
-            Please select a property to view and manage cleaning tasks.
-          </p>
-          <div className="space-y-3">
-            <button
-              onClick={() => (window.location.href = "/properties/new")}
-              className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
-            >
-              Create New Property
-            </button>
-            <button
-              onClick={() => (window.location.href = "/properties")}
-              className="w-full flex justify-center py-2 px-4 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700"
-            >
-              View All Properties
-            </button>
-          </div>
+    <StandardCard>
+      <div className="text-center py-12">
+        <Building className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+        <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
+          No Property Selected
+        </h3>
+        <p className="text-gray-600 dark:text-gray-400 mb-6">
+          Please select a property to view and manage cleaning tasks.
+        </p>
+        <div className="space-y-3">
+          <button
+            onClick={() => (window.location.href = "/properties/new")}
+            className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
+          >
+            Create New Property
+          </button>
+          <button
+            onClick={() => (window.location.href = "/properties")}
+            className="w-full flex justify-center py-2 px-4 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700"
+          >
+            View All Properties
+          </button>
         </div>
-      </StandardCard>
-    </StandardPageLayout>
+      </div>
+    </StandardCard>
   );
 }

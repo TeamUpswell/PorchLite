@@ -47,7 +47,7 @@ interface SideNavigationProps {
   isCollapsed?: boolean;
   isMobileMenuOpen?: boolean;
   setIsMobileMenuOpen?: (open: boolean) => void;
-  standalone?: boolean; // ✅ NEW: Toggle between standalone and integrated mode
+  standalone?: boolean;
 }
 
 // Helper function for basic role checking
@@ -69,7 +69,7 @@ const hasMinimumRole = (user: any, minRole: string) => {
   return userLevel >= minLevel;
 };
 
-// Simplified navigation structure - Only General section
+// Navigation structure
 const navigationItems: NavigationItem[] = [
   { name: "Dashboard", href: "/", icon: HomeIcon },
   { name: "Calendar", href: "/calendar", icon: CalendarIcon },
@@ -88,7 +88,7 @@ export default function SideNavigation({
   isCollapsed = false,
   isMobileMenuOpen = false,
   setIsMobileMenuOpen,
-  standalone = true, // ✅ NEW: Default to standalone for backward compatibility
+  standalone = true,
 }: SideNavigationProps) {
   const pathname = usePathname();
   const router = useRouter();
@@ -96,35 +96,45 @@ export default function SideNavigation({
   const { currentProperty, loading: propertyLoading } = useProperty();
   const { theme } = useTheme();
 
-  // State variables - Simplified to only track General
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  // State for mobile menu
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(isMobileMenuOpen);
   const [isCollapsedState, setIsCollapsed] = useState(isCollapsed);
 
-  // Sync external isCollapsed prop with internal state
+  // Sync with external props
   useEffect(() => {
     setIsCollapsed(isCollapsed);
   }, [isCollapsed]);
+
+  useEffect(() => {
+    setMobileMenuOpen(isMobileMenuOpen);
+  }, [isMobileMenuOpen]);
+
+  // Use either the passed user or the auth user
+  const user = propUser || authUser;
+
+  // Don't render navigation until auth is ready
+  if (!user) {
+    return null;
+  }
 
   // Mobile menu handlers
   const toggleMobileMenu = () => {
     const newState = !mobileMenuOpen;
     setMobileMenuOpen(newState);
-    if (setIsMobileMenuOpen) {
-      setIsMobileMenuOpen(newState);
-    }
+    setIsMobileMenuOpen?.(newState);
   };
 
-  const handleLinkClick = (href?: string) => {
+  const closeMobileMenu = () => {
     setMobileMenuOpen(false);
-    if (setIsMobileMenuOpen) {
-      setIsMobileMenuOpen(false);
-    }
+    setIsMobileMenuOpen?.(false);
+  };
 
-    if (href) {
-      setTimeout(() => {
-        router.push(href);
-      }, 100);
-    }
+  const handleLinkClick = (href: string) => {
+    closeMobileMenu();
+    // Small delay to allow menu animation to start
+    setTimeout(() => {
+      router.push(href);
+    }, 150);
   };
 
   // Close mobile menu on outside click
@@ -140,28 +150,38 @@ export default function SideNavigation({
         menuButton &&
         !menuButton.contains(event.target as Node)
       ) {
-        setMobileMenuOpen(false);
-        if (setIsMobileMenuOpen) {
-          setIsMobileMenuOpen(false);
-        }
+        closeMobileMenu();
       }
     };
 
-    document.addEventListener("mousedown", handleClickOutside);
-    document.addEventListener("touchstart", handleClickOutside);
+    if (mobileMenuOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      document.addEventListener("touchstart", handleClickOutside);
+    }
+
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
       document.removeEventListener("touchstart", handleClickOutside);
     };
-  }, [mobileMenuOpen, setIsMobileMenuOpen]);
+  }, [mobileMenuOpen]);
 
-  // Use either the passed user or the auth user
-  const user = propUser || authUser;
+  // Close mobile menu on route change
+  useEffect(() => {
+    closeMobileMenu();
+  }, [pathname]);
 
-  // Don't render navigation until auth is ready
-  if (!user) {
-    return null;
-  }
+  // Prevent body scroll when mobile menu is open
+  useEffect(() => {
+    if (mobileMenuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [mobileMenuOpen]);
 
   // Toggle functions
   const toggleSidebar = () => {
@@ -180,67 +200,73 @@ export default function SideNavigation({
 
   return (
     <>
-      {/* ✅ Mobile Menu Button - only show in standalone mode */}
+      {/* Mobile Menu Button - Fixed positioning for better accessibility */}
       {standalone && (
-        <div className="lg:hidden fixed top-4 left-4 z-50">
-          <button
-            id="mobile-menu-button"
-            onClick={toggleMobileMenu}
-            className="p-2 bg-white dark:bg-gray-800 shadow-lg rounded-lg border border-gray-200 dark:border-gray-700"
-            style={{
-              WebkitTapHighlightColor: "transparent",
-              touchAction: "manipulation",
-              minHeight: "44px",
-              minWidth: "44px",
-            }}
-          >
-            {mobileMenuOpen ? (
-              <X className="h-6 w-6 text-gray-600 dark:text-gray-300" />
-            ) : (
-              <Menu className="h-6 w-6 text-gray-600 dark:text-gray-300" />
-            )}
-          </button>
-        </div>
-      )}
-
-      {/* Mobile Overlay */}
-      {mobileMenuOpen && (
-        <div
-          className="lg:hidden fixed inset-0 bg-black/50 z-40"
-          onClick={() => handleLinkClick()}
+        <button
+          id="mobile-menu-button"
+          onClick={toggleMobileMenu}
+          className="lg:hidden fixed top-4 left-4 z-50 p-3 bg-white dark:bg-gray-800 shadow-lg rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200"
           style={{
             WebkitTapHighlightColor: "transparent",
-            touchAction: "none",
+            touchAction: "manipulation",
+            minHeight: "48px",
+            minWidth: "48px",
           }}
-        />
+          aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
+        >
+          <div className="relative w-6 h-6">
+            <Menu 
+              className={`h-6 w-6 text-gray-600 dark:text-gray-300 absolute inset-0 transition-all duration-200 ${
+                mobileMenuOpen ? 'opacity-0 rotate-90' : 'opacity-100 rotate-0'
+              }`} 
+            />
+            <X 
+              className={`h-6 w-6 text-gray-600 dark:text-gray-300 absolute inset-0 transition-all duration-200 ${
+                mobileMenuOpen ? 'opacity-100 rotate-0' : 'opacity-0 -rotate-90'
+              }`} 
+            />
+          </div>
+        </button>
       )}
 
-      {/* ✅ Sidebar - conditional positioning */}
+      {/* Mobile Overlay - Enhanced with smooth transitions */}
+      <div
+        className={`lg:hidden fixed inset-0 bg-black transition-opacity duration-300 z-40 ${
+          mobileMenuOpen ? 'opacity-50 pointer-events-auto' : 'opacity-0 pointer-events-none'
+        }`}
+        onClick={closeMobileMenu}
+        style={{
+          WebkitTapHighlightColor: "transparent",
+        }}
+      />
+
+      {/* Sidebar - Enhanced mobile animations */}
       <div
         id="mobile-sidebar"
         className={`
-          ${standalone ? "fixed" : "relative"} lg:${
-          standalone ? "fixed" : "static"
-        } 
-          ${standalone ? "top-0 left-0 z-40" : ""} 
+          ${standalone ? "fixed lg:static" : "relative"} 
+          top-0 left-0 z-40
           h-screen
           ${isCollapsedState ? "w-16" : "w-64"}
           ${isDarkMode ? "bg-gray-900" : "bg-white"}
           border-r ${isDarkMode ? "border-gray-800" : "border-gray-200"}
           transition-all duration-300 ease-in-out
           ${
-            mobileMenuOpen
-              ? "translate-x-0"
-              : standalone
-              ? "-translate-x-full lg:translate-x-0"
+            standalone
+              ? `transform ${
+                  mobileMenuOpen
+                    ? "translate-x-0"
+                    : "-translate-x-full lg:translate-x-0"
+                } lg:transform-none`
               : ""
           }
+          shadow-xl lg:shadow-none
         `}
       >
         <div className="h-full flex flex-col">
-          {/* Header with logo */}
+          {/* Header with logo - Enhanced mobile spacing */}
           <div
-            className={`p-4 border-b ${
+            className={`p-4 lg:p-4 border-b ${
               isDarkMode
                 ? "border-gray-800 bg-gray-900"
                 : "border-gray-200 bg-white"
@@ -293,6 +319,7 @@ export default function SideNavigation({
                     ? "hover:bg-gray-800 text-gray-400"
                     : "hover:bg-gray-100 text-gray-600"
                 } transition-colors duration-200`}
+                aria-label={isCollapsedState ? "Expand sidebar" : "Collapse sidebar"}
               >
                 {isCollapsedState ? (
                   <ChevronRight className="h-4 w-4" />
@@ -303,7 +330,7 @@ export default function SideNavigation({
             </div>
           </div>
 
-          {/* Navigation items */}
+          {/* Navigation items - Enhanced mobile touch targets */}
           <div
             className="flex-1 overflow-y-auto p-2"
             style={{ WebkitOverflowScrolling: "touch" }}
@@ -327,16 +354,16 @@ export default function SideNavigation({
                     }}
                     className={`flex items-center ${
                       isCollapsedState ? "justify-center px-2" : "px-3"
-                    } py-2.5 text-sm rounded-md group relative transition-colors duration-200 ${
+                    } py-3 lg:py-2.5 text-sm rounded-md group relative transition-all duration-200 ${
                       isActive(item.href)
                         ? "bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
-                        : "text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"
+                        : "text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 active:bg-gray-200 dark:active:bg-gray-700"
                     }`}
                     title={isCollapsedState ? item.name : undefined}
                     style={{
                       WebkitTapHighlightColor: "transparent",
                       touchAction: "manipulation",
-                      minHeight: "44px",
+                      minHeight: "48px", // Larger touch target on mobile
                     }}
                   >
                     <IconComponent
@@ -349,12 +376,12 @@ export default function SideNavigation({
                       }`}
                     />
                     {!isCollapsedState && (
-                      <span className="truncate">{item.name}</span>
+                      <span className="truncate font-medium lg:font-normal">{item.name}</span>
                     )}
 
-                    {/* Tooltip for collapsed state */}
+                    {/* Tooltip for collapsed state - Hidden on mobile */}
                     {isCollapsedState && (
-                      <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 dark:bg-gray-700 text-white text-sm rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
+                      <div className="hidden lg:block absolute left-full ml-2 px-2 py-1 bg-gray-900 dark:bg-gray-700 text-white text-sm rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
                         {item.name}
                       </div>
                     )}

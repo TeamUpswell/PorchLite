@@ -5,7 +5,6 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import { useProperty } from "@/lib/hooks/useProperty";
 import { useWeather } from "@/lib/hooks/useWeather";
 import { supabase } from "@/lib/supabase";
-import StandardPageLayout from "@/components/layout/StandardPageLayout";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import StandardCard from "@/components/ui/StandardCard";
 import { Home as HomeIcon } from "lucide-react";
@@ -314,10 +313,10 @@ export default function HomePage() {
       authInitialized,
     });
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center p-4">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading your account...</p>
+          <p className="text-gray-600 dark:text-gray-400">Loading your account...</p>
         </div>
       </div>
     );
@@ -325,46 +324,40 @@ export default function HomePage() {
 
   if (!user?.id) {
     return (
-      <StandardPageLayout theme="dark" showHeader={false}>
-        <StandardCard>
-          <div className="flex items-center justify-center py-12">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          </div>
-        </StandardCard>
-      </StandardPageLayout>
+      <StandardCard>
+        <div className="flex items-center justify-center py-12">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        </div>
+      </StandardCard>
     );
   }
 
   if (user?.id && propertyLoading) {
     return (
-      <StandardPageLayout theme="dark" showHeader={false}>
-        <StandardCard>
-          <div className="flex items-center justify-center py-12">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-              <p>Loading your properties...</p>
-            </div>
+      <StandardCard>
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600 dark:text-gray-400">Loading your properties...</p>
           </div>
-        </StandardCard>
-      </StandardPageLayout>
+        </div>
+      </StandardCard>
     );
   }
 
   if (!currentProperty) {
     return (
-      <StandardPageLayout theme="dark" showHeader={false}>
-        <StandardCard>
-          <div className="text-center py-8">
-            <HomeIcon className="mx-auto h-12 w-12 text-gray-400" />
-            <h3 className="mt-2 text-sm font-medium text-gray-900">
-              No Property Selected
-            </h3>
-            <p className="mt-1 text-sm text-gray-500">
-              Please select a property to view your dashboard.
-            </p>
-          </div>
-        </StandardCard>
-      </StandardPageLayout>
+      <StandardCard>
+        <div className="text-center py-8">
+          <HomeIcon className="mx-auto h-12 w-12 text-gray-400" />
+          <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-gray-100">
+            No Property Selected
+          </h3>
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+            Please select a property to view your dashboard.
+          </p>
+        </div>
+      </StandardCard>
     );
   }
 
@@ -374,195 +367,94 @@ export default function HomePage() {
     (!currentProperty || currentProperty === null)
   ) {
     return (
-      <StandardPageLayout theme="dark" showHeader={false}>
-        <StandardCard>
-          <div className="text-center py-8">
-            <HomeIcon className="mx-auto h-12 w-12 text-gray-400" />
-            <h3 className="mt-2 text-lg font-medium text-gray-900">
-              No Properties Found
-            </h3>
-            <p className="mt-1 text-sm text-gray-500 mb-4">
-              You don&apos;t have any properties yet. Create one to get started.
-            </p>
-            <button
-              onClick={() => router.push("/properties/create")}
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-            >
-              Create Your First Property
-            </button>
-          </div>
-        </StandardCard>
-      </StandardPageLayout>
+      <StandardCard>
+        <div className="text-center py-8">
+          <HomeIcon className="mx-auto h-12 w-12 text-gray-400" />
+          <h3 className="mt-2 text-lg font-medium text-gray-900 dark:text-gray-100">
+            No Properties Found
+          </h3>
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400 mb-4">
+            You don&apos;t have any properties yet. Create one to get started.
+          </p>
+          <button
+            onClick={() => router.push("/properties/create")}
+            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          >
+            Create Your First Property
+          </button>
+        </div>
+      </StandardCard>
     );
   }
 
   // Main dashboard
   return (
-    <StandardPageLayout theme="dark" showHeader={false}>
+    <div className="space-y-6">
+      {/* Dashboard Header */}
       <div className="mb-6">
         <DashboardHeader
-          weather={weatherLoading ? null : weather}
+          title={currentProperty?.name || "Dashboard"}
+          subtitle={
+            currentProperty?.address || "Welcome to your property dashboard"
+          }
+          weather={weather}
           showWeather={true}
-        >
-          <div className="flex items-center justify-between w-full">
-            <div>
-              <h1 className="text-3xl md:text-4xl font-bold mb-1 text-white drop-shadow-lg tracking-tight">
-                {currentProperty.name}
-              </h1>
-              <p className="text-white/90 text-lg md:text-xl drop-shadow-md font-light tracking-wide">
-                {currentProperty.address || "Your beautiful property"}
-              </p>
-              {weatherError && (
-                <p className="text-red-300 text-sm mt-1">
-                  Weather unavailable: {weatherError}
-                </p>
-              )}
-              {weatherLoading && (
-                <p className="text-white/70 text-sm mt-1">Loading weather...</p>
-              )}
-            </div>
-          </div>
-        </DashboardHeader>
+        />
       </div>
 
-      <div className="space-y-6">
-        {/* Stats Grid - 3 clickable cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {/* Upcoming Visits */}
-          <div
-            onClick={navigationHandlers.handleUpcomingVisitsClick}
-            className="cursor-pointer transform transition-all duration-200 hover:scale-105 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-lg group"
-            role="button"
-            tabIndex={0}
-          >
-            <StandardCard className="h-full group-hover:shadow-lg transition-shadow">
-              <div className="flex items-center">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <svg
-                    className="w-6 h-6 text-blue-600"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                    />
-                  </svg>
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">
-                    Upcoming Visits
-                  </p>
-                  <p className="text-2xl font-semibold text-gray-900">
-                    {componentLoading.visits ? "..." : upcomingVisits.length}
-                  </p>
-                  <p className="text-xs text-blue-600 font-medium opacity-0 group-hover:opacity-100 transition-opacity">
-                    Click to view calendar →
-                  </p>
-                </div>
+      {/* Stats Grid - 3 clickable cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {/* Upcoming Visits */}
+        <div
+          onClick={navigationHandlers.handleUpcomingVisitsClick}
+          className="cursor-pointer transform transition-all duration-200 hover:scale-105 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-lg group"
+          role="button"
+          tabIndex={0}
+        >
+          <StandardCard className="h-full group-hover:shadow-lg transition-shadow bg-gray-800 dark:bg-gray-900 border-gray-700 dark:border-gray-600">
+            <div className="flex items-center">
+              <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                <svg
+                  className="w-6 h-6 text-blue-600 dark:text-blue-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                  />
+                </svg>
               </div>
-            </StandardCard>
-          </div>
-
-          {/* Low Stock Alerts */}
-          <div
-            onClick={navigationHandlers.handleLowStockClick}
-            className="cursor-pointer transform transition-all duration-200 hover:scale-105 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 rounded-lg group"
-            role="button"
-            tabIndex={0}
-          >
-            <StandardCard className="h-full group-hover:shadow-lg transition-shadow">
-              <div className="flex items-center">
-                <div className="p-2 bg-yellow-100 rounded-lg">
-                  <svg
-                    className="w-6 h-6 text-yellow-600"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"
-                    />
-                  </svg>
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">
-                    Low Stock Alerts
-                  </p>
-                  <p className="text-2xl font-semibold text-gray-900">
-                    {componentLoading.inventory
-                      ? "..."
-                      : inventoryAlerts.length}
-                  </p>
-                  <p className="text-xs text-yellow-600 font-medium opacity-0 group-hover:opacity-100 transition-opacity">
-                    Click to manage inventory →
-                  </p>
-                </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-200 dark:text-gray-300">
+                  Upcoming Visits
+                </p>
+                <p className="text-2xl font-semibold text-white dark:text-gray-100">
+                  {componentLoading.visits ? "..." : upcomingVisits.length}
+                </p>
+                <p className="text-xs text-blue-400 dark:text-blue-400 font-medium opacity-0 group-hover:opacity-100 transition-opacity">
+                  Click to view calendar →
+                </p>
               </div>
-            </StandardCard>
-          </div>
-
-          {/* Pending Tasks */}
-          <div
-            onClick={navigationHandlers.handleTasksClick}
-            className="cursor-pointer transform transition-all duration-200 hover:scale-105 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 rounded-lg group"
-            role="button"
-            tabIndex={0}
-          >
-            <StandardCard className="h-full group-hover:shadow-lg transition-shadow">
-              <div className="flex items-center">
-                <div className="p-2 bg-red-100 rounded-lg">
-                  <svg
-                    className="w-6 h-6 text-red-600"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                    />
-                  </svg>
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">
-                    Pending Tasks
-                  </p>
-                  <p className="text-2xl font-semibold text-gray-900">
-                    {componentLoading.tasks ? "..." : taskAlerts.length}
-                  </p>
-                  <p className="text-xs text-red-600 font-medium opacity-0 group-hover:opacity-100 transition-opacity">
-                    Click to view →
-                  </p>
-                </div>
-              </div>
-            </StandardCard>
-          </div>
+            </div>
+          </StandardCard>
         </div>
 
-        {/* Quick Actions */}
-        <StandardCard>
-          <div className="mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">
-              Quick Actions
-            </h3>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <button
-              onClick={navigationHandlers.handleAddReservation}
-              className="p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors"
-            >
-              <div className="text-center">
+        {/* Low Stock Alerts */}
+        <div
+          onClick={navigationHandlers.handleLowStockClick}
+          className="cursor-pointer transform transition-all duration-200 hover:scale-105 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 rounded-lg group"
+          role="button"
+          tabIndex={0}
+        >
+          <StandardCard className="h-full group-hover:shadow-lg transition-shadow bg-gray-800 dark:bg-gray-900 border-gray-700 dark:border-gray-600">
+            <div className="flex items-center">
+              <div className="p-2 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg">
                 <svg
-                  className="mx-auto h-8 w-8 text-gray-400"
+                  className="w-6 h-6 text-yellow-600 dark:text-yellow-400"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -571,46 +463,39 @@ export default function HomePage() {
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     strokeWidth={2}
-                    d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"
                   />
                 </svg>
-                <span className="mt-2 block text-sm font-medium text-gray-900">
-                  Add Reservation
-                </span>
               </div>
-            </button>
-
-            <button
-              onClick={navigationHandlers.handleInventoryClick}
-              className="p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-green-300 hover:bg-green-50 transition-colors"
-            >
-              <div className="text-center">
-                <svg
-                  className="mx-auto h-8 w-8 text-gray-400"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
-                  />
-                </svg>
-                <span className="mt-2 block text-sm font-medium text-gray-900">
-                  Manage Inventory
-                </span>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-200 dark:text-gray-300">
+                  Low Stock Alerts
+                </p>
+                <p className="text-2xl font-semibold text-white dark:text-gray-100">
+                  {componentLoading.inventory
+                    ? "..."
+                    : inventoryAlerts.length}
+                </p>
+                <p className="text-xs text-yellow-400 dark:text-yellow-400 font-medium opacity-0 group-hover:opacity-100 transition-opacity">
+                  Click to manage inventory →
+                </p>
               </div>
-            </button>
+            </div>
+          </StandardCard>
+        </div>
 
-            <button
-              onClick={navigationHandlers.handleCreateTaskClick}
-              className="p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-purple-300 hover:bg-purple-50 transition-colors"
-            >
-              <div className="text-center">
+        {/* Pending Tasks */}
+        <div
+          onClick={navigationHandlers.handleTasksClick}
+          className="cursor-pointer transform transition-all duration-200 hover:scale-105 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 rounded-lg group"
+          role="button"
+          tabIndex={0}
+        >
+          <StandardCard className="h-full group-hover:shadow-lg transition-shadow bg-gray-800 dark:bg-gray-900 border-gray-700 dark:border-gray-600">
+            <div className="flex items-center">
+              <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-lg">
                 <svg
-                  className="mx-auto h-8 w-8 text-gray-400"
+                  className="w-6 h-6 text-red-600 dark:text-red-400"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -622,29 +507,181 @@ export default function HomePage() {
                     d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
                   />
                 </svg>
-                <span className="mt-2 block text-sm font-medium text-gray-900">
-                  Create Task
-                </span>
               </div>
-            </button>
-          </div>
-        </StandardCard>
-
-        {/* Property Location Map */}
-        {currentProperty?.latitude && currentProperty?.longitude && (
-          <StandardCard title="Property Location">
-            <div className="h-64 w-full">
-              <GoogleMapComponent
-                latitude={currentProperty.latitude}
-                longitude={currentProperty.longitude}
-                address={currentProperty.address || currentProperty.name}
-                zoom={16}
-                className="border border-gray-200 rounded-lg"
-              />
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-200 dark:text-gray-300">
+                  Pending Tasks
+                </p>
+                <p className="text-2xl font-semibold text-white dark:text-gray-100">
+                  {componentLoading.tasks ? "..." : taskAlerts.length}
+                </p>
+                <p className="text-xs text-red-400 dark:text-red-400 font-medium opacity-0 group-hover:opacity-100 transition-opacity">
+                  Click to view →
+                </p>
+              </div>
             </div>
           </StandardCard>
-        )}
+        </div>
       </div>
-    </StandardPageLayout>
+
+      {/* Quick Actions */}
+      <StandardCard
+        title="Quick Actions"
+        subtitle="Get started with common tasks"
+        className="bg-gray-800 dark:bg-gray-900 border-gray-700 dark:border-gray-600"
+      >
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <button
+            onClick={navigationHandlers.handleAddReservation}
+            className="p-4 border-2 border-dashed border-gray-600 dark:border-gray-500 rounded-lg hover:border-blue-400 hover:bg-blue-900/20 dark:hover:border-blue-500 dark:hover:bg-blue-900/30 transition-colors"
+          >
+            <div className="text-center">
+              <svg
+                className="mx-auto h-8 w-8 text-gray-300 dark:text-gray-400"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                />
+              </svg>
+              <span className="mt-2 block text-sm font-medium text-gray-200 dark:text-gray-300">
+                Add Reservation
+              </span>
+            </div>
+          </button>
+
+          <button
+            onClick={navigationHandlers.handleInventoryClick}
+            className="p-4 border-2 border-dashed border-gray-600 dark:border-gray-500 rounded-lg hover:border-green-400 hover:bg-green-900/20 dark:hover:border-green-500 dark:hover:bg-green-900/30 transition-colors"
+          >
+            <div className="text-center">
+              <svg
+                className="mx-auto h-8 w-8 text-gray-300 dark:text-gray-400"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+                />
+              </svg>
+              <span className="mt-2 block text-sm font-medium text-gray-200 dark:text-gray-300">
+                Manage Inventory
+              </span>
+            </div>
+          </button>
+
+          <button
+            onClick={navigationHandlers.handleCreateTaskClick}
+            className="p-4 border-2 border-dashed border-gray-600 dark:border-gray-500 rounded-lg hover:border-purple-400 hover:bg-purple-900/20 dark:hover:border-purple-500 dark:hover:bg-purple-900/30 transition-colors"
+          >
+            <div className="text-center">
+              <svg
+                className="mx-auto h-8 w-8 text-gray-300 dark:text-gray-400"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                />
+              </svg>
+              <span className="mt-2 block text-sm font-medium text-gray-200 dark:text-gray-300">
+                Create Task
+              </span>
+            </div>
+          </button>
+        </div>
+      </StandardCard>
+
+      {/* Activity Summary */}
+      <StandardCard
+        title="Recent Activity"
+        subtitle="Overview of your latest property activities"
+        className="bg-gray-800 dark:bg-gray-900 border-gray-700 dark:border-gray-600"
+      >
+        <div className="space-y-4">
+          {loading ? (
+            <div className="text-center py-8">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-400 mx-auto mb-2"></div>
+              <p className="text-sm text-gray-300 dark:text-gray-400">Loading activity...</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="text-center p-4">
+                <div className="text-2xl font-bold text-blue-400 dark:text-blue-400">
+                  {upcomingVisits.length}
+                </div>
+                <div className="text-sm text-gray-300 dark:text-gray-400">
+                  Upcoming Reservations
+                </div>
+              </div>
+              <div className="text-center p-4">
+                <div className="text-2xl font-bold text-green-400 dark:text-green-400">
+                  {totalInventoryCount}
+                </div>
+                <div className="text-sm text-gray-300 dark:text-gray-400">
+                  Total Inventory Items
+                </div>
+              </div>
+              <div className="text-center p-4">
+                <div className="text-2xl font-bold text-purple-400 dark:text-purple-400">
+                  {taskAlerts.length}
+                </div>
+                <div className="text-sm text-gray-300 dark:text-gray-400">
+                  Active Tasks
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </StandardCard>
+
+      {/* Property Location Map */}
+      {currentProperty?.latitude && currentProperty?.longitude && (
+        <StandardCard 
+          title="Property Location"
+          subtitle={`${currentProperty.address}, ${currentProperty.city}, ${currentProperty.state}`}
+          className="bg-gray-800 dark:bg-gray-900 border-gray-700 dark:border-gray-600"
+        >
+          <div className="h-64 w-full">
+            <GoogleMapComponent
+              latitude={currentProperty.latitude}
+              longitude={currentProperty.longitude}
+              address={currentProperty.address || currentProperty.name}
+              zoom={16}
+              className="border border-gray-600 dark:border-gray-700 rounded-lg"
+            />
+          </div>
+        </StandardCard>
+      )}
+
+      {/* Welcome Message (only show once) */}
+      {showWelcome && (
+        <StandardCard
+          title="Welcome to PorchLite!"
+          subtitle="Your property management dashboard is ready"
+          className="bg-gray-800 dark:bg-gray-900 border-gray-700 dark:border-gray-600"
+        >
+          <div className="bg-blue-900/30 dark:bg-blue-900/20 border border-blue-600 dark:border-blue-700 rounded-lg p-4">
+            <p className="text-blue-300 dark:text-blue-200 text-sm">
+              🎉 You're all set! Use the navigation above to manage your properties, 
+              track reservations, monitor inventory, and stay on top of tasks.
+            </p>
+          </div>
+        </StandardCard>
+      )}
+    </div>
   );
 }

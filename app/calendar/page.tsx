@@ -6,7 +6,6 @@ import { PageErrorBoundary } from "@/components/PageErrorBoundary";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useProperty } from "@/lib/hooks/useProperty";
 import { debugLog } from "@/lib/utils/debug";
-import StandardPageLayout from "@/components/layout/StandardPageLayout";
 import StandardCard from "@/components/ui/StandardCard";
 import Calendar from "./components/Calendar";
 import { Calendar as CalendarIcon } from "lucide-react";
@@ -77,7 +76,7 @@ function CalendarPageContent() {
     lastPropertyIdRef.current = currentProperty.id;
   }, [currentProperty?.id, refreshCalendar]);
 
-  // Simplified visibility handling - REMOVED refreshCalendar dependency
+  // Simplified visibility handling
   useEffect(() => {
     const handleVisibilityChange = () => {
       const isVisible = document.visibilityState === "visible";
@@ -110,42 +109,45 @@ function CalendarPageContent() {
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, []); // Empty dependency array - only set up once
+  }, []);
 
-  // Single layout wrapper with consistent settings
-  return (
-    <StandardPageLayout theme="dark" showHeader={false} showSideNav={true}>
-      {/* Conditional content inside the same layout */}
-      {isLoading ? (
-        <StandardCard>
-          <div className="flex items-center justify-center p-8">
-            <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-blue-500 mr-3"></div>
-            <span>Loading calendar...</span>
-          </div>
-        </StandardCard>
-      ) : !user ? (
-        <StandardCard>
-          <div className="text-center py-8">
-            <CalendarIcon className="mx-auto h-12 w-12 text-gray-400" />
-            <h3 className="mt-2 text-sm font-medium text-gray-900">
-              Authentication Required
-            </h3>
-            <p className="mt-1 text-sm text-gray-500">
-              Please sign in to view the calendar.
-            </p>
-          </div>
-        </StandardCard>
-      ) : (
-        <div className="space-y-6">
-          <Calendar
-            newReservationTrigger={refreshKey} // ✅ Fix prop name
-            isManager={true}
-            // ✅ Remove invalid prop
-            // onRefreshNeeded={refreshCalendar}
-          />
+  // Loading state
+  if (isLoading) {
+    return (
+      <StandardCard>
+        <div className="flex items-center justify-center p-8">
+          <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-blue-500 mr-3"></div>
+          <span>Loading calendar...</span>
         </div>
-      )}
-    </StandardPageLayout>
+      </StandardCard>
+    );
+  }
+
+  // Not authenticated
+  if (!user) {
+    return (
+      <StandardCard>
+        <div className="text-center py-8">
+          <CalendarIcon className="mx-auto h-12 w-12 text-gray-400" />
+          <h3 className="mt-2 text-sm font-medium text-gray-900">
+            Authentication Required
+          </h3>
+          <p className="mt-1 text-sm text-gray-500">
+            Please sign in to view the calendar.
+          </p>
+        </div>
+      </StandardCard>
+    );
+  }
+
+  // Main content
+  return (
+    <div className="space-y-6">
+      <Calendar
+        newReservationTrigger={refreshKey}
+        isManager={true}
+      />
+    </div>
   );
 }
 

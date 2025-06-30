@@ -4,32 +4,37 @@ import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useProperty } from "@/lib/hooks/useProperty";
 import { supabase } from "@/lib/supabase";
-import StandardPageLayout from "@/components/layout/StandardPageLayout";
+import PageHeader from "@/components/layout/PageHeader";
 import StandardCard from "@/components/ui/StandardCard";
 import TaskCard from "@/components/tasks/TaskCard";
 import CreateTaskModal from "@/components/tasks/CreateTaskModal";
 import EditTaskModal from "@/components/tasks/EditTaskModal";
 import PhotoViewer from "@/components/tasks/PhotoViewer";
 import DeleteTaskModal from "@/components/tasks/DeleteTaskModal";
+import TaskStatsCards from "@/components/tasks/TaskStatsCards";
+import TaskFilters from "@/components/tasks/TaskFilters";
+import TaskEmptyStates from "@/components/tasks/TaskEmptyStates";
 import { 
   PlusIcon, 
-  CheckSquareIcon, 
-  Clock, 
-  Users, 
-  CheckCircle 
+  CheckSquareIcon
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { CreatePattern } from "@/components/ui/FloatingActionPresets";
 import { debugLog, debugError } from "@/lib/utils/debug";
 import { PropertyGuard } from "@/components/ui/PropertyGuard";
 
-// ✅ Updated Task type definition with visibility fields
-type Task = {
+// Types
+type TaskStatus = "pending" | "in_progress" | "completed";
+type TaskPriority = "low" | "medium" | "high";
+type TaskVisibility = "guest" | "family" | "manager-only" | null;
+type RecurrencePattern = "daily" | "weekly" | "monthly" | "quarterly" | "yearly" | null;
+
+interface Task {
   id: string;
   title: string;
   description: string;
-  status: "pending" | "in_progress" | "completed";
-  priority: "low" | "medium" | "high";
+  status: TaskStatus;
+  priority: TaskPriority;
   category?: string;
   assigned_to: string | null;
   assigned_user_name?: string;
@@ -43,69 +48,43 @@ type Task = {
   tenant_id?: string;
   user_id?: string;
   is_recurring?: boolean;
-  recurrence_pattern?:
-    | "daily"
-    | "weekly"
-    | "monthly"
-    | "quarterly"
-    | "yearly"
-    | null;
+  recurrence_pattern?: RecurrencePattern;
   recurrence_interval?: number;
   parent_task_id?: string | null;
   next_due_date?: string | null;
   recurring_end_date?: string | null;
   attachments?: string[] | null;
-  // ✅ Add missing visibility fields
   is_public?: boolean;
-  visibility?: "guest" | "family" | "manager-only" | null;
-};
+  visibility?: TaskVisibility;
+}
 
-type UserProfile = {
+interface UserProfile {
   id: string;
   name: string;
   role: string;
-};
+}
 
-export default function TasksPage() {
-  // ✅ HOOKS FIRST - ALL hooks must be called before any early returns
-  const { user, loading: authLoading } = useAuth();
-  const { currentProperty, loading: propertyLoading } = useProperty();
+type FilterType = "open" | "all" | "pending" | "in-progress" | "completed" | "mine" | "created-by-me" | "cleaning";
 
+interface TaskStats {
+  total: number;
+  pending: number;
+  inProgress: number;
+  completed: number;
+}
+
+// Custom hooks
+const useTaskData = (currentProperty: any, user: any) => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState("open");
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [viewingPhotos, setViewingPhotos] = useState<string[] | null>(null);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [editingTask, setEditingTask] = useState<Task | null>(null);
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
   const [cleaningIssues, setCleaningIssues] = useState([]);
-  const [initialTaskData, setInitialTaskData] = useState<Partial<Task> | null>(
-    null
-  );
 
-  // ✅ FIXED: Define view mode variables (replacing useViewMode)
-  const isManagerView = true; // Assume manager view for now
-  const isGuestView = false;
-  const isFamilyView = false;
+  const userId = user?.id;
+  const tenantId = currentProperty?.tenant_id;
 
-  // Memoize property and user IDs to prevent unnecessary re-renders
-  const property_id = useMemo(() => currentProperty?.id, [currentProperty?.id]);
-  const userId = useMemo(() => user?.id, [user?.id]);
-  const tenantId = useMemo(
-    () => currentProperty?.tenant_id,
-    [currentProperty?.tenant_id]
-  );
-
-  // Load users
   const loadUsers = useCallback(async () => {
-    if (!tenantId) {
-      debugLog("🔍 No tenant ID for loading users");
-      return;
-    }
+    if (!tenantId) return;
 
     try {
       debugLog("🔍 Loading users for tenant:", tenantId);
@@ -120,8 +99,6 @@ export default function TasksPage() {
         debugError("❌ Error loading tenant users:", tenantError);
         return;
       }
-
-      debugLog("✅ Found tenant users:", tenantUsers?.length || 0);
 
       if (tenantUsers && tenantUsers.length > 0) {
         const userIds = tenantUsers.map((tu) => tu.user_id);
@@ -145,7 +122,6 @@ export default function TasksPage() {
           };
         });
 
-        debugLog("✅ Processed user profiles:", userProfiles.length);
         setUsers(userProfiles);
       }
     } catch (error) {
@@ -153,18 +129,10 @@ export default function TasksPage() {
     }
   }, [tenantId]);
 
-  // Load tasks
-  const loadTasks = useCallback(async () => {
+  const loadTasks = useCallback(async (filter: FilterType = "open") => {
     if (!userId || !currentProperty?.id) return;
 
     setLoading(true);
-
-    debugLog("🔍 Loading tasks:", {
-      userId,
-      property_id: currentProperty.id,
-      propertyName: currentProperty.name,
-      filter,
-    });
 
     try {
       let query = supabase
@@ -172,40 +140,41 @@ export default function TasksPage() {
         .select("*")
         .eq("property_id", currentProperty.id);
 
-      // Apply filters based on current filter state
-      if (filter === "pending") {
-        query = query.eq("status", "pending");
-      } else if (filter === "in-progress") {
-        query = query.eq("status", "in_progress");
-      } else if (filter === "completed") {
-        query = query.eq("status", "completed");
-      } else if (filter === "cleaning") {
-        query = query.eq("category", "cleaning");
-      } else if (filter === "open") {
-        query = query.in("status", ["pending", "in_progress"]);
-      } else if (filter === "mine") {
-        query = query
-          .eq("assigned_to", userId)
-          .in("status", ["pending", "in_progress"]);
-      } else if (filter === "created-by-me") {
-        query = query
-          .eq("created_by", userId)
-          .in("status", ["pending", "in_progress"]);
+      // Apply filters
+      switch (filter) {
+        case "pending":
+          query = query.eq("status", "pending");
+          break;
+        case "in-progress":
+          query = query.eq("status", "in_progress");
+          break;
+        case "completed":
+          query = query.eq("status", "completed");
+          break;
+        case "cleaning":
+          query = query.eq("category", "cleaning");
+          break;
+        case "open":
+          query = query.in("status", ["pending", "in_progress"]);
+          break;
+        case "mine":
+          query = query
+            .eq("assigned_to", userId)
+            .in("status", ["pending", "in_progress"]);
+          break;
+        case "created-by-me":
+          query = query
+            .eq("created_by", userId)
+            .in("status", ["pending", "in_progress"]);
+          break;
       }
 
-      const { data, error } = await query.order("created_at", {
-        ascending: false,
-      });
+      const { data, error } = await query.order("created_at", { ascending: false });
 
-      if (error) {
-        debugError("❌ Tasks query error:", error);
-        throw error;
-      }
-
-      debugLog("✅ Loaded tasks successfully:", data?.length || 0);
+      if (error) throw error;
 
       if (data) {
-        // Get unique user IDs from tasks
+        // Load user names for task assignments
         const allUserIds = Array.from(
           new Set([
             ...data.map((task) => task.assigned_to).filter(Boolean),
@@ -215,22 +184,17 @@ export default function TasksPage() {
 
         let userNames: Record<string, string> = {};
 
-        // Load user profiles separately if we have user IDs
         if (allUserIds.length > 0) {
-          try {
-            const { data: profiles } = await supabase
-              .from("profiles")
-              .select("id, full_name, email")
-              .in("id", allUserIds);
+          const { data: profiles } = await supabase
+            .from("profiles")
+            .select("id, full_name, email")
+            .in("id", allUserIds);
 
-            if (profiles) {
-              profiles.forEach((profile) => {
-                userNames[profile.id] =
-                  profile.full_name || profile.email || "Unknown User";
-              });
-            }
-          } catch (profileError) {
-            console.warn("Could not load user profiles:", profileError);
+          if (profiles) {
+            profiles.forEach((profile) => {
+              userNames[profile.id] =
+                profile.full_name || profile.email || "Unknown User";
+            });
           }
         }
 
@@ -255,16 +219,10 @@ export default function TasksPage() {
     } finally {
       setLoading(false);
     }
-  }, [userId, currentProperty?.id, filter]);
+  }, [userId, currentProperty?.id]);
 
-  // Load unresolved cleaning issues
-  const loadUnresolvedCleaningIssues = useCallback(async () => {
+  const loadCleaningIssues = useCallback(async () => {
     if (!currentProperty?.id) return;
-
-    debugLog(
-      "🔍 Loading unresolved cleaning issues for property:",
-      currentProperty.id
-    );
 
     try {
       const { data } = await supabase
@@ -275,161 +233,202 @@ export default function TasksPage() {
         .order("reported_at", { ascending: false });
 
       setCleaningIssues(data || []);
-      debugLog("✅ Found unresolved cleaning issues:", data?.length || 0);
     } catch (error) {
       debugError("❌ Error loading cleaning issues:", error);
     }
   }, [currentProperty?.id]);
 
-  // ✅ TIMING FIX: Updated useEffect with proper dependencies
-  useEffect(() => {
-    // Don't fetch if still loading auth/property
-    if (authLoading || propertyLoading) {
-      return;
-    }
+  return {
+    tasks,
+    users,
+    loading,
+    cleaningIssues,
+    loadTasks,
+    loadUsers,
+    loadCleaningIssues,
+    setTasks
+  };
+};
 
-    // Don't fetch if no user or property
+// Main component
+export default function TasksPage() {
+  const { user, loading: authLoading } = useAuth();
+  const { currentProperty, loading: propertyLoading } = useProperty();
+  
+  const [filter, setFilter] = useState<FilterType>("open");
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [viewingPhotos, setViewingPhotos] = useState<string[] | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [initialTaskData, setInitialTaskData] = useState<Partial<Task> | null>(null);
+
+  const {
+    tasks,
+    users,
+    loading,
+    cleaningIssues,
+    loadTasks,
+    loadUsers,
+    loadCleaningIssues,
+    setTasks
+  } = useTaskData(currentProperty, user);
+
+  // View mode (simplified for now)
+  const isManagerView = true;
+  const isGuestView = false;
+  const isFamilyView = false;
+
+  // Filter tasks based on view permissions
+  const filteredTasks = useMemo(() => {
+    return tasks.filter((task) => {
+      if (isGuestView) {
+        return task.is_public || task.visibility === "guest";
+      }
+      if (isFamilyView) {
+        return task.visibility !== "manager-only";
+      }
+      return true; // Managers see all tasks
+    });
+  }, [tasks, isGuestView, isFamilyView]);
+
+  // Task statistics
+  const taskStats: TaskStats = useMemo(() => ({
+    total: filteredTasks.length,
+    pending: filteredTasks.filter((t) => t.status === "pending").length,
+    inProgress: filteredTasks.filter((t) => t.status === "in_progress").length,
+    completed: filteredTasks.filter((t) => t.status === "completed").length,
+  }), [filteredTasks]);
+
+  // Load data effect
+  useEffect(() => {
+    if (authLoading || propertyLoading) return;
+    
     if (!user?.id || !currentProperty?.id) {
-      debugLog("⏳ Waiting for user and property to load...");
-      setLoading(false);
       setTasks([]);
       return;
     }
 
-    debugLog("🔍 Tasks useEffect triggered:", {
-      userId: user.id,
-      property_id: currentProperty.id,
-      propertyName: currentProperty.name,
-      filter,
-    });
-
-    loadTasks();
-    loadUnresolvedCleaningIssues();
-  }, [
-    user?.id,
-    currentProperty?.id,
-    filter,
-    authLoading,
-    propertyLoading,
-    loadTasks,
-    loadUnresolvedCleaningIssues,
-  ]);
+    loadTasks(filter);
+    loadUsers();
+    loadCleaningIssues();
+  }, [user?.id, currentProperty?.id, filter, authLoading, propertyLoading, loadTasks, loadUsers, loadCleaningIssues]);
 
   // Task actions
-  const claimTask = async (taskId: string) => {
-    if (!userId) return;
+  const taskActions = {
+    claim: useCallback(async (taskId: string) => {
+      if (!user?.id) return;
 
-    try {
-      const { error } = await supabase
-        .from("tasks")
-        .update({
-          assigned_to: userId,
-          status: "in_progress",
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", taskId);
+      try {
+        const { error } = await supabase
+          .from("tasks")
+          .update({
+            assigned_to: user.id,
+            status: "in_progress",
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", taskId);
 
-      if (error) throw error;
+        if (error) throw error;
 
-      await loadTasks();
-      toast.success("Task claimed successfully!");
-    } catch (err) {
-      debugError("Error claiming task:", err);
-      toast.error("Failed to claim task");
-    }
-  };
+        await loadTasks(filter);
+        toast.success("Task claimed successfully!");
+      } catch (err) {
+        debugError("Error claiming task:", err);
+        toast.error("Failed to claim task");
+      }
+    }, [user?.id, loadTasks, filter]),
 
-  const completeTask = async (taskId: string) => {
-    try {
+    complete: useCallback(async (taskId: string) => {
+      try {
+        const task = tasks.find((t) => t.id === taskId);
+        if (!task) return;
+
+        const { error: updateError } = await supabase
+          .from("tasks")
+          .update({
+            status: "completed",
+            completed_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", taskId);
+
+        if (updateError) throw updateError;
+
+        // Handle recurring tasks
+        if (task.is_recurring && task.recurrence_pattern && task.due_date) {
+          const nextDueDate = calculateNextDueDate(
+            task.due_date,
+            task.recurrence_pattern,
+            task.recurrence_interval || 1
+          );
+
+          const shouldCreateNext =
+            !task.recurring_end_date ||
+            new Date(nextDueDate) <= new Date(task.recurring_end_date);
+
+          if (shouldCreateNext) {
+            const nextTaskData = {
+              title: task.title,
+              description: task.description,
+              priority: task.priority,
+              category: task.category,
+              due_date: nextDueDate,
+              assigned_to: task.assigned_to,
+              status: task.assigned_to ? "in_progress" : "pending",
+              created_by: task.created_by,
+              property_id: task.property_id,
+              tenant_id: task.tenant_id,
+              is_recurring: true,
+              recurrence_pattern: task.recurrence_pattern,
+              recurrence_interval: task.recurrence_interval,
+              parent_task_id: task.parent_task_id || task.id,
+              recurring_end_date: task.recurring_end_date,
+              updated_at: new Date().toISOString(),
+            };
+
+            const { error: createError } = await supabase
+              .from("tasks")
+              .insert(nextTaskData);
+
+            if (createError) {
+              toast.error("Task completed but failed to create next occurrence");
+            } else {
+              toast.success("Task completed! Next occurrence created automatically 🔄");
+            }
+          } else {
+            toast.success("Task completed! Recurring series has ended ✅");
+          }
+        } else {
+          toast.success("Task completed! Great job! 🎉");
+        }
+
+        await loadTasks(filter);
+      } catch (err) {
+        debugError("Error completing task:", err);
+        toast.error("Failed to complete task");
+      }
+    }, [tasks, loadTasks, filter]),
+
+    edit: useCallback((task: Task) => {
+      setEditingTask(task);
+      setIsEditModalOpen(true);
+    }, []),
+
+    delete: useCallback(async (taskId: string) => {
       const task = tasks.find((t) => t.id === taskId);
       if (!task) return;
 
-      const { error: updateError } = await supabase
-        .from("tasks")
-        .update({
-          status: "completed",
-          completed_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", taskId);
-
-      if (updateError) throw updateError;
-
-      // Handle recurring tasks
-      if (task.is_recurring && task.recurrence_pattern && task.due_date) {
-        const nextDueDate = calculateNextDueDate(
-          task.due_date,
-          task.recurrence_pattern,
-          task.recurrence_interval || 1
-        );
-
-        const shouldCreateNext =
-          !task.recurring_end_date ||
-          new Date(nextDueDate) <= new Date(task.recurring_end_date);
-
-        if (shouldCreateNext) {
-          const nextTaskData = {
-            title: task.title,
-            description: task.description,
-            priority: task.priority,
-            category: task.category,
-            due_date: nextDueDate,
-            assigned_to: task.assigned_to,
-            status: task.assigned_to ? "in_progress" : "pending",
-            created_by: task.created_by,
-            property_id: task.property_id,
-            tenant_id: task.tenant_id,
-            is_recurring: true,
-            recurrence_pattern: task.recurrence_pattern,
-            recurrence_interval: task.recurrence_interval,
-            parent_task_id: task.parent_task_id || task.id,
-            recurring_end_date: task.recurring_end_date,
-            updated_at: new Date().toISOString(),
-          };
-
-          const { error: createError } = await supabase
-            .from("tasks")
-            .insert(nextTaskData);
-
-          if (createError) {
-            debugError("Error creating next recurring task:", createError);
-            toast.error("Task completed but failed to create next occurrence");
-          } else {
-            toast.success(
-              "Task completed! Next occurrence created automatically 🔄"
-            );
-          }
-        } else {
-          toast.success("Task completed! Recurring series has ended ✅");
-        }
-      } else {
-        toast.success("Task completed! Great job! 🎉");
+      if (task.created_by !== user?.id) {
+        toast.error("You can only delete tasks you created");
+        return;
       }
 
-      await loadTasks();
-    } catch (err) {
-      debugError("Error completing task:", err);
-      toast.error("Failed to complete task");
-    }
-  };
-
-  const editTask = (task: Task) => {
-    setEditingTask(task);
-    setIsEditModalOpen(true);
-  };
-
-  const deleteTask = async (taskId: string) => {
-    const task = tasks.find((t) => t.id === taskId);
-    if (!task) return;
-
-    // Check if user is the creator
-    if (task.created_by !== userId) {
-      toast.error("You can only delete tasks you created");
-      return;
-    }
-
-    setTaskToDelete(task);
-    setIsDeleteModalOpen(true);
+      setTaskToDelete(task);
+      setIsDeleteModalOpen(true);
+    }, [tasks, user?.id])
   };
 
   const confirmDeleteTask = async () => {
@@ -438,7 +437,6 @@ export default function TasksPage() {
     setIsDeleting(true);
 
     try {
-      // Delete task from database
       const { error } = await supabase
         .from("tasks")
         .delete()
@@ -446,15 +444,12 @@ export default function TasksPage() {
 
       if (error) throw error;
 
-      // If task has attachments, try to delete them from storage
-      if (taskToDelete.attachments && taskToDelete.attachments.length > 0) {
+      // Clean up attachments
+      if (taskToDelete.attachments?.length) {
         try {
           const filePaths = taskToDelete.attachments
             .filter((url) => url.includes("task-attachments"))
-            .map((url) => {
-              const path = url.split("task-attachments/")[1];
-              return path?.split("?")[0];
-            })
+            .map((url) => url.split("task-attachments/")[1]?.split("?")[0])
             .filter(Boolean);
 
           if (filePaths.length > 0) {
@@ -465,7 +460,7 @@ export default function TasksPage() {
         }
       }
 
-      await loadTasks();
+      await loadTasks(filter);
       toast.success("Task deleted successfully!");
       setIsDeleteModalOpen(false);
       setTaskToDelete(null);
@@ -477,10 +472,20 @@ export default function TasksPage() {
     }
   };
 
-  // Calculate next due date for recurring tasks
+  const createTaskFromCleaningIssue = (issue: any) => {
+    setInitialTaskData({
+      title: `Clean ${issue.location}`,
+      description: `Cleaning issue: ${issue.description}`,
+      category: "cleaning",
+      priority: issue.severity === "high" ? "high" : "medium",
+    });
+    setIsCreateModalOpen(true);
+  };
+
+  // Helper function for recurring tasks
   const calculateNextDueDate = (
     currentDate: string,
-    pattern: string,
+    pattern: RecurrencePattern,
     interval: number
   ): string => {
     const date = new Date(currentDate);
@@ -506,86 +511,22 @@ export default function TasksPage() {
     return date.toISOString().split("T")[0];
   };
 
-  const handleCreateTask = async (taskData: Partial<Task>) => {
-    if (!userId || !currentProperty?.id) {
-      toast.error("Missing user or property information");
-      return;
-    }
-
-    try {
-      const newTask = {
-        ...taskData,
-        property_id: currentProperty.id,
-        created_by: userId,
-        status: taskData.status || "pending",
-        priority: taskData.priority || "medium",
-      };
-
-      const { data, error } = await supabase
-        .from("tasks")
-        .insert(newTask)
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      toast.success("Task created successfully!");
-      setIsCreateModalOpen(false);
-      loadTasks(); // Refresh the task list
-    } catch (error) {
-      debugError("❌ Error creating task:", error);
-      toast.error("Failed to create task");
-    }
-  };
-
-  // Add missing function for cleaning issues
-  const createTaskFromCleaningIssue = async (issue: any) => {
-    setInitialTaskData({
-      title: `Clean ${issue.location}`,
-      description: `Cleaning issue: ${issue.description}`,
-      category: "cleaning",
-      priority: issue.severity === "high" ? "high" : "medium",
-    });
-    setIsCreateModalOpen(true);
-  };
-
-  // Filter tasks based on view mode
-  const filteredTasks = useMemo(() => {
-    return tasks.filter((task) => {
-      if (isGuestView) {
-        return task.is_public || task.visibility === "guest";
-      }
-      if (isFamilyView) {
-        return task.visibility !== "manager-only";
-      }
-      return true; // Managers see all tasks
-    });
-  }, [tasks, isGuestView, isFamilyView]);
-
-  // Memoized task statistics
-  const taskStats = useMemo(() => {
-    const stats = {
-      total: filteredTasks.length,
-      pending: filteredTasks.filter((t) => t.status === "pending").length,
-      inProgress: filteredTasks.filter((t) => t.status === "in_progress").length,
-      completed: filteredTasks.filter((t) => t.status === "completed").length,
-    };
-    return stats;
-  }, [filteredTasks]);
-
-  // Early returns for loading states
+  // Loading states
   if (authLoading || propertyLoading) {
     return (
-      <StandardPageLayout>
-        <StandardCard>
-          <div className="flex items-center justify-center min-h-[400px]">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
-              <p className="text-gray-600">Loading tasks...</p>
+      <>
+        <PageHeader title="Tasks" subtitle="Loading..." />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <StandardCard>
+            <div className="flex items-center justify-center min-h-[400px]">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+                <p className="text-gray-600">Loading tasks...</p>
+              </div>
             </div>
-          </div>
-        </StandardCard>
-      </StandardPageLayout>
+          </StandardCard>
+        </div>
+      </>
     );
   }
 
@@ -598,248 +539,69 @@ export default function TasksPage() {
   }
 
   return (
-    <StandardPageLayout>
+    <>
+      {/* Remove this PageHeader - it's creating the duplicate header */}
+      {/* <PageHeader 
+        title="Task Management" 
+        subtitle="Manage property tasks and maintenance"
+        actions={
+          <TaskFilters
+            filter={filter}
+            onFilterChange={setFilter}
+            propertyName={currentProperty?.name}
+            cleaningIssuesCount={cleaningIssues.length}
+          />
+        }
+      /> */}
+      
+      {/* Keep just the content */}
       <div className="space-y-6">
-        {/* ✅ Task Statistics Cards - Better layout from standalone version */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <StandardCard>
-            <div className="flex items-center">
-              <CheckSquareIcon className="h-8 w-8 text-blue-600 mr-3" />
-              <div>
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                  Total Tasks
-                </p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                  {taskStats.total}
-                </p>
-              </div>
-            </div>
-          </StandardCard>
-
-          <StandardCard>
-            <div className="flex items-center">
-              <Clock className="h-8 w-8 text-yellow-600 mr-3" />
-              <div>
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                  Pending
-                </p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                  {taskStats.pending}
-                </p>
-              </div>
-            </div>
-          </StandardCard>
-
-          <StandardCard>
-            <div className="flex items-center">
-              <Users className="h-8 w-8 text-blue-600 mr-3" />
-              <div>
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                  In Progress
-                </p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                  {taskStats.inProgress}
-                </p>
-              </div>
-            </div>
-          </StandardCard>
-
-          <StandardCard>
-            <div className="flex items-center">
-              <CheckCircle className="h-8 w-8 text-green-600 mr-3" />
-              <div>
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                  Completed
-                </p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                  {taskStats.completed}
-                </p>
-              </div>
-            </div>
-          </StandardCard>
+        {/* Move TaskFilters to the top if you still want them */}
+        <div className="flex justify-end">
+          <TaskFilters
+            filter={filter}
+            onFilterChange={setFilter}
+            propertyName={currentProperty?.name}
+            cleaningIssuesCount={cleaningIssues.length}
+          />
         </div>
 
+        {/* Task Statistics */}
+        <TaskStatsCards stats={taskStats} />
+
         {/* Main Tasks Card */}
-        <StandardCard
-          title="Task Management"
-          subtitle="Manage property tasks and maintenance"
-          headerActions={
-            <div className="flex items-center gap-3">
-              <span className="text-xs text-gray-500">
-                {currentProperty?.name}
-                {cleaningIssues.length > 0 && (
-                  <span className="ml-2 px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs">
-                    {cleaningIssues.length} cleaning issues
-                  </span>
-                )}
-              </span>
+        <StandardCard>
+          <TaskEmptyStates
+            filteredTasks={filteredTasks}
+            filter={filter}
+            currentProperty={currentProperty}
+            cleaningIssues={cleaningIssues}
+            isManagerView={isManagerView}
+            onCreateTask={() => setIsCreateModalOpen(true)}
+            onFilterChange={setFilter}
+            onCreateTaskFromIssue={createTaskFromCleaningIssue}
+          />
 
-              {/* ✅ Added label and accessible name for select */}
-              <label htmlFor="task-filter" className="sr-only">
-                Filter tasks
-              </label>
-              <select
-                id="task-filter"
-                value={filter}
-                onChange={(e) => setFilter(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                title="Filter tasks by status"
-              >
-                <option value="open">Open Tasks</option>
-                <option value="all">All Tasks</option>
-                <option value="pending">Pending</option>
-                <option value="in-progress">In Progress</option>
-                <option value="completed">Completed</option>
-                <option value="mine">My Open Tasks</option>
-                <option value="created-by-me">Created by Me (Open)</option>
-                <option value="cleaning">🧽 Cleaning Tasks</option>
-              </select>
-            </div>
-          }
-        >
-          {/* Task cards */}
-          {filteredTasks.length === 0 && filter === "open" ? (
-            <div className="text-center py-16">
-              <div className="relative mb-6">
-                <div className="w-24 h-24 bg-green-100 rounded-full mx-auto flex items-center justify-center">
-                  <CheckSquareIcon className="h-12 w-12 text-green-600" />
-                </div>
-                <div className="absolute -top-2 -right-2 w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
-                  <span className="text-white text-lg">✨</span>
-                </div>
-              </div>
-              <h3 className="text-2xl font-semibold text-gray-900 mb-3">
-                All Clear! 🎉
-              </h3>
-              <p className="text-gray-500 mb-2 max-w-md mx-auto">
-                No open tasks for <strong>{currentProperty.name}</strong>.
-                Everything is running smoothly!
-              </p>
-              <p className="text-sm text-gray-400 mb-8">
-                Check back later or create a new task if something needs
-                attention.
-              </p>
-
-              <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
-                <button
-                  onClick={() => setIsCreateModalOpen(true)}
-                  className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  <PlusIcon className="h-5 w-5 mr-2" />
-                  Create New Task
-                </button>
-                <button
-                  onClick={() => setFilter("completed")}
-                  className="inline-flex items-center px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  View Completed Tasks
-                </button>
-                {isManagerView && (
-                  <button
-                    onClick={() => setFilter("all")}
-                    className="inline-flex items-center px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                  >
-                    View All Tasks
-                  </button>
-                )}
-              </div>
-
-              {cleaningIssues.length > 0 && (
-                <div className="mt-8 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                  <h4 className="text-sm font-medium text-yellow-800 mb-2">
-                    📋 Unresolved Cleaning Issues ({cleaningIssues.length})
-                  </h4>
-                  <p className="text-sm text-yellow-700 mb-3">
-                    Consider creating tasks for these cleaning issues:
-                  </p>
-                  <div className="space-y-2">
-                    {cleaningIssues.slice(0, 3).map((issue: any) => (
-                      <div
-                        key={issue.id}
-                        className="flex items-center justify-between text-sm"
-                      >
-                        <span className="text-yellow-800">
-                          {issue.location}:{" "}
-                          {issue.description.substring(0, 50)}
-                          ...
-                        </span>
-                        <button
-                          onClick={() => createTaskFromCleaningIssue(issue)}
-                          className="px-2 py-1 bg-yellow-600 text-white text-xs rounded hover:bg-yellow-700"
-                        >
-                          Create Task
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          ) : filteredTasks.length === 0 ? (
-            <div className="text-center py-12">
-              <CheckSquareIcon className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-              <h3 className="text-xl font-medium text-gray-900 mb-2">
-                No Tasks Found
-              </h3>
-              <p className="text-gray-500 mb-6">
-                {filter === "completed"
-                  ? "No completed tasks found"
-                  : filter === "pending"
-                  ? "No pending tasks found"
-                  : filter === "in-progress"
-                  ? "No tasks in progress"
-                  : filter === "mine"
-                  ? "No tasks assigned to you"
-                  : filter === "created-by-me"
-                  ? "You haven't created any tasks yet"
-                  : `No tasks match the "${filter}" filter`}
-              </p>
-              <div className="flex gap-3 justify-center">
-                {isManagerView && (
-                  <button
-                    onClick={() => setFilter("all")}
-                    className="inline-flex items-center px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
-                  >
-                    View All Tasks
-                  </button>
-                )}
-                <button
-                  onClick={() => setFilter("open")}
-                  className="inline-flex items-center px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
-                >
-                  View Open Tasks
-                </button>
-                <button
-                  onClick={() => setIsCreateModalOpen(true)}
-                  className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                >
-                  <PlusIcon className="h-5 w-5 mr-2" />
-                  Create Task
-                </button>
-              </div>
-            </div>
-          ) : (
+          {filteredTasks.length > 0 && (
             <div className="space-y-4">
               {filteredTasks.map((task) => (
                 <TaskCard
                   key={task.id}
                   task={task}
-                  userId={userId || ""}
-                  onClaim={claimTask}
-                  onComplete={completeTask}
-                  onEdit={editTask}
-                  onDelete={deleteTask}
+                  userId={user?.id || ""}
+                  onClaim={taskActions.claim}
+                  onComplete={taskActions.complete}
+                  onEdit={taskActions.edit}
+                  onDelete={taskActions.delete}
                   onViewPhotos={setViewingPhotos}
                 />
               ))}
 
-              {filteredTasks.length > 0 && filteredTasks.length <= 5 && (
+              {filteredTasks.length <= 5 && (
                 <div className="text-center py-8 border-t border-gray-200 mt-8">
                   <div className="flex items-center justify-center mb-3">
                     <div className="h-px bg-gray-200 flex-1 max-w-20"></div>
-                    <span className="px-4 text-sm text-gray-400">
-                      That's it!
-                    </span>
+                    <span className="px-4 text-sm text-gray-400">That's it!</span>
                     <div className="h-px bg-gray-200 flex-1 max-w-20"></div>
                   </div>
                   <p className="text-sm text-gray-500">
@@ -867,7 +629,7 @@ export default function TasksPage() {
             setIsCreateModalOpen(false);
             setInitialTaskData(null);
           }}
-          onTaskCreated={loadTasks}
+          onTaskCreated={() => loadTasks(filter)}
           users={users}
           currentProperty={currentProperty}
           currentUser={user}
@@ -880,7 +642,7 @@ export default function TasksPage() {
             setIsEditModalOpen(false);
             setEditingTask(null);
           }}
-          onTaskUpdated={loadTasks}
+          onTaskUpdated={() => loadTasks(filter)}
           users={users}
           currentProperty={currentProperty}
           currentUser={user}
@@ -909,39 +671,37 @@ export default function TasksPage() {
           label="Create Task"
         />
       </div>
-    </StandardPageLayout>
+    </>
   );
 }
 
-// Custom fallback for tasks when no property is selected
+// Also update the fallback component to remove PageHeader
 function TasksNoPropertyFallback() {
   return (
-    <StandardPageLayout>
-      <StandardCard>
-        <div className="text-center py-12">
-          <CheckSquareIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">
-            No Property Selected
-          </h3>
-          <p className="text-gray-600 mb-6">
-            You need to create or select a property to manage tasks.
-          </p>
-          <div className="space-y-3">
-            <button
-              onClick={() => (window.location.href = "/properties/new")}
-              className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-            >
-              Create New Property
-            </button>
-            <button
-              onClick={() => (window.location.href = "/properties")}
-              className="w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-            >
-              View All Properties
-            </button>
-          </div>
+    <StandardCard>
+      <div className="text-center py-12">
+        <CheckSquareIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+        <h3 className="text-lg font-medium text-gray-900 mb-2">
+          No Property Selected
+        </h3>
+        <p className="text-gray-600 mb-6">
+          You need to create or select a property to manage tasks.
+        </p>
+        <div className="space-y-3">
+          <button
+            onClick={() => (window.location.href = "/properties/new")}
+            className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          >
+            Create New Property
+          </button>
+          <button
+            onClick={() => (window.location.href = "/properties")}
+            className="w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          >
+            View All Properties
+          </button>
         </div>
-      </StandardCard>
-    </StandardPageLayout>
+      </div>
+    </StandardCard>
   );
 }

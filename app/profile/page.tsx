@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useProperty } from "@/lib/hooks/useProperty";
-import StandardPageLayout from "@/components/layout/StandardPageLayout";
 import StandardCard from "@/components/ui/StandardCard";
 import {
   User,
@@ -27,6 +26,7 @@ interface UserProfile {
   city?: string;
   state?: string;
   zip?: string;
+  avatar_url?: string;
 }
 
 interface FormData {
@@ -104,6 +104,7 @@ export default function ProfilePage() {
         city: user.user_metadata?.city || "",
         state: user.user_metadata?.state || "",
         zip: user.user_metadata?.zip || "",
+        avatar_url: user.user_metadata?.avatar_url || "",
       };
 
       const initialFormData: FormData = {
@@ -310,7 +311,7 @@ export default function ProfilePage() {
 
       if (error) throw error;
 
-      setProfile((prev) => ({ ...prev, avatar_url: avatarUrl }));
+      setProfile((prev) => prev ? { ...prev, avatar_url: avatarUrl } : null);
       toast.success("Profile picture updated!");
     } catch (error) {
       console.error("Error updating avatar:", error);
@@ -321,20 +322,18 @@ export default function ProfilePage() {
   // Loading state
   if (isInitializing || loading) {
     return (
-      <StandardPageLayout title="Profile" subtitle="Loading your profile...">
-        <StandardCard>
-          <div className="flex items-center justify-center py-12">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-3"></div>
-              <p className="text-gray-600">
-                {isInitializing
-                  ? "⏳ Initializing..."
-                  : "👤 Loading profile..."}
-              </p>
-            </div>
+      <StandardCard>
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-3"></div>
+            <p className="text-gray-600">
+              {isInitializing
+                ? "⏳ Initializing..."
+                : "👤 Loading profile..."}
+            </p>
           </div>
-        </StandardCard>
-      </StandardPageLayout>
+        </div>
+      </StandardCard>
     );
   }
 
@@ -345,262 +344,251 @@ export default function ProfilePage() {
   // Error state
   if (error) {
     return (
-      <StandardPageLayout title="Profile" subtitle="Error loading profile">
-        <StandardCard
-          title="Error Loading Profile"
-          subtitle="Unable to load your profile information"
-        >
-          <div className="text-center py-8">
-            <AlertTriangle className="mx-auto h-12 w-12 text-red-500 mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
-              Error Loading Profile
-            </h3>
-            <p className="text-red-600 mb-4">{error}</p>
-            <button
-              onClick={retryLoad}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-            >
-              Try Again
-            </button>
-          </div>
-        </StandardCard>
-      </StandardPageLayout>
+      <StandardCard
+        title="Error Loading Profile"
+        subtitle="Unable to load your profile information"
+      >
+        <div className="text-center py-8">
+          <AlertTriangle className="mx-auto h-12 w-12 text-red-500 mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">
+            Error Loading Profile
+          </h3>
+          <p className="text-red-600 mb-4">{error}</p>
+          <button
+            onClick={retryLoad}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            Try Again
+          </button>
+        </div>
+      </StandardCard>
     );
   }
 
   if (!profile) {
     return (
-      <StandardPageLayout title="Profile" subtitle="Profile not found">
-        <StandardCard
-          title="Profile Not Found"
-          subtitle="Unable to load your profile information"
-        >
-          <div className="text-center py-8">
-            <User className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
-              Profile Not Found
-            </h3>
-            <p className="text-gray-600 mb-4">
-              Your profile information could not be loaded.
-            </p>
-            <button
-              onClick={retryLoad}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-            >
-              Reload Profile
-            </button>
-          </div>
-        </StandardCard>
-      </StandardPageLayout>
+      <StandardCard
+        title="Profile Not Found"
+        subtitle="Unable to load your profile information"
+      >
+        <div className="text-center py-8">
+          <User className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">
+            Profile Not Found
+          </h3>
+          <p className="text-gray-600 mb-4">
+            Your profile information could not be loaded.
+          </p>
+          <button
+            onClick={retryLoad}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            Reload Profile
+          </button>
+        </div>
+      </StandardCard>
     );
   }
 
   return (
-    <StandardPageLayout
-      title="Profile"
-      subtitle={`Manage your account information • ${
-        currentProperty?.name || "No property selected"
-      }`}
-    >
-      <div className="space-y-6">
-        {/* Success/Error Message */}
-        {message && (
-          <div
-            className={`p-4 rounded-lg border flex items-center ${
-              message.type === "error"
-                ? "bg-red-50 text-red-700 border-red-200"
-                : "bg-green-50 text-green-700 border-green-200"
-            }`}
-          >
-            {message.type === "success" ? (
-              <CheckCircle className="h-5 w-5 mr-3 flex-shrink-0" />
-            ) : (
-              <AlertTriangle className="h-5 w-5 mr-3 flex-shrink-0" />
-            )}
-            <span>{message.text}</span>
-          </div>
-        )}
-
-        {/* Profile Information */}
-        <StandardCard
-          title="Profile Information"
-          subtitle="Update your personal details"
-          icon={<User className="h-5 w-5 text-gray-600" />}
-          headerActions={
-            hasChanges && (
-              <span className="text-xs text-orange-600 bg-orange-50 px-2 py-1 rounded">
-                Unsaved changes
-              </span>
-            )
-          }
+    <div className="space-y-6">
+      {/* Success/Error Message */}
+      {message && (
+        <div
+          className={`p-4 rounded-lg border flex items-center ${
+            message.type === "error"
+              ? "bg-red-50 text-red-700 border-red-200"
+              : "bg-green-50 text-green-700 border-green-200"
+          }`}
         >
-          <div className="space-y-6">
-            {/* Email (Read-only) */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Email Address
-              </label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <input
-                  type="email"
-                  value={profile.email}
-                  disabled
-                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed"
-                />
-              </div>
-              <p className="text-xs text-gray-500 mt-1">
-                Email cannot be changed. Contact support if needed.
-              </p>
-            </div>
+          {message.type === "success" ? (
+            <CheckCircle className="h-5 w-5 mr-3 flex-shrink-0" />
+          ) : (
+            <AlertTriangle className="h-5 w-5 mr-3 flex-shrink-0" />
+          )}
+          <span>{message.text}</span>
+        </div>
+      )}
 
-            {/* Name */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Full Name *
-              </label>
+      {/* Profile Information */}
+      <StandardCard
+        title="Profile Information"
+        subtitle="Update your personal details"
+        icon={<User className="h-5 w-5 text-gray-600" />}
+        headerActions={
+          hasChanges && (
+            <span className="text-xs text-orange-600 bg-orange-50 px-2 py-1 rounded">
+              Unsaved changes
+            </span>
+          )
+        }
+      >
+        <div className="space-y-6">
+          {/* Email (Read-only) */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Email Address
+            </label>
+            <div className="relative">
+              <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
               <input
-                type="text"
-                value={formData.name}
-                onChange={handleInputChange("name")}
-                disabled={saving}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed transition-colors"
-                placeholder="Your full name"
-                maxLength={100}
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                {formData.name.length}/100 characters
-              </p>
-            </div>
-
-            {/* Phone */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Phone Number
-              </label>
-              <div className="relative">
-                <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <input
-                  type="tel"
-                  value={formData.phone}
-                  onChange={handleInputChange("phone")}
-                  disabled={saving}
-                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed transition-colors"
-                  placeholder="(555) 123-4567"
-                  maxLength={20}
-                />
-              </div>
-            </div>
-          </div>
-        </StandardCard>
-
-        {/* Address Information */}
-        <StandardCard
-          title="Address Information"
-          subtitle="Your contact address"
-          icon={<MapPin className="h-5 w-5 text-gray-600" />}
-        >
-          <div className="space-y-4">
-            {/* Street Address */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Street Address
-              </label>
-              <input
-                type="text"
-                value={formData.address}
-                onChange={handleInputChange("address")}
-                disabled={saving}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed transition-colors"
-                placeholder="123 Main Street"
-                maxLength={200}
+                type="email"
+                value={profile.email}
+                disabled
+                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed"
               />
             </div>
+            <p className="text-xs text-gray-500 mt-1">
+              Email cannot be changed. Contact support if needed.
+            </p>
+          </div>
 
-            {/* City, State, ZIP */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  City
-                </label>
-                <input
-                  type="text"
-                  value={formData.city}
-                  onChange={handleInputChange("city")}
-                  disabled={saving}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed transition-colors"
-                  placeholder="City"
-                  maxLength={100}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  State
-                </label>
-                <input
-                  type="text"
-                  value={formData.state}
-                  onChange={handleInputChange("state")}
-                  disabled={saving}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed transition-colors"
-                  placeholder="State"
-                  maxLength={50}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  ZIP Code
-                </label>
-                <input
-                  type="text"
-                  value={formData.zip}
-                  onChange={handleInputChange("zip")}
-                  disabled={saving}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed transition-colors"
-                  placeholder="12345"
-                  maxLength={10}
-                />
-              </div>
+          {/* Name */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Full Name *
+            </label>
+            <input
+              type="text"
+              value={formData.name}
+              onChange={handleInputChange("name")}
+              disabled={saving}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed transition-colors"
+              placeholder="Your full name"
+              maxLength={100}
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              {formData.name.length}/100 characters
+            </p>
+          </div>
+
+          {/* Phone */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Phone Number
+            </label>
+            <div className="relative">
+              <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <input
+                type="tel"
+                value={formData.phone}
+                onChange={handleInputChange("phone")}
+                disabled={saving}
+                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed transition-colors"
+                placeholder="(555) 123-4567"
+                maxLength={20}
+              />
             </div>
           </div>
-        </StandardCard>
+        </div>
+      </StandardCard>
 
-        {/* Profile Picture */}
-        <StandardCard
-          title="Profile Picture"
-          subtitle="Update your profile photo"
-          icon={<User className="h-5 w-5 text-gray-600" />}
-        >
-          <div className="flex items-center">
-            <AvatarUpload
-              currentAvatar={profile.avatar_url}
-              onAvatarChange={handleAvatarChange}
-              size="lg"
+      {/* Address Information */}
+      <StandardCard
+        title="Address Information"
+        subtitle="Your contact address"
+        icon={<MapPin className="h-5 w-5 text-gray-600" />}
+      >
+        <div className="space-y-4">
+          {/* Street Address */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Street Address
+            </label>
+            <input
+              type="text"
+              value={formData.address}
+              onChange={handleInputChange("address")}
+              disabled={saving}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed transition-colors"
+              placeholder="123 Main Street"
+              maxLength={200}
             />
           </div>
-        </StandardCard>
 
-        {/* Save Button */}
-        <div className="flex justify-end">
-          <button
-            onClick={handleSave}
-            disabled={saving || !isFormValid || !hasChanges}
-            className="flex items-center px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            {saving ? (
-              <>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                Saving...
-              </>
-            ) : (
-              <>
-                <Save className="h-4 w-4 mr-2" />
-                Save Changes
-              </>
-            )}
-          </button>
+          {/* City, State, ZIP */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                City
+              </label>
+              <input
+                type="text"
+                value={formData.city}
+                onChange={handleInputChange("city")}
+                disabled={saving}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed transition-colors"
+                placeholder="City"
+                maxLength={100}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                State
+              </label>
+              <input
+                type="text"
+                value={formData.state}
+                onChange={handleInputChange("state")}
+                disabled={saving}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed transition-colors"
+                placeholder="State"
+                maxLength={50}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                ZIP Code
+              </label>
+              <input
+                type="text"
+                value={formData.zip}
+                onChange={handleInputChange("zip")}
+                disabled={saving}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed transition-colors"
+                placeholder="12345"
+                maxLength={10}
+              />
+            </div>
+          </div>
         </div>
+      </StandardCard>
+
+      {/* Profile Picture */}
+      <StandardCard
+        title="Profile Picture"
+        subtitle="Update your profile photo"
+        icon={<User className="h-5 w-5 text-gray-600" />}
+      >
+        <div className="flex items-center">
+          <AvatarUpload
+            currentAvatar={profile.avatar_url}
+            onAvatarChange={handleAvatarChange}
+            size="lg"
+          />
+        </div>
+      </StandardCard>
+
+      {/* Save Button */}
+      <div className="flex justify-end">
+        <button
+          onClick={handleSave}
+          disabled={saving || !isFormValid || !hasChanges}
+          className="flex items-center px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        >
+          {saving ? (
+            <>
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+              Saving...
+            </>
+          ) : (
+            <>
+              <Save className="h-4 w-4 mr-2" />
+              Save Changes
+            </>
+          )}
+        </button>
       </div>
-    </StandardPageLayout>
+    </div>
   );
 }

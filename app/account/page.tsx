@@ -1,4 +1,3 @@
-// app/account/page.tsx - Fix the import path
 "use client";
 
 import { useState, useEffect } from "react";
@@ -9,8 +8,8 @@ import {
   getUserRole,
 } from "@/lib/utils/roles";
 import StandardCard from "@/components/ui/StandardCard";
-import StandardPageLayout from "@/components/layout/StandardPageLayout";
 import ProfileModal from "@/components/modals/ProfileModal";
+import Image from "next/image";
 
 import {
   User,
@@ -31,12 +30,15 @@ export default function AccountPage() {
   const { user, profileData, profileLoading } = useAuth();
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [avatarKey, setAvatarKey] = useState(0);
+  const [imageError, setImageError] = useState(false);
 
   // Listen for profile updates to refresh avatar
   useEffect(() => {
     const handleProfileChange = (event: CustomEvent) => {
-      console.log("🔄 Account Page: Profile data changed:", event.detail);
+      // Use debugLog instead of console.log
+      // debugLog("🔄 Account Page: Profile data changed:", event.detail);
       setAvatarKey((prev) => prev + 1);
+      setImageError(false); // Reset image error on profile change
     };
 
     window.addEventListener(
@@ -122,16 +124,14 @@ export default function AccountPage() {
   // Loading state
   if (profileLoading) {
     return (
-      <StandardPageLayout title="Account" subtitle="Loading...">
-        <StandardCard>
-          <div className="flex items-center justify-center min-h-[400px]">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-3"></div>
-              <p className="text-gray-600">⏳ Loading account...</p>
-            </div>
+      <StandardCard>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-3"></div>
+            <p className="text-gray-600">⏳ Loading account...</p>
           </div>
-        </StandardCard>
-      </StandardPageLayout>
+        </div>
+      </StandardCard>
     );
   }
 
@@ -140,117 +140,136 @@ export default function AccountPage() {
   }
 
   return (
-    <StandardPageLayout
-      title="Account"
-      subtitle="Manage your profile and account settings"
-      breadcrumb={[{ label: "Account" }]}
-    >
-      <div className="space-y-6">
-        {/* Profile Card */}
-        <StandardCard
-          title="Your Profile"
-          subtitle="Personal information and account details"
-          headerActions={
-            <button
-              onClick={() => setIsProfileModalOpen(true)}
-              className="inline-flex items-center px-4 py-2 text-sm border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-            >
-              <Edit className="w-4 h-4 mr-2" />
-              Edit Profile
-            </button>
-          }
-        >
-          <div className="flex items-center space-x-6">
-            {/* Avatar */}
-            <div className="relative flex-shrink-0">
-              {avatarUrl ? (
-                <img
-                  src={avatarUrl}
-                  alt={`${displayName}'s avatar`}
-                  className="w-20 h-20 rounded-full object-cover border-4 border-gray-200 dark:border-gray-600 shadow-lg"
-                  onError={(e) => {
-                    console.log("❌ Account page avatar failed to load");
-                    e.currentTarget.style.display = "none";
-                    const fallback = e.currentTarget
-                      .nextElementSibling as HTMLElement;
-                    if (fallback) fallback.style.display = "flex";
-                  }}
-                />
-              ) : null}
+    <div className="space-y-6">
+      {/* Header Card */}
+      <StandardCard
+        title="Account"
+        subtitle="Manage your profile and account settings"
+        headerActions={
+          <div className="flex items-center text-sm text-gray-600">
+            <User className="h-4 w-4 mr-1" />
+            {userRole.replace("_", " ").toUpperCase()}
+          </div>
+        }
+      />
 
-              <div
-                className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center border-4 border-gray-200 dark:border-gray-600 shadow-lg"
-                style={{ display: avatarUrl ? "none" : "flex" }}
-              >
+      {/* Profile Card */}
+      <StandardCard
+        title="Your Profile"
+        subtitle="Personal information and account details"
+        headerActions={
+          <button
+            onClick={() => setIsProfileModalOpen(true)}
+            className="inline-flex items-center px-4 py-2 text-sm border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+          >
+            <Edit className="w-4 h-4 mr-2" />
+            Edit Profile
+          </button>
+        }
+      >
+        <div className="flex items-center space-x-6">
+          {/* Avatar */}
+          <div className="relative flex-shrink-0">
+            {avatarUrl && !imageError ? (
+              <Image
+                src={avatarUrl}
+                alt={`${displayName}'s avatar`}
+                width={80}
+                height={80}
+                className="rounded-full object-cover border-4 border-gray-200 dark:border-gray-600 shadow-lg"
+                onError={() => {
+                  setImageError(true);
+                }}
+                priority
+              />
+            ) : (
+              <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center border-4 border-gray-200 dark:border-gray-600 shadow-lg">
                 <User className="w-8 h-8 text-white" />
               </div>
-            </div>
+            )}
+          </div>
 
-            {/* Profile Info */}
-            <div className="flex-1 min-w-0">
-              <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
-                {displayName}
-              </h3>
-              <div className="flex items-center text-gray-600 dark:text-gray-400 text-sm mt-1">
-                <Mail className="h-4 w-4 mr-2 flex-shrink-0" />
-                <span className="truncate">{user.email}</span>
-              </div>
-              {profileData?.phone && (
-                <div className="flex items-center text-gray-600 dark:text-gray-400 text-sm mt-1">
-                  <Phone className="h-4 w-4 mr-2 flex-shrink-0" />
-                  <span>{profileData.phone}</span>
-                </div>
-              )}
-              <div className="flex items-center mt-2">
-                <span className="inline-block bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 text-sm px-3 py-1 rounded-full">
-                  {userRole.replace("_", " ").toUpperCase()}
-                </span>
-              </div>
+          {/* Profile Info */}
+          <div className="flex-1 min-w-0">
+            <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
+              {displayName}
+            </h3>
+            <div className="flex items-center text-gray-600 dark:text-gray-400 text-sm mt-1">
+              <Mail className="h-4 w-4 mr-2 flex-shrink-0" />
+              <span className="truncate">{user.email}</span>
             </div>
+            {profileData?.phone && (
+              <div className="flex items-center text-gray-600 dark:text-gray-400 text-sm mt-1">
+                <Phone className="h-4 w-4 mr-2 flex-shrink-0" />
+                <span>{profileData.phone}</span>
+              </div>
+            )}
+            <div className="flex items-center mt-2">
+              <span className="inline-block bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 text-sm px-3 py-1 rounded-full">
+                {userRole.replace("_", " ").toUpperCase()}
+              </span>
+            </div>
+          </div>
+        </div>
+      </StandardCard>
+
+      {/* Account Statistics */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <StandardCard className="text-center p-6">
+          <Shield className="h-8 w-8 text-green-600 mx-auto mb-2" />
+          <div className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
+            {userRole.replace("_", " ").toUpperCase()}
+          </div>
+          <div className="text-sm text-gray-600 dark:text-gray-400">
+            Account Role
           </div>
         </StandardCard>
 
-        {/* Account Settings */}
-        <StandardCard
-          title="Account Settings"
-          subtitle="Manage your preferences and configurations"
-        >
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {visibleSections.map((section) => {
-              const Icon = section.icon;
+        <StandardCard className="text-center p-6">
+          <Calendar className="h-8 w-8 text-blue-600 mx-auto mb-2" />
+          <div className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
+            {user?.created_at
+              ? Math.floor(
+                  (Date.now() - new Date(user.created_at).getTime()) /
+                    (1000 * 60 * 60 * 24)
+                )
+              : 0}
+          </div>
+          <div className="text-sm text-gray-600 dark:text-gray-400">
+            Days Active
+          </div>
+        </StandardCard>
 
-              if (section.onClick) {
-                return (
-                  <div
-                    key={section.title}
-                    className="border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors cursor-pointer"
-                  >
-                    <button
-                      onClick={section.onClick}
-                      className="w-full text-left p-4"
-                    >
-                      <div className="flex items-center justify-between mb-3">
-                        <Icon className={`h-6 w-6 ${section.color}`} />
-                        <ArrowRight className="h-4 w-4 text-gray-400" />
-                      </div>
-                      <h3 className="font-semibold text-gray-900 dark:text-white mb-1">
-                        {section.title}
-                      </h3>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
-                        {section.description}
-                      </p>
-                    </button>
-                  </div>
-                );
-              }
+        <StandardCard className="text-center p-6">
+          <Bell className="h-8 w-8 text-purple-600 mx-auto mb-2" />
+          <div className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
+            {visibleSections.length}
+          </div>
+          <div className="text-sm text-gray-600 dark:text-gray-400">
+            Available Sections
+          </div>
+        </StandardCard>
+      </div>
 
+      {/* Account Settings */}
+      <StandardCard
+        title="Account Settings"
+        subtitle="Manage your preferences and configurations"
+      >
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {visibleSections.map((section) => {
+            const Icon = section.icon;
+
+            if (section.onClick) {
               return (
-                <Link
-                  key={section.href}
-                  href={section.href}
-                  className="block border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                <div
+                  key={section.title}
+                  className="border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors cursor-pointer"
                 >
-                  <div className="p-4">
+                  <button
+                    onClick={section.onClick}
+                    className="w-full text-left p-4"
+                  >
                     <div className="flex items-center justify-between mb-3">
                       <Icon className={`h-6 w-6 ${section.color}`} />
                       <ArrowRight className="h-4 w-4 text-gray-400" />
@@ -261,105 +280,174 @@ export default function AccountPage() {
                     <p className="text-sm text-gray-600 dark:text-gray-400">
                       {section.description}
                     </p>
-                  </div>
-                </Link>
+                  </button>
+                </div>
               );
-            })}
-          </div>
-        </StandardCard>
+            }
 
-        {/* Quick Actions */}
-        {(canManageProperties(user) || canManageUsers(user)) && (
-          <StandardCard
-            title="Quick Actions"
-            subtitle="Frequently used management tools"
-          >
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {canManageProperties(user) && (
-                <Link
-                  href="/account/properties"
-                  className="flex items-center p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                >
-                  <Building className="h-8 w-8 text-red-600 mr-3 flex-shrink-0" />
-                  <div>
-                    <h4 className="font-medium text-gray-900 dark:text-white">
-                      Manage Properties
-                    </h4>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      Add or edit properties
-                    </p>
+            return (
+              <Link
+                key={section.href}
+                href={section.href}
+                className="block border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+              >
+                <div className="p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <Icon className={`h-6 w-6 ${section.color}`} />
+                    <ArrowRight className="h-4 w-4 text-gray-400" />
                   </div>
-                </Link>
-              )}
-              {canManageUsers(user) && (
-                <Link
-                  href="/account/users"
-                  className="flex items-center p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                >
-                  <Users className="h-8 w-8 text-indigo-600 mr-3 flex-shrink-0" />
-                  <div>
-                    <h4 className="font-medium text-gray-900 dark:text-white">
-                      Manage Users
-                    </h4>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      Add or edit user accounts
-                    </p>
-                  </div>
-                </Link>
-              )}
-            </div>
-          </StandardCard>
-        )}
+                  <h3 className="font-semibold text-gray-900 dark:text-white mb-1">
+                    {section.title}
+                  </h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    {section.description}
+                  </p>
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+      </StandardCard>
 
-        {/* Account Statistics */}
+      {/* Quick Actions */}
+      {(canManageProperties(user) || canManageUsers(user)) && (
         <StandardCard
-          title="Account Statistics"
-          subtitle="Overview of your account activity"
+          title="Quick Actions"
+          subtitle="Frequently used management tools"
         >
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="text-center p-4">
-              <Shield className="h-8 w-8 text-green-600 mx-auto mb-2" />
-              <div className="text-2xl font-bold text-gray-900 dark:text-white">
-                {userRole.replace("_", " ").toUpperCase()}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {canManageProperties(user) && (
+              <Link
+                href="/account/properties"
+                className="flex items-center p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+              >
+                <Building className="h-8 w-8 text-red-600 mr-3 flex-shrink-0" />
+                <div>
+                  <h4 className="font-medium text-gray-900 dark:text-white">
+                    Manage Properties
+                  </h4>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Add or edit properties
+                  </p>
+                </div>
+              </Link>
+            )}
+            {canManageUsers(user) && (
+              <Link
+                href="/account/users"
+                className="flex items-center p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+              >
+                <Users className="h-8 w-8 text-indigo-600 mr-3 flex-shrink-0" />
+                <div>
+                  <h4 className="font-medium text-gray-900 dark:text-white">
+                    Manage Users
+                  </h4>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Add or edit user accounts
+                  </p>
+                </div>
+              </Link>
+            )}
+          </div>
+        </StandardCard>
+      )}
+
+      {/* Account Tips */}
+      <StandardCard
+        title="Account Tips"
+        subtitle="Make the most of your PorchLite account"
+      >
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-4">
+            <div className="flex items-start space-x-3">
+              <div className="flex-shrink-0 w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                <span className="text-blue-600 font-medium text-sm">1</span>
               </div>
-              <div className="text-sm text-gray-600 dark:text-gray-400">
-                Account Role
+              <div>
+                <h4 className="font-medium text-gray-900 dark:text-white mb-1">
+                  Complete Your Profile
+                </h4>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Add a profile photo and contact information for better collaboration
+                </p>
               </div>
             </div>
-
-            <div className="text-center p-4">
-              <Calendar className="h-8 w-8 text-blue-600 mx-auto mb-2" />
-              <div className="text-2xl font-bold text-gray-900 dark:text-white">
-                {user?.created_at
-                  ? Math.floor(
-                      (Date.now() - new Date(user.created_at).getTime()) /
-                        (1000 * 60 * 60 * 24)
-                    )
-                  : 0}
+            <div className="flex items-start space-x-3">
+              <div className="flex-shrink-0 w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                <span className="text-green-600 font-medium text-sm">2</span>
               </div>
-              <div className="text-sm text-gray-600 dark:text-gray-400">
-                Days Active
+              <div>
+                <h4 className="font-medium text-gray-900 dark:text-white mb-1">
+                  Enable Notifications
+                </h4>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Stay informed about important updates and property activities
+                </p>
               </div>
             </div>
-
-            <div className="text-center p-4">
-              <Bell className="h-8 w-8 text-purple-600 mx-auto mb-2" />
-              <div className="text-2xl font-bold text-gray-900 dark:text-white">
-                {visibleSections.length}
+            <div className="flex items-start space-x-3">
+              <div className="flex-shrink-0 w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
+                <span className="text-purple-600 font-medium text-sm">3</span>
               </div>
-              <div className="text-sm text-gray-600 dark:text-gray-400">
-                Available Sections
+              <div>
+                <h4 className="font-medium text-gray-900 dark:text-white mb-1">
+                  Secure Your Account
+                </h4>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Use a strong password and keep your security settings updated
+                </p>
               </div>
             </div>
           </div>
-        </StandardCard>
-      </div>
+          <div className="space-y-4">
+            <div className="flex items-start space-x-3">
+              <div className="flex-shrink-0 w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center">
+                <span className="text-orange-600 font-medium text-sm">4</span>
+              </div>
+              <div>
+                <h4 className="font-medium text-gray-900 dark:text-white mb-1">
+                  Customize Appearance
+                </h4>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Choose themes and display settings that work best for you
+                </p>
+              </div>
+            </div>
+            <div className="flex items-start space-x-3">
+              <div className="flex-shrink-0 w-8 h-8 bg-red-100 rounded-full flex items-center justify-center">
+                <span className="text-red-600 font-medium text-sm">5</span>
+              </div>
+              <div>
+                <h4 className="font-medium text-gray-900 dark:text-white mb-1">
+                  Manage Properties
+                </h4>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Keep your property information up to date for better management
+                </p>
+              </div>
+            </div>
+            <div className="flex items-start space-x-3">
+              <div className="flex-shrink-0 w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center">
+                <span className="text-indigo-600 font-medium text-sm">6</span>
+              </div>
+              <div>
+                <h4 className="font-medium text-gray-900 dark:text-white mb-1">
+                  Invite Team Members
+                </h4>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Collaborate with others by inviting them to manage properties
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </StandardCard>
 
       {/* Profile Modal */}
       <ProfileModal
         isOpen={isProfileModalOpen}
         onClose={() => setIsProfileModalOpen(false)}
       />
-    </StandardPageLayout>
+    </div>
   );
 }

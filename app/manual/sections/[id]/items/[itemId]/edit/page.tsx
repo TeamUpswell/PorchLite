@@ -20,7 +20,6 @@ import { v4 as uuidv4 } from "uuid";
 import { toast } from "react-hot-toast";
 import { convertToWebP, supportsWebP } from "@/lib/imageUtils";
 import StandardCard from "@/components/ui/StandardCard";
-import StandardPageLayout from "@/components/layout/StandardPageLayout";
 
 interface ManualItem {
   id: string;
@@ -75,7 +74,7 @@ export default function EditItemPage() {
   const savingRef = useRef(false);
   const originalDataRef = useRef<FormData | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputRef>(null);
 
   const sectionId = params.id as string;
   const itemId = params.itemId as string;
@@ -483,21 +482,16 @@ export default function EditItemPage() {
   // Loading state
   if (isInitializing || loading) {
     return (
-      <StandardPageLayout
-        title="Edit Manual Item"
-        subtitle="Loading item data..."
-      >
-        <StandardCard>
-          <div className="flex items-center justify-center py-12">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-3"></div>
-              <p className="text-gray-600">
-                {isInitializing ? "⏳ Initializing..." : "📝 Loading item..."}
-              </p>
-            </div>
+      <StandardCard>
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-3"></div>
+            <p className="text-gray-600">
+              {isInitializing ? "⏳ Initializing..." : "📝 Loading item..."}
+            </p>
           </div>
-        </StandardCard>
-      </StandardPageLayout>
+        </div>
+      </StandardCard>
     );
   }
 
@@ -508,290 +502,267 @@ export default function EditItemPage() {
   // Error state
   if (error) {
     return (
-      <StandardPageLayout
-        title="Edit Manual Item"
-        subtitle="Error loading item"
+      <StandardCard
+        title="Error Loading Item"
+        subtitle="Unable to load the requested manual item"
       >
-        <StandardCard
-          title="Error Loading Item"
-          subtitle="Unable to load the requested manual item"
-        >
-          <div className="text-center py-8">
-            <AlertTriangle className="mx-auto h-12 w-12 text-red-500 mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
-              {error === "Item not found"
-                ? "Item Not Found"
-                : "Error Loading Item"}
-            </h3>
-            <p className="text-red-600 mb-4">{error}</p>
-            <div className="flex gap-3 justify-center">
-              <button
-                onClick={retryLoad}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+        <div className="text-center py-8">
+          <AlertTriangle className="mx-auto h-12 w-12 text-red-500 mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">
+            {error === "Item not found"
+              ? "Item Not Found"
+              : "Error Loading Item"}
+          </h3>
+          <p className="text-red-600 mb-4">{error}</p>
+          <div className="flex gap-3 justify-center">
+            <button
+              onClick={retryLoad}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              Try Again
+            </button>
+            {sectionId ? (
+              <Link
+                href={`/manual/sections/${sectionId}`}
+                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
               >
-                Try Again
-              </button>
-              {sectionId ? (
-                <Link
-                  href={`/manual/sections/${sectionId}`}
-                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
-                >
-                  Back to Section
-                </Link>
-              ) : (
-                <Link
-                  href="/manual"
-                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
-                >
-                  Back to Manual
-                </Link>
-              )}
-            </div>
+                Back to Section
+              </Link>
+            ) : (
+              <Link
+                href="/manual"
+                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+              >
+                Back to Manual
+              </Link>
+            )}
           </div>
-        </StandardCard>
-      </StandardPageLayout>
+        </div>
+      </StandardCard>
     );
   }
 
   if (!item || !section) {
     return (
-      <StandardPageLayout title="Edit Manual Item" subtitle="Item not found">
-        <StandardCard
-          title="Item Not Found"
-          subtitle="The requested manual item could not be found"
-        >
-          <div className="text-center py-8">
-            <AlertTriangle className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
-              Item Not Found
-            </h3>
-            <p className="text-gray-600 mb-4">
-              The manual item you're trying to edit doesn't exist.
-            </p>
-            <Link
-              href="/manual"
-              className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-            >
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Manual
-            </Link>
-          </div>
-        </StandardCard>
-      </StandardPageLayout>
+      <StandardCard
+        title="Item Not Found"
+        subtitle="The requested manual item could not be found"
+      >
+        <div className="text-center py-8">
+          <AlertTriangle className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">
+            Item Not Found
+          </h3>
+          <p className="text-gray-600 mb-4">
+            The manual item you're trying to edit doesn't exist.
+          </p>
+          <Link
+            href="/manual"
+            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Manual
+          </Link>
+        </div>
+      </StandardCard>
     );
   }
 
   return (
-    <StandardPageLayout
-      title="Edit Manual Item"
-      subtitle={`Editing "${formData.title}" in ${section.title}`}
-      breadcrumb={[
-        { label: "Manual", href: "/manual" },
-        { label: section.title, href: `/manual/sections/${sectionId}` },
-        {
-          label: item.title,
-          href: `/manual/sections/${sectionId}/items/${itemId}`,
-        },
-        { label: "Edit" },
-      ]}
-    >
-      <div className="space-y-6">
-        <StandardCard
-          title="Edit Item"
-          subtitle={`${section.title} • ${
-            currentProperty?.name || "Unknown Property"
-          }`}
-          headerActions={
-            <div className="flex items-center gap-2">
-              <Link
-                href={`/manual/sections/${sectionId}/items/${itemId}`}
-                className="inline-flex items-center px-3 py-1 text-sm border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
-              >
-                <ArrowLeft className="h-3 w-3 mr-1" />
-                Cancel
-              </Link>
-              {hasChanges && (
-                <span className="text-xs text-orange-600 bg-orange-50 px-2 py-1 rounded">
-                  Unsaved changes
-                </span>
-              )}
-            </div>
-          }
-        >
-          <form onSubmit={handleSave} className="space-y-6">
-            {/* Title Input */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Item Title *
+    <div className="space-y-6">
+      <StandardCard
+        title="Edit Manual Item"
+        subtitle={`Editing "${formData.title}" in ${section.title}`}
+        headerActions={
+          <div className="flex items-center gap-2">
+            <Link
+              href={`/manual/sections/${sectionId}/items/${itemId}`}
+              className="inline-flex items-center px-3 py-1 text-sm border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+            >
+              <ArrowLeft className="h-3 w-3 mr-1" />
+              Cancel
+            </Link>
+            {hasChanges && (
+              <span className="text-xs text-orange-600 bg-orange-50 px-2 py-1 rounded">
+                Unsaved changes
+              </span>
+            )}
+          </div>
+        }
+      >
+        <form onSubmit={handleSave} className="space-y-6">
+          {/* Title Input */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Item Title *
+            </label>
+            <input
+              type="text"
+              value={formData.title}
+              onChange={handleFormChange("title")}
+              disabled={saving}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed transition-colors"
+              placeholder="Enter item title..."
+              maxLength={100}
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              {formData.title.length}/100 characters
+            </p>
+          </div>
+
+          {/* Content Input */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Content *
+            </label>
+            <textarea
+              value={formData.content}
+              onChange={handleFormChange("content")}
+              disabled={saving}
+              rows={8}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed font-mono text-sm transition-colors"
+              placeholder="Enter item content..."
+              maxLength={5000}
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              {formData.content.length}/5000 characters • Line breaks will be
+              preserved
+            </p>
+          </div>
+
+          {/* Photo Upload Section */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Photos ({formData.media_urls.length})
+            </label>
+
+            {/* Upload Buttons */}
+            <div className="flex flex-wrap gap-2 mb-4">
+              <label className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 cursor-pointer transition-colors disabled:opacity-50">
+                <Upload className="h-4 w-4 mr-2" />
+                Upload Photos
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  onChange={handlePhotoUpload}
+                  className="hidden"
+                  disabled={isUploading || saving}
+                />
               </label>
-              <input
-                type="text"
-                value={formData.title}
-                onChange={handleFormChange("title")}
-                disabled={saving}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed transition-colors"
-                placeholder="Enter item title..."
-                maxLength={100}
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                {formData.title.length}/100 characters
-              </p>
+
+              <label className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 cursor-pointer transition-colors md:hidden disabled:opacity-50">
+                <Camera className="h-4 w-4 mr-2" />
+                Take Photo
+                <input
+                  ref={cameraInputRef}
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  onChange={handlePhotoUpload}
+                  className="hidden"
+                  disabled={isUploading || saving}
+                />
+              </label>
             </div>
 
-            {/* Content Input */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Content *
-              </label>
-              <textarea
-                value={formData.content}
-                onChange={handleFormChange("content")}
-                disabled={saving}
-                rows={8}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed font-mono text-sm transition-colors"
-                placeholder="Enter item content..."
-                maxLength={5000}
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                {formData.content.length}/5000 characters • Line breaks will be
-                preserved
-              </p>
-            </div>
-
-            {/* Photo Upload Section */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Photos ({formData.media_urls.length})
-              </label>
-
-              {/* Upload Buttons */}
-              <div className="flex flex-wrap gap-2 mb-4">
-                <label className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 cursor-pointer transition-colors disabled:opacity-50">
-                  <Upload className="h-4 w-4 mr-2" />
-                  Upload Photos
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    multiple
-                    accept="image/*"
-                    onChange={handlePhotoUpload}
-                    className="hidden"
-                    disabled={isUploading || saving}
-                  />
-                </label>
-
-                <label className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 cursor-pointer transition-colors md:hidden disabled:opacity-50">
-                  <Camera className="h-4 w-4 mr-2" />
-                  Take Photo
-                  <input
-                    ref={cameraInputRef}
-                    type="file"
-                    accept="image/*"
-                    capture="environment"
-                    onChange={handlePhotoUpload}
-                    className="hidden"
-                    disabled={isUploading || saving}
-                  />
-                </label>
+            {/* Upload Progress */}
+            {isUploading && (
+              <div className="mb-4">
+                <div className="flex items-center justify-between text-sm text-gray-600 mb-1">
+                  <span>Uploading...</span>
+                  <span>{uploadProgress}%</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div
+                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${uploadProgress}%` }}
+                  ></div>
+                </div>
               </div>
+            )}
 
-              {/* Upload Progress */}
-              {isUploading && (
-                <div className="mb-4">
-                  <div className="flex items-center justify-between text-sm text-gray-600 mb-1">
-                    <span>Uploading...</span>
-                    <span>{uploadProgress}%</span>
+            {/* Photo Grid */}
+            {formData.media_urls.length > 0 ? (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                {formData.media_urls.map((photo, index) => (
+                  <div key={index} className="relative group">
+                    <Image
+                      src={photo}
+                      alt={`Item photo ${index + 1}`}
+                      width={200}
+                      height={150}
+                      className="w-full h-24 object-cover rounded-lg border"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removePhoto(photo)}
+                      disabled={saving}
+                      className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-50"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div
-                      className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                      style={{ width: `${uploadProgress}%` }}
-                    ></div>
-                  </div>
-                </div>
-              )}
+                ))}
+              </div>
+            ) : (
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                <ImageIcon className="h-12 w-12 text-gray-400 mx-auto mb-2" />
+                <p className="text-gray-500">No photos added yet</p>
+                <p className="text-sm text-gray-400 mt-1">
+                  Upload photos or take new ones to document this item
+                </p>
+              </div>
+            )}
+          </div>
 
-              {/* Photo Grid */}
-              {formData.media_urls.length > 0 ? (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                  {formData.media_urls.map((photo, index) => (
-                    <div key={index} className="relative group">
-                      <Image
-                        src={photo}
-                        alt={`Item photo ${index + 1}`}
-                        width={200}
-                        height={150}
-                        className="w-full h-24 object-cover rounded-lg border"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => removePhoto(photo)}
-                        disabled={saving}
-                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-50"
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
+          {/* Important Checkbox */}
+          <div className="flex items-center">
+            <input
+              type="checkbox"
+              id="important"
+              checked={formData.important}
+              onChange={handleFormChange("important")}
+              disabled={saving}
+              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded disabled:opacity-50"
+            />
+            <label
+              htmlFor="important"
+              className="ml-2 block text-sm text-gray-900"
+            >
+              Mark as important
+            </label>
+          </div>
+
+          {/* Actions */}
+          <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
+            <Link
+              href={`/manual/sections/${sectionId}/items/${itemId}`}
+              className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </Link>
+            <button
+              type="submit"
+              disabled={saving || !isFormValid || !hasChanges}
+              className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {saving ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  Saving...
+                </>
               ) : (
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                  <ImageIcon className="h-12 w-12 text-gray-400 mx-auto mb-2" />
-                  <p className="text-gray-500">No photos added yet</p>
-                  <p className="text-sm text-gray-400 mt-1">
-                    Upload photos or take new ones to document this item
-                  </p>
-                </div>
+                <>
+                  <Save className="h-4 w-4 mr-2" />
+                  Save Changes
+                </>
               )}
-            </div>
-
-            {/* Important Checkbox */}
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                id="important"
-                checked={formData.important}
-                onChange={handleFormChange("important")}
-                disabled={saving}
-                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded disabled:opacity-50"
-              />
-              <label
-                htmlFor="important"
-                className="ml-2 block text-sm text-gray-900"
-              >
-                Mark as important
-              </label>
-            </div>
-
-            {/* Actions */}
-            <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
-              <Link
-                href={`/manual/sections/${sectionId}/items/${itemId}`}
-                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
-              >
-                Cancel
-              </Link>
-              <button
-                type="submit"
-                disabled={saving || !isFormValid || !hasChanges}
-                className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {saving ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    Saving...
-                  </>
-                ) : (
-                  <>
-                    <Save className="h-4 w-4 mr-2" />
-                    Save Changes
-                  </>
-                )}
-              </button>
-            </div>
-          </form>
-        </StandardCard>
-      </div>
-    </StandardPageLayout>
+            </button>
+          </div>
+        </form>
+      </StandardCard>
+    </div>
   );
 }

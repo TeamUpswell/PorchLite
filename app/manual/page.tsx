@@ -8,9 +8,7 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import { useProperty } from "@/lib/hooks/useProperty";
 import { supabase } from "@/lib/supabase";
 import { CreatePattern } from "@/components/ui/FloatingActionPresets";
-import MainLayout from "@/components/layout/MainLayout";
 import StandardCard from "@/components/ui/StandardCard";
-import StandardPageLayout from "@/components/layout/StandardPageLayout";
 
 interface ManualSection {
   id: string;
@@ -252,21 +250,17 @@ export default function ManualPage() {
     return { prioritySections: priority, regularSections: regular };
   }, [sections]);
 
-  // Loading states
+  // Loading state
   if (isInitializing) {
     return (
-      <StandardPageLayout theme="dark" showHeader={false}>
-        <div className="p-6">
-          <StandardCard>
-            <div className="flex items-center justify-center min-h-[400px]">
-              <div className="text-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
-                <p className="text-gray-600">⏳ Initializing...</p>
-              </div>
-            </div>
-          </StandardCard>
+      <StandardCard>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+            <p className="text-gray-600">⏳ Initializing...</p>
+          </div>
         </div>
-      </StandardPageLayout>
+      </StandardCard>
     );
   }
 
@@ -276,142 +270,129 @@ export default function ManualPage() {
 
   if (!currentProperty) {
     return (
-      <StandardPageLayout theme="dark" showHeader={false}>
-        <div className="p-6">
-          <StandardCard>
-            <div className="text-center py-8">
-              <BookOpen className="mx-auto h-12 w-12 text-gray-400" />
-              <h3 className="mt-2 text-sm font-medium text-gray-900">
-                No Property Selected
-              </h3>
-              <p className="mt-1 text-sm text-gray-500">
-                Please select a property to view instructions.
-              </p>
-            </div>
-          </StandardCard>
+      <StandardCard>
+        <div className="text-center py-8">
+          <BookOpen className="mx-auto h-12 w-12 text-gray-400" />
+          <h3 className="mt-2 text-sm font-medium text-gray-900">
+            No Property Selected
+          </h3>
+          <p className="mt-1 text-sm text-gray-500">
+            Please select a property to view instructions.
+          </p>
         </div>
-      </StandardPageLayout>
+      </StandardCard>
     );
   }
 
   // Error state
   if (error) {
     return (
-      <StandardPageLayout theme="dark" showHeader={false}>
-        <div className="p-6">
-          <StandardCard
-            title="Property Manual"
-            subtitle={`Instructions and procedures for ${currentProperty.name}`}
+      <StandardCard
+        title="Property Manual"
+        subtitle={`Instructions and procedures for ${currentProperty.name}`}
+      >
+        <div className="text-center py-8">
+          <BookOpen className="mx-auto h-12 w-12 text-red-300 mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">
+            Failed to Load Sections
+          </h3>
+          <p className="text-red-600 mb-4">{error}</p>
+          <button
+            onClick={retryLoad}
+            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
           >
-            <div className="text-center py-8">
-              <BookOpen className="mx-auto h-12 w-12 text-red-300 mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
-                Failed to Load Sections
-              </h3>
-              <p className="text-red-600 mb-4">{error}</p>
-              <button
-                onClick={retryLoad}
-                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-              >
-                Try Again
-              </button>
-            </div>
-          </StandardCard>
+            Try Again
+          </button>
         </div>
-      </StandardPageLayout>
+      </StandardCard>
     );
   }
 
   // Main content
   return (
-    <StandardPageLayout theme="dark" showHeader={false}>
-      <div className="p-6">
-        <div className="max-w-7xl mx-auto">
-          {loading ? (
+    <div className="space-y-6">
+      {loading ? (
+        <StandardCard
+          title="Property Manual"
+          subtitle={`Instructions and procedures for ${currentProperty.name}`}
+        >
+          <div className="flex items-center justify-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <span className="ml-2">Loading sections...</span>
+          </div>
+        </StandardCard>
+      ) : (
+        <>
+          {/* Priority Sections */}
+          {prioritySections.length > 0 && (
+            <StandardCard
+              title="Priority Sections"
+              subtitle="Important procedures and frequently accessed information"
+            >
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {prioritySections.map((section) => (
+                  <PrioritySectionCard
+                    key={section.id}
+                    section={section}
+                    onTogglePin={handleTogglePin}
+                  />
+                ))}
+              </div>
+            </StandardCard>
+          )}
+
+          {/* Regular Sections */}
+          {regularSections.length > 0 && (
+            <StandardCard
+              title="All Sections"
+              subtitle="Complete manual sections and procedures"
+            >
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {regularSections.map((section) => (
+                  <SectionCard key={section.id} section={section} />
+                ))}
+              </div>
+            </StandardCard>
+          )}
+
+          {/* Empty state */}
+          {sections.length === 0 && (
             <StandardCard
               title="Property Manual"
               subtitle={`Instructions and procedures for ${currentProperty.name}`}
             >
-              <div className="flex items-center justify-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                <span className="ml-2">Loading sections...</span>
+              <div className="text-center py-12">
+                <BookOpen className="mx-auto h-12 w-12 text-gray-400" />
+                <h3 className="mt-2 text-sm font-medium text-gray-900">
+                  No instruction sections yet
+                </h3>
+                <p className="mt-1 text-sm text-gray-500">
+                  Get started by creating your first instruction section.
+                </p>
               </div>
             </StandardCard>
-          ) : (
-            <div className="space-y-8">
-              {/* Priority Sections */}
-              {prioritySections.length > 0 && (
-                <StandardCard
-                  title="Priority Sections"
-                  subtitle="Important procedures and frequently accessed information"
-                >
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {prioritySections.map((section) => (
-                      <PrioritySectionCard
-                        key={section.id}
-                        section={section}
-                        onTogglePin={handleTogglePin}
-                      />
-                    ))}
-                  </div>
-                </StandardCard>
-              )}
-
-              {/* Regular Sections */}
-              {regularSections.length > 0 && (
-                <StandardCard
-                  title="All Sections"
-                  subtitle="Complete manual sections and procedures"
-                >
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {regularSections.map((section) => (
-                      <SectionCard key={section.id} section={section} />
-                    ))}
-                  </div>
-                </StandardCard>
-              )}
-
-              {/* Empty state */}
-              {sections.length === 0 && (
-                <StandardCard
-                  title="Property Manual"
-                  subtitle={`Instructions and procedures for ${currentProperty.name}`}
-                >
-                  <div className="text-center py-12">
-                    <BookOpen className="mx-auto h-12 w-12 text-gray-400" />
-                    <h3 className="mt-2 text-sm font-medium text-gray-900">
-                      No instruction sections yet
-                    </h3>
-                    <p className="mt-1 text-sm text-gray-500">
-                      Get started by creating your first instruction section.
-                    </p>
-                  </div>
-                </StandardCard>
-              )}
-
-              {/* Tips section */}
-              <div className="text-gray-500 text-sm bg-gray-50 rounded-lg p-4">
-                <p className="mb-2">
-                  💡 <strong>Tips:</strong>
-                </p>
-                <ul className="space-y-1">
-                  <li>• Click the pin icon to mark sections as priority</li>
-                  <li>
-                    • Priority sections appear at the top for quick access
-                  </li>
-                  <li>
-                    • The cleaning section is automatically created for each
-                    property
-                  </li>
-                </ul>
-              </div>
-            </div>
           )}
 
-          <CreatePattern href="/manual/sections/new" label="Add Instructions" />
-        </div>
-      </div>
-    </StandardPageLayout>
+          {/* Tips section */}
+          <div className="text-gray-500 text-sm bg-gray-50 rounded-lg p-4">
+            <p className="mb-2">
+              💡 <strong>Tips:</strong>
+            </p>
+            <ul className="space-y-1">
+              <li>• Click the pin icon to mark sections as priority</li>
+              <li>• Priority sections appear at the top for quick access</li>
+              <li>
+                • The cleaning section is automatically created for each
+                property
+              </li>
+            </ul>
+          </div>
+        </>
+      )}
+
+      {/* Floating Action Button */}
+      <CreatePattern href="/manual/sections/new" label="Add Instructions" />
+    </div>
   );
 }
 

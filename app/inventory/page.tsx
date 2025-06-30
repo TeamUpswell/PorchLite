@@ -17,7 +17,6 @@ import {
   Search,
   Filter,
 } from "lucide-react";
-import StandardPageLayout from "@/components/layout/StandardPageLayout";
 import StandardCard from "@/components/ui/StandardCard";
 import InventoryFilters from "@/components/inventory/InventoryFilters";
 import InventoryTable from "@/components/inventory/InventoryTable";
@@ -236,20 +235,18 @@ export default function InventoryPage() {
   // Loading states
   if (authLoading || propertyLoading) {
     return (
-      <StandardPageLayout>
-        <StandardCard>
-          <div className="flex items-center justify-center py-12">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-3"></div>
-              <p className="text-gray-600">
-                {authLoading
-                  ? "⏳ Authenticating..."
-                  : "🏠 Loading property..."}
-              </p>
-            </div>
+      <StandardCard>
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-3"></div>
+            <p className="text-gray-600">
+              {authLoading
+                ? "⏳ Authenticating..."
+                : "🏠 Loading property..."}
+            </p>
           </div>
-        </StandardCard>
-      </StandardPageLayout>
+        </div>
+      </StandardCard>
     );
   }
 
@@ -260,284 +257,274 @@ export default function InventoryPage() {
   // Error states
   if (propertyError) {
     return (
-      <StandardPageLayout>
-        <StandardCard
-          title="Property Access Error"
-          subtitle="Unable to load property information"
-        >
-          <div className="text-center py-8">
-            <AlertTriangle className="mx-auto h-12 w-12 text-red-500 mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
-              Property Access Error
-            </h3>
-            <p className="text-red-600 mb-4">{propertyError}</p>
-            <button
-              onClick={navigationHandlers.reload}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              Try Again
-            </button>
-          </div>
-        </StandardCard>
-      </StandardPageLayout>
+      <StandardCard
+        title="Property Access Error"
+        subtitle="Unable to load property information"
+      >
+        <div className="text-center py-8">
+          <AlertTriangle className="mx-auto h-12 w-12 text-red-500 mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">
+            Property Access Error
+          </h3>
+          <p className="text-red-600 mb-4">{propertyError}</p>
+          <button
+            onClick={navigationHandlers.reload}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Try Again
+          </button>
+        </div>
+      </StandardCard>
     );
   }
 
   if (!currentProperty) {
     return (
-      <StandardPageLayout>
-        <StandardCard
-          title="No Property Selected"
-          subtitle="Select a property to manage inventory"
-        >
-          <div className="text-center py-12">
-            <HomeIcon className="mx-auto h-16 w-16 text-gray-300 mb-4" />
-            <h3 className="text-xl font-medium text-gray-900 mb-2">
-              No Property Selected
-            </h3>
-            <p className="text-gray-600 mb-6">
-              Please select a property to view and manage its inventory.
-            </p>
-            <div className="flex gap-3 justify-center">
-              <button
-                onClick={navigationHandlers.goToProperties}
-                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                Select Property
-              </button>
-              <button
-                onClick={navigationHandlers.goToDashboard}
-                className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                Go to Dashboard
-              </button>
-            </div>
+      <StandardCard
+        title="No Property Selected"
+        subtitle="Select a property to manage inventory"
+      >
+        <div className="text-center py-12">
+          <HomeIcon className="mx-auto h-16 w-16 text-gray-300 mb-4" />
+          <h3 className="text-xl font-medium text-gray-900 mb-2">
+            No Property Selected
+          </h3>
+          <p className="text-gray-600 mb-6">
+            Please select a property to view and manage its inventory.
+          </p>
+          <div className="flex gap-3 justify-center">
+            <button
+              onClick={navigationHandlers.goToProperties}
+              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Select Property
+            </button>
+            <button
+              onClick={navigationHandlers.goToDashboard}
+              className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              Go to Dashboard
+            </button>
           </div>
-        </StandardCard>
-      </StandardPageLayout>
+        </div>
+      </StandardCard>
     );
   }
 
   if (!userOwnsProperty) {
     return (
-      <StandardPageLayout>
-        <StandardCard
-          title="Access Denied"
-          subtitle="You don't have permission to access this property"
-        >
-          <div className="text-center py-8">
-            <AlertTriangle className="mx-auto h-12 w-12 text-red-500 mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
-              Access Denied
-            </h3>
-            <p className="text-gray-600 mb-4">
-              You don't have access to manage inventory for this property.
-            </p>
-            <button
-              onClick={navigationHandlers.goToDashboard}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              Return to Dashboard
-            </button>
-          </div>
-        </StandardCard>
-      </StandardPageLayout>
+      <StandardCard
+        title="Access Denied"
+        subtitle="You don't have permission to access this property"
+      >
+        <div className="text-center py-8">
+          <AlertTriangle className="mx-auto h-12 w-12 text-red-500 mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">
+            Access Denied
+          </h3>
+          <p className="text-gray-600 mb-4">
+            You don't have access to manage inventory for this property.
+          </p>
+          <button
+            onClick={navigationHandlers.goToDashboard}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Return to Dashboard
+          </button>
+        </div>
+      </StandardCard>
     );
   }
 
   if (inventoryHook.loading) {
     return (
-      <StandardPageLayout>
-        <StandardCard>
-          <div className="flex items-center justify-center py-12">
-            <div className="text-center">
-              <Package className="mx-auto h-12 w-12 text-gray-300 mb-3 animate-pulse" />
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto mb-3"></div>
-              <p className="text-gray-600">📦 Loading inventory...</p>
-            </div>
+      <StandardCard>
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <Package className="mx-auto h-12 w-12 text-gray-300 mb-3 animate-pulse" />
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto mb-3"></div>
+            <p className="text-gray-600">📦 Loading inventory...</p>
           </div>
-        </StandardCard>
-      </StandardPageLayout>
+        </div>
+      </StandardCard>
     );
   }
 
   // Main render
   return (
     <PropertyGuard>
-      <StandardPageLayout>
-        <div className="space-y-6">
-          <StandardCard
-            title="Property Inventory"
-            subtitle={`Manage inventory for ${currentProperty.name}`}
-            headerActions={
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-gray-500">
-                  {stats.totalItems} total items
-                </span>
-                {(stats.outOfStockItems > 0 || stats.lowStockItems > 0) && (
-                  <div className="flex items-center gap-1">
-                    {stats.outOfStockItems > 0 && (
-                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                        <AlertTriangle className="h-3 w-3 mr-1" />
-                        {stats.outOfStockItems} out
-                      </span>
-                    )}
-                    {stats.lowStockItems > 0 && (
-                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                        <AlertTriangle className="h-3 w-3 mr-1" />
-                        {stats.lowStockItems} low
-                      </span>
-                    )}
-                  </div>
-                )}
-              </div>
-            }
-          >
-            <div className="space-y-6">
-              {/* Stats Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <StandardCard className="p-4">
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-green-600">
-                      {stats.goodStockItems}
-                    </div>
-                    <div className="text-sm text-gray-600">Well Stocked</div>
-                    <div className="text-xs text-gray-500 mt-1">
-                      {stats.totalItems > 0
-                        ? Math.round(
-                            (stats.goodStockItems / stats.totalItems) * 100
-                          )
-                        : 0}
-                      % of inventory
-                    </div>
-                  </div>
-                </StandardCard>
-
-                <StandardCard className="p-4">
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-yellow-600">
-                      {stats.lowStockItems}
-                    </div>
-                    <div className="text-sm text-gray-600">Getting Low</div>
-                    <div className="text-xs text-gray-500 mt-1">
-                      Need restocking soon
-                    </div>
-                  </div>
-                </StandardCard>
-
-                <StandardCard className="p-4">
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-red-600">
-                      {stats.outOfStockItems}
-                    </div>
-                    <div className="text-sm text-gray-600">Out of Stock</div>
-                    <div className="text-xs text-gray-500 mt-1">
-                      {stats.outOfStockItems > 0
-                        ? "Immediate attention needed"
-                        : "All good!"}
-                    </div>
-                  </div>
-                </StandardCard>
-              </div>
-
-              {/* Quick Actions */}
-              {(isManagerView || isFamilyView) && (
-                <div className="flex flex-wrap gap-3">
-                  <button
-                    onClick={handleAddItem}
-                    className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Item
-                  </button>
-                  <button
-                    onClick={handleShowShoppingList}
-                    className="inline-flex items-center px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                  >
-                    <ShoppingCart className="h-4 w-4 mr-2" />
-                    Shopping List
-                    {shoppingListItems.length > 0 && (
-                      <span className="ml-2 px-2 py-0.5 bg-red-100 text-red-800 text-xs rounded-full">
-                        {shoppingListItems.length}
-                      </span>
-                    )}
-                  </button>
-                  <button
-                    onClick={handleShowManage}
-                    className="inline-flex items-center px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                  >
-                    <Settings className="h-4 w-4 mr-2" />
-                    Manage
-                  </button>
+      <div className="space-y-6">
+        <StandardCard
+          title="Property Inventory"
+          subtitle={`Manage inventory for ${currentProperty.name}`}
+          headerActions={
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-500">
+                {stats.totalItems} total items
+              </span>
+              {(stats.outOfStockItems > 0 || stats.lowStockItems > 0) && (
+                <div className="flex items-center gap-1">
+                  {stats.outOfStockItems > 0 && (
+                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                      <AlertTriangle className="h-3 w-3 mr-1" />
+                      {stats.outOfStockItems} out
+                    </span>
+                  )}
+                  {stats.lowStockItems > 0 && (
+                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                      <AlertTriangle className="h-3 w-3 mr-1" />
+                      {stats.lowStockItems} low
+                    </span>
+                  )}
                 </div>
               )}
-
-              {/* Search and Filters */}
-              <div className="flex items-center space-x-4 mb-6">
-                <div className="flex-1 relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                  <input
-                    type="text"
-                    placeholder="Search inventory..."
-                    value={searchTerm}
-                    onChange={handleSearchChange}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-                <select
-                  value={filter}
-                  onChange={(e) => handleFilterChange(e.target.value)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="all">All Items</option>
-                  <option value="good">Well Stocked</option>
-                  <option value="low">Low Stock</option>
-                  <option value="out">Out of Stock</option>
-                </select>
-              </div>
-
-              {/* Main Inventory Table */}
-              <StandardCard
-                title="Inventory Items"
-                subtitle={`${filteredItems.length} items • ${currentProperty.name}`}
-              >
-                {filteredItems.length === 0 ? (
-                  <div className="text-center py-12">
-                    <Package className="mx-auto h-16 w-16 text-gray-300 mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">
-                      No inventory items found
-                    </h3>
-                    <p className="text-gray-600 mb-6">
-                      {stats.totalItems === 0
-                        ? "Get started by adding your first inventory item."
-                        : searchTerm || filter !== "all"
-                        ? "Try adjusting your search or filters to see more items."
-                        : "No items match your current view."}
-                    </p>
-                    {(isManagerView || isFamilyView) &&
-                      stats.totalItems === 0 && (
-                        <button
-                          onClick={handleAddItem}
-                          className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                        >
-                          <Plus className="h-5 w-5 mr-2" />
-                          Add Your First Item
-                        </button>
-                      )}
+            </div>
+          }
+        >
+          <div className="space-y-6">
+            {/* Stats Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <StandardCard className="p-4">
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-green-600">
+                    {stats.goodStockItems}
                   </div>
-                ) : (
-                  <InventoryTable
-                    items={filteredItems}
-                    handleEdit={inventoryHook.handleEdit}
-                    handleDelete={inventoryHook.handleDelete}
-                    updateQuantity={inventoryHook.updateQuantity}
-                    updateItemStatus={inventoryHook.updateItemStatus}
-                  />
-                )}
+                  <div className="text-sm text-gray-600">Well Stocked</div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    {stats.totalItems > 0
+                      ? Math.round(
+                          (stats.goodStockItems / stats.totalItems) * 100
+                        )
+                      : 0}
+                    % of inventory
+                  </div>
+                </div>
+              </StandardCard>
+
+              <StandardCard className="p-4">
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-yellow-600">
+                    {stats.lowStockItems}
+                  </div>
+                  <div className="text-sm text-gray-600">Getting Low</div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    Need restocking soon
+                  </div>
+                </div>
+              </StandardCard>
+
+              <StandardCard className="p-4">
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-red-600">
+                    {stats.outOfStockItems}
+                  </div>
+                  <div className="text-sm text-gray-600">Out of Stock</div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    {stats.outOfStockItems > 0
+                      ? "Immediate attention needed"
+                      : "All good!"}
+                  </div>
+                </div>
               </StandardCard>
             </div>
-          </StandardCard>
-        </div>
+
+            {/* Quick Actions */}
+            {(isManagerView || isFamilyView) && (
+              <div className="flex flex-wrap gap-3">
+                <button
+                  onClick={handleAddItem}
+                  className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Item
+                </button>
+                <button
+                  onClick={handleShowShoppingList}
+                  className="inline-flex items-center px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  <ShoppingCart className="h-4 w-4 mr-2" />
+                  Shopping List
+                  {shoppingListItems.length > 0 && (
+                    <span className="ml-2 px-2 py-0.5 bg-red-100 text-red-800 text-xs rounded-full">
+                      {shoppingListItems.length}
+                    </span>
+                  )}
+                </button>
+                <button
+                  onClick={handleShowManage}
+                  className="inline-flex items-center px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  <Settings className="h-4 w-4 mr-2" />
+                  Manage
+                </button>
+              </div>
+            )}
+
+            {/* Search and Filters */}
+            <div className="flex items-center space-x-4 mb-6">
+              <div className="flex-1 relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <input
+                  type="text"
+                  placeholder="Search inventory..."
+                  value={searchTerm}
+                  onChange={handleSearchChange}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+              <select
+                value={filter}
+                onChange={(e) => handleFilterChange(e.target.value)}
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="all">All Items</option>
+                <option value="good">Well Stocked</option>
+                <option value="low">Low Stock</option>
+                <option value="out">Out of Stock</option>
+              </select>
+            </div>
+
+            {/* Main Inventory Table */}
+            <StandardCard
+              title="Inventory Items"
+              subtitle={`${filteredItems.length} items • ${currentProperty.name}`}
+            >
+              {filteredItems.length === 0 ? (
+                <div className="text-center py-12">
+                  <Package className="mx-auto h-16 w-16 text-gray-300 mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">
+                    No inventory items found
+                  </h3>
+                  <p className="text-gray-600 mb-6">
+                    {stats.totalItems === 0
+                      ? "Get started by adding your first inventory item."
+                      : searchTerm || filter !== "all"
+                      ? "Try adjusting your search or filters to see more items."
+                      : "No items match your current view."}
+                  </p>
+                  {(isManagerView || isFamilyView) &&
+                    stats.totalItems === 0 && (
+                      <button
+                        onClick={handleAddItem}
+                        className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                      >
+                        <Plus className="h-5 w-5 mr-2" />
+                        Add Your First Item
+                      </button>
+                    )}
+                </div>
+              ) : (
+                <InventoryTable
+                  items={filteredItems}
+                  handleEdit={inventoryHook.handleEdit}
+                  handleDelete={inventoryHook.handleDelete}
+                  updateQuantity={inventoryHook.updateQuantity}
+                  updateItemStatus={inventoryHook.updateItemStatus}
+                />
+              )}
+            </StandardCard>
+          </div>
+        </StandardCard>
 
         {/* Floating Action Buttons */}
         {(isManagerView || isFamilyView) && (
@@ -580,7 +567,7 @@ export default function InventoryPage() {
           onClose={() => setShowShoppingListModal(false)}
           items={shoppingListItems}
         />
-      </StandardPageLayout>
+      </div>
     </PropertyGuard>
   );
 }

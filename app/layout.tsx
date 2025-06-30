@@ -2,7 +2,8 @@
 import "./globals.css";
 import "@/lib/global-debug"; // ✅ Add this line
 import { Inter } from "next/font/google";
-import { AuthProvider } from "@/components/auth/AuthProvider"; // ✅ Direct import to enhanced version
+import MainLayout from "@/components/layout/MainLayout";
+import { AuthProvider } from "@/components/auth/AuthProvider";
 import { PropertyProvider } from "@/lib/hooks/useProperty";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { Toaster } from "react-hot-toast";
@@ -140,7 +141,7 @@ export default function RootLayout({
             <AuthProvider>
               <PropertyProvider>
                 <UnifiedSessionManager />
-                {children}
+                <MainLayout>{children}</MainLayout>
                 <Toaster
                   position="top-right"
                   toastOptions={{

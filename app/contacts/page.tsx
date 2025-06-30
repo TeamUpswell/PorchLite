@@ -4,7 +4,6 @@ import { useViewMode } from "@/lib/hooks/useViewMode";
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { Users, Phone, Mail, MapPin, Edit, Plus } from "lucide-react";
 import Link from "next/link";
-import StandardPageLayout from "@/components/layout/StandardPageLayout";
 import StandardCard from "@/components/ui/StandardCard";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useProperty } from "@/lib/hooks/useProperty";
@@ -351,17 +350,12 @@ export default function ContactsPage() {
   if (isLoading) {
     return (
       <PropertyGuard>
-        <StandardPageLayout>
-          <StandardCard
-            title="Loading Contacts"
-            subtitle="Please wait while we load your contact information"
-          >
-            <div className="flex flex-col items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
-              <p className="text-gray-600">⏳ Loading contacts...</p>
-            </div>
-          </StandardCard>
-        </StandardPageLayout>
+        <StandardCard>
+          <div className="flex flex-col items-center justify-center py-12">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
+            <p className="text-gray-600">⏳ Loading contacts...</p>
+          </div>
+        </StandardCard>
       </PropertyGuard>
     );
   }
@@ -369,25 +363,20 @@ export default function ContactsPage() {
   if (!currentProperty) {
     return (
       <PropertyGuard>
-        <StandardPageLayout>
-          <StandardCard
-            title="No Property Selected"
-            subtitle="Please select a property to view contacts"
-          >
-            <div className="flex flex-col items-center justify-center py-12">
-              <Users className="h-12 w-12 text-gray-300 mb-4" />
-              <p className="text-gray-600 mb-4">
-                Contacts will appear once your property is loaded.
-              </p>
-              <Link
-                href="/account/properties"
-                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-              >
-                Select Property
-              </Link>
-            </div>
-          </StandardCard>
-        </StandardPageLayout>
+        <StandardCard>
+          <div className="flex flex-col items-center justify-center py-12">
+            <Users className="h-12 w-12 text-gray-300 mb-4" />
+            <p className="text-gray-600 mb-4">
+              Contacts will appear once your property is loaded.
+            </p>
+            <Link
+              href="/account/properties"
+              className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              Select Property
+            </Link>
+          </div>
+        </StandardCard>
       </PropertyGuard>
     );
   }
@@ -396,126 +385,119 @@ export default function ContactsPage() {
   if (error) {
     return (
       <PropertyGuard>
-        <StandardPageLayout>
-          <StandardCard
-            title="Error Loading Contacts"
-            subtitle="There was a problem loading your contacts"
-          >
-            <div className="text-center py-8">
-              <Users className="h-12 w-12 text-red-300 mx-auto mb-4" />
-              <p className="text-red-600 mb-4">{error}</p>
-              <button
-                onClick={retryFetch}
-                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-              >
-                Try Again
-              </button>
-            </div>
-          </StandardCard>
-        </StandardPageLayout>
+        <StandardCard>
+          <div className="text-center py-8">
+            <Users className="h-12 w-12 text-red-300 mx-auto mb-4" />
+            <p className="text-red-600 mb-4">{error}</p>
+            <button
+              onClick={retryFetch}
+              className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              Try Again
+            </button>
+          </div>
+        </StandardCard>
       </PropertyGuard>
     );
   }
 
   return (
     <PropertyGuard>
-      <StandardPageLayout>
-        <div className="space-y-6">
-          {/* Page Header */}
-          <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-2xl font-bold">Contacts</h1>
-              <p className="text-gray-600 mt-1">
-                Property: <strong>{currentProperty.name}</strong>
-                {filteredContacts.length > 0 && (
-                  <span className="ml-2 text-sm">
-                    ({filteredContacts.length} contact
-                    {filteredContacts.length !== 1 ? "s" : ""})
-                  </span>
-                )}
-              </p>
-            </div>
+      <div className="space-y-6">
+        {/* Page Header */}
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-bold">Contacts</h1>
+            <p className="text-gray-600 mt-1">
+              Property: <strong>{currentProperty.name}</strong>
+              {filteredContacts.length > 0 && (
+                <span className="ml-2 text-sm">
+                  ({filteredContacts.length} contact
+                  {filteredContacts.length !== 1 ? "s" : ""})
+                </span>
+              )}
+            </p>
           </div>
+        </div>
 
-          {/* Emergency contacts always visible */}
+        {/* Emergency contacts always visible */}
+        <StandardCard
+          title="Emergency Contacts"
+          subtitle="Always know who to call in case of an emergency"
+        >
+          {loading ? (
+            <div className="flex justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            </div>
+          ) : contactGroups.emergency.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {contactGroups.emergency.map((contact) => (
+                <ContactCard key={contact.id} contact={contact} />
+              ))}
+            </div>
+          ) : (
+            <EmptyState
+              title="No emergency contacts found"
+              description="Add emergency contacts for quick access during urgent situations"
+              buttonText="Add Emergency Contact"
+              category="emergency"
+            />
+          )}
+        </StandardCard>
+
+        {/* Property contacts for family+ */}
+        {!isGuestView && (
           <StandardCard
-            title="Emergency Contacts"
-            subtitle="Always know who to call in case of an emergency"
+            title="Property Contacts"
+            subtitle="Contacts related to your property"
           >
             {loading ? (
               <div className="flex justify-center py-8">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
               </div>
-            ) : contactGroups.emergency.length > 0 ? (
+            ) : contactGroups.property.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {contactGroups.emergency.map((contact) => (
+                {contactGroups.property.map((contact) => (
                   <ContactCard key={contact.id} contact={contact} />
                 ))}
               </div>
             ) : (
               <EmptyState
-                title="No emergency contacts found"
-                description="Add emergency contacts for quick access during urgent situations"
-                buttonText="Add Emergency Contact"
-                category="emergency"
+                title="No property contacts found"
+                description="Add contacts for property management, maintenance, and services"
+                buttonText="Add Property Contact"
+                category="property"
               />
             )}
           </StandardCard>
+        )}
 
-          {/* Property contacts for family+ */}
-          {!isGuestView && (
-            <StandardCard
-              title="Property Contacts"
-              subtitle="Contacts related to your property"
-            >
-              {loading ? (
-                <div className="flex justify-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                </div>
-              ) : contactGroups.property.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {contactGroups.property.map((contact) => (
-                    <ContactCard key={contact.id} contact={contact} />
-                  ))}
-                </div>
-              ) : (
-                <EmptyState
-                  title="No property contacts found"
-                  description="Add contacts for property management, maintenance, and services"
-                  buttonText="Add Property Contact"
-                  category="property"
-                />
-              )}
-            </StandardCard>
-          )}
-
-          {/* Vendor contacts for managers only */}
-          {isManagerView && (
-            <StandardCard
-              title="Vendors & Services"
-              subtitle="Contacts for vendors and service providers"
-            >
-              {loading ? (
-                <div className="flex justify-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                </div>
-              ) : contactGroups.vendor.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {contactGroups.vendor.map((contact) => (
-                    <ContactCard key={contact.id} contact={contact} />
-                  ))}
-                </div>
-              ) : (
-                <EmptyState
-                  title="No vendor contacts found"
-                  description="Add contacts for vendors, contractors, and service providers"
-                  buttonText="Add Vendor Contact"
-                  category="vendor"
-                />
-              )}
-            </StandardCard>
-          )}
-        </div>
+        {/* Vendor contacts for managers only */}
+        {isManagerView && (
+          <StandardCard
+            title="Vendors & Services"
+            subtitle="Contacts for vendors and service providers"
+          >
+            {loading ? (
+              <div className="flex justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              </div>
+            ) : contactGroups.vendor.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {contactGroups.vendor.map((contact) => (
+                  <ContactCard key={contact.id} contact={contact} />
+                ))}
+              </div>
+            ) : (
+              <EmptyState
+                title="No vendor contacts found"
+                description="Add contacts for vendors, contractors, and service providers"
+                buttonText="Add Vendor Contact"
+                category="vendor"
+              />
+            )}
+          </StandardCard>
+        )}
 
         {/* Floating Action Button */}
         {(isManagerView || isFamilyView) && (
@@ -528,7 +510,7 @@ export default function ContactsPage() {
             />
           </div>
         )}
-      </StandardPageLayout>
+      </div>
     </PropertyGuard>
   );
 }
