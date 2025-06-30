@@ -575,8 +575,8 @@ export default function AdminPropertyPage() {
               </button>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
